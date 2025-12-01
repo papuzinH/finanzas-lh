@@ -67,7 +67,12 @@ export default function ExpensesChart({ data }: ExpensesChartProps) {
             verticalAlign="bottom" 
             height={36} 
             iconType="circle"
-            formatter={(value) => <span className="text-xs text-slate-400 ml-1">{value}</span>}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            formatter={(value, entry: any) => (
+              <span className="text-xs text-slate-400 ml-1">
+                {value} <span className="text-slate-600">({new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(entry.payload.value)})</span>
+              </span>
+            )}
           />
         </PieChart>
       </ResponsiveContainer>

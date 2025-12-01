@@ -3,24 +3,12 @@ import {
   Wallet, 
   TrendingUp, 
   TrendingDown, 
-  DollarSign, 
-  Coffee, 
-  ShoppingBag, 
-  Home as HomeIcon, 
-  Car, 
-  Smartphone,
 } from 'lucide-react';
-import { isToday, isYesterday, isThisWeek, parseISO } from 'date-fns';
+import { startOfMonth, endOfMonth, format, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 import ExpensesChart from './components/ExpensesChart';
-
-interface Transaction {
-  id: number;
-  amount: number;
-  description: string;
-  category: string;
-  date: string;
-  type: 'income' | 'expense';
-}
+import { MonthSelector } from '@/components/month-selector';
+import { Transaction } from '@/types/database';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', {
@@ -29,24 +17,6 @@ const formatCurrency = (amount: number) => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
-};
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-  }).format(date);
-};
-
-const getCategoryIcon = (category: string) => {
-  const cat = category?.toLowerCase() || '';
-  if (cat.includes('comida') || cat.includes('food') || cat.includes('restaurante')) return <Coffee className="h-5 w-5" />;
-  if (cat.includes('compra') || cat.includes('shopping') || cat.includes('super')) return <ShoppingBag className="h-5 w-5" />;
-  if (cat.includes('casa') || cat.includes('hogar') || cat.includes('alquiler')) return <HomeIcon className="h-5 w-5" />;
-  if (cat.includes('auto') || cat.includes('transporte') || cat.includes('uber')) return <Car className="h-5 w-5" />;
-  if (cat.includes('celular') || cat.includes('internet') || cat.includes('teléfono')) return <Smartphone className="h-5 w-5" />;
-  return <DollarSign className="h-5 w-5" />;
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -69,13 +39,23 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const DEFAULT_COLOR = '#64748b';
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+  const params = await searchParams;
+  const currentMonth = params.month || format(new Date(), 'yyyy-MM');
+  
+  // Date range calculation
+  const date = parse(currentMonth, 'yyyy-MM', new Date());
+  const startDate = startOfMonth(date).toISOString();
+  const endDate = endOfMonth(date).toISOString();
+
   const supabase = await createClient();
 
   const { data: rawTransactions } = await supabase
     .from('transactions')
     .select('*')
     .eq('user_id', 1)
+    .gte('date', startDate)
+    .lte('date', endDate)
     .order('date', { ascending: false });
 
   const transactions: Transaction[] = rawTransactions || [];
@@ -106,51 +86,18 @@ export default async function Home() {
     color: CATEGORY_COLORS[name.toLowerCase()] || DEFAULT_COLOR,
   }));
 
-  // Grouping Transactions
-  const groupedTransactions = transactions.reduce((groups, transaction) => {
-    const date = parseISO(transaction.date);
-    let key = 'Anteriores';
-    
-    if (isToday(date)) key = 'Hoy';
-    else if (isYesterday(date)) key = 'Ayer';
-    else if (isThisWeek(date)) key = 'Esta Semana';
-
-    if (!groups[key]) {
-      groups[key] = { transactions: [], total: 0 };
-    }
-    
-    groups[key].transactions.push(transaction);
-    if (transaction.type === 'expense' || (transaction.amount < 0 && transaction.type !== 'income')) {
-        groups[key].total += Math.abs(transaction.amount);
-    }
-    
-    return groups;
-  }, {} as Record<string, { transactions: Transaction[], total: number }>);
-
-  const groupOrder = ['Hoy', 'Ayer', 'Esta Semana', 'Anteriores'];
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30">
-      {/* Header */}
+    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
+      {/* Header & Month Selector */}
       <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-              <Wallet className="h-5 w-5" />
-            </div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-100">Mi Billetera</h1>
-          </div>
-          <div className="h-9 w-9 overflow-hidden rounded-full border border-slate-700 bg-slate-800 ring-2 ring-slate-800 transition-all hover:ring-slate-700">
-             <div className="flex h-full w-full items-center justify-center text-xs font-bold text-slate-400 bg-linear-to-br from-slate-800 to-slate-900">
-                AD
-             </div>
-          </div>
+        <div className="mx-auto max-w-5xl px-6">
+            <MonthSelector currentMonth={currentMonth} />
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column: Summary & List */}
+            {/* Left Column: KPIs */}
             <div className="lg:col-span-2 space-y-8">
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -192,81 +139,27 @@ export default async function Home() {
                         </div>
                     </div>
                 </div>
-
-                {/* Transactions List */}
-                <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-slate-200">Movimientos</h2>
-                        <button className="text-xs font-medium text-emerald-500 hover:text-emerald-400 transition-colors">Ver todos</button>
-                    </div>
-                    
-                    {transactions.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
-                            <div className="mb-3 rounded-full bg-slate-800 p-3">
-                            <DollarSign className="h-6 w-6 text-slate-600" />
-                            </div>
-                            <p>No hay transacciones registradas.</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            {groupOrder.map((groupKey) => {
-                                const group = groupedTransactions[groupKey];
-                                if (!group) return null;
-
-                                return (
-                                    <div key={groupKey} className="space-y-3">
-                                        <div className="flex items-center justify-between px-1">
-                                            <h3 className="text-sm font-medium text-slate-400">{groupKey}</h3>
-                                            {group.total > 0 && (
-                                                <span className="text-xs font-mono text-slate-500">
-                                                    Total gastado: {formatCurrency(group.total)}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="space-y-2">
-                                            {group.transactions.map((t) => (
-                                                <div key={t.id} className="group flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-900/40 p-3 transition-all hover:bg-slate-900 hover:border-slate-700 hover:shadow-md hover:shadow-black/20">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className={`flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 ${
-                                                            t.type === 'income' 
-                                                                ? 'bg-emerald-500/5 text-emerald-500 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/20' 
-                                                                : 'bg-slate-800/50 text-slate-400 group-hover:bg-slate-800 group-hover:text-slate-300'
-                                                        } transition-colors`}>
-                                                            {getCategoryIcon(t.category)}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-medium text-sm text-slate-200 group-hover:text-white transition-colors">{t.description}</p>
-                                                            <p className="text-xs text-slate-500 capitalize">{t.category}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className={`font-bold text-sm font-mono tracking-tight ${
-                                                            t.type === 'income' ? 'text-emerald-400' : 'text-slate-200'
-                                                        }`}>
-                                                            {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                                                        </p>
-                                                        <p className="text-xs text-slate-500 mt-0.5">{formatDate(t.date)}</p>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
+                
+                {/* Placeholder for future content or list summary */}
+                <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-6 text-center">
+                    <p className="text-sm text-slate-500">
+                        Mostrando datos del mes de <span className="font-bold text-slate-300 capitalize">{format(date, 'MMMM', { locale: es })}</span>.
+                        Ve a la pestaña &quot;Movimientos&quot; para ver el detalle.
+                    </p>
                 </div>
             </div>
 
-            {/* Right Column: Charts & Extras */}
+            {/* Right Column: Charts */}
             <div className="space-y-6">
                 <ExpensesChart data={chartData} />
                 
-                {/* Quick Actions or Promo (Placeholder) */}
+                {/* Insight Card */}
                 <div className="rounded-xl border border-slate-800 bg-linear-to-br from-slate-900 to-slate-950 p-5">
-                    <h3 className="text-sm font-medium text-slate-300 mb-2">Consejo Financiero</h3>
+                    <h3 className="text-sm font-medium text-slate-300 mb-2">Resumen Mensual</h3>
                     <p className="text-xs text-slate-500 leading-relaxed">
-                        Tus gastos en comida han aumentado un 15% esta semana. Considera cocinar en casa para ahorrar.
+                        {totalExpense > totalIncome 
+                            ? 'Tus gastos superan tus ingresos este mes. Revisa tus categorías de mayor consumo.' 
+                            : '¡Buen trabajo! Estás manteniendo un balance positivo este mes.'}
                     </p>
                 </div>
             </div>
