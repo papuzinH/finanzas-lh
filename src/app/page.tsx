@@ -1,168 +1,122 @@
 import { createClient } from '@/utils/supabase/server';
-import { 
-  Wallet, 
-  TrendingUp, 
-  TrendingDown, 
-} from 'lucide-react';
-import { startOfMonth, endOfMonth, format, parse } from 'date-fns';
-import { es } from 'date-fns/locale';
-import ExpensesChart from './components/ExpensesChart';
-import { MonthSelector } from '@/components/month-selector';
-import { Transaction } from '@/types/database';
+import { ArrowRight } from 'lucide-react';
+import Link from 'next/link';
+import { format, differenceInMonths, parseISO } from 'date-fns';
+import { Transaction, InstallmentPlan, RecurringPlan } from '@/types/database';
+import { TransactionList } from '@/components/transaction-list';
+import { BalanceCard } from '@/components/balance-card';
+import { QuickActions } from '@/components/quick-actions';
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-};
+export const revalidate = 0;
 
-const CATEGORY_COLORS: Record<string, string> = {
-  'comida': '#10b981', 
-  'food': '#10b981',
-  'restaurante': '#10b981',
-  'compra': '#3b82f6', 
-  'shopping': '#3b82f6',
-  'super': '#3b82f6',
-  'casa': '#f59e0b', 
-  'hogar': '#f59e0b',
-  'alquiler': '#f59e0b',
-  'transporte': '#6366f1', 
-  'auto': '#6366f1',
-  'uber': '#6366f1',
-  'celular': '#ec4899', 
-  'internet': '#ec4899',
-  'teléfono': '#ec4899',
-};
-
-const DEFAULT_COLOR = '#64748b';
-
-export default async function Home({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
-  const params = await searchParams;
-  const currentMonth = params.month || format(new Date(), 'yyyy-MM');
-  
-  // Date range calculation
-  const date = parse(currentMonth, 'yyyy-MM', new Date());
-  const startDate = startOfMonth(date).toISOString();
-  const endDate = endOfMonth(date).toISOString();
-
+export default async function Home() {
   const supabase = await createClient();
+  const today = format(new Date(), 'yyyy-MM-dd');
 
-  const { data: rawTransactions } = await supabase
+  // Query A: Global KPIs (All time balance)
+  const { data: balanceData } = await supabase
+    .from('transactions')
+    .select('amount, type, installment_plan_id')
+    .eq('user_id', 1)
+    .lte('date', today);
+
+  // Query B: Recent Activity (Last 15)
+  const { data: recentData } = await supabase
     .from('transactions')
     .select('*')
     .eq('user_id', 1)
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .order('date', { ascending: false });
+    .lte('date', today)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(15);
 
-  const transactions: Transaction[] = rawTransactions || [];
+  // Query C: Installment Plans
+  const { data: plansData } = await supabase
+    .from('installment_plans')
+    .select('*')
+    .eq('user_id', 1);
 
-  // Calculations
-  const totalIncome = transactions
-    .filter((t) => t.type === 'income' || (t.amount > 0 && t.type !== 'expense'))
+  // Query D: Recurring Plans (Mensualidades)
+  const { data: recurringData } = await supabase
+    .from('recurring_plans')
+    .select('*')
+    .eq('user_id', 1)
+    .eq('is_active', true);
+
+  const allTransactions = balanceData || [];
+  const recentTransactions: Transaction[] = recentData || [];
+  const installmentPlans: InstallmentPlan[] = plansData || [];
+  const recurringPlans: RecurringPlan[] = recurringData || [];
+
+  // Calculate Global Balance
+  // 1. Sum of all non-installment transactions (Income + Cash Expenses)
+  const nonInstallmentTransactions = allTransactions.filter(t => !t.installment_plan_id);
+  const baseBalance = nonInstallmentTransactions.reduce((acc, curr) => acc + curr.amount, 0);
+
+  // 2. Subtract ONE quota value for each ACTIVE installment plan
+  let activeQuotasTotal = 0;
+  const now = new Date();
+
+  installmentPlans.forEach(plan => {
+    const purchaseDate = parseISO(plan.purchase_date);
+    const monthsPassed = differenceInMonths(now, purchaseDate);
+    
+    // Check if plan is active (months passed is less than total installments)
+    // And monthsPassed >= 0 ensures we don't count future plans yet
+    if (monthsPassed >= 0 && monthsPassed < plan.installments_count) {
+        const quotaValue = plan.total_amount / plan.installments_count;
+        activeQuotasTotal += quotaValue;
+    }
+  });
+
+  // 3. Subtract Recurring Plans (Mensualidades)
+  const recurringTotal = recurringPlans.reduce((acc, curr) => acc + curr.amount, 0);
+
+  // Final Balance = Base Balance - Active Quotas - Recurring Plans
+  const totalBalance = baseBalance - activeQuotasTotal - recurringTotal;
+  
+  // KPIs for display
+  const totalIncome = allTransactions
+    .filter(t => t.amount > 0)
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const totalExpense = transactions
-    .filter((t) => t.type === 'expense' || (t.amount < 0 && t.type !== 'income'))
-    .reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
-
-  const totalBalance = totalIncome - totalExpense;
-
-  // Chart Data Preparation
-  const expensesByCategory = transactions
-    .filter((t) => t.type === 'expense' || (t.amount < 0 && t.type !== 'income'))
-    .reduce((acc, curr) => {
-      const cat = curr.category || 'Otros';
-      acc[cat] = (acc[cat] || 0) + Math.abs(curr.amount);
-      return acc;
-    }, {} as Record<string, number>);
-
-  const chartData = Object.entries(expensesByCategory).map(([name, value]) => ({
-    name,
-    value,
-    color: CATEGORY_COLORS[name.toLowerCase()] || DEFAULT_COLOR,
-  }));
+  const totalExpense = allTransactions
+    .filter(t => t.amount < 0)
+    .reduce((acc, curr) => acc + curr.amount, 0); 
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
-      {/* Header & Month Selector */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto max-w-5xl px-6">
-            <MonthSelector currentMonth={currentMonth} />
+      {/* Header / Hero Section */}
+      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md pt-8 pb-8">
+        <div className="mx-auto max-w-2xl px-6">
+          <div className="flex flex-col items-center justify-center text-center space-y-6">
+            
+            <BalanceCard 
+              balance={totalBalance} 
+              income={totalIncome} 
+              expense={totalExpense} 
+            />
+
+            <QuickActions />
+
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column: KPIs */}
-            <div className="lg:col-span-2 space-y-8">
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {/* Balance */}
-                    <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-5 shadow-sm backdrop-blur-sm transition-all hover:bg-slate-900/80">
-                        <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-emerald-500/5 blur-2xl"></div>
-                        <div className="flex items-center gap-2 text-slate-400 mb-2">
-                            <Wallet className="h-4 w-4" />
-                            <span className="text-xs font-medium uppercase tracking-wider">Balance</span>
-                        </div>
-                        <div className="text-2xl font-bold text-white tracking-tight font-mono">
-                            {formatCurrency(totalBalance)}
-                        </div>
-                    </div>
+      <main className="mx-auto max-w-2xl px-6 py-8">
+        {/* Recent Transactions List */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-lg font-semibold text-slate-200">Últimos Movimientos</h3>
+            <Link 
+              href="/movimientos"
+              className="flex items-center gap-1 text-xs text-emerald-500 hover:text-emerald-400 transition-colors"
+            >
+              Ver todos <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
 
-                    {/* Income */}
-                    <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-5 shadow-sm backdrop-blur-sm transition-all hover:bg-slate-900/80">
-                        <div className="flex items-center gap-2 text-emerald-500 mb-2">
-                            <div className="flex items-center justify-center h-5 w-5 rounded-full bg-emerald-500/10">
-                                <TrendingUp className="h-3 w-3" />
-                            </div>
-                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Ingresos</span>
-                        </div>
-                        <div className="text-xl font-bold text-emerald-400 tracking-tight font-mono">
-                            {formatCurrency(totalIncome)}
-                        </div>
-                    </div>
-
-                    {/* Expenses */}
-                    <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-5 shadow-sm backdrop-blur-sm transition-all hover:bg-slate-900/80">
-                        <div className="flex items-center gap-2 text-red-400 mb-2">
-                            <div className="flex items-center justify-center h-5 w-5 rounded-full bg-red-500/10">
-                                <TrendingDown className="h-3 w-3" />
-                            </div>
-                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Gastos</span>
-                        </div>
-                        <div className="text-xl font-bold text-red-400 tracking-tight font-mono">
-                            {formatCurrency(totalExpense)}
-                        </div>
-                    </div>
-                </div>
-                
-                {/* Placeholder for future content or list summary */}
-                <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-6 text-center">
-                    <p className="text-sm text-slate-500">
-                        Mostrando datos del mes de <span className="font-bold text-slate-300 capitalize">{format(date, 'MMMM', { locale: es })}</span>.
-                        Ve a la pestaña &quot;Movimientos&quot; para ver el detalle.
-                    </p>
-                </div>
-            </div>
-
-            {/* Right Column: Charts */}
-            <div className="space-y-6">
-                <ExpensesChart data={chartData} />
-                
-                {/* Insight Card */}
-                <div className="rounded-xl border border-slate-800 bg-linear-to-br from-slate-900 to-slate-950 p-5">
-                    <h3 className="text-sm font-medium text-slate-300 mb-2">Resumen Mensual</h3>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                        {totalExpense > totalIncome 
-                            ? 'Tus gastos superan tus ingresos este mes. Revisa tus categorías de mayor consumo.' 
-                            : '¡Buen trabajo! Estás manteniendo un balance positivo este mes.'}
-                    </p>
-                </div>
-            </div>
+          <TransactionList transactions={recentTransactions} />
         </div>
       </main>
     </div>

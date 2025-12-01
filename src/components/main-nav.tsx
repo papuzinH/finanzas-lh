@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ListOrdered, CreditCard, Wallet } from 'lucide-react';
+import { LayoutDashboard, ListOrdered, CreditCard, Wallet, CalendarClock } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export function MainNav() {
   const pathname = usePathname();
@@ -23,6 +24,11 @@ export function MainNav() {
       href: '/cuotas',
       icon: CreditCard,
     },
+    {
+      label: 'Fijos',
+      href: '/mensualidades',
+      icon: CalendarClock,
+    },
   ];
 
   return (
@@ -38,12 +44,17 @@ export function MainNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-colors ${
-                  isActive ? 'text-emerald-500' : 'text-slate-500 hover:text-slate-400'
-                }`}
+                className="flex-1"
               >
-                <Icon className={`h-6 w-6 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <motion.div
+                  whileTap={{ scale: 0.9 }}
+                  className={`flex flex-col items-center justify-center gap-1 py-2 transition-colors ${
+                    isActive ? 'text-emerald-500' : 'text-slate-500 hover:text-slate-400'
+                  }`}
+                >
+                  <Icon className={`h-6 w-6 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </motion.div>
               </Link>
             );
           })}
@@ -67,14 +78,20 @@ export function MainNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
-                  isActive 
-                    ? 'bg-emerald-500/10 text-emerald-500' 
-                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
-                }`}
+                className="block"
               >
-                <Icon className="h-5 w-5" />
-                {item.label}
+                <motion.div
+                  whileHover={{ x: 4 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+                    isActive 
+                      ? 'bg-emerald-500/10 text-emerald-500' 
+                      : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  {item.label}
+                </motion.div>
               </Link>
             );
           })}

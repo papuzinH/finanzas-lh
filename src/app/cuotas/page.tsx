@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { CreditCard, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { InstallmentPlan, Transaction } from '@/types/database';
+import { InstallmentPlan } from '@/types/database';
+import { differenceInMonths, parseISO } from 'date-fns';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', {
@@ -24,38 +25,48 @@ export default async function CuotasPage() {
 
   // 2. Fetch Transactions related to these plans
   // We get all transactions that have an installment_plan_id
-  const { data: transactionsData } = await supabase
+  /* const { data: transactionsData } = await supabase
     .from('transactions')
     .select('*')
     .eq('user_id', 1)
     .not('installment_plan_id', 'is', null);
 
-  const transactions: Transaction[] = transactionsData || [];
+  const transactions: Transaction[] = transactionsData || []; */
 
   // 3. Calculate Progress
   const plansWithProgress = plans.map((plan) => {
-    const planTransactions = transactions.filter(
-      (t) => t.installment_plan_id === plan.id
-    );
-
-    const paidAmount = planTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const paidInstallments = planTransactions.length;
+    // Logic based on calendar/time elapsed as requested
+    const purchaseDate = parseISO(plan.purchase_date);
+    const now = new Date();
     
-    // Ensure we don't divide by zero
+    // Calculate months passed since purchase
+    // differenceInMonths returns full months. 
+    // e.g., 01/12 to 15/12 = 0 months passed (Current quota: 1)
+    // e.g., 01/12 to 01/01 = 1 month passed (Current quota: 2)
+    const monthsPassed = Math.max(differenceInMonths(now, purchaseDate), 0);
+    
+    // Remaining installments based on time
+    // Month 1 (0 passed): 6 - 0 = 6 remaining
+    // Month 6 (5 passed): 6 - 5 = 1 remaining
+    // Month 7 (6 passed): 6 - 6 = 0 remaining
+    const remainingInstallments = Math.max(plan.installments_count - monthsPassed, 0);
+    
+    // Current installment number for display (e.g. "Cuota 1 de 6")
+    const currentInstallment = Math.min(monthsPassed + 1, plan.installments_count);
+    
+    const installmentValue = plan.installments_count > 0 ? plan.total_amount / plan.installments_count : 0;
+    const remainingAmount = remainingInstallments * installmentValue;
+    
     const progress = plan.total_amount > 0 
-      ? Math.min((paidAmount / plan.total_amount) * 100, 100) 
+      ? ((plan.total_amount - remainingAmount) / plan.total_amount) * 100
       : 0;
-
-    const remainingAmount = Math.max(plan.total_amount - paidAmount, 0);
-    const remainingInstallments = Math.max(plan.installments_count - paidInstallments, 0);
 
     return {
       ...plan,
-      paidAmount,
-      paidInstallments,
       progress,
       remainingAmount,
       remainingInstallments,
+      currentInstallment
     };
   });
 
@@ -109,9 +120,14 @@ export default async function CuotasPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-slate-200 font-mono">
-                      {plan.remainingInstallments} / {plan.installments_count}
+                      {plan.remainingInstallments > 0 
+                        ? `Cuota ${plan.currentInstallment} / ${plan.installments_count}`
+                        : 'Finalizado'
+                      }
                     </p>
-                    <p className="text-[10px] uppercase tracking-wider text-slate-500">Cuotas Restantes</p>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                        {plan.remainingInstallments > 0 ? 'En curso' : 'Completado'}
+                    </p>
                   </div>
                 </div>
 

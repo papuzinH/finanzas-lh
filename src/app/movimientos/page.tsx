@@ -9,7 +9,7 @@ import {
   DollarSign,
   LayoutList
 } from 'lucide-react';
-import { format, parse, startOfMonth, endOfMonth, isToday, isYesterday, parseISO } from 'date-fns';
+import { format, parse, startOfMonth, endOfMonth, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 import { Transaction } from '@/types/database';
@@ -24,11 +24,8 @@ const formatCurrency = (amount: number) => {
 };
 
 const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-  }).format(date);
+  const date = parse(dateString, 'yyyy-MM-dd', new Date());
+  return format(date, 'dd/MM');
 };
 
 const getCategoryIcon = (category: string | null) => {
@@ -48,8 +45,8 @@ export default async function MovimientosPage({ searchParams }: { searchParams: 
   
   // Date range calculation
   const date = parse(currentMonth, 'yyyy-MM', new Date());
-  const startDate = startOfMonth(date).toISOString();
-  const endDate = endOfMonth(date).toISOString();
+  const startDate = format(startOfMonth(date), 'yyyy-MM-dd');
+  const endDate = format(endOfMonth(date), 'yyyy-MM-dd');
 
   const supabase = await createClient();
 
@@ -73,7 +70,7 @@ export default async function MovimientosPage({ searchParams }: { searchParams: 
 
   // Grouping Transactions by Day
   const groupedTransactions = transactions.reduce((groups, transaction) => {
-    const dateObj = parseISO(transaction.date);
+    const dateObj = parse(transaction.date, 'yyyy-MM-dd', new Date());
     const key = format(dateObj, 'yyyy-MM-dd');
     
     if (!groups[key]) {
@@ -170,9 +167,9 @@ export default async function MovimientosPage({ searchParams }: { searchParams: 
                                         </div>
                                         <div className="text-right">
                                             <p className={`font-bold text-sm font-mono tracking-tight ${
-                                                t.type === 'income' ? 'text-emerald-400' : 'text-slate-200'
+                                                t.type === 'income' ? 'text-emerald-400' : 'text-red-400'
                                             }`}>
-                                                {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                                                {t.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(t.amount))}
                                             </p>
                                             <p className="text-xs text-slate-500 mt-0.5">{formatDate(t.date)}</p>
                                         </div>
