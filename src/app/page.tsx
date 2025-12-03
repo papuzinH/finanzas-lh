@@ -1,257 +1,232 @@
-import { createClient } from '@/utils/supabase/server';
-import { ArrowRight, CreditCard, CalendarClock, TrendingUp, Wallet } from 'lucide-react';
-import Link from 'next/link';
-import { format, differenceInMonths, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
-import { Transaction, InstallmentPlan, RecurringPlan } from '@/types/database';
-import { TransactionList } from '@/components/transaction-list';
-import { BalanceCard } from '@/components/balance-card';
-import { QuickActions } from '@/components/quick-actions';
-import ExpensesChart from '@/app/components/ExpensesChart';
-import { cn } from '@/lib/utils';
+'use client';
 
-export const revalidate = 0;
+import { useEffect } from 'react';
+import { useFinanceStore } from '@/lib/store/financeStore';
+import { 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  Wallet, 
+  CreditCard, 
+  CalendarClock, 
+  TrendingUp 
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
     currency: 'ARS',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0, // Simplificamos decimales para dashboard
+    maximumFractionDigits: 0,
   }).format(amount);
 };
 
-const CHART_COLORS = ['#10b981', '#f59e0b', '#f43f5e', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1'];
+const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
 
-export default async function Home() {
-  const supabase = await createClient();
-  const today = new Date();
-  const todayStr = format(today, 'yyyy-MM-dd');
+export default function DashboardPage() {
+  // Conectamos con el Store Global
+  const { 
+    transactions, 
+    installmentPlans, 
+    isLoading, 
+    isInitialized, 
+    fetchAllData,
+    getGlobalBalance,
+    getMonthlyBurnRate,
+    getInstallmentStatus
+  } = useFinanceStore();
 
-  // Query A: Global Data (All time transactions for balance & chart)
-  // We need category and date for the chart
-  const { data: balanceData } = await supabase
-    .from('transactions')
-    .select('amount, type, installment_plan_id, category, date')
-    .eq('user_id', 1)
-    .lte('date', todayStr);
+  // Fetch inicial si no hay datos
+  useEffect(() => {
+    if (!isInitialized) {
+      fetchAllData();
+    }
+  }, [isInitialized, fetchAllData]);
 
-  // Query B: Recent Activity (Last 5 for the list)
-  const { data: recentData } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('user_id', 1)
-    .lte('date', todayStr)
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(5);
-
-  // Query C: Installment Plans
-  const { data: plansData } = await supabase
-    .from('installment_plans')
-    .select('*')
-    .eq('user_id', 1);
-
-  // Query D: Recurring Plans (Mensualidades)
-  const { data: recurringData } = await supabase
-    .from('recurring_plans')
-    .select('*')
-    .eq('user_id', 1)
-    .eq('is_active', true);
-
-  const allTransactions = balanceData || [];
-  const recentTransactions: Transaction[] = recentData || [];
-  const installmentPlans: InstallmentPlan[] = plansData || [];
-  const recurringPlans: RecurringPlan[] = recurringData || [];
-
-  // --- Logic: Global Balance ---
-  const nonInstallmentTransactions = allTransactions.filter(t => !t.installment_plan_id);
-  const baseBalance = nonInstallmentTransactions.reduce((acc, curr) => acc + curr.amount, 0);
-
-  let activeQuotasTotal = 0;
+  // --- CÁLCULOS PARA LA VISTA ---
   
-  // --- Logic: Debt KPI ---
-  let totalDebtOriginal = 0;
-  let totalDebtPaid = 0;
-  let activePlansCount = 0;
+  const globalBalance = getGlobalBalance();
+  const monthlyBurnRate = getMonthlyBurnRate();
 
-  installmentPlans.forEach(plan => {
-    const purchaseDate = parseISO(plan.purchase_date);
-    const monthsPassed = differenceInMonths(today, purchaseDate);
+  // Calcular Deuda Total Pendiente (Sumando el restante de todos los planes)
+  const totalDebt = installmentPlans.reduce((acc, plan) => {
+    const status = getInstallmentStatus(plan.id);
+    return acc + (status?.remaining || 0);
+  }, 0);
+
+  // Calcular Gastos vs Ingresos (Histórico o Mes actual? Hagamos Histórico Global por ahora para el Bento)
+  const totalIncome = transactions
+    .filter(t => t.type === 'income')
+    .reduce((acc, t) => acc + Number(t.amount), 0);
     
-    // Active Quotas for Balance Calculation
-    // If plan is active (months passed < installments count)
-    if (monthsPassed >= 0 && monthsPassed < plan.installments_count) {
-        const quotaValue = plan.total_amount / plan.installments_count;
-        activeQuotasTotal += quotaValue;
-        activePlansCount++;
-    }
+  const totalExpense = transactions
+    .filter(t => t.type === 'expense')
+    .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
-    // Debt Calculation
-    // We assume linear payment based on months passed
-    let paid = 0;
-    if (monthsPassed >= plan.installments_count) {
-      paid = plan.total_amount; // Fully paid
-    } else if (monthsPassed > 0) {
-      paid = (plan.total_amount / plan.installments_count) * monthsPassed;
-    }
-    // If monthsPassed <= 0, paid is 0
-
-    totalDebtOriginal += plan.total_amount;
-    totalDebtPaid += paid;
-  });
-
-  const totalDebtRemaining = totalDebtOriginal - totalDebtPaid;
-  const debtProgress = totalDebtOriginal > 0 ? (totalDebtPaid / totalDebtOriginal) * 100 : 0;
-
-  // --- Logic: Fixed Costs KPI ---
-  const totalFixedCost = recurringPlans.reduce((acc, curr) => acc + curr.amount, 0);
-
-  // Final Balance
-  const recurringTotal = totalFixedCost; // Assuming all active recurring plans are deducted monthly
-  const totalBalance = baseBalance - activeQuotasTotal - recurringTotal;
-  
-  const totalIncome = allTransactions
-    .filter(t => t.amount > 0)
-    .reduce((acc, curr) => acc + curr.amount, 0);
-
-  const totalExpense = allTransactions
-    .filter(t => t.amount < 0)
-    .reduce((acc, curr) => acc + curr.amount, 0); 
-
-  // --- Logic: Chart Data (Current Month Expenses) ---
-  const monthStart = startOfMonth(today);
-  const monthEnd = endOfMonth(today);
-
-  const currentMonthExpenses = allTransactions.filter(t => {
-    const tDate = parseISO(t.date);
-    return (
-      isWithinInterval(tDate, { start: monthStart, end: monthEnd }) &&
-      (t.type === 'expense' || t.amount < 0) // Safety check for expense type
-    );
-  });
-
-  const expensesByCategory: Record<string, number> = {};
-  currentMonthExpenses.forEach(t => {
-    const cat = t.category || 'Otros';
-    const amount = Math.abs(t.amount);
-    expensesByCategory[cat] = (expensesByCategory[cat] || 0) + amount;
-  });
+  // Datos para el Gráfico (Agrupado por Categoría - Top 5)
+  const expensesByCategory = transactions
+    .filter(t => t.type === 'expense')
+    .reduce((acc, t) => {
+      const cat = t.category || 'Otros';
+      acc[cat] = (acc[cat] || 0) + Math.abs(Number(t.amount));
+      return acc;
+    }, {} as Record<string, number>);
 
   const chartData = Object.entries(expensesByCategory)
-    .map(([name, value], index) => ({
-      name,
-      value,
-      color: CHART_COLORS[index % CHART_COLORS.length]
-    }))
-    .sort((a, b) => b.value - a.value);
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5); // Solo Top 5 para no saturar
+
+  if (isLoading && !isInitialized) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-slate-500 animate-pulse">Cargando finanzas...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
-      {/* Header / Hero Section */}
-      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md pt-8 pb-8">
-        <div className="mx-auto max-w-2xl px-6">
-          <div className="flex flex-col items-center justify-center text-center space-y-6">
-            
-            {/* Section A: Estado Patrimonial */}
-            <div className="w-full transform transition-all hover:scale-[1.01]">
-              <BalanceCard 
-                balance={totalBalance} 
-                income={totalIncome} 
-                expense={totalExpense} 
-              />
-            </div>
-
-            <QuickActions />
-
+    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
+      {/* Header */}
+      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
+        <div className="mx-auto max-w-2xl px-6 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-white">Hola, Matías 👋</h1>
+            <p className="text-xs text-slate-400">Estado de cuenta global</p>
           </div>
+          <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700" />
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-6 py-8 space-y-8">
+      <main className="mx-auto max-w-2xl px-6 py-6 space-y-6">
         
-        {/* Section B: Salud Financiera (Bento Grid) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* SECCIÓN A: ESTADO PATRIMONIAL (Bento Grid) */}
+        <div className="grid grid-cols-2 gap-4">
           
-          {/* Card 1: Deuda Pendiente */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 relative overflow-hidden group">
+          {/* Card 1: Balance Principal (Ocupa 2 columnas) */}
+          <div className="col-span-2 rounded-2xl bg-linear-to-br from-slate-900 to-slate-950 border border-slate-800 p-6 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <CreditCard className="h-12 w-12 text-rose-500" />
+              <Wallet className="w-24 h-24 text-emerald-500" />
             </div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-2 text-rose-400">
-                <CreditCard className="h-4 w-4" />
-                <h3 className="text-xs font-medium uppercase tracking-wider">Deuda Cuotas</h3>
+            <p className="text-sm text-slate-400 font-medium mb-1">Balance Total</p>
+            <h2 className={`text-4xl font-bold font-mono tracking-tighter ${globalBalance >= 0 ? 'text-white' : 'text-red-400'}`}>
+              {formatCurrency(globalBalance)}
+            </h2>
+            <div className="flex gap-4 mt-4">
+              <div className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
+                <ArrowUpRight className="w-3 h-3" />
+                <span>Ingresos {formatCurrency(totalIncome)}</span>
               </div>
-              <p className="text-2xl font-bold font-mono text-slate-100 mb-4">
-                {formatCurrency(totalDebtRemaining)}
-              </p>
-              
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-[10px] text-slate-400">
-                  <span>Progreso de pago</span>
-                  <span>{Math.round(debtProgress)}%</span>
-                </div>
-                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-rose-500 rounded-full transition-all duration-1000 ease-out"
-                    style={{ width: `${debtProgress}%` }}
+              <div className="flex items-center gap-1 text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded-md">
+                <ArrowDownRight className="w-3 h-3" />
+                <span>Gastos {formatCurrency(totalExpense)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Deuda Pendiente */}
+          <div className="col-span-1 rounded-2xl bg-slate-900/50 border border-slate-800 p-4 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-medium text-slate-300">Deuda Cuotas</span>
+            </div>
+            <div>
+              <p className="text-lg font-bold font-mono text-slate-100">{formatCurrency(totalDebt)}</p>
+              <p className="text-[10px] text-slate-500">Pendiente a futuro</p>
+            </div>
+          </div>
+
+          {/* Card 3: Costo Fijo (Burn Rate) */}
+          <div className="col-span-1 rounded-2xl bg-slate-900/50 border border-slate-800 p-4 flex flex-col justify-between">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+                <CalendarClock className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-medium text-slate-300">Fijos Mensuales</span>
+            </div>
+            <div>
+              <p className="text-lg font-bold font-mono text-slate-100">{formatCurrency(monthlyBurnRate)}</p>
+              <p className="text-[10px] text-slate-500">Suscripciones activas</p>
+            </div>
+          </div>
+        </div>
+
+        {/* SECCIÓN B: ANÁLISIS VISUAL (Chart) */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-slate-500" />
+              Top Gastos
+            </h3>
+          </div>
+          <div className="h-48 w-full flex items-center">
+            <div className="w-1/2 h-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    innerRadius={40}
+                    outerRadius={60}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px', fontSize: '12px' }}
+                    itemStyle={{ color: '#e2e8f0' }}
+                    formatter={(value: number) => formatCurrency(value)}
                   />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="w-1/2 pl-4 space-y-2">
+              {chartData.map((item, index) => (
+                <div key={item.name} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                    <span className="text-slate-400 truncate max-w-[80px]">{item.name}</span>
+                  </div>
+                  <span className="font-mono text-slate-300">{formatCurrency(item.value)}</span>
                 </div>
-                <p className="text-[10px] text-slate-500 text-right pt-1">
-                  {activePlansCount} planes activos
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* SECCIÓN C: ÚLTIMOS MOVIMIENTOS */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-200">Últimos movimientos</h3>
+            <span className="text-xs text-indigo-400 cursor-pointer">Ver todos</span>
+          </div>
+          <div className="space-y-2">
+            {transactions.slice(0, 5).map((t) => (
+              <div key={t.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-900/50 border border-slate-800/50">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-full ${t.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-800 text-slate-400'}`}>
+                    {t.type === 'income' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-200">{t.description}</p>
+                    <p className="text-[10px] text-slate-500 capitalize">{t.category} • {format(new Date(t.date), 'd MMM', { locale: es })}</p>
+                  </div>
+                </div>
+                <p className={`text-sm font-bold font-mono ${t.type === 'income' ? 'text-emerald-400' : 'text-slate-200'}`}>
+                  {t.type === 'income' ? '+' : ''} {formatCurrency(Math.abs(Number(t.amount)))}
                 </p>
               </div>
-            </div>
+            ))}
           </div>
-
-          {/* Card 2: Gastos Fijos */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <CalendarClock className="h-12 w-12 text-amber-500" />
-            </div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-2 text-amber-400">
-                <CalendarClock className="h-4 w-4" />
-                <h3 className="text-xs font-medium uppercase tracking-wider">Fijos Mensuales</h3>
-              </div>
-              <p className="text-2xl font-bold font-mono text-slate-100 mb-1">
-                {formatCurrency(totalFixedCost)}
-              </p>
-              <p className="text-xs text-slate-500">
-                Se debita automáticamente
-              </p>
-              <div className="mt-4 flex items-center gap-2 text-[10px] text-slate-400 bg-slate-950/50 p-2 rounded-lg border border-slate-800/50">
-                <Wallet className="h-3 w-3" />
-                <span>{recurringPlans.length} suscripciones activas</span>
-              </div>
-            </div>
-          </div>
-
         </div>
 
-        {/* Section C: Análisis Visual */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
-            <h3 className="text-sm font-medium text-slate-200">Distribución de Gastos (Este Mes)</h3>
-          </div>
-          <ExpensesChart data={chartData} />
-        </div>
-
-        {/* Section D: Últimos Movimientos */}
-        <div className="space-y-4 pt-4 border-t border-slate-800/50">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm font-medium text-slate-200">Últimos Movimientos</h3>
-            <Link 
-              href="/movimientos"
-              className="flex items-center gap-1 text-xs text-emerald-500 hover:text-emerald-400 transition-colors"
-            >
-              Ver todos <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-
-          <TransactionList transactions={recentTransactions} />
-        </div>
       </main>
     </div>
   );

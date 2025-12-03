@@ -1,4 +1,7 @@
-import { createClient } from '@/utils/supabase/server';
+'use client';
+
+import { useEffect } from 'react';
+import { useFinanceStore } from '@/lib/store/financeStore';
 import { 
   RefreshCw, 
   CalendarClock, 
@@ -10,17 +13,7 @@ import {
   ShieldCheck,
   CreditCard
 } from 'lucide-react';
-import { RecurringPlan } from '@/types/database';
-
-export const revalidate = 0;
-
-// Extended type for the join
-interface RecurringPlanWithPayment extends RecurringPlan {
-  payment_methods: {
-    name: string;
-    type: string;
-  } | null;
-}
+import { cn } from '@/lib/utils';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', {
@@ -44,21 +37,31 @@ const getServiceIcon = (description: string, category: string | null) => {
   return <RefreshCw className="h-5 w-5" />;
 };
 
-export default async function MensualidadesPage() {
-  const supabase = await createClient();
+export default function MensualidadesPage() {
+  const { 
+    recurringPlans, 
+    paymentMethods,
+    fetchAllData, 
+    isInitialized,
+    getMonthlyBurnRate
+  } = useFinanceStore();
 
-  const { data: plansData } = await supabase
-    .from('recurring_plans')
-    .select('*, payment_methods!payment_method_id (name, type)')
-    .eq('user_id', 1)
-    .order('amount', { ascending: false });
+  useEffect(() => {
+    if (!isInitialized) {
+      fetchAllData();
+    }
+  }, [isInitialized, fetchAllData]);
 
-  const plans: RecurringPlanWithPayment[] = (plansData as any) || [];
+  // Preparamos los datos combinando planes con sus medios de pago
+  const plansWithPayment = recurringPlans.map(plan => {
+    const paymentMethod = paymentMethods.find(pm => pm.id === plan.payment_method_id);
+    return {
+      ...plan,
+      paymentMethodName: paymentMethod?.name
+    };
+  }).sort((a, b) => b.amount - a.amount); // Ordenar por monto descendente
 
-  // Calculate Total Monthly Cost (only active plans)
-  const totalMonthlyCost = plans
-    .filter(p => p.is_active)
-    .reduce((acc, curr) => acc + curr.amount, 0);
+  const totalMonthlyCost = getMonthlyBurnRate();
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
@@ -85,33 +88,35 @@ export default async function MensualidadesPage() {
               {formatCurrency(totalMonthlyCost)}
             </h2>
             <p className="text-xs text-slate-500 mt-2">
-              Suma de {plans.filter(p => p.is_active).length} servicios activos
+              Suma de {plansWithPayment.filter(p => p.is_active).length} servicios activos
             </p>
           </div>
         </div>
 
         {/* Services Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {plans.length === 0 ? (
+          {plansWithPayment.length === 0 ? (
              <div className="col-span-full flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
                 <RefreshCw className="h-8 w-8 mb-3 opacity-50" />
                 <p>No tienes gastos fijos registrados.</p>
             </div>
           ) : (
-            plans.map((plan) => (
+            plansWithPayment.map((plan) => (
               <div 
                 key={plan.id} 
-                className={`group relative flex flex-col justify-between rounded-xl border p-4 transition-all ${
-                    plan.is_active 
-                        ? 'border-slate-800 bg-slate-900/40 hover:bg-slate-900 hover:border-slate-700' 
-                        : 'border-slate-800/50 bg-slate-900/20 opacity-60 grayscale'
-                }`}
+                className={cn(
+                  "group relative flex flex-col justify-between rounded-xl border p-4 transition-all",
+                  plan.is_active 
+                    ? "border-slate-800 bg-slate-900/40 hover:bg-slate-900 hover:border-slate-700" 
+                    : "border-slate-800/50 bg-slate-900/20 opacity-60 grayscale"
+                )}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-4">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 ${
-                        plan.is_active ? 'bg-slate-800 text-slate-300 group-hover:text-white' : 'bg-slate-900 text-slate-600'
-                    }`}>
+                    <div className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-full border border-slate-800",
+                      plan.is_active ? "bg-slate-800 text-slate-300 group-hover:text-white" : "bg-slate-900 text-slate-600"
+                    )}>
                       {getServiceIcon(plan.description, plan.category)}
                     </div>
                     <div>
@@ -131,7 +136,7 @@ export default async function MensualidadesPage() {
                       {formatCurrency(plan.amount)}
                     </p>
                     <div className="flex items-center justify-end gap-1.5 mt-1">
-                      <div className={`h-1.5 w-1.5 rounded-full ${plan.is_active ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]' : 'bg-slate-600'}`} />
+                      <div className={cn("h-1.5 w-1.5 rounded-full", plan.is_active ? "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" : "bg-slate-600")} />
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider">
                           {plan.is_active ? 'Activo' : 'Inactivo'}
                       </p>
@@ -141,10 +146,10 @@ export default async function MensualidadesPage() {
 
                 {/* Payment Method Badge */}
                 <div className="flex items-center gap-2 pt-3 border-t border-slate-800/50">
-                  {plan.payment_methods ? (
+                  {plan.paymentMethodName ? (
                     <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md">
                       <CreditCard className="h-3 w-3" />
-                      <span>{plan.payment_methods.name}</span>
+                      <span>{plan.paymentMethodName}</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5 text-[10px] text-slate-600 bg-slate-900/50 px-2 py-1 rounded-md">
