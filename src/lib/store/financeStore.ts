@@ -195,33 +195,52 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     if (!method) return { currentConsumption: 0, fixedCosts: 0, projectedTotal: 0 };
 
     // 1. Consumo Actual (Ciclo)
-    // Nota: Para hacerlo perfecto necesitaríamos la lógica de fechas de cierre.
-    // Por simplicidad en esta versión v1 del store, sumaremos todo lo del mes actual.
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    let targetDate = now;
 
-    const currentConsumption = transactions
-      .filter(t => {
-        const tDate = new Date(t.date);
-        return (
-          t.payment_method_id === methodId &&
-          t.type === 'expense' &&
-          tDate.getMonth() === currentMonth &&
-          tDate.getFullYear() === currentYear
-        );
-      })
-      .reduce((acc, t) => acc + Number(t.amount), 0);
+    // Si es tarjeta de crédito, calculamos la fecha de pago del ciclo actual
+    if (method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
+      const closingDay = method.default_closing_day;
+      const paymentDay = method.default_payment_day;
+      
+      if (getDate(now) <= closingDay) {
+        targetDate = setDate(addMonths(now, 1), paymentDay);
+      } else {
+        targetDate = setDate(addMonths(now, 2), paymentDay);
+      }
+    }
+
+    const targetMonth = targetDate.getMonth();
+    const targetYear = targetDate.getFullYear();
+
+    const transactionsSum = transactions
+      .filter(t => t.payment_method_id === methodId)
+      .reduce((acc, t) => {
+        const amount = Number(t.amount);
+        
+        if (t.type === 'income') {
+          return acc + amount;
+        }
+        
+        const tDate = parseISO(t.date);
+        if (tDate.getMonth() === targetMonth && tDate.getFullYear() === targetYear) {
+          return acc - amount;
+        }
+        
+        return acc;
+      }, 0);
 
     // 2. Costos Fijos asociados a este medio
     const fixedCosts = recurringPlans
       .filter(p => p.payment_method_id === methodId && p.is_active)
       .reduce((acc, p) => acc + Number(p.amount), 0);
+      
+    const currentConsumption = transactionsSum - fixedCosts;
 
     return {
       currentConsumption,
       fixedCosts,
-      projectedTotal: currentConsumption + fixedCosts
+      projectedTotal: currentConsumption
     };
   }
 }));
