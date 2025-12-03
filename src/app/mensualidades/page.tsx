@@ -7,11 +7,20 @@ import {
   Zap, 
   Home, 
   Dumbbell, 
-  ShieldCheck
+  ShieldCheck,
+  CreditCard
 } from 'lucide-react';
 import { RecurringPlan } from '@/types/database';
 
 export const revalidate = 0;
+
+// Extended type for the join
+interface RecurringPlanWithPayment extends RecurringPlan {
+  payment_methods: {
+    name: string;
+    type: string;
+  } | null;
+}
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', {
@@ -40,11 +49,11 @@ export default async function MensualidadesPage() {
 
   const { data: plansData } = await supabase
     .from('recurring_plans')
-    .select('*')
+    .select('*, payment_methods!payment_method_id (name, type)')
     .eq('user_id', 1)
     .order('amount', { ascending: false });
 
-  const plans: RecurringPlan[] = plansData || [];
+  const plans: RecurringPlanWithPayment[] = (plansData as any) || [];
 
   // Calculate Total Monthly Cost (only active plans)
   const totalMonthlyCost = plans
@@ -92,40 +101,57 @@ export default async function MensualidadesPage() {
             plans.map((plan) => (
               <div 
                 key={plan.id} 
-                className={`group relative flex items-center justify-between rounded-xl border p-4 transition-all ${
+                className={`group relative flex flex-col justify-between rounded-xl border p-4 transition-all ${
                     plan.is_active 
                         ? 'border-slate-800 bg-slate-900/40 hover:bg-slate-900 hover:border-slate-700' 
                         : 'border-slate-800/50 bg-slate-900/20 opacity-60 grayscale'
                 }`}
               >
-                <div className="flex items-center gap-4">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 ${
-                      plan.is_active ? 'bg-slate-800 text-slate-300 group-hover:text-white' : 'bg-slate-900 text-slate-600'
-                  }`}>
-                    {getServiceIcon(plan.description, plan.category)}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 ${
+                        plan.is_active ? 'bg-slate-800 text-slate-300 group-hover:text-white' : 'bg-slate-900 text-slate-600'
+                    }`}>
+                      {getServiceIcon(plan.description, plan.category)}
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-sm text-slate-200 group-hover:text-white transition-colors">
+                        {plan.description}
+                      </h3>
+                      {plan.category && (
+                          <span className="inline-flex items-center rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 mt-1">
+                              {plan.category}
+                          </span>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-sm text-slate-200 group-hover:text-white transition-colors">
-                      {plan.description}
-                    </h3>
-                    {plan.category && (
-                        <span className="inline-flex items-center rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 mt-1">
-                            {plan.category}
-                        </span>
-                    )}
+                  
+                  <div className="text-right">
+                    <p className="font-bold text-sm font-mono text-slate-200">
+                      {formatCurrency(plan.amount)}
+                    </p>
+                    <div className="flex items-center justify-end gap-1.5 mt-1">
+                      <div className={`h-1.5 w-1.5 rounded-full ${plan.is_active ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]' : 'bg-slate-600'}`} />
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                          {plan.is_active ? 'Activo' : 'Inactivo'}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <p className="font-bold text-sm font-mono text-slate-200">
-                    {formatCurrency(plan.amount)}
-                  </p>
-                  <div className="flex items-center justify-end gap-1.5 mt-1">
-                    <div className={`h-1.5 w-1.5 rounded-full ${plan.is_active ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]' : 'bg-slate-600'}`} />
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">
-                        {plan.is_active ? 'Activo' : 'Inactivo'}
-                    </p>
-                  </div>
+                {/* Payment Method Badge */}
+                <div className="flex items-center gap-2 pt-3 border-t border-slate-800/50">
+                  {plan.payment_methods ? (
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md">
+                      <CreditCard className="h-3 w-3" />
+                      <span>{plan.payment_methods.name}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-600 bg-slate-900/50 px-2 py-1 rounded-md">
+                      <CreditCard className="h-3 w-3" />
+                      <span>Sin asignar</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))

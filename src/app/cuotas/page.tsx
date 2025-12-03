@@ -1,7 +1,15 @@
 import { createClient } from '@/utils/supabase/server';
 import { CreditCard, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { InstallmentPlan } from '@/types/database';
-import { differenceInMonths, parseISO } from 'date-fns';
+import { differenceInCalendarMonths, parseISO } from 'date-fns';
+
+// Extended type for the join
+interface InstallmentPlanWithPayment extends InstallmentPlan {
+  payment_methods: {
+    name: string;
+    type: string;
+  } | null;
+}
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', {
@@ -12,51 +20,42 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+export const revalidate = 0;
+
 export default async function CuotasPage() {
   const supabase = await createClient();
 
   // 1. Fetch Installment Plans
   const { data: plansData } = await supabase
     .from('installment_plans')
-    .select('*')
+    .select('*, payment_methods!payment_method_id (name, type)')
     .eq('user_id', 1);
 
-  const plans: InstallmentPlan[] = plansData || [];
-
-  // 2. Fetch Transactions related to these plans
-  // We get all transactions that have an installment_plan_id
-  /* const { data: transactionsData } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('user_id', 1)
-    .not('installment_plan_id', 'is', null);
-
-  const transactions: Transaction[] = transactionsData || []; */
+  const plans: InstallmentPlanWithPayment[] = (plansData as any) || [];
 
   // 3. Calculate Progress
   const plansWithProgress = plans.map((plan) => {
-    // Logic based on calendar/time elapsed as requested
     const purchaseDate = parseISO(plan.purchase_date);
     const now = new Date();
     
-    // Calculate months passed since purchase
-    // differenceInMonths returns full months. 
-    // e.g., 01/12 to 15/12 = 0 months passed (Current quota: 1)
-    // e.g., 01/12 to 01/01 = 1 month passed (Current quota: 2)
-    const monthsPassed = Math.max(differenceInMonths(now, purchaseDate), 0);
+    // Calculate months passed using calendar months to align with credit card cycles
+    const monthsPassed = Math.max(differenceInCalendarMonths(now, purchaseDate), 0);
     
-    // Remaining installments based on time
-    // Month 1 (0 passed): 6 - 0 = 6 remaining
-    // Month 6 (5 passed): 6 - 5 = 1 remaining
-    // Month 7 (6 passed): 6 - 6 = 0 remaining
-    const remainingInstallments = Math.max(plan.installments_count - monthsPassed, 0);
-    
-    // Current installment number for display (e.g. "Cuota 1 de 6")
+    // Current installment is monthsPassed + 1
+    // e.g. Purchase Jan (Month 0) -> Current is 1
+    // e.g. Purchase Jan, Now Feb (Month 1) -> Current is 2
     const currentInstallment = Math.min(monthsPassed + 1, plan.installments_count);
+    
+    // Remaining installments (Future)
+    // If Current is 5 of 6, we assume 5 is "current/being paid", so 1 is remaining (future).
+    // This aligns with "Te faltan X cuotas" usually meaning future commitments.
+    const remainingInstallments = Math.max(plan.installments_count - currentInstallment, 0);
     
     const installmentValue = plan.installments_count > 0 ? plan.total_amount / plan.installments_count : 0;
     const remainingAmount = remainingInstallments * installmentValue;
     
+    // Progress: (Total - Remaining) / Total
+    // If remaining is 1 of 6. Progress = 5/6 = 83%.
     const progress = plan.total_amount > 0 
       ? ((plan.total_amount - remainingAmount) / plan.total_amount) * 100
       : 0;
@@ -90,9 +89,12 @@ export default async function CuotasPage() {
       <main className="mx-auto max-w-2xl px-6 py-8">
         {/* Total Debt Summary */}
         <div className="mb-8 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-6 text-center">
-          <p className="text-sm font-medium text-indigo-300 uppercase tracking-wider mb-1">Deuda Total Pendiente</p>
+          <p className="text-sm font-medium text-indigo-300 uppercase tracking-wider mb-1">Deuda Futura Pendiente</p>
           <p className="text-3xl font-bold text-indigo-400 font-mono tracking-tight">
             {formatCurrency(totalDebt)}
+          </p>
+          <p className="text-xs text-slate-500 mt-2">
+            * No incluye la cuota del mes actual
           </p>
         </div>
 
@@ -117,16 +119,22 @@ export default async function CuotasPage() {
                     <p className="text-xs text-slate-500 mt-1">
                       Total del plan: {formatCurrency(plan.total_amount)}
                     </p>
+                    {plan.payment_methods && (
+                      <div className="flex items-center gap-1.5 mt-2 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md w-fit">
+                        <CreditCard className="h-3 w-3" />
+                        <span>{plan.payment_methods.name}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-slate-200 font-mono">
-                      {plan.remainingInstallments > 0 
+                      {plan.remainingInstallments >= 0 && plan.currentInstallment <= plan.installments_count
                         ? `Cuota ${plan.currentInstallment} / ${plan.installments_count}`
                         : 'Finalizado'
                       }
                     </p>
                     <p className="text-[10px] uppercase tracking-wider text-slate-500">
-                        {plan.remainingInstallments > 0 ? 'En curso' : 'Completado'}
+                        {plan.remainingInstallments > 0 ? 'En curso' : (plan.currentInstallment === plan.installments_count ? 'Última cuota' : 'Completado')}
                     </p>
                   </div>
                 </div>
@@ -143,7 +151,7 @@ export default async function CuotasPage() {
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {plan.remainingAmount === 0 ? (
+                    {plan.remainingAmount === 0 && plan.currentInstallment > plan.installments_count ? (
                         <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-500">
                             <CheckCircle2 className="h-3.5 w-3.5" />
                             Pagado
@@ -157,7 +165,7 @@ export default async function CuotasPage() {
                   </div>
                   
                   <div className="text-right">
-                    <p className="text-xs text-slate-500 mb-0.5">Te faltan</p>
+                    <p className="text-xs text-slate-500 mb-0.5">Te faltan (Futuro)</p>
                     <p className="text-lg font-bold text-slate-200 font-mono">
                         {formatCurrency(plan.remainingAmount)}
                     </p>

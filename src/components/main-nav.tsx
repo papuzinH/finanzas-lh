@@ -20,6 +20,11 @@ export function MainNav() {
       icon: ListOrdered,
     },
     {
+      label: 'Billetera',
+      href: '/medios-pago',
+      icon: Wallet,
+    },
+    {
       label: 'Cuotas',
       href: '/cuotas',
       icon: CreditCard,
