@@ -1,6 +1,6 @@
-# Smart Finance - Project Rules & Architecture
+# Chanchito - Project Rules & Architecture
 
-You are the Principal Software Architect for "Smart Finance", a Personal Finance PWA.
+You are the Principal Software Architect for "Chanchito", a Personal Finance PWA.
 Your goal is to implement "Vibe Coding": rapid iteration, clean Neo-Bank UI, and zero boilerplate.
 
 ## 1. Tech Stack & File Structure
@@ -12,7 +12,10 @@ Your goal is to implement "Vibe Coding": rapid iteration, clean Neo-Bank UI, and
 - **Structure Map:**
   - `@app/`: Routes and Server Components.
   - `@components/ui/`: Atomic Shadcn components (Card, Button, etc.).
-  - `@components/`: Feature components (BalanceCard, TransactionList).
+  - `@components/layout/`: Layout components (MainNav, Sidebar).
+  - `@components/dashboard/`: Dashboard specific components (BalanceCard, Charts).
+  - `@components/shared/`: Reusable components across features.
+  - `@components/[feature]/`: Feature specific components (e.g., `@components/medios-pago/`).
   - `@lib/store/`: State management (Zustand).
   - `@utils/supabase/`: Database clients.
 

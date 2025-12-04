@@ -1,58 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { MonthSelector } from '@/components/month-selector';
-import {
-  Coffee,
-  ShoppingBag,
-  Home as HomeIcon,
-  Car,
-  Smartphone,
-  DollarSign,
-  CreditCard,
-  Filter,
-  Wallet
-} from 'lucide-react';
-import {
-  format,
-  parseISO,
-  isFuture,
-  isThisWeek,
-  isSameDay,
-  isSameMonth,
-  parse
-} from 'date-fns';
-import { es } from 'date-fns/locale';
+import { MonthSelector } from '@/components/dashboard/month-selector';
+import { parseISO, isThisWeek, isSameDay, isSameMonth, parse, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { Transaction, PaymentMethod } from '@/types/database';
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-};
-
-const formatDate = (dateString: string) => {
-  const date = parseISO(dateString);
-  return format(date, 'd MMM', { locale: es });
-};
-
-const getCategoryIcon = (category: string | null) => {
-  const cat = category?.toLowerCase() || '';
-  if (cat.includes('comida') || cat.includes('delivery') || cat.includes('restaurant')) return <Coffee className="h-5 w-5" />;
-  if (cat.includes('compra') || cat.includes('super') || cat.includes('ropa')) return <ShoppingBag className="h-5 w-5" />;
-  if (cat.includes('casa') || cat.includes('alquiler') || cat.includes('servicios')) return <HomeIcon className="h-5 w-5" />;
-  if (cat.includes('transporte') || cat.includes('auto') || cat.includes('viajes')) return <Car className="h-5 w-5" />;
-  if (cat.includes('internet') || cat.includes('celular') || cat.includes('tecnología')) return <Smartphone className="h-5 w-5" />;
-  return <DollarSign className="h-5 w-5" />;
-};
+import { Transaction } from '@/types/database';
+import { TransactionItem } from '@/components/shared/transaction-item';
+import { Filter, CreditCard, Wallet, ChevronDown, ChevronRight } from 'lucide-react';
 
 export default function MovimientosPage() {
+  const [isFutureOpen, setIsFutureOpen] = useState(true);
   const {
     transactions,
     paymentMethods,
@@ -140,21 +99,50 @@ export default function MovimientosPage() {
   console.log('Grupos de movimientos:', groups);
 
   // Helper de renderizado
-  const renderSection = (title: string, items: Transaction[], colorClass: string = "text-slate-400") => {
+  const renderSection = (
+    title: string, 
+    items: Transaction[], 
+    colorClass: string = "text-slate-400",
+    collapsible: boolean = false,
+    isOpen: boolean = true,
+    onToggle?: () => void
+  ) => {
     if (items.length === 0) return null;
     return (
       <div className="mb-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <h3 className={cn("text-xs font-semibold uppercase tracking-wider mb-3 px-1 flex items-center gap-2", colorClass)}>
-          {title}
-          <span className="text-[10px] font-normal opacity-60 bg-slate-800 px-1.5 py-0.5 rounded-full">
-            {items.length}
-          </span>
-        </h3>
-        <div className="space-y-2">
-          {items.map(t => (
-            <TransactionRow key={t.id} transaction={t} paymentMethods={paymentMethods} />
-          ))}
+        <div 
+          className={cn(
+            "flex items-center gap-2 mb-3 px-1 select-none", 
+            collapsible ? "cursor-pointer hover:opacity-80" : ""
+          )}
+          onClick={collapsible ? onToggle : undefined}
+        >
+          <h3 className={cn("text-xs font-semibold uppercase tracking-wider flex items-center gap-2", colorClass)}>
+            {title}
+            <span className="text-[10px] font-normal opacity-60 bg-slate-800 px-1.5 py-0.5 rounded-full">
+              {items.length}
+            </span>
+          </h3>
+          {collapsible && (
+             isOpen ? <ChevronDown className="h-3 w-3 text-slate-500" /> : <ChevronRight className="h-3 w-3 text-slate-500" />
+          )}
         </div>
+        
+        {(!collapsible || isOpen) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {items.map(t => {
+              const paymentMethod = paymentMethods.find(pm => pm.id === t.payment_method_id);
+              return (
+                <TransactionItem 
+                  key={t.id} 
+                  transaction={t} 
+                  paymentMethodName={paymentMethod?.name}
+                  paymentMethodType={paymentMethod?.type}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };
@@ -171,12 +159,12 @@ export default function MovimientosPage() {
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
       {/* Header Sticky */}
       <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto max-w-2xl px-4 py-3">
+        <div className="mx-auto max-w-[1440px] px-4 py-3">
           <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
         </div>
 
         {/* Filtros de Medios de Pago (Chips con scroll horizontal) */}
-        <div className="mx-auto max-w-2xl px-4 pb-3 overflow-x-auto no-scrollbar">
+        <div className="mx-auto max-w-[1440px] px-4 pb-3 overflow-x-auto no-scrollbar">
           <div className="flex gap-2">
             <button
               onClick={() => handlePaymentFilter('all')}
@@ -210,7 +198,7 @@ export default function MovimientosPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-6">
+      <main className="mx-auto max-w-[1440px] px-4 py-6">
         {filteredTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-500 opacity-60">
             <div className="h-20 w-20 rounded-full bg-slate-900 flex items-center justify-center mb-4 border border-slate-800">
@@ -220,80 +208,14 @@ export default function MovimientosPage() {
           </div>
         ) : (
           <>
-            {renderSection('Proyección Futura', groups.futuro, "text-amber-500")}
             {renderSection('Hoy', groups.hoy, "text-emerald-400")}
             {renderSection('Ayer', groups.ayer, "text-indigo-400")}
             {renderSection('Esta semana', groups.semana)}
             {renderSection('Anteriores', groups.pasado)}
+            {renderSection('Proyección Futura', groups.futuro, "text-amber-500", true, isFutureOpen, () => setIsFutureOpen(!isFutureOpen))}
           </>
         )}
       </main>
-    </div>
-  );
-}
-
-// Componente de Fila optimizado
-function TransactionRow({ transaction, paymentMethods }: { transaction: Transaction, paymentMethods: PaymentMethod[] }) {
-  const isFutureDate = isFuture(parseISO(transaction.date));
-  const isIncome = transaction.type === 'income';
-
-  // Buscar el nombre del medio de pago localmente
-  const paymentMethod = paymentMethods.find(pm => pm.id === transaction.payment_method_id);
-  const isCredit = paymentMethod?.type === 'credit';
-
-  return (
-    <div className="group relative flex items-center justify-between rounded-xl border border-slate-800/40 bg-slate-900/20 p-3 transition-all hover:bg-slate-900/60 hover:border-slate-700 hover:shadow-lg hover:shadow-black/20">
-
-      {/* Left: Icon & Info */}
-      <div className="flex items-center gap-3 overflow-hidden">
-        <div className={cn(
-          "flex h-10 w-10 min-w-10 items-center justify-center rounded-full border transition-colors",
-          isIncome
-            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
-            : "bg-slate-800/50 border-slate-700/50 text-slate-400 group-hover:text-slate-300"
-        )}>
-          {getCategoryIcon(transaction.category)}
-        </div>
-
-        <div className="flex flex-col min-w-0">
-          <span className="font-medium text-sm text-slate-200 truncate">
-            {transaction.description}
-          </span>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
-            {paymentMethod && (
-              <span className="flex items-center gap-1 text-slate-400">
-                {isCredit && <CreditCard className="h-2.5 w-2.5" />}
-                {paymentMethod.name}
-              </span>
-            )}
-            {paymentMethod && <span className="text-slate-700">•</span>}
-            <span className="capitalize">{transaction.category || 'Varios'}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Right: Amount & Status */}
-      <div className="flex flex-col items-end gap-0.5 pl-2">
-        <span className={cn(
-          "font-bold text-sm font-mono tracking-tight whitespace-nowrap",
-          isIncome ? "text-emerald-400" : "text-slate-200"
-        )}>
-          {isIncome ? '+' : ''} {formatCurrency(Math.abs(transaction.amount))}
-        </span>
-
-        {isFutureDate ? (
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-amber-500/80 font-medium">
-              {formatDate(transaction.date)}
-            </span>
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-          </div>
-        ) : (
-          <span className="text-[10px] text-slate-500">
-            {formatDate(transaction.date)}
-          </span>
-        )}
-      </div>
     </div>
   );
 }

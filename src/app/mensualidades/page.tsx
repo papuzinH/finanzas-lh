@@ -13,16 +13,8 @@ import {
   ShieldCheck,
   CreditCard
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-};
+import { cn, formatCurrency } from '@/lib/utils';
+import { PageHeader } from '@/components/shared/page-header';
 
 const getServiceIcon = (description: string, category: string | null) => {
   const text = (description + ' ' + (category || '')).toLowerCase();
@@ -66,18 +58,13 @@ export default function MensualidadesPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto max-w-2xl px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/10 text-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
-              <CalendarClock className="h-5 w-5" />
-            </div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-100">Suscripciones y Fijos</h1>
-          </div>
-        </div>
-      </header>
+      <PageHeader 
+        title="Suscripciones y Fijos" 
+        icon={<CalendarClock className="h-5 w-5" />}
+        containerClassName="max-w-[1440px]"
+      />
 
-      <main className="mx-auto max-w-2xl px-6 py-8">
+      <main className="mx-auto max-w-[1440px] px-6 py-8">
         {/* Hero Card: Total Monthly Cost */}
         <div className="mb-8 relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 p-8 shadow-xl backdrop-blur-sm">
           <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-purple-500/10 blur-2xl"></div>
@@ -94,7 +81,7 @@ export default function MensualidadesPage() {
         </div>
 
         {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {plansWithPayment.length === 0 ? (
              <div className="col-span-full flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
                 <RefreshCw className="h-8 w-8 mb-3 opacity-50" />

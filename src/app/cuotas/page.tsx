@@ -3,15 +3,9 @@
 import { useEffect } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { CreditCard, AlertCircle, CheckCircle2 } from 'lucide-react';
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-};
+import { formatCurrency } from '@/lib/utils';
+import { PageHeader } from '@/components/shared/page-header';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 export default function CuotasPage() {
   const { 
@@ -51,20 +45,15 @@ export default function CuotasPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto max-w-2xl px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
-              <CreditCard className="h-5 w-5" />
-            </div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-100">Mis Cuotas</h1>
-          </div>
-        </div>
-      </header>
+      <PageHeader 
+        title="Mis Cuotas" 
+        icon={<CreditCard className="h-5 w-5" />}
+        containerClassName="max-w-[1440px]"
+      />
 
-      <main className="mx-auto max-w-2xl px-6 py-8">
+      <main className="mx-auto max-w-[1440px] px-6 py-8">
         {/* Total Debt Summary */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-6 text-center">
             <p className="text-xs font-medium text-indigo-300 uppercase tracking-wider mb-1">Deuda Futura</p>
             <p className="text-2xl font-bold text-indigo-400 font-mono tracking-tight">
@@ -86,9 +75,9 @@ export default function CuotasPage() {
         </div>
 
         {/* Plans List */}
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {plansWithProgress.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
+            <div className="col-span-full flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
                 <CreditCard className="h-8 w-8 mb-3 opacity-50" />
                 <p>No tienes planes de cuotas activos.</p>
             </div>
@@ -96,7 +85,7 @@ export default function CuotasPage() {
             plansWithProgress.map((plan) => (
               <div 
                 key={plan.id} 
-                className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-5 transition-all hover:bg-slate-900 hover:border-slate-700"
+                className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-5 transition-all hover:bg-slate-900 hover:border-slate-700 flex flex-col justify-between"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -145,15 +134,13 @@ export default function CuotasPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {plan.isFinished ? (
-                        <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-500">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
+                        <StatusBadge variant="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />}>
                             Pagado
-                        </span>
+                        </StatusBadge>
                     ) : (
-                        <span className="flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-400">
-                            <AlertCircle className="h-3.5 w-3.5" />
+                        <StatusBadge variant="info" icon={<AlertCircle className="h-3.5 w-3.5" />}>
                             En curso
-                        </span>
+                        </StatusBadge>
                     )}
                   </div>
                   

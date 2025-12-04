@@ -3,8 +3,9 @@
 import { useEffect, useMemo } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { Wallet } from 'lucide-react';
-import { InstitutionalCard } from '@/components/shared/institutional-card';
-import { PersonalDebtCard } from '@/components/shared/personal-debt-card';
+import { InstitutionalCard } from '@/components/medios-pago/institutional-card';
+import { PersonalDebtCard } from '@/components/medios-pago/personal-debt-card';
+import { PageHeader } from '@/components/shared/page-header';
 
 export default function MediosPagoPage() {
   const { 
@@ -49,27 +50,23 @@ export default function MediosPagoPage() {
     };
   }, [paymentMethods, transactions, recurringPlans, getPaymentMethodStatus]);
 
-  console.log('Institutional Methods:', institutionalMethods);
-  console.log('Personal Methods:', personalMethods);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto max-w-2xl px-6 py-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
-            <Wallet className="h-5 w-5" />
-          </div>
-          <h1 className="text-lg font-bold tracking-tight text-slate-100">Medios de Pago</h1>
-        </div>
-      </header>
+      <PageHeader 
+        title="Medios de Pago" 
+        icon={<Wallet className="h-5 w-5" />}
+        containerClassName="max-w-[1440px]"
+      />
 
-      <main className="mx-auto max-w-2xl px-6 py-8 space-y-10">
+      <main className="mx-auto max-w-[1440px] px-6 py-8 space-y-10">
         
         {/* Sección 1: Billetera y Bancos */}
         <section>
           <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 px-1">
             Billetera y Bancos
           </h2>
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {institutionalMethods.map((pm) => (
               <InstitutionalCard key={pm.id} data={pm} />
             ))}
@@ -85,7 +82,7 @@ export default function MediosPagoPage() {
             <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 px-1">
               Compromisos Personales
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {personalMethods.map((pm) => (
                 <PersonalDebtCard key={pm.id} data={pm} />
               ))}

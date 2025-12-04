@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { 
   ArrowUpRight, 
@@ -12,23 +13,29 @@ import {
   PieChart as PieChartIcon,
   Info
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
+import { TransactionItem } from '@/components/shared/transaction-item';
+import { Modal } from '@/components/shared/modal';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
 
 export default function DashboardPage() {
+  const [isInstallmentsModalOpen, setIsInstallmentsModalOpen] = useState(false);
+  const [isFixedCostsModalOpen, setIsFixedCostsModalOpen] = useState(false);
+
   // Conectamos con el Store Global
   const { 
     transactions, 
+    paymentMethods,
     isLoading, 
     isInitialized, 
     fetchAllData,
     getGlobalBalance,
     getMonthlyBurnRate,
     getCurrentMonthInstallmentsTotal,
+    getCurrentMonthInstallments,
+    getActiveRecurringPlans,
     getGlobalIncome,
     getGlobalEffectiveExpenses,
     getExpensesByCategory
@@ -46,6 +53,8 @@ export default function DashboardPage() {
   const globalBalance = getGlobalBalance();
   const monthlyBurnRate = getMonthlyBurnRate();
   const currentMonthInstallments = getCurrentMonthInstallmentsTotal();
+  const currentMonthInstallmentsList = getCurrentMonthInstallments();
+  const activeRecurringPlans = getActiveRecurringPlans();
   const totalIncome = getGlobalIncome();
   const totalExpense = getGlobalEffectiveExpenses();
 
@@ -75,7 +84,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto max-w-2xl px-6 py-4 flex justify-between items-center">
+        <div className="mx-auto max-w-[1440px] px-6 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white">Hola, Lauti 👋</h1>
        
@@ -84,10 +93,10 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-6 py-6 space-y-6">
+      <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-6">
         
         {/* SECCIÓN A: ESTADO PATRIMONIAL (Bento Grid) */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           
           {/* Card 1: Balance Principal (Ocupa 2 columnas) */}
           <div className="col-span-2 rounded-2xl bg-linear-to-br from-slate-900 to-slate-950 border border-slate-800 p-6 relative overflow-hidden group">
@@ -139,7 +148,10 @@ export default function DashboardPage() {
           </div>
 
           {/* Card 2: Deuda Cuotas (Solo Mes Actual) */}
-          <div className="col-span-1 rounded-2xl bg-slate-900/50 border border-slate-800 p-4 flex flex-col justify-between">
+          <div 
+            onClick={() => setIsInstallmentsModalOpen(true)}
+            className="col-span-1 rounded-2xl bg-slate-900/50 border border-slate-800 p-4 flex flex-col justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
+          >
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
                 <CreditCard className="w-4 h-4" />
@@ -153,7 +165,10 @@ export default function DashboardPage() {
           </div>
 
           {/* Card 3: Costo Fijo (Burn Rate) */}
-          <div className="col-span-1 rounded-2xl bg-slate-900/50 border border-slate-800 p-4 flex flex-col justify-between">
+          <div 
+            onClick={() => setIsFixedCostsModalOpen(true)}
+            className="col-span-1 rounded-2xl bg-slate-900/50 border border-slate-800 p-4 flex flex-col justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
+          >
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
                 <CalendarClock className="w-4 h-4" />
@@ -168,10 +183,10 @@ export default function DashboardPage() {
         </div>
 
         {/* SECCIÓN B: ANÁLISIS VISUAL (Charts) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           
           {/* Gráfico 1: Gastos Globales */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
+          <div className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-slate-500" />
@@ -217,7 +232,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Gráfico 2: Gastos del Mes */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
+          <div className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
                 <PieChartIcon className="w-4 h-4 text-slate-500" />
@@ -274,29 +289,88 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-slate-200">Últimos movimientos</h3>
-            <span className="text-xs text-indigo-400 cursor-pointer">Ver todos</span>
+            <Link href="/movimientos" className="text-xs text-indigo-400 cursor-pointer hover:text-indigo-300 transition-colors">Ver todos</Link>
           </div>
-          <div className="space-y-2">
-            {transactions.slice(0, 5).map((t) => (
-              <div key={t.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-900/50 border border-slate-800/50">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-full ${t.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-800 text-slate-400'}`}>
-                    {t.type === 'income' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-200">{t.description}</p>
-                    <p className="text-[10px] text-slate-500 capitalize">{t.category} • {format(new Date(t.date), 'd MMM', { locale: es })}</p>
-                  </div>
-                </div>
-                <p className={`text-sm font-bold font-mono ${t.type === 'income' ? 'text-emerald-400' : 'text-slate-200'}`}>
-                  {t.type === 'income' ? '+' : ''} {formatCurrency(Math.abs(Number(t.amount)))}
-                </p>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {transactions
+              .filter(t => !t.installment_plan_id)
+              .slice(0, 6)
+              .map((t) => {
+              const paymentMethod = paymentMethods.find(pm => pm.id === t.payment_method_id);
+              return (
+                <TransactionItem 
+                  key={t.id} 
+                  transaction={t} 
+                  paymentMethodName={paymentMethod?.name}
+                  paymentMethodType={paymentMethod?.type}
+                  showDate={true}
+                />
+              );
+            })}
           </div>
         </div>
 
       </main>
+
+      <Modal
+        isOpen={isInstallmentsModalOpen}
+        onClose={() => setIsInstallmentsModalOpen(false)}
+        title="Cuotas a pagar este mes"
+      >
+        <div className="space-y-3">
+          {currentMonthInstallmentsList.length > 0 ? (
+            currentMonthInstallmentsList.map((t) => {
+              const paymentMethod = paymentMethods.find(pm => pm.id === t.payment_method_id);
+              return (
+                <TransactionItem 
+                  key={t.id} 
+                  transaction={t} 
+                  paymentMethodName={paymentMethod?.name}
+                  paymentMethodType={paymentMethod?.type}
+                  showDate={true}
+                />
+              );
+            })
+          ) : (
+            <p className="text-slate-500 text-center py-4">No hay cuotas para este mes.</p>
+          )}
+        </div>
+      </Modal>
+      <Modal
+        isOpen={isFixedCostsModalOpen}
+        onClose={() => setIsFixedCostsModalOpen(false)}
+        title="Gastos Fijos Mensuales"
+      >
+        <div className="space-y-3">
+          {activeRecurringPlans.length > 0 ? (
+            activeRecurringPlans.map((plan) => {
+              const paymentMethod = paymentMethods.find(pm => pm.id === plan.payment_method_id);
+              // Adaptamos el plan a la estructura de TransactionItem
+              const adaptedTransaction = {
+                id: plan.id,
+                amount: plan.amount,
+                description: plan.description,
+                date: new Date().toISOString(), // Fecha dummy, no se muestra
+                category: plan.category,
+                type: 'expense',
+                payment_method_id: plan.payment_method_id
+              };
+
+              return (
+                <TransactionItem 
+                  key={plan.id} 
+                  transaction={adaptedTransaction} 
+                  paymentMethodName={paymentMethod?.name}
+                  paymentMethodType={paymentMethod?.type}
+                  showDate={false}
+                />
+              );
+            })
+          ) : (
+            <p className="text-slate-500 text-center py-4">No hay gastos fijos activos.</p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

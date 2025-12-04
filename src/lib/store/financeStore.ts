@@ -57,6 +57,8 @@ interface FinanceState {
   
   // Dashboard Helpers
   getCurrentMonthInstallmentsTotal: () => number;
+  getCurrentMonthInstallments: () => Transaction[];
+  getActiveRecurringPlans: () => RecurringPlan[];
   getGlobalIncome: () => number;
   getGlobalEffectiveExpenses: () => number;
   getExpensesByCategory: (scope: 'global' | 'current_month') => Record<string, number>;
@@ -384,6 +386,19 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     return transactions
       .filter((t) => t.installment_plan_id && isExpenseInCurrentMonthScope(t, paymentMethods, now))
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+  },
+
+  getCurrentMonthInstallments: () => {
+    const { transactions, paymentMethods } = get();
+    const now = new Date();
+
+    return transactions
+      .filter((t) => t.installment_plan_id && isExpenseInCurrentMonthScope(t, paymentMethods, now));
+  },
+
+  getActiveRecurringPlans: () => {
+    const { recurringPlans } = get();
+    return recurringPlans.filter((p) => p.is_active);
   },
 
   getGlobalIncome: () => {
