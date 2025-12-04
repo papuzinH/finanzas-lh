@@ -19,7 +19,8 @@ export default function CuotasPage() {
     paymentMethods, 
     fetchAllData, 
     isInitialized, 
-    getInstallmentStatus 
+    getInstallmentStatus,
+    getCurrentMonthInstallmentsTotal
   } = useFinanceStore();
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function CuotasPage() {
 
   // Calculate Total Debt (usando la propiedad 'remaining' del nuevo status)
   const totalDebt = plansWithProgress.reduce((sum, plan) => sum + plan.remaining, 0);
+  const currentMonthDebt = getCurrentMonthInstallmentsTotal();
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
@@ -62,14 +64,25 @@ export default function CuotasPage() {
 
       <main className="mx-auto max-w-2xl px-6 py-8">
         {/* Total Debt Summary */}
-        <div className="mb-8 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-6 text-center">
-          <p className="text-sm font-medium text-indigo-300 uppercase tracking-wider mb-1">Deuda Futura Pendiente</p>
-          <p className="text-3xl font-bold text-indigo-400 font-mono tracking-tight">
-            {formatCurrency(totalDebt)}
-          </p>
-          <p className="text-xs text-slate-500 mt-2">
-            * No incluye la cuota del mes actual (ya vencida)
-          </p>
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-6 text-center">
+            <p className="text-xs font-medium text-indigo-300 uppercase tracking-wider mb-1">Deuda Futura</p>
+            <p className="text-2xl font-bold text-indigo-400 font-mono tracking-tight">
+              {formatCurrency(totalDebt)}
+            </p>
+            <p className="text-[10px] text-slate-500 mt-2">
+              Pendiente a largo plazo
+            </p>
+          </div>
+          <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-6 text-center">
+            <p className="text-xs font-medium text-rose-300 uppercase tracking-wider mb-1">Vence este mes</p>
+            <p className="text-2xl font-bold text-rose-400 font-mono tracking-tight">
+              {formatCurrency(currentMonthDebt)}
+            </p>
+            <p className="text-[10px] text-slate-500 mt-2">
+              A pagar en el ciclo actual
+            </p>
+          </div>
         </div>
 
         {/* Plans List */}
@@ -92,6 +105,9 @@ export default function CuotasPage() {
                     </h3>
                     <p className="text-xs text-slate-500 mt-1">
                       Total del plan: {formatCurrency(Number(plan.total_amount))}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5 font-medium">
+                      Valor cuota: {formatCurrency(Number(plan.total_amount) / plan.installments_count)}
                     </p>
                     {plan.paymentMethodName && (
                       <div className="flex items-center gap-1.5 mt-2 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md w-fit">

@@ -3,22 +3,22 @@
 import { useEffect } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { MonthSelector } from '@/components/month-selector';
-import { 
-  Coffee, 
-  ShoppingBag, 
-  Home as HomeIcon, 
-  Car, 
+import {
+  Coffee,
+  ShoppingBag,
+  Home as HomeIcon,
+  Car,
   Smartphone,
   DollarSign,
   CreditCard,
   Filter,
   Wallet
 } from 'lucide-react';
-import { 
-  format, 
-  parseISO, 
-  isFuture, 
-  isThisWeek, 
+import {
+  format,
+  parseISO,
+  isFuture,
+  isThisWeek,
   isSameDay,
   isSameMonth,
   parse
@@ -53,10 +53,10 @@ const getCategoryIcon = (category: string | null) => {
 };
 
 export default function MovimientosPage() {
-  const { 
-    transactions, 
-    paymentMethods, 
-    fetchAllData, 
+  const {
+    transactions,
+    paymentMethods,
+    fetchAllData,
     isInitialized,
     isLoading
   } = useFinanceStore();
@@ -80,11 +80,14 @@ export default function MovimientosPage() {
   const currentMonthDate = parse(currentMonthStr, 'yyyy-MM', new Date());
 
   const filteredTransactions = transactions.filter(t => {
-    const tDate = parseISO(t.date); // La fecha en DB ya es la fecha de Cash Flow
-    
-    // 1. Filtro de Mes
-    const isMonthMatch = isSameMonth(tDate, currentMonthDate);
-    
+    // CAMBIO CLAVE: Usamos 'periodDate' (la fecha virtual del store) si existe
+    // Si no existe (porque t no es del store modificado o es legacy), fallback a t.date
+    const visualDateStr = (t as any).periodDate || t.date;
+    const visualDate = parseISO(visualDateStr);
+
+    // 1. Filtro de Mes (Ahora compara contra el mes visual/resumen)
+    const isMonthMatch = isSameMonth(visualDate, currentMonthDate);
+
     // 2. Filtro de Medio de Pago
     let isMethodMatch = true;
     if (selectedPaymentMethodId !== 'all') {
@@ -109,7 +112,7 @@ export default function MovimientosPage() {
   filteredTransactions.forEach(t => {
     // Usamos una fecha con ajuste de zona horaria local para comparar días correctamente
     const tDate = parseISO(t.date);
-    
+
     if (tDate > today && !isSameDay(tDate, today)) {
       groups.futuro.push(t);
     } else if (isSameDay(tDate, today)) {
@@ -171,7 +174,7 @@ export default function MovimientosPage() {
         <div className="mx-auto max-w-2xl px-4 py-3">
           <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
         </div>
-        
+
         {/* Filtros de Medios de Pago (Chips con scroll horizontal) */}
         <div className="mx-auto max-w-2xl px-4 pb-3 overflow-x-auto no-scrollbar">
           <div className="flex gap-2">
@@ -187,7 +190,7 @@ export default function MovimientosPage() {
               <Filter className="h-3 w-3" />
               Todos
             </button>
-            
+
             {paymentMethods.map((pm) => (
               <button
                 key={pm.id}
@@ -233,14 +236,14 @@ export default function MovimientosPage() {
 function TransactionRow({ transaction, paymentMethods }: { transaction: Transaction, paymentMethods: PaymentMethod[] }) {
   const isFutureDate = isFuture(parseISO(transaction.date));
   const isIncome = transaction.type === 'income';
-  
+
   // Buscar el nombre del medio de pago localmente
   const paymentMethod = paymentMethods.find(pm => pm.id === transaction.payment_method_id);
   const isCredit = paymentMethod?.type === 'credit';
 
   return (
     <div className="group relative flex items-center justify-between rounded-xl border border-slate-800/40 bg-slate-900/20 p-3 transition-all hover:bg-slate-900/60 hover:border-slate-700 hover:shadow-lg hover:shadow-black/20">
-      
+
       {/* Left: Icon & Info */}
       <div className="flex items-center gap-3 overflow-hidden">
         <div className={cn(
@@ -277,10 +280,10 @@ function TransactionRow({ transaction, paymentMethods }: { transaction: Transact
         )}>
           {isIncome ? '+' : ''} {formatCurrency(Math.abs(transaction.amount))}
         </span>
-        
+
         {isFutureDate ? (
           <div className="flex items-center gap-1.5">
-             <span className="text-[10px] text-amber-500/80 font-medium">
+            <span className="text-[10px] text-amber-500/80 font-medium">
               {formatDate(transaction.date)}
             </span>
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>

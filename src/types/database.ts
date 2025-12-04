@@ -38,6 +38,7 @@ export interface Database {
           type: 'credit' | 'debit' | 'cash'
           default_closing_day: number | null
           default_payment_day: number | null
+          is_personal?: boolean
           created_at: string
         }
         Insert: {
@@ -47,6 +48,7 @@ export interface Database {
           type: 'credit' | 'debit' | 'cash'
           default_closing_day?: number | null
           default_payment_day?: number | null
+          is_personal?: boolean
           created_at?: string
         }
         Update: {
@@ -56,6 +58,7 @@ export interface Database {
           type?: 'credit' | 'debit' | 'cash'
           default_closing_day?: number | null
           default_payment_day?: number | null
+          is_personal?: boolean
           created_at?: string
         }
         Relationships: [
