@@ -238,6 +238,54 @@ export interface Database {
           }
         ]
       }
+      investments: {
+        Row: {
+          id: number
+          ticker: string
+          name: string
+          type: string
+          quantity: number
+          avg_buy_price: number | null
+          currency: string
+        }
+        Insert: {
+          id?: number
+          ticker: string
+          name: string
+          type: string
+          quantity: number
+          avg_buy_price?: number | null
+          currency?: string
+        }
+        Update: {
+          id?: number
+          ticker?: string
+          name?: string
+          type?: string
+          quantity?: number
+          avg_buy_price?: number | null
+          currency?: string
+        }
+        Relationships: []
+      }
+      market_prices: {
+        Row: {
+          ticker: string
+          last_price: number
+          last_update: string | null
+        }
+        Insert: {
+          ticker: string
+          last_price: number
+          last_update?: string | null
+        }
+        Update: {
+          ticker?: string
+          last_price?: number
+          last_update?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -263,3 +311,5 @@ export type InstallmentPlan = Tables<'installment_plans'>
 export type RecurringPlan = Tables<'recurring_plans'>
 export type Transaction = Tables<'transactions'>
 export type PaymentMethod = Tables<'payment_methods'>
+export type Investment = Tables<'investments'>
+export type MarketPrice = Tables<'market_prices'>

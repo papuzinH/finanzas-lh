@@ -5,6 +5,8 @@ import {
   InstallmentPlan,
   RecurringPlan,
   PaymentMethod,
+  Investment,
+  MarketPrice,
 } from '@/types/database';
 import {
   addMonths,
@@ -25,6 +27,8 @@ interface FinanceState {
   installmentPlans: InstallmentPlan[];
   paymentMethods: PaymentMethod[];
   recurringPlans: RecurringPlan[];
+  investments: Investment[];
+  marketPrices: MarketPrice[];
 
   // Status
   isLoading: boolean;
@@ -35,6 +39,21 @@ interface FinanceState {
   fetchAllData: () => Promise<void>;
 
   // Computed Getters (Logic)
+  getPortfolioStatus: () => {
+    assets: Array<Investment & {
+      currentValue: number;
+      investedValue: number;
+      profitAmount: number;
+      profitPercent: number;
+      lastPrice: number;
+      lastUpdate: string | null;
+    }>;
+    totalBalanceARS: number;
+    totalBalanceUSD: number;
+    totalProfitARS: number;
+    totalProfitUSD: number;
+    lastUpdate: string | null;
+  };
   getGlobalBalance: () => number;
   getMonthlyBurnRate: () => number;
   getInstallmentStatus: (planId: number) => {
@@ -113,6 +132,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   installmentPlans: [],
   paymentMethods: [],
   recurringPlans: [],
+  investments: [],
+  marketPrices: [],
   isLoading: false,
   error: null,
   isInitialized: false,
@@ -128,6 +149,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         { data: installments, error: instError },
         { data: paymentMethodsData, error: pmError },
         { data: recurring, error: recError },
+        { data: investments, error: invError },
+        { data: marketPrices, error: mpError },
       ] = await Promise.all([
         supabase
           .from('transactions')
@@ -136,6 +159,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         supabase.from('installment_plans').select('*'),
         supabase.from('payment_methods').select('*'),
         supabase.from('recurring_plans').select('*'),
+        supabase.from('investments').select('*'),
+        supabase.from('market_prices').select('*'),
       ]);
 
       if (txError) throw txError;
@@ -176,6 +201,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         installmentPlans: (installments as InstallmentPlan[]) || [],
         paymentMethods: methods,
         recurringPlans: (recurring as RecurringPlan[]) || [],
+        investments: (investments as Investment[]) || [],
+        marketPrices: (marketPrices as MarketPrice[]) || [],
         isInitialized: true,
       });
     } catch (error) {
@@ -184,6 +211,65 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     } finally {
       set({ isLoading: false });
     }
+  },
+
+  getPortfolioStatus: () => {
+    const { investments, marketPrices } = get();
+    
+    let totalBalanceARS = 0;
+    let totalBalanceUSD = 0;
+    let totalProfitARS = 0;
+    let totalProfitUSD = 0;
+    let lastUpdate: string | null = null;
+
+    const assets = investments.map((inv) => {
+      const marketData = marketPrices.find((mp) => mp.ticker === inv.ticker);
+      const lastPrice = marketData?.last_price ?? inv.avg_buy_price ?? 0; // Fallback to buy price or 0
+      const currentUpdate = marketData?.last_update ?? null;
+
+      // Update global last update if this one is more recent
+      if (currentUpdate) {
+        if (!lastUpdate || new Date(currentUpdate) > new Date(lastUpdate)) {
+          lastUpdate = currentUpdate;
+        }
+      }
+
+      const quantity = Number(inv.quantity);
+      const avgBuyPrice = Number(inv.avg_buy_price || 0);
+      
+      const currentValue = quantity * lastPrice;
+      const investedValue = quantity * avgBuyPrice;
+      const profitAmount = currentValue - investedValue;
+      const profitPercent = investedValue !== 0 ? (profitAmount / investedValue) * 100 : 0;
+
+      // Accumulate totals
+      if (inv.currency === 'USD') {
+        totalBalanceUSD += currentValue;
+        totalProfitUSD += profitAmount;
+      } else {
+        totalBalanceARS += currentValue;
+        totalProfitARS += profitAmount;
+      }
+
+      return {
+        ...inv,
+        currentValue,
+        investedValue,
+        profitAmount,
+        profitPercent,
+        lastPrice,
+        lastUpdate: currentUpdate,
+      };
+    });
+
+    return {
+      assets,
+      totalBalanceARS,
+      totalBalanceUSD,
+      totalProfitARS,
+      totalProfitUSD,
+      lastUpdate,
+    };
   },
 
   getGlobalBalance: () => {
