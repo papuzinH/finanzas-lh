@@ -30,6 +30,46 @@ export interface Database {
         }
         Relationships: []
       }
+      payment_methods: {
+        Row: {
+          id: number
+          user_id: number
+          name: string
+          type: 'credit' | 'debit' | 'cash'
+          default_closing_day: number | null
+          default_payment_day: number | null
+          is_personal?: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          user_id: number
+          name: string
+          type: 'credit' | 'debit' | 'cash'
+          default_closing_day?: number | null
+          default_payment_day?: number | null
+          is_personal?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          user_id?: number
+          name?: string
+          type?: 'credit' | 'debit' | 'cash'
+          default_closing_day?: number | null
+          default_payment_day?: number | null
+          is_personal?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       installment_plans: {
         Row: {
           id: number
@@ -40,6 +80,7 @@ export interface Database {
           purchase_date: string
           category: string | null
           created_at: string
+          payment_method_id: number | null
         }
         Insert: {
           id?: number
@@ -50,6 +91,7 @@ export interface Database {
           purchase_date: string
           category?: string | null
           created_at?: string
+          payment_method_id?: number | null
         }
         Update: {
           id?: number
@@ -60,12 +102,19 @@ export interface Database {
           purchase_date?: string
           category?: string | null
           created_at?: string
+          payment_method_id?: number | null
         }
         Relationships: [
           {
             foreignKeyName: "installment_plans_user_id_fkey"
             columns: ["user_id"]
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_plans_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            referencedRelation: "payment_methods"
             referencedColumns: ["id"]
           }
         ]
@@ -81,6 +130,7 @@ export interface Database {
           is_active: boolean | null
           category: string | null
           created_at: string
+          payment_method_id: number | null
         }
         Insert: {
           id?: number
@@ -92,6 +142,7 @@ export interface Database {
           is_active?: boolean | null
           category?: string | null
           created_at?: string
+          payment_method_id?: number | null
         }
         Update: {
           id?: number
@@ -103,12 +154,19 @@ export interface Database {
           is_active?: boolean | null
           category?: string | null
           created_at?: string
+          payment_method_id?: number | null
         }
         Relationships: [
           {
             foreignKeyName: "recurring_plans_user_id_fkey"
             columns: ["user_id"]
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_plans_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            referencedRelation: "payment_methods"
             referencedColumns: ["id"]
           }
         ]
@@ -121,11 +179,11 @@ export interface Database {
           category: string | null
           amount: number
           date: string
-          payment_method: string | null
           type: 'expense' | 'income' | null
           installment_plan_id: number | null
           recurring_plan_id: number | null
           created_at: string
+          payment_method_id: number | null
         }
         Insert: {
           id?: number
@@ -134,11 +192,11 @@ export interface Database {
           category?: string | null
           amount: number
           date: string
-          payment_method?: string | null
           type?: 'expense' | 'income' | null
           installment_plan_id?: number | null
           recurring_plan_id?: number | null
           created_at?: string
+          payment_method_id?: number | null
         }
         Update: {
           id?: number
@@ -147,11 +205,11 @@ export interface Database {
           category?: string | null
           amount?: number
           date?: string
-          payment_method?: string | null
           type?: 'expense' | 'income' | null
           installment_plan_id?: number | null
           recurring_plan_id?: number | null
           created_at?: string
+          payment_method_id?: number | null
         }
         Relationships: [
           {
@@ -170,6 +228,12 @@ export interface Database {
             foreignKeyName: "transactions_user_id_fkey"
             columns: ["user_id"]
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            referencedRelation: "payment_methods"
             referencedColumns: ["id"]
           }
         ]
@@ -198,3 +262,4 @@ export type User = Tables<'users'>
 export type InstallmentPlan = Tables<'installment_plans'>
 export type RecurringPlan = Tables<'recurring_plans'>
 export type Transaction = Tables<'transactions'>
+export type PaymentMethod = Tables<'payment_methods'>
