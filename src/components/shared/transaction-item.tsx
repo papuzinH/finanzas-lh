@@ -19,7 +19,7 @@ interface TransactionItemProps {
     description: string;
     date: string;
     category: string | null;
-    type: 'income' | 'expense' | string | null;
+    type: 'income' | 'expense' | null;
     payment_method_id: number | null;
   };
   paymentMethodName?: string;

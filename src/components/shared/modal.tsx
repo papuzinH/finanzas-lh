@@ -48,7 +48,19 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
           {children}
         </div>
       </div>
-      <div className="absolute inset-0 -z-10" onClick={onClose} />
+      <div
+        className="absolute inset-0 -z-10"
+        onClick={onClose}
+        role="button"
+        aria-label="Close modal"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClose();
+          }
+        }}
+      />
     </div>
   );
 }

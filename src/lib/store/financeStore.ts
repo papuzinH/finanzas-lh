@@ -179,7 +179,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         isInitialized: true,
       });
     } catch (error) {
-      console.error(error);
+      console.error('Failed to fetch financial data:', error);
+      set({ error: 'Unable to load financial data. Please try again later.' });
     } finally {
       set({ isLoading: false });
     }
