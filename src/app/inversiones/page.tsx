@@ -81,7 +81,7 @@ export default function InversionesPage() {
         <div className="h-8 w-48 bg-slate-800 rounded"></div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="h-32 bg-slate-800 rounded"></div>
-          <div className="h-32 bg-slate-800 rounded"></div>
+          <div className="h-32 bg-slate-800 rounded">test</div>
         </div>
         <div className="h-64 bg-slate-800 rounded"></div>
       </div>
