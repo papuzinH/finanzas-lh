@@ -7,6 +7,7 @@ import {
   PaymentMethod,
   Investment,
   MarketPrice,
+  User,
 } from '@/types/database';
 import {
   addMonths,
@@ -29,6 +30,7 @@ interface FinanceState {
   recurringPlans: RecurringPlan[];
   investments: Investment[];
   marketPrices: MarketPrice[];
+  user: User | null;
 
   // Status
   isLoading: boolean;
@@ -134,6 +136,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   recurringPlans: [],
   investments: [],
   marketPrices: [],
+  user: null,
   isLoading: false,
   error: null,
   isInitialized: false,
@@ -151,6 +154,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         { data: recurring, error: recError },
         { data: investments, error: invError },
         { data: marketPrices, error: mpError },
+        { data: userData, error: userError },
       ] = await Promise.all([
         supabase
           .from('transactions')
@@ -161,6 +165,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         supabase.from('recurring_plans').select('*'),
         supabase.from('investments').select('*'),
         supabase.from('market_prices').select('*'),
+        supabase.auth.getUser().then(async ({ data: { user } }) => {
+          if (!user) return { data: null, error: null };
+          return supabase.from('users').select('*').eq('id', user.id).single();
+        }),
       ]);
 
       if (txError) throw txError;
