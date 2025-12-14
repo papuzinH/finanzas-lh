@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/utils/supabase/server'
 
 export async function login(prevState: { error: string } | null, formData: FormData) {
@@ -40,6 +41,7 @@ export async function login(prevState: { error: string } | null, formData: FormD
 
 export async function signup(prevState: { error: string } | null, formData: FormData) {
   const supabase = await createClient()
+  const origin = (await headers()).get('origin')
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
@@ -50,6 +52,7 @@ export async function signup(prevState: { error: string } | null, formData: Form
     email,
     password,
     options: {
+      emailRedirectTo: `${origin}/auth/callback`,
       data: {
         first_name: firstName, // Estos datos activarán tu Trigger en SQL
         last_name: lastName,
@@ -69,7 +72,7 @@ export async function signup(prevState: { error: string } | null, formData: Form
 export async function resetPasswordForEmail(prevState: { error?: string; success?: string } | null, formData: FormData) {
   const supabase = await createClient()
   const email = formData.get('email') as string
-  const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const origin = (await headers()).get('origin')
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/auth/callback?next=/reset-password`,
@@ -103,7 +106,7 @@ export async function updatePassword(prevState: { error: string } | null, formDa
 
 export async function signInWithGoogle() {
   const supabase = await createClient()
-  const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const origin = (await headers()).get('origin')
   
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
