@@ -41,7 +41,10 @@ export async function login(prevState: { error: string } | null, formData: FormD
 
 export async function signup(prevState: { error: string } | null, formData: FormData) {
   const supabase = await createClient()
-  const origin = (await headers()).get('origin')
+  const headersList = await headers()
+  const host = headersList.get('host')
+  const protocol = headersList.get('x-forwarded-proto') ?? 'http'
+  const origin = headersList.get('origin') ?? `${protocol}://${host}`
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
@@ -72,7 +75,10 @@ export async function signup(prevState: { error: string } | null, formData: Form
 export async function resetPasswordForEmail(prevState: { error?: string; success?: string } | null, formData: FormData) {
   const supabase = await createClient()
   const email = formData.get('email') as string
-  const origin = (await headers()).get('origin')
+  const headersList = await headers()
+  const host = headersList.get('host')
+  const protocol = headersList.get('x-forwarded-proto') ?? 'http'
+  const origin = headersList.get('origin') ?? `${protocol}://${host}`
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/auth/callback?next=/reset-password`,
@@ -106,7 +112,10 @@ export async function updatePassword(prevState: { error: string } | null, formDa
 
 export async function signInWithGoogle() {
   const supabase = await createClient()
-  const origin = (await headers()).get('origin')
+  const headersList = await headers()
+  const host = headersList.get('host')
+  const protocol = headersList.get('x-forwarded-proto') ?? 'http'
+  const origin = headersList.get('origin') ?? `${protocol}://${host}`
   
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
