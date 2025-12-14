@@ -113,20 +113,32 @@ export async function updatePassword(prevState: { error: string } | null, formDa
 export async function signInWithGoogle() {
   const supabase = await createClient()
   const headersList = await headers()
+  
+  // 1. Construcción robusta del origen
   const host = headersList.get('host')
   const protocol = headersList.get('x-forwarded-proto') ?? 'http'
   const origin = headersList.get('origin') ?? `${protocol}://${host}`
   
+  // 2. URL destino EXACTA
+  // Esto debe coincidir letra por letra con tu configuración de Supabase
+  const redirectUrl = `${origin}/auth/callback`
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${origin}/auth/callback`,
+      // Le decimos explícitamente a dónde volver
+      redirectTo: redirectUrl, 
       queryParams: {
         access_type: 'offline',
         prompt: 'consent',
       },
     },
   })
+
+  if (error) {
+    console.error("Error iniciando OAuth:", error)
+    redirect('/login?error=oauth_init_failed')
+  }
 
   if (data.url) {
     redirect(data.url)
