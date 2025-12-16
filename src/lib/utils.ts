@@ -1,7 +1,5 @@
-import { type ClassValue, clsx } from "clsx"
+import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { format, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -11,12 +9,14 @@ export const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
     currency: 'ARS',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.abs(amount));
+  }).format(amount);
 };
 
-export const formatDate = (dateString: string | Date, formatStr: string = 'd MMM') => {
-  const date = typeof dateString === 'string' ? parseISO(dateString) : dateString;
-  return format(date, formatStr, { locale: es });
+export const formatDate = (dateString: string | Date) => {
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  return new Intl.DateTimeFormat('es-AR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
 };

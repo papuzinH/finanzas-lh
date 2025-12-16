@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { FullPageLoader } from '@/components/shared/loader';
 
 export default function InversionesPage() {
   const { fetchAllData, getPortfolioStatus, isLoading, isInitialized } =
@@ -76,16 +77,7 @@ export default function InversionesPage() {
   };
 
   if (isLoading && !isInitialized) {
-    return (
-      <div className="p-6 space-y-6 animate-pulse">
-        <div className="h-8 w-48 bg-slate-800 rounded"></div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="h-32 bg-slate-800 rounded"></div>
-          <div className="h-32 bg-slate-800 rounded"></div>
-        </div>
-        <div className="h-64 bg-slate-800 rounded"></div>
-      </div>
-    );
+    return <FullPageLoader text="Cargando inversiones..." />;
   }
 
   return (

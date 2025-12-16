@@ -17,6 +17,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
 import { TransactionItem } from '@/components/shared/transaction-item';
 import { Modal } from '@/components/shared/modal';
+import { FullPageLoader } from '@/components/shared/loader';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
 
@@ -38,7 +39,8 @@ export default function DashboardPage() {
     getActiveRecurringPlans,
     getGlobalIncome,
     getGlobalEffectiveExpenses,
-    getExpensesByCategory
+    getExpensesByCategory,
+    user
   } = useFinanceStore();
 
   // Fetch inicial si no hay datos
@@ -73,11 +75,7 @@ export default function DashboardPage() {
     .slice(0, 5);
 
   if (isLoading && !isInitialized) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-slate-500 animate-pulse">Cargando finanzas...</div>
-      </div>
-    );
+    return <FullPageLoader text="Cargando finanzas..." />;
   }
 
   return (
@@ -86,7 +84,7 @@ export default function DashboardPage() {
       <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-6 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">Hola, Lauti 👋</h1>
+            <h1 className="text-xl font-bold tracking-tight text-white">Hola, {user?.first_name || 'Usuario'} 👋</h1>
        
           </div>
           <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700" />

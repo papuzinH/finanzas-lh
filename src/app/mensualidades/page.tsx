@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { 
   RefreshCw, 
@@ -11,10 +11,27 @@ import {
   Home, 
   Dumbbell, 
   ShieldCheck,
-  CreditCard
+  CreditCard,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { PageHeader } from '@/components/shared/page-header';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { EditSubscriptionDialog } from "@/components/subscriptions/edit-subscription-dialog";
+import { ConfirmationModal } from "@/components/shared/confirmation-modal";
+import { FullPageLoader } from '@/components/shared/loader';
+import { deleteSubscription } from "@/app/dashboard/subscriptions/actions";
+import { toast } from "sonner";
+import { useRouter } from 'next/navigation';
 
 const getServiceIcon = (description: string, category: string | null) => {
   const text = (description + ' ' + (category || '')).toLowerCase();
@@ -29,12 +46,138 @@ const getServiceIcon = (description: string, category: string | null) => {
   return <RefreshCw className="h-5 w-5" />;
 };
 
+function SubscriptionCard({ plan }: { plan: any }) {
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleting, startDeleteTransition] = useTransition();
+  const router = useRouter();
+  const { fetchAllData } = useFinanceStore();
+
+  const handleDelete = () => {
+    setIsDeleteOpen(true);
+  };
+
+  const confirmDelete = () => {
+    startDeleteTransition(async () => {
+      const result = await deleteSubscription(plan.id.toString());
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('Suscripción eliminada');
+        await fetchAllData();
+        router.refresh();
+      }
+      setIsDeleteOpen(false);
+    });
+  };
+
+  return (
+    <>
+      <ConfirmationModal
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title="Eliminar suscripción"
+        description="¿Estás seguro de que quieres eliminar esta suscripción? Esta acción no se puede deshacer."
+        onConfirm={confirmDelete}
+        isLoading={isDeleting}
+        variant="destructive"
+        confirmText="Eliminar"
+      />
+      <div 
+        className={cn(
+          "group relative flex flex-col justify-between rounded-xl border p-4 transition-all",
+          plan.is_active 
+            ? "border-slate-800 bg-slate-900/40 hover:bg-slate-900 hover:border-slate-700" 
+            : "border-slate-800/50 bg-slate-900/20 opacity-60 grayscale"
+        )}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <div className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-full border border-slate-800",
+              plan.is_active ? "bg-slate-800 text-slate-300 group-hover:text-white" : "bg-slate-900 text-slate-600"
+            )}>
+              {getServiceIcon(plan.description, plan.category)}
+            </div>
+            <div>
+              <h3 className="font-medium text-sm text-slate-200 group-hover:text-white transition-colors">
+                {plan.description}
+              </h3>
+              {plan.category && (
+                  <span className="inline-flex items-center rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 mt-1">
+                      {plan.category}
+                  </span>
+              )}
+            </div>
+          </div>
+          
+          <div className="text-right">
+            <p className="font-bold text-sm font-mono text-slate-200">
+              {formatCurrency(plan.amount)}
+            </p>
+            <div className="flex items-center justify-end gap-1.5 mt-1">
+              <div className={cn("h-1.5 w-1.5 rounded-full", plan.is_active ? "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" : "bg-slate-600")} />
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                  {plan.is_active ? 'Activo' : 'Inactivo'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Method Badge & Actions */}
+        <div className="flex items-center justify-between pt-3 border-t border-slate-800/50">
+          {plan.paymentMethodName ? (
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md">
+              <CreditCard className="h-3 w-3" />
+              <span>{plan.paymentMethodName}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-600 bg-slate-900/50 px-2 py-1 rounded-md">
+              <CreditCard className="h-3 w-3" />
+              <span>Sin asignar</span>
+            </div>
+          )}
+
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-slate-200 hover:bg-slate-800/50">
+                <MoreVertical className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-200">
+              <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-slate-800 focus:text-slate-200 cursor-pointer">
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={handleDelete} 
+                disabled={isDeleting}
+                className="text-red-400 focus:bg-red-950/30 focus:text-red-400 cursor-pointer"
+              >
+                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                Eliminar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <EditSubscriptionDialog 
+        open={isEditOpen} 
+        onOpenChange={setIsEditOpen} 
+        subscription={plan} 
+      />
+    </>
+  );
+}
+
 export default function MensualidadesPage() {
   const { 
     recurringPlans, 
     paymentMethods,
     fetchAllData, 
     isInitialized,
+    isLoading,
     getMonthlyBurnRate
   } = useFinanceStore();
 
@@ -43,6 +186,10 @@ export default function MensualidadesPage() {
       fetchAllData();
     }
   }, [isInitialized, fetchAllData]);
+
+  if (isLoading && !isInitialized) {
+    return <FullPageLoader text="Cargando suscripciones..." />;
+  }
 
   // Preparamos los datos combinando planes con sus medios de pago
   const plansWithPayment = recurringPlans.map(plan => {
@@ -89,63 +236,7 @@ export default function MensualidadesPage() {
             </div>
           ) : (
             plansWithPayment.map((plan) => (
-              <div 
-                key={plan.id} 
-                className={cn(
-                  "group relative flex flex-col justify-between rounded-xl border p-4 transition-all",
-                  plan.is_active 
-                    ? "border-slate-800 bg-slate-900/40 hover:bg-slate-900 hover:border-slate-700" 
-                    : "border-slate-800/50 bg-slate-900/20 opacity-60 grayscale"
-                )}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-full border border-slate-800",
-                      plan.is_active ? "bg-slate-800 text-slate-300 group-hover:text-white" : "bg-slate-900 text-slate-600"
-                    )}>
-                      {getServiceIcon(plan.description, plan.category)}
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-sm text-slate-200 group-hover:text-white transition-colors">
-                        {plan.description}
-                      </h3>
-                      {plan.category && (
-                          <span className="inline-flex items-center rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 mt-1">
-                              {plan.category}
-                          </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="text-right">
-                    <p className="font-bold text-sm font-mono text-slate-200">
-                      {formatCurrency(plan.amount)}
-                    </p>
-                    <div className="flex items-center justify-end gap-1.5 mt-1">
-                      <div className={cn("h-1.5 w-1.5 rounded-full", plan.is_active ? "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" : "bg-slate-600")} />
-                      <p className="text-[10px] text-slate-500 uppercase tracking-wider">
-                          {plan.is_active ? 'Activo' : 'Inactivo'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Method Badge */}
-                <div className="flex items-center gap-2 pt-3 border-t border-slate-800/50">
-                  {plan.paymentMethodName ? (
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md">
-                      <CreditCard className="h-3 w-3" />
-                      <span>{plan.paymentMethodName}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-600 bg-slate-900/50 px-2 py-1 rounded-md">
-                      <CreditCard className="h-3 w-3" />
-                      <span>Sin asignar</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <SubscriptionCard key={plan.id} plan={plan} />
             ))
           )}
         </div>

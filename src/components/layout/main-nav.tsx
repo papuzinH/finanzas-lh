@@ -73,7 +73,7 @@ export function MainNav() {
       </nav>
 
       {/* Desktop Sidebar */}
-      <nav className="hidden fixed left-0 top-0 h-full w-64 border-r border-slate-800 bg-slate-950 p-6 md:flex md:flex-col">
+      <nav className="hidden fixed left-0 top-0 z-40 h-full w-64 border-r border-slate-800 bg-slate-950 p-6 md:flex md:flex-col">
         <div className="flex items-center gap-3 mb-10 px-2">
             <div className="relative h-10 w-10 aspect-square overflow-hidden rounded-full shadow-[0_0_15px_rgba(16,185,129,0.2)]">
               <Image src="/icon.png" alt="Chanchito Logo" fill className="object-cover" />
@@ -108,20 +108,7 @@ export function MainNav() {
           })}
         </div>
 
-        <div className="mt-auto px-2">
-            <div className="rounded-xl bg-slate-900/50 p-4 border border-slate-800">
-                <p className="text-xs text-slate-500 mb-2">Usuario</p>
-                <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-linear-to-br from-slate-700 to-slate-800 flex items-center justify-center text-xs font-bold text-slate-300">
-                        AD
-                    </div>
-                    <div className="overflow-hidden">
-                        <p className="text-sm font-medium text-slate-200 truncate">Adriel</p>
-                        <p className="text-[10px] text-slate-500 truncate">adriel@example.com</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+        
       </nav>
     </>
   );

@@ -7,6 +7,7 @@ import {
   PaymentMethod,
   Investment,
   MarketPrice,
+  User,
 } from '@/types/database';
 import {
   addMonths,
@@ -29,6 +30,7 @@ interface FinanceState {
   recurringPlans: RecurringPlan[];
   investments: Investment[];
   marketPrices: MarketPrice[];
+  user: User | null;
 
   // Status
   isLoading: boolean;
@@ -134,12 +136,20 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   recurringPlans: [],
   investments: [],
   marketPrices: [],
-  isLoading: false,
+  user: null,
+  isLoading: true, // Start loading by default to prevent flash of empty content
   error: null,
   isInitialized: false,
 
   fetchAllData: async () => {
-    if (get().isLoading) return;
+    // If already loading (and not just initialized default), return.
+    // But we need to allow the first fetch even if isLoading is true by default.
+    // So we check if it's a subsequent fetch or the initial one.
+    // Actually, if isLoading is true, we might still want to fetch if it's the *initial* state.
+    // Let's just set isLoading to true again to be safe, or check isInitialized.
+    
+    if (get().isLoading && get().isInitialized) return; 
+    
     set({ isLoading: true, error: null });
     const supabase = createClient();
 
@@ -151,6 +161,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         { data: recurring, error: recError },
         { data: investments, error: invError },
         { data: marketPrices, error: mpError },
+        { data: userData, error: userError },
       ] = await Promise.all([
         supabase
           .from('transactions')
@@ -161,6 +172,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         supabase.from('recurring_plans').select('*'),
         supabase.from('investments').select('*'),
         supabase.from('market_prices').select('*'),
+        supabase.auth.getUser().then(async ({ data: { user } }) => {
+          if (!user) return { data: null, error: null };
+          return supabase.from('users').select('*').eq('id', user.id).single();
+        }),
       ]);
 
       if (txError) throw txError;
@@ -203,6 +218,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         recurringPlans: (recurring as RecurringPlan[]) || [],
         investments: (investments as Investment[]) || [],
         marketPrices: (marketPrices as MarketPrice[]) || [],
+        user: (userData as User) || null,
         isInitialized: true,
       });
     } catch (error) {
@@ -298,7 +314,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const { recurringPlans } = get();
     return recurringPlans
       .filter((p) => p.is_active)
-      .reduce((acc, p) => acc + Number(p.amount), 0);
+      .reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0);
   },
 
   getInstallmentStatus: (planId: number) => {
