@@ -6,6 +6,7 @@ import { Wallet } from 'lucide-react';
 import { InstitutionalCard } from '@/components/medios-pago/institutional-card';
 import { PersonalDebtCard } from '@/components/medios-pago/personal-debt-card';
 import { PageHeader } from '@/components/shared/page-header';
+import { FullPageLoader } from '@/components/shared/loader';
 
 export default function MediosPagoPage() {
   const { 
@@ -14,6 +15,7 @@ export default function MediosPagoPage() {
     recurringPlans, 
     fetchAllData, 
     isInitialized, 
+    isLoading,
     getPaymentMethodStatus 
   } = useFinanceStore();
 
@@ -22,6 +24,10 @@ export default function MediosPagoPage() {
       fetchAllData();
     }
   }, [isInitialized, fetchAllData]);
+
+  if (isLoading && !isInitialized) {
+    return <FullPageLoader text="Cargando billetera..." />;
+  }
 
   // Optimizamos el cálculo de datos derivados con useMemo
   const { institutionalMethods, personalMethods } = useMemo(() => {

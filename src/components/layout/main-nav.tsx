@@ -73,7 +73,7 @@ export function MainNav() {
       </nav>
 
       {/* Desktop Sidebar */}
-      <nav className="hidden fixed left-0 top-0 h-full w-64 border-r border-slate-800 bg-slate-950 p-6 md:flex md:flex-col">
+      <nav className="hidden fixed left-0 top-0 z-40 h-full w-64 border-r border-slate-800 bg-slate-950 p-6 md:flex md:flex-col">
         <div className="flex items-center gap-3 mb-10 px-2">
             <div className="relative h-10 w-10 aspect-square overflow-hidden rounded-full shadow-[0_0_15px_rgba(16,185,129,0.2)]">
               <Image src="/icon.png" alt="Chanchito Logo" fill className="object-cover" />

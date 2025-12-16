@@ -17,6 +17,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
 import { TransactionItem } from '@/components/shared/transaction-item';
 import { Modal } from '@/components/shared/modal';
+import { FullPageLoader } from '@/components/shared/loader';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
 
@@ -74,11 +75,7 @@ export default function DashboardPage() {
     .slice(0, 5);
 
   if (isLoading && !isInitialized) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-slate-500 animate-pulse">Cargando finanzas...</div>
-      </div>
-    );
+    return <FullPageLoader text="Cargando finanzas..." />;
   }
 
   return (

@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { MonthSelector } from '@/components/dashboard/month-selector';
 import { parseISO, isThisWeek, isSameDay, isSameMonth, parse, format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
 import { Filter, CreditCard, Wallet, ChevronDown, ChevronRight } from 'lucide-react';
+import { FullPageLoader } from '@/components/shared/loader';
 
 export default function MovimientosPage() {
   const [isFutureOpen, setIsFutureOpen] = useState(true);
@@ -96,7 +97,8 @@ export default function MovimientosPage() {
     router.replace(`${pathname}?${params.toString()}`);
   };
 
-  console.log('Grupos de movimientos:', groups);
+  // Cálculo del Balance Mensual (Suma de todos los movimientos filtrados)
+  const monthlyBalance = filteredTransactions.reduce((acc, t) => acc + Number(t.amount), 0);
 
   // Helper de renderizado
   const renderSection = (
@@ -148,19 +150,28 @@ export default function MovimientosPage() {
   };
 
   if (isLoading && !isInitialized) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-slate-500 animate-pulse">Cargando movimientos...</div>
-      </div>
-    );
+    return <FullPageLoader text="Cargando movimientos..." />;
   }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
       {/* Header Sticky */}
       <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto max-w-[1440px] px-4 py-3">
+        <div className="mx-auto max-w-[1440px] px-4 py-2 flex flex-col md:flex-row justify-between items-center gap-2 md:gap-0">
           <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
+          
+          <div className="flex items-center justify-between w-full md:w-auto md:block md:text-right border-t border-slate-800/50 pt-2 md:border-0 md:pt-0">
+            <span className="text-xs text-slate-400 font-medium uppercase tracking-wider md:hidden">Balance Total</span>
+            <div className="text-right">
+              <p className="hidden md:block text-[10px] text-slate-400 uppercase tracking-wider font-medium">Balance Mensual</p>
+              <p className={cn(
+                "text-lg font-bold font-mono leading-none",
+                monthlyBalance >= 0 ? "text-emerald-400" : "text-red-400"
+              )}>
+                {formatCurrency(monthlyBalance)}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Filtros de Medios de Pago (Chips con scroll horizontal) */}

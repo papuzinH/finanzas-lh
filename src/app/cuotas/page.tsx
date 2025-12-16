@@ -1,11 +1,170 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { CreditCard, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { 
+  CreditCard, 
+  AlertCircle, 
+  CheckCircle2,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Loader2
+} from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { EditInstallmentPlanDialog } from "@/components/installments/edit-plan-dialog";
+import { ConfirmationModal } from "@/components/shared/confirmation-modal";
+import { deleteInstallmentPlan } from "@/app/dashboard/installments/actions";
+import { toast } from "sonner";
+import { useRouter } from 'next/navigation';
+import { FullPageLoader } from '@/components/shared/loader';
+
+function InstallmentPlanCard({ plan }: { plan: any }) {
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleting, startDeleteTransition] = useTransition();
+  const router = useRouter();
+  const { fetchAllData } = useFinanceStore();
+
+  const handleDelete = () => {
+    setIsDeleteOpen(true);
+  };
+
+  const confirmDelete = () => {
+    startDeleteTransition(async () => {
+      const result = await deleteInstallmentPlan(plan.id.toString());
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('Plan de cuotas eliminado');
+        await fetchAllData();
+        router.refresh();
+      }
+      setIsDeleteOpen(false);
+    });
+  };
+
+  return (
+    <>
+      <ConfirmationModal
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title="Eliminar plan de cuotas"
+        description="ADVERTENCIA: Esto eliminará el plan y TODAS las cuotas futuras y pasadas asociadas. ¿Estás seguro de que quieres continuar?"
+        onConfirm={confirmDelete}
+        isLoading={isDeleting}
+        variant="destructive"
+        confirmText="Eliminar Plan"
+      />
+      <div 
+        className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-5 transition-all hover:bg-slate-900 hover:border-slate-700 flex flex-col justify-between"
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="font-semibold text-slate-200 group-hover:text-white transition-colors">
+              {plan.description}
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Total del plan: {formatCurrency(Number(plan.total_amount))}
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5 font-medium">
+              Valor cuota: {formatCurrency(Number(plan.total_amount) / plan.installments_count)}
+            </p>
+            {plan.paymentMethodName && (
+              <div className="flex items-center gap-1.5 mt-2 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md w-fit">
+                <CreditCard className="h-3 w-3" />
+                <span>{plan.paymentMethodName}</span>
+              </div>
+            )}
+          </div>
+          <div className="text-right flex flex-col items-end">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-sm font-bold text-slate-200 font-mono">
+                {/* Lógica ajustada para mostrar la cuota actual */}
+                {!plan.isFinished
+                  ? `Cuota ${plan.installmentsPaid + 1} / ${plan.installments_count}`
+                  : 'Finalizado'
+                }
+              </p>
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-slate-200 hover:bg-slate-800/50 -mr-2">
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-200">
+                  <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-slate-800 focus:text-slate-200 cursor-pointer">
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={handleDelete} 
+                    disabled={isDeleting}
+                    className="text-red-400 focus:bg-red-950/30 focus:text-red-400 cursor-pointer"
+                  >
+                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Eliminar Plan
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                {plan.remainingInstallments > 0 
+                    ? `${plan.remainingInstallments} restantes` 
+                    : 'Completado'}
+            </p>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-800 mb-4">
+          <div 
+            className={`h-full rounded-full transition-all duration-500 ease-out ${
+                plan.isFinished ? 'bg-emerald-500' : 'bg-indigo-500'
+            }`}
+            style={{ width: `${plan.progress}%` }}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {plan.isFinished ? (
+                <StatusBadge variant="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />}>
+                    Pagado
+                </StatusBadge>
+            ) : (
+                <StatusBadge variant="info" icon={<AlertCircle className="h-3.5 w-3.5" />}>
+                    En curso
+                </StatusBadge>
+            )}
+          </div>
+          
+          <div className="text-right">
+            <p className="text-xs text-slate-500 mb-0.5">Te faltan (Futuro)</p>
+            <p className="text-lg font-bold text-slate-200 font-mono">
+                {formatCurrency(plan.remaining)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <EditInstallmentPlanDialog 
+        open={isEditOpen} 
+        onOpenChange={setIsEditOpen} 
+        plan={plan} 
+      />
+    </>
+  );
+}
 
 export default function CuotasPage() {
   const { 
@@ -13,6 +172,7 @@ export default function CuotasPage() {
     paymentMethods, 
     fetchAllData, 
     isInitialized, 
+    isLoading,
     getInstallmentStatus,
     getCurrentMonthInstallmentsTotal
   } = useFinanceStore();
@@ -22,6 +182,10 @@ export default function CuotasPage() {
       fetchAllData();
     }
   }, [isInitialized, fetchAllData]);
+
+  if (isLoading && !isInitialized) {
+    return <FullPageLoader text="Cargando cuotas..." />;
+  }
 
   // Prepare data for rendering
   const plansWithProgress = installmentPlans.map((plan) => {
@@ -83,75 +247,7 @@ export default function CuotasPage() {
             </div>
           ) : (
             plansWithProgress.map((plan) => (
-              <div 
-                key={plan.id} 
-                className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-5 transition-all hover:bg-slate-900 hover:border-slate-700 flex flex-col justify-between"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="font-semibold text-slate-200 group-hover:text-white transition-colors">
-                      {plan.description}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Total del plan: {formatCurrency(Number(plan.total_amount))}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-0.5 font-medium">
-                      Valor cuota: {formatCurrency(Number(plan.total_amount) / plan.installments_count)}
-                    </p>
-                    {plan.paymentMethodName && (
-                      <div className="flex items-center gap-1.5 mt-2 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md w-fit">
-                        <CreditCard className="h-3 w-3" />
-                        <span>{plan.paymentMethodName}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-slate-200 font-mono">
-                      {/* Lógica ajustada para mostrar la cuota actual */}
-                      {!plan.isFinished
-                        ? `Cuota ${plan.installmentsPaid + 1} / ${plan.installments_count}`
-                        : 'Finalizado'
-                      }
-                    </p>
-                    <p className="text-[10px] uppercase tracking-wider text-slate-500">
-                        {plan.remainingInstallments > 0 
-                            ? `${plan.remainingInstallments} restantes` 
-                            : 'Completado'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-800 mb-4">
-                  <div 
-                    className={`h-full rounded-full transition-all duration-500 ease-out ${
-                        plan.isFinished ? 'bg-emerald-500' : 'bg-indigo-500'
-                    }`}
-                    style={{ width: `${plan.progress}%` }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {plan.isFinished ? (
-                        <StatusBadge variant="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />}>
-                            Pagado
-                        </StatusBadge>
-                    ) : (
-                        <StatusBadge variant="info" icon={<AlertCircle className="h-3.5 w-3.5" />}>
-                            En curso
-                        </StatusBadge>
-                    )}
-                  </div>
-                  
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500 mb-0.5">Te faltan (Futuro)</p>
-                    <p className="text-lg font-bold text-slate-200 font-mono">
-                        {formatCurrency(plan.remaining)}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <InstallmentPlanCard key={plan.id} plan={plan} />
             ))
           )}
         </div>
