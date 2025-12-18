@@ -51,7 +51,9 @@ function SubscriptionCard({ plan }: { plan: any }) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
   const router = useRouter();
-  const { fetchAllData } = useFinanceStore();
+  const { fetchAllData, categories } = useFinanceStore();
+
+  const category = categories.find(c => c.id === plan.category_id);
 
   const handleDelete = () => {
     setIsDeleteOpen(true);
@@ -97,15 +99,15 @@ function SubscriptionCard({ plan }: { plan: any }) {
               "flex h-10 w-10 items-center justify-center rounded-full border border-slate-800",
               plan.is_active ? "bg-slate-800 text-slate-300 group-hover:text-white" : "bg-slate-900 text-slate-600"
             )}>
-              {getServiceIcon(plan.description, plan.category)}
+              {category?.emoji ? <span className="text-lg">{category.emoji}</span> : getServiceIcon(plan.description, category?.name || null)}
             </div>
             <div>
               <h3 className="font-medium text-sm text-slate-200 group-hover:text-white transition-colors">
                 {plan.description}
               </h3>
-              {plan.category && (
+              {category && (
                   <span className="inline-flex items-center rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 mt-1">
-                      {plan.category}
+                      {category.name}
                   </span>
               )}
             </div>

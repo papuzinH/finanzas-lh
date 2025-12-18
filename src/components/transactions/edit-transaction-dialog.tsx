@@ -44,8 +44,8 @@ interface EditTransactionDialogProps {
     description: string;
     amount: number;
     date: string;
-    category: string | null;
-    type: 'income' | 'expense' | null;
+    category_id: string | null;
+    type: 'expense' | 'income' | null;
   };
 }
 
@@ -56,7 +56,7 @@ export function EditTransactionDialog({
 }: EditTransactionDialogProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const { fetchAllData } = useFinanceStore();
+  const { fetchAllData, categories } = useFinanceStore();
 
   const form = useForm<TransactionSchema>({
     resolver: zodResolver(transactionSchema),
@@ -64,7 +64,7 @@ export function EditTransactionDialog({
       description: transaction.description,
       amount: Math.abs(transaction.amount),
       date: new Date(transaction.date),
-      category: transaction.category || '',
+      category_id: transaction.category_id || '',
       type: transaction.type || 'expense',
     },
   });
@@ -160,17 +160,27 @@ export function EditTransactionDialog({
 
             <FormField
               control={form.control}
-              name="category"
+              name="category_id"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Categoría</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Ej: Comida, Transporte" 
-                      {...field} 
-                      className="bg-slate-950 border-slate-800 focus-visible:ring-slate-700"
-                    />
-                  </FormControl>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="bg-slate-950 border-slate-800 focus:ring-slate-700">
+                        <SelectValue placeholder="Seleccionar categoría" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.emoji} {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

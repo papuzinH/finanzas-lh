@@ -9,6 +9,43 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      categories: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          description: string | null
+          emoji: string | null
+          is_system: boolean | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          description?: string | null
+          emoji?: string | null
+          is_system?: boolean | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          description?: string | null
+          emoji?: string | null
+          is_system?: boolean | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       users: {
         Row: {
           id: number
@@ -78,7 +115,7 @@ export interface Database {
           total_amount: number
           installments_count: number
           purchase_date: string
-          category: string | null
+          category_id: string | null
           created_at: string
           payment_method_id: number | null
         }
@@ -89,7 +126,7 @@ export interface Database {
           total_amount: number
           installments_count: number
           purchase_date: string
-          category?: string | null
+          category_id?: string | null
           created_at?: string
           payment_method_id?: number | null
         }
@@ -100,7 +137,7 @@ export interface Database {
           total_amount?: number
           installments_count?: number
           purchase_date?: string
-          category?: string | null
+          category_id?: string | null
           created_at?: string
           payment_method_id?: number | null
         }
@@ -109,6 +146,12 @@ export interface Database {
             foreignKeyName: "installment_plans_user_id_fkey"
             columns: ["user_id"]
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installment_plans_category_id_fkey"
+            columns: ["category_id"]
+            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
           {
@@ -128,7 +171,7 @@ export interface Database {
           currency: string | null
           frequency: string | null
           is_active: boolean | null
-          category: string | null
+          category_id: string | null
           created_at: string
           payment_method_id: number | null
         }
@@ -140,7 +183,7 @@ export interface Database {
           currency?: string | null
           frequency?: string | null
           is_active?: boolean | null
-          category?: string | null
+          category_id?: string | null
           created_at?: string
           payment_method_id?: number | null
         }
@@ -152,7 +195,7 @@ export interface Database {
           currency?: string | null
           frequency?: string | null
           is_active?: boolean | null
-          category?: string | null
+          category_id?: string | null
           created_at?: string
           payment_method_id?: number | null
         }
@@ -164,19 +207,19 @@ export interface Database {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "recurring_plans_category_id_fkey"
+            columns: ["category_id"]
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "recurring_plans_payment_method_id_fkey"
             columns: ["payment_method_id"]
             referencedRelation: "payment_methods"
             referencedColumns: ["id"]
           }
         ]
-      }
-      transactions: {
-        Row: {
-          id: number
-          user_id: number
-          description: string
-          category: string | null
+      }_id: string | null
           amount: number
           date: string
           type: 'expense' | 'income' | null
@@ -189,7 +232,7 @@ export interface Database {
           id?: number
           user_id: number
           description: string
-          category?: string | null
+          category_id?: string | null
           amount: number
           date: string
           type?: 'expense' | 'income' | null
@@ -202,7 +245,7 @@ export interface Database {
           id?: number
           user_id?: number
           description?: string
-          category?: string | null
+          category_id?: string | null
           amount?: number
           date?: string
           type?: 'expense' | 'income' | null
@@ -222,6 +265,18 @@ export interface Database {
             foreignKeyName: "transactions_recurring_plan_id_fkey"
             columns: ["recurring_plan_id"]
             referencedRelation: "recurring_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            referencedRelation: "categorierring_plans"
             referencedColumns: ["id"]
           },
           {
@@ -301,7 +356,8 @@ export interface Database {
     }
   }
 }
-
+Category = Tables<'categories'>
+export type 
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T]
 

@@ -44,7 +44,7 @@ interface EditSubscriptionDialogProps {
     description: string;
     amount: number;
     is_active: boolean | null;
-    category: string | null;
+    category_id: string | null;
     payment_method_id: number | null;
   };
 }
@@ -56,7 +56,7 @@ export function EditSubscriptionDialog({
 }: EditSubscriptionDialogProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const { fetchAllData, paymentMethods } = useFinanceStore();
+  const { fetchAllData, paymentMethods, categories } = useFinanceStore();
 
   const form = useForm<SubscriptionSchema>({
     resolver: zodResolver(subscriptionSchema),
@@ -64,7 +64,7 @@ export function EditSubscriptionDialog({
       description: subscription.description,
       amount: Math.abs(subscription.amount),
       is_active: subscription.is_active ?? true,
-      category: subscription.category || '',
+      category_id: subscription.category_id || '',
       payment_method_id: subscription.payment_method_id ? Number(subscription.payment_method_id) : null,
     },
   });
@@ -138,6 +138,34 @@ export function EditSubscriptionDialog({
                       className="bg-slate-950 border-slate-800 focus-visible:ring-slate-700"
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="category_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoría</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="bg-slate-950 border-slate-800 focus:ring-slate-700">
+                        <SelectValue placeholder="Seleccionar categoría" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.emoji} {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

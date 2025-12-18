@@ -27,13 +27,13 @@ export async function updateInstallmentPlan(id: string, data: InstallmentPlanSch
       return { error: 'Datos inválidos' };
     }
 
-    const { description, category } = validatedFields.data;
+    const { description, category_id } = validatedFields.data;
 
     const { error } = await supabase
       .from('installment_plans')
       .update({
         description,
-        category,
+        category_id,
       })
       .eq('id', id)
       .eq('user_id', user.id);

@@ -27,7 +27,7 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
       return { error: 'Datos inválidos' };
     }
 
-    const { description, amount, date, category, type } = validatedFields.data;
+    const { description, amount, date, category_id, type } = validatedFields.data;
 
     // Ensure amount sign matches type
     const finalAmount = type === 'expense' ? -Math.abs(amount) : Math.abs(amount);
@@ -38,7 +38,7 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
         description,
         amount: finalAmount,
         date: date.toISOString(),
-        category,
+        category_id,
         type,
       })
       .eq('id', id)

@@ -38,7 +38,7 @@ interface TransactionItemProps {
     amount: number;
     description: string;
     date: string;
-    category: string | null;
+    category_id: string | null;
     type: 'expense' | 'income' | null; // Adjusted to match strict types if needed, or keep string
     payment_method_id: number | null;
     installment_plan_id?: number | null;
@@ -49,22 +49,14 @@ interface TransactionItemProps {
   showDate?: boolean;
 }
 
-const getCategoryIcon = (category: string | null) => {
-  const cat = category?.toLowerCase() || '';
-  if (cat.includes('comida') || cat.includes('delivery') || cat.includes('restaurant')) return <Coffee className="h-5 w-5" />;
-  if (cat.includes('compra') || cat.includes('super') || cat.includes('ropa')) return <ShoppingBag className="h-5 w-5" />;
-  if (cat.includes('casa') || cat.includes('alquiler') || cat.includes('servicios')) return <HomeIcon className="h-5 w-5" />;
-  if (cat.includes('transporte') || cat.includes('auto') || cat.includes('viajes')) return <Car className="h-5 w-5" />;
-  if (cat.includes('internet') || cat.includes('celular') || cat.includes('tecnología')) return <Smartphone className="h-5 w-5" />;
-  return <DollarSign className="h-5 w-5" />;
-};
-
 export function TransactionItem({ transaction, paymentMethodName, paymentMethodType, showDate = true }: TransactionItemProps) {
   const router = useRouter();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
-  const { fetchAllData } = useFinanceStore();
+  const { fetchAllData, categories } = useFinanceStore();
+  
+  const category = categories.find(c => c.id === transaction.category_id);
   
   const isFutureDate = isFuture(parseISO(transaction.date));
   const isIncome = transaction.type === 'income';
@@ -109,7 +101,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
               ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
               : "bg-slate-800/50 border-slate-700/50 text-slate-400 group-hover:text-slate-300"
           )}>
-            {getCategoryIcon(transaction.category)}
+            {category?.emoji ? <span className="text-lg">{category.emoji}</span> : <DollarSign className="h-5 w-5" />}
           </div>
 
           <div className="flex flex-col min-w-0">
@@ -124,7 +116,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
                 </span>
               )}
               {paymentMethodName && <span className="text-slate-700">•</span>}
-              <span className="capitalize">{transaction.category || 'Varios'}</span>
+              <span className="capitalize">{category?.name || 'Varios'}</span>
             </div>
           </div>
         </div>

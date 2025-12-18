@@ -24,6 +24,13 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { installmentPlanSchema, type InstallmentPlanSchema } from '@/lib/schemas/installment-plan';
 import { updateInstallmentPlan } from '@/app/dashboard/installments/actions';
 import { formatCurrency } from '@/lib/utils';
@@ -37,7 +44,7 @@ interface EditInstallmentPlanDialogProps {
     description: string;
     total_amount: number;
     installments_count: number;
-    category: string | null;
+    category_id: string | null;
   };
 }
 
@@ -48,13 +55,13 @@ export function EditInstallmentPlanDialog({
 }: EditInstallmentPlanDialogProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const { fetchAllData } = useFinanceStore();
+  const { fetchAllData, categories } = useFinanceStore();
 
   const form = useForm<InstallmentPlanSchema>({
     resolver: zodResolver(installmentPlanSchema),
     defaultValues: {
       description: plan.description,
-      category: plan.category || '',
+      category_id: plan.category_id || '',
     },
   });
 
@@ -104,17 +111,27 @@ export function EditInstallmentPlanDialog({
 
             <FormField
               control={form.control}
-              name="category"
+              name="category_id"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Categoría</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Ej: Tecnología, Hogar" 
-                      {...field} 
-                      className="bg-slate-950 border-slate-800 focus-visible:ring-slate-700"
-                    />
-                  </FormControl>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="bg-slate-950 border-slate-800 focus:ring-slate-700">
+                        <SelectValue placeholder="Seleccionar categoría" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.emoji} {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

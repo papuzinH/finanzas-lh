@@ -27,7 +27,7 @@ export async function updateSubscription(id: string, data: SubscriptionSchema): 
       return { error: 'Datos inválidos' };
     }
 
-    const { description, amount, is_active, category, payment_method_id } = validatedFields.data;
+    const { description, amount, is_active, category_id, payment_method_id } = validatedFields.data;
 
     // Assuming subscriptions are always expenses, store as negative
     const finalAmount = -Math.abs(amount);
@@ -38,7 +38,7 @@ export async function updateSubscription(id: string, data: SubscriptionSchema): 
         description,
         amount: finalAmount,
         is_active,
-        category,
+        category_id,
         payment_method_id
       })
       .eq('id', id)

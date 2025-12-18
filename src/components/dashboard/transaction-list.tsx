@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Transaction } from '@/types/database';
+import { useFinanceStore } from '@/lib/store/financeStore';
 import { 
   Coffee, 
   ShoppingBag, 
@@ -26,16 +27,6 @@ const formatDate = (dateString: string) => {
   return format(date, 'dd/MM');
 };
 
-const getCategoryIcon = (category: string | null) => {
-  const cat = category?.toLowerCase() || '';
-  if (cat.includes('comida') || cat.includes('food') || cat.includes('restaurante')) return <Coffee className="h-4 w-4" />;
-  if (cat.includes('compra') || cat.includes('shopping') || cat.includes('super')) return <ShoppingBag className="h-4 w-4" />;
-  if (cat.includes('casa') || cat.includes('hogar') || cat.includes('alquiler')) return <HomeIcon className="h-4 w-4" />;
-  if (cat.includes('auto') || cat.includes('transporte') || cat.includes('uber')) return <Car className="h-4 w-4" />;
-  if (cat.includes('celular') || cat.includes('internet') || cat.includes('teléfono')) return <Smartphone className="h-4 w-4" />;
-  return <DollarSign className="h-4 w-4" />;
-};
-
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -52,6 +43,8 @@ const item = {
 };
 
 export function TransactionList({ transactions }: { transactions: Transaction[] }) {
+  const { categories } = useFinanceStore();
+
   if (transactions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
@@ -65,9 +58,9 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
       className="space-y-2"
       variants={container}
       initial="hidden"
-      animate="show"
-    >
-      {transactions.map((t) => (
+      animate="show"{
+        const category = categories.find(c => c.id === t.category_id);
+        return (
         <motion.div 
           key={t.id} 
           variants={item}
@@ -79,11 +72,11 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
                 ? 'bg-emerald-500/5 text-emerald-500' 
                 : 'bg-slate-800/50 text-slate-400'
             }`}>
-              {getCategoryIcon(t.category)}
+              {category?.emoji ? <span className="text-lg">{category.emoji}</span> : <DollarSign className="h-4 w-4" />}
             </div>
             <div>
               <p className="font-medium text-sm text-slate-200 truncate max-w-[180px] sm:max-w-[300px]">{t.description}</p>
-              <p className="text-xs text-slate-500 capitalize">{t.category || 'General'}</p>
+              <p className="text-xs text-slate-500 capitalize">{category?.name || 'General'}</p>
             </div>
           </div>
           <div className="text-right">
@@ -94,6 +87,8 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
             </p>
             <p className="text-xs text-slate-500 mt-0.5">{formatDate(t.date)}</p>
           </div>
+        </motion.div>
+      )}   </div>
         </motion.div>
       ))}
     </motion.div>
