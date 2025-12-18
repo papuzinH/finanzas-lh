@@ -528,7 +528,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getExpensesByCategory: (scope) => {
-    const { transactions, paymentMethods } = get();
+    const { transactions, paymentMethods, categories } = get();
     const now = new Date();
 
     return transactions
@@ -542,7 +542,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         return true; // Global includes all history
       })
       .reduce((acc, t) => {
-        const cat = t.category || 'Otros';
+        const categoryObj = categories.find(c => c.id === t.category_id);
+        const cat = categoryObj ? categoryObj.name : 'Otros';
         acc[cat] = (acc[cat] || 0) + Math.abs(Number(t.amount));
         return acc;
       }, {} as Record<string, number>);

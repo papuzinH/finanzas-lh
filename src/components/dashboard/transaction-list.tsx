@@ -58,7 +58,9 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
       className="space-y-2"
       variants={container}
       initial="hidden"
-      animate="show"{
+      animate="show"
+    >
+      {transactions.map((t) => {
         const category = categories.find(c => c.id === t.category_id);
         return (
         <motion.div 
@@ -88,9 +90,8 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
             <p className="text-xs text-slate-500 mt-0.5">{formatDate(t.date)}</p>
           </div>
         </motion.div>
-      )}   </div>
-        </motion.div>
-      ))}
+        );
+      })}
     </motion.div>
   );
 }

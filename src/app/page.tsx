@@ -349,7 +349,7 @@ export default function DashboardPage() {
                 amount: plan.amount,
                 description: plan.description,
                 date: new Date().toISOString(), // Fecha dummy, no se muestra
-                category: plan.category,
+                category_id: plan.category_id,
                 type: 'expense' as const,
                 payment_method_id: plan.payment_method_id
               };

@@ -219,7 +219,13 @@ export interface Database {
             referencedColumns: ["id"]
           }
         ]
-      }_id: string | null
+      }
+      transactions: {
+        Row: {
+          id: number
+          user_id: number
+          description: string
+          category_id: string | null
           amount: number
           date: string
           type: 'expense' | 'income' | null
@@ -276,13 +282,7 @@ export interface Database {
           {
             foreignKeyName: "transactions_category_id_fkey"
             columns: ["category_id"]
-            referencedRelation: "categorierring_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
+            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
           {
@@ -356,13 +356,12 @@ export interface Database {
     }
   }
 }
-Category = Tables<'categories'>
-export type 
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
 export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T]
 
 // Helper interfaces for easier usage in components
 export type User = Tables<'users'>
+export type Category = Tables<'categories'>
 export type InstallmentPlan = Tables<'installment_plans'>
 export type RecurringPlan = Tables<'recurring_plans'>
 export type Transaction = Tables<'transactions'>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import { Transaction } from '@/types/database';
 import { Wallet } from 'lucide-react';
 import { InstitutionalCard } from '@/components/medios-pago/institutional-card';
 import { PersonalDebtCard } from '@/components/medios-pago/personal-debt-card';
@@ -35,7 +36,7 @@ export default function MediosPagoPage() {
       const status = getPaymentMethodStatus(pm.id);
       
       const history = transactions
-        .filter(t => t.payment_method_id === pm.id)
+        .filter((t: Transaction) => t.payment_method_id === pm.id)
         .slice(0, 3);
 
       const subscriptions = recurringPlans.filter(
