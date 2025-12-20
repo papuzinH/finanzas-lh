@@ -5,10 +5,11 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // 1. EXCLUSIÓN: No procesar middleware para rutas de auth o archivos estáticos
+  // Usamos includes para ser más flexibles con slashes iniciales o rutas anidadas
   if (
-    pathname.startsWith('/auth') || 
-    pathname.startsWith('/login') || 
-    pathname.startsWith('/signup') ||
+    pathname.includes('/auth') || 
+    pathname.includes('/login') || 
+    pathname.includes('/signup') ||
     pathname.startsWith('/_next') ||
     pathname.includes('.')
   ) {
@@ -54,11 +55,16 @@ export async function updateSession(request: NextRequest) {
   // Solo si no estamos ya en onboarding y no es una ruta de auth
   if (!pathname.startsWith('/onboarding')) {
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error: dbError } = await supabase
         .from('users')
         .select('telegram_chat_id')
         .eq('id', user.id)
         .single()
+
+      if (dbError && dbError.code !== 'PGRST116') {
+        console.error('Middleware DB Error:', dbError)
+        return supabaseResponse
+      }
 
       const telegramId = profile?.telegram_chat_id
       const isValid = telegramId && telegramId.trim().length > 0
@@ -66,12 +72,25 @@ export async function updateSession(request: NextRequest) {
       if (!isValid) {
         const url = request.nextUrl.clone()
         url.pathname = '/onboarding'
-        // Redirigimos a onboarding. Las cookies de sesión ya van en la request.
-        return NextResponse.redirect(url)
+        
+        const redirectResponse = NextResponse.redirect(url)
+        supabaseResponse.cookies.getAll().forEach((cookie) => {
+          redirectResponse.cookies.set(cookie.name, cookie.value, {
+            path: cookie.path,
+            domain: cookie.domain,
+            maxAge: cookie.maxAge,
+            expires: cookie.expires,
+            secure: cookie.secure,
+            httpOnly: cookie.httpOnly,
+            sameSite: cookie.sameSite,
+          })
+        })
+        
+        return redirectResponse
       }
     } catch (error) {
-      // Si hay un error de DB, permitimos el paso para evitar bloquear al usuario
-      console.error('Middleware DB Error:', error)
+      console.error('Middleware Unexpected Error:', error)
+      return supabaseResponse
     }
   }
 
