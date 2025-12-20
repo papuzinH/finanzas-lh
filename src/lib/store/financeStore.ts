@@ -176,6 +176,15 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const supabase = createClient();
 
     try {
+      // 1. Primero obtenemos el usuario para poder filtrar todo lo demás
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (!authUser) {
+        set({ isLoading: false, isInitialized: true, user: null });
+        return;
+      }
+
+      // 2. Traemos todos los datos filtrados por user_id
       const [
         { data: transactionsData, error: txError },
         { data: installments, error: instError },
@@ -189,20 +198,46 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         supabase
           .from('transactions')
           .select('*')
+          .eq('user_id', authUser.id)
           .order('date', { ascending: false }),
-        supabase.from('installment_plans').select('*'),
-        supabase.from('payment_methods').select('*'),
-        supabase.from('recurring_plans').select('*'),
-        supabase.from('investments').select('*'),
-        supabase.from('market_prices').select('*'),
-        supabase.from('categories').select('*').order('name'),
-        supabase.auth.getUser().then(async ({ data: { user } }) => {
-          if (!user) return { data: null, error: null };
-          return supabase.from('users').select('*').eq('id', user.id).single();
-        }),
+        supabase
+          .from('installment_plans')
+          .select('*')
+          .eq('user_id', authUser.id),
+        supabase
+          .from('payment_methods')
+          .select('*')
+          .eq('user_id', authUser.id),
+        supabase
+          .from('recurring_plans')
+          .select('*')
+          .eq('user_id', authUser.id),
+        supabase
+          .from('investments')
+          .select('*')
+          // .eq('user_id', authUser.id), // Comentado porque la tabla parece no tener user_id aún
+          ,
+        supabase
+          .from('market_prices')
+          .select('*'), // Global
+        supabase
+          .from('categories')
+          .select('*')
+          .or(`user_id.eq.${authUser.id},is_system.eq.true`)
+          .order('name'),
+        supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single(),
       ]);
 
       if (txError) throw txError;
+      if (instError) throw instError;
+      if (pmError) throw pmError;
+      if (recError) throw recError;
+      if (catError) throw catError;
+      if (userError && userError.code !== 'PGRST116') throw userError; // PGRST116 is "no rows returned"
 
       const methods = (paymentMethodsData as PaymentMethod[]) || [];
       const rawTransactions = (transactionsData as Transaction[]) || [];

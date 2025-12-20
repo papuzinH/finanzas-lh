@@ -34,6 +34,18 @@ export async function updateSession(request: NextRequest) {
   // IMPORTANTE: Leemos el usuario para refrescar el token si venció
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Si hay usuario, verificamos si tiene el perfil completo (telegram_chat_id)
+  let hasTelegramId = false
+  if (user) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('telegram_chat_id')
+      .eq('id', user.id)
+      .single()
+    
+    hasTelegramId = !!profile?.telegram_chat_id
+  }
+
   // PROTECCIÓN DE RUTAS
   // Si no está logueado y no está en login/auth, lo mandamos al login
   if (
@@ -46,10 +58,23 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Si YA está logueado y quiere ir al login, lo mandamos al home
+  // Si está logueado pero NO tiene telegram_chat_id y no está en onboarding/auth, lo mandamos a onboarding
+  if (
+    user &&
+    !hasTelegramId &&
+    !request.nextUrl.pathname.startsWith('/onboarding') &&
+    !request.nextUrl.pathname.startsWith('/auth') &&
+    !request.nextUrl.pathname.startsWith('/login')
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/onboarding'
+    return NextResponse.redirect(url)
+  }
+
+  // Si YA está logueado y quiere ir al login, lo mandamos al home (o onboarding si le falta)
   if (user && request.nextUrl.pathname.startsWith('/login')) {
     const url = request.nextUrl.clone()
-    url.pathname = '/'
+    url.pathname = hasTelegramId ? '/' : '/onboarding'
     return NextResponse.redirect(url)
   }
 
