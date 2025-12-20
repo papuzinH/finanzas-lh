@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
@@ -40,14 +40,16 @@ interface EditSubscriptionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   subscription: {
-    id: number;
+    id: string | number;
     description: string;
     amount: number;
     is_active: boolean | null;
     category_id: string | null;
-    payment_method_id: number | null;
+    payment_method_id: string | null;
   };
 }
+
+
 
 export function EditSubscriptionDialog({
   open,
@@ -64,14 +66,35 @@ export function EditSubscriptionDialog({
       description: subscription.description,
       amount: Math.abs(subscription.amount),
       is_active: subscription.is_active ?? true,
-      category_id: subscription.category_id || '',
-      payment_method_id: subscription.payment_method_id ? Number(subscription.payment_method_id) : null,
+      category_id: subscription.category_id || "none",
+      payment_method_id: subscription.payment_method_id || "none",
     },
   });
 
+  // Actualizar el formulario cuando cambie la suscripción o se abra el diálogo
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        description: subscription.description,
+        amount: Math.abs(subscription.amount),
+        is_active: subscription.is_active ?? true,
+        category_id: subscription.category_id || "none",
+        payment_method_id: subscription.payment_method_id || "none",
+      });
+    }
+  }, [subscription, open, form]);
+  
+
   async function onSubmit(data: SubscriptionSchema) {
     startTransition(async () => {
-      const result = await updateSubscription(subscription.id.toString(), data);
+      // Limpiar valores "none" antes de enviar
+      const formattedData = {
+        ...data,
+        category_id: data.category_id === "none" ? null : data.category_id,
+        payment_method_id: data.payment_method_id === "none" ? null : data.payment_method_id,
+      };
+
+      const result = await updateSubscription(subscription.id.toString(), formattedData);
 
       if (result.error) {
         toast.error(result.error);
@@ -151,7 +174,7 @@ export function EditSubscriptionDialog({
                   <FormLabel>Categoría</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value || "none"}
                   >
                     <FormControl>
                       <SelectTrigger className="bg-slate-950 border-slate-800 focus:ring-slate-700">
@@ -159,6 +182,7 @@ export function EditSubscriptionDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                      <SelectItem value="none">Sin categoría</SelectItem>
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.emoji} {category.name}
@@ -178,9 +202,8 @@ export function EditSubscriptionDialog({
                 <FormItem>
                   <FormLabel>Método de pago</FormLabel>
                   <Select
-                    onValueChange={(value) => field.onChange(Number(value))}
-                    defaultValue={field.value?.toString()}
-                    value={field.value?.toString()}
+                    onValueChange={field.onChange}
+                    value={field.value || "none"}
                   >
                     <FormControl>
                       <SelectTrigger className="bg-slate-950 border-slate-800 focus:ring-slate-700">
@@ -188,6 +211,7 @@ export function EditSubscriptionDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                      <SelectItem value="none">Sin asignar</SelectItem>
                       {paymentMethods.map((method) => (
                         <SelectItem 
                           key={method.id} 
