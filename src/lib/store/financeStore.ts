@@ -102,6 +102,8 @@ interface FinanceState {
       percentage: number;
     }>;
   };
+  getMonthlyIncome: () => number;
+  getMonthlyVariableExpenses: () => number;
 }
 
 // Helper para determinar si un gasto corresponde al mes actual (Scope)
@@ -620,5 +622,31 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     })).sort((a, b) => b.value - a.value);
 
     return { total, items };
+  },
+
+  getMonthlyIncome: () => {
+    const { transactions } = get();
+    const now = new Date();
+    return transactions
+      .filter((t) => {
+        if (t.type !== 'income') return false;
+        const tDate = parseISO(t.date);
+        const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+        return isSameMonth(localTDate, now);
+      })
+      .reduce((acc, t) => acc + Number(t.amount), 0);
+  },
+
+  getMonthlyVariableExpenses: () => {
+    const { transactions, paymentMethods } = get();
+    const now = new Date();
+    return transactions
+      .filter((t) => 
+        t.type === 'expense' && 
+        !t.installment_plan_id && 
+        !t.recurring_plan_id && 
+        isExpenseInCurrentMonthScope(t, paymentMethods, now)
+      )
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
   },
 }));
