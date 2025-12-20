@@ -2,10 +2,9 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+  // 1. Creamos una respuesta inicial base
+  let supabaseResponse = NextResponse.next({
+    request,
   })
 
   const supabase = createServerClient(
@@ -17,66 +16,50 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value)
-          )
-          response = NextResponse.next({
+          // 🛑 AQUÍ ESTÁ EL TRUCO PARA SOLUCIONAR EL BUG DEL F5 🛑
+          
+          // A. Actualizamos el REQUEST: Esto permite que supabase.auth.getUser() 
+          // vea la sesión actualizada INMEDIATAMENTE en esta misma ejecución.
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          
+          // B. Actualizamos el RESPONSE: Recreamos la respuesta para asegurar 
+          // que las cookies viajen al navegador.
+          supabaseResponse = NextResponse.next({
             request,
           })
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options)
           )
         },
       },
     }
   )
 
-  // IMPORTANTE: Leemos el usuario para refrescar el token si venció
-  const { data: { user } } = await supabase.auth.getUser()
+  // 2. Verificamos el usuario. 
+  // IMPORTANTE: Al haber hecho el paso A arriba, getUser() ya no devolverá null falsamente.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  // Si hay usuario, verificamos si tiene el perfil completo (telegram_chat_id)
-  let hasTelegramId = false
-  if (user) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('telegram_chat_id')
-      .eq('id', user.id)
-      .single()
-    
-    hasTelegramId = !!profile?.telegram_chat_id
-  }
-
-  // PROTECCIÓN DE RUTAS
-  // Si no está logueado y no está en login/auth, lo mandamos al login
+  // 3. Lógica de Protección de Rutas
+  // Si NO hay usuario y NO estamos en una ruta pública -> Redirigir a Login
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
+    !request.nextUrl.pathname.startsWith('/auth') &&
+    !request.nextUrl.pathname.startsWith('/onboarding') // Dejar pasar si es onboarding
   ) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Si está logueado pero NO tiene telegram_chat_id y no está en onboarding/auth, lo mandamos a onboarding
-  if (
-    user &&
-    !hasTelegramId &&
-    !request.nextUrl.pathname.startsWith('/onboarding') &&
-    !request.nextUrl.pathname.startsWith('/auth') &&
-    !request.nextUrl.pathname.startsWith('/login')
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/onboarding'
-    return NextResponse.redirect(url)
-  }
-
-  // Si YA está logueado y quiere ir al login, lo mandamos al home (o onboarding si le falta)
+  // 4. IMPORTANTE: Si YA hay usuario y trata de entrar al login -> Mandar al home
   if (user && request.nextUrl.pathname.startsWith('/login')) {
-    const url = request.nextUrl.clone()
-    url.pathname = hasTelegramId ? '/' : '/onboarding'
-    return NextResponse.redirect(url)
+     const url = request.nextUrl.clone()
+     url.pathname = '/'
+     return NextResponse.redirect(url)
   }
 
-  return response
+  return supabaseResponse
 }
