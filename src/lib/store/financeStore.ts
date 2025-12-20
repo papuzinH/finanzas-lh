@@ -109,6 +109,8 @@ const isExpenseInCurrentMonthScope = (t: Transaction, methods: PaymentMethod[], 
   if (t.type !== 'expense') return false;
   
   const tDate = parseISO(t.date);
+  // Ajuste para evitar el desfase de zona horaria (UTC -> Local)
+  const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
   
   // 1. Si es Cuota (Installment) -> Usar lógica de Ciclo de Tarjeta
   if (t.installment_plan_id) {
@@ -132,16 +134,13 @@ const isExpenseInCurrentMonthScope = (t: Transaction, methods: PaymentMethod[], 
            }
            
            return (
-              tDate.getMonth() === paymentDateForThisCycle.getMonth() &&
-              tDate.getFullYear() === paymentDateForThisCycle.getFullYear()
+              localTDate.getMonth() === paymentDateForThisCycle.getMonth() &&
+              localTDate.getFullYear() === paymentDateForThisCycle.getFullYear()
            );
       }
   }
   
   // 2. Si NO es cuota (o no es tarjeta con ciclo definido) -> Usar Mes Calendario
-  const localTDate = new Date(
-      tDate.valueOf() + tDate.getTimezoneOffset() * 60 * 1000
-  );
   return (
       localTDate.getMonth() === now.getMonth() &&
       localTDate.getFullYear() === now.getFullYear()
@@ -213,7 +212,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
         if (method && method.type === 'credit') {
           const tDate = parseISO(t.date);
-          const dayOfMonth = getDate(tDate);
+          const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+          const dayOfMonth = getDate(localTDate);
 
           // Si la fecha de pago es a principio de mes (ej: día 6) y la tarjeta vence cerca (ej: día 6)
           // Significa que corresponde al consumo del mes ANTERIOR.
@@ -221,7 +221,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
             method.default_payment_day &&
             dayOfMonth <= method.default_payment_day + 2
           ) {
-            const visualDate = subMonths(tDate, 1);
+            const visualDate = subMonths(localTDate, 1);
             periodDate = format(visualDate, 'yyyy-MM-dd');
           }
         }
@@ -474,15 +474,16 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         // CRÉDITO CON FECHAS: Solo las del ciclo actual
         if (method.type === 'credit' && nextPaymentDate) {
              const tDate = parseISO(t.date);
+             const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
              return (
-                tDate.getMonth() === nextPaymentDate.getMonth() &&
-                tDate.getFullYear() === nextPaymentDate.getFullYear()
+                localTDate.getMonth() === nextPaymentDate.getMonth() &&
+                localTDate.getFullYear() === nextPaymentDate.getFullYear()
              );
         } 
         
         // DÉBITO/EFECTIVO (o Crédito sin fechas): Histórico hasta fin de mes
         const tDate = parseISO(t.date);
-        const localTDate = new Date(tDate.valueOf() + tDate.getTimezoneOffset() * 60 * 1000);
+        const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
         return localTDate <= endOfMonth(now);
       })
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
@@ -574,7 +575,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const filtered = transactions.filter(t => {
       const visualDateStr = t.periodDate || t.date;
       const visualDate = parseISO(visualDateStr);
-      const isMonthMatch = isSameMonth(visualDate, currentMonthDate);
+      // Ajuste para evitar el desfase de zona horaria (UTC -> Local)
+      const localVisualDate = new Date(visualDate.getTime() + visualDate.getTimezoneOffset() * 60000);
+      const isMonthMatch = isSameMonth(localVisualDate, currentMonthDate);
       let isMethodMatch = true;
       if (paymentMethodId !== 'all') {
         isMethodMatch = t.payment_method_id === Number(paymentMethodId);

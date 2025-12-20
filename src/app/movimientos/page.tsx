@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { MonthSelector } from '@/components/dashboard/month-selector';
-import { parseISO, isThisWeek, isSameDay, isSameMonth, parse, format } from 'date-fns';
+import { parseISO, isSameDay, isSameMonth, parse, format } from 'date-fns';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
@@ -49,9 +49,11 @@ export default function MovimientosPage() {
     // Si no existe (porque t no es del store modificado o es legacy), fallback a t.date
     const visualDateStr = (t as TransactionWithPeriod).periodDate || t.date;
     const visualDate = parseISO(visualDateStr);
+    // Ajuste para evitar el desfase de zona horaria (UTC -> Local)
+    const localVisualDate = new Date(visualDate.getTime() + visualDate.getTimezoneOffset() * 60000);
 
     // 1. Filtro de Mes (Ahora compara contra el mes visual/resumen)
-    const isMonthMatch = isSameMonth(visualDate, currentMonthDate);
+    const isMonthMatch = isSameMonth(localVisualDate, currentMonthDate);
 
     // 2. Filtro de Medio de Pago
     let isMethodMatch = true;
@@ -63,12 +65,9 @@ export default function MovimientosPage() {
   });
 
   // Agrupación por días/estado
-  const groups = {
-    futuro: [] as Transaction[],
-    hoy: [] as Transaction[],
-    ayer: [] as Transaction[],
-    semana: [] as Transaction[],
-    pasado: [] as Transaction[],
+  const groups: Record<string, Transaction[]> = {
+    futuro: [],
+    hoy: [],
   };
 
   const today = new Date();
@@ -77,19 +76,27 @@ export default function MovimientosPage() {
   filteredTransactions.forEach(t => {
     // Usamos una fecha con ajuste de zona horaria local para comparar días correctamente
     const tDate = parseISO(t.date);
+    // Ajuste para evitar el desfase de zona horaria (UTC -> Local)
+    const tDateOnly = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+    tDateOnly.setHours(0, 0, 0, 0);
 
-    if (tDate > today && !isSameDay(tDate, today)) {
+    if (tDateOnly > today) {
       groups.futuro.push(t);
-    } else if (isSameDay(tDate, today)) {
+    } else if (isSameDay(tDateOnly, today)) {
       groups.hoy.push(t);
-    } else if (isSameDay(tDate, new Date(today.getTime() - 86400000))) {
-      groups.ayer.push(t);
-    } else if (isThisWeek(tDate, { weekStartsOn: 1 })) {
-      groups.semana.push(t);
     } else {
-      groups.pasado.push(t);
+      const dateKey = format(tDateOnly, 'yyyy-MM-dd');
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(t);
     }
   });
+
+  // Obtener las fechas pasadas ordenadas descendente
+  const pastDates = Object.keys(groups)
+    .filter(key => key !== 'futuro' && key !== 'hoy')
+    .sort((a, b) => b.localeCompare(a));
 
   // Función para actualizar filtros en URL
   const handlePaymentFilter = (methodId: string) => {
@@ -225,9 +232,23 @@ export default function MovimientosPage() {
         ) : (
           <>
             {renderSection('Hoy', groups.hoy, "text-emerald-400")}
-            {renderSection('Ayer', groups.ayer, "text-indigo-400")}
-            {renderSection('Esta semana', groups.semana)}
-            {renderSection('Anteriores', groups.pasado)}
+            
+            {pastDates.map(dateKey => {
+              const date = parseISO(dateKey);
+              // Ajuste para evitar el desfase de zona horaria
+              const localDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+              const title = new Intl.DateTimeFormat('es-AR', { 
+                day: 'numeric', 
+                month: 'long' 
+              }).format(localDate);
+              
+              return (
+                <div key={dateKey}>
+                  {renderSection(title, groups[dateKey])}
+                </div>
+              );
+            })}
+
             {renderSection('Proyección Futura', groups.futuro, "text-amber-500", true, isFutureOpen, () => setIsFutureOpen(!isFutureOpen))}
           </>
         )}

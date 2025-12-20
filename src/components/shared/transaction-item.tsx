@@ -58,7 +58,9 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
   
   const category = categories.find(c => c.id === transaction.category_id);
   
-  const isFutureDate = isFuture(parseISO(transaction.date));
+  const tDate = parseISO(transaction.date);
+  const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+  const isFutureDate = isFuture(localTDate);
   const isIncome = transaction.type === 'income';
   const isCredit = paymentMethodType === 'credit';
 
