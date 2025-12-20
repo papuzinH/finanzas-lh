@@ -69,13 +69,26 @@ export async function updateSession(request: NextRequest) {
       !request.nextUrl.pathname.startsWith('/auth') &&
       !request.nextUrl.pathname.includes('.')
     ) {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('telegram_chat_id')
         .eq('id', user.id)
         .single()
 
-      if (!profile?.telegram_chat_id) {
+      console.log("🔍 Middleware Check:", { 
+        path: request.nextUrl.pathname, 
+        userId: user.id, 
+        hasProfile: !!profile, 
+        telegramId: profile?.telegram_chat_id,
+        error: profileError?.message 
+      })
+
+      // Validación robusta: debe existir, ser string y tener longitud > 0 después de trim
+      const telegramId = profile?.telegram_chat_id
+      const hasValidTelegramId = typeof telegramId === 'string' && telegramId.trim().length > 0
+
+      if (!hasValidTelegramId) {
+        console.log("⚠️ Redirigiendo a Onboarding por falta de Telegram ID válido")
         const url = request.nextUrl.clone()
         url.pathname = '/onboarding'
         return NextResponse.redirect(url)

@@ -34,7 +34,10 @@ export async function login(
       .eq('id', user.id)
       .single();
 
-    if (!profile?.telegram_chat_id) {
+    const telegramId = profile?.telegram_chat_id;
+    const hasValidTelegramId = typeof telegramId === 'string' && telegramId.trim().length > 0;
+
+    if (!hasValidTelegramId) {
       revalidatePath('/onboarding', 'layout');
       redirect('/onboarding');
     }
