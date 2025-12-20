@@ -8,8 +8,16 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
-import { Filter, CreditCard, Wallet, ChevronDown, ChevronRight } from 'lucide-react';
+import { Filter, CreditCard, ChevronDown, ChevronRight, Tag } from 'lucide-react';
 import { FullPageLoader } from '@/components/shared/loader';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TransactionWithPeriod extends Transaction {
   periodDate?: string;
@@ -20,6 +28,7 @@ export default function MovimientosPage() {
   const {
     transactions,
     paymentMethods,
+    categories,
     fetchAllData,
     isInitialized,
     isLoading,
@@ -33,6 +42,7 @@ export default function MovimientosPage() {
   // Obtener params de la URL o defaults
   const currentMonthStr = searchParams.get('month') || format(new Date(), 'yyyy-MM');
   const selectedPaymentMethodId = searchParams.get('paymentMethod') || 'all';
+  const selectedCategoryId = searchParams.get('category') || 'all';
 
   useEffect(() => {
     if (!isInitialized) {
@@ -58,10 +68,16 @@ export default function MovimientosPage() {
     // 2. Filtro de Medio de Pago
     let isMethodMatch = true;
     if (selectedPaymentMethodId !== 'all') {
-      isMethodMatch = t.payment_method_id === Number(selectedPaymentMethodId);
+      isMethodMatch = t.payment_method_id?.toString() === selectedPaymentMethodId;
     }
 
-    return isMonthMatch && isMethodMatch;
+    // 3. Filtro de Categoría
+    let isCategoryMatch = true;
+    if (selectedCategoryId !== 'all') {
+      isCategoryMatch = t.category_id === selectedCategoryId;
+    }
+
+    return isMonthMatch && isMethodMatch && isCategoryMatch;
   });
 
   // Agrupación por días/estado
@@ -99,12 +115,12 @@ export default function MovimientosPage() {
     .sort((a, b) => b.localeCompare(a));
 
   // Función para actualizar filtros en URL
-  const handlePaymentFilter = (methodId: string) => {
+  const handleFilterChange = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
-    if (methodId === 'all') {
-      params.delete('paymentMethod');
+    if (value === 'all') {
+      params.delete(key);
     } else {
-      params.set('paymentMethod', methodId);
+      params.set(key, value);
     }
     router.replace(`${pathname}?${params.toString()}`);
   };
@@ -186,38 +202,71 @@ export default function MovimientosPage() {
           </div>
         </div>
 
-        {/* Filtros de Medios de Pago (Chips con scroll horizontal) */}
-        <div className="mx-auto max-w-[1440px] px-4 pb-3 overflow-x-auto no-scrollbar">
-          <div className="flex gap-2">
-            <button
-              onClick={() => handlePaymentFilter('all')}
-              className={cn(
-                "whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-medium transition-all border flex items-center gap-1.5",
-                selectedPaymentMethodId === 'all'
-                  ? "bg-indigo-500 text-white border-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.3)]"
-                  : "bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200"
-              )}
+        <div className="mx-auto max-w-[1440px] px-4 py-3 flex flex-wrap gap-3 items-center">
+          <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 rounded-lg px-2 py-1">
+            <Filter className="h-3.5 w-3.5 text-slate-500" />
+            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mr-1">Filtros</span>
+            
+            {/* Medio de Pago */}
+            <Select 
+              value={selectedPaymentMethodId} 
+              onValueChange={(val) => handleFilterChange('paymentMethod', val)}
             >
-              <Filter className="h-3 w-3" />
-              Todos
-            </button>
+              <SelectTrigger className="h-8 w-[140px] bg-transparent border-none focus:ring-0 text-xs text-slate-300 hover:text-white transition-colors">
+                <div className="flex items-center gap-2 truncate">
+                  <CreditCard className="h-3 w-3 shrink-0" />
+                  <SelectValue placeholder="Medio de Pago" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                <SelectItem value="all">Todos los medios</SelectItem>
+                {paymentMethods.map((pm) => (
+                  <SelectItem key={pm.id} value={pm.id.toString()}>
+                    {pm.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-            {paymentMethods.map((pm) => (
-              <button
-                key={pm.id}
-                onClick={() => handlePaymentFilter(pm.id.toString())}
-                className={cn(
-                  "whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-medium transition-all border flex items-center gap-1.5",
-                  selectedPaymentMethodId === pm.id.toString()
-                    ? "bg-indigo-500 text-white border-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.3)]"
-                    : "bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200"
-                )}
-              >
-                {pm.type === 'credit' ? <CreditCard className="h-3 w-3" /> : <Wallet className="h-3 w-3" />}
-                {pm.name}
-              </button>
-            ))}
+            <div className="w-px h-4 bg-slate-800 mx-1" />
+
+            {/* Categoría */}
+            <Select 
+              value={selectedCategoryId} 
+              onValueChange={(val) => handleFilterChange('category', val)}
+            >
+              <SelectTrigger className="h-8 w-[140px] bg-transparent border-none focus:ring-0 text-xs text-slate-300 hover:text-white transition-colors">
+                <div className="flex items-center gap-2 truncate">
+                  <Tag className="h-3 w-3 shrink-0" />
+                  <SelectValue placeholder="Categoría" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                <SelectItem value="all">Todas las categorías</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.emoji} {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {(selectedPaymentMethodId !== 'all' || selectedCategoryId !== 'all') && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => {
+                const params = new URLSearchParams(searchParams);
+                params.delete('paymentMethod');
+                params.delete('category');
+                router.replace(`${pathname}?${params.toString()}`);
+              }}
+              className="h-8 text-[10px] uppercase font-bold text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
+            >
+              Limpiar Filtros
+            </Button>
+          )}
         </div>
       </header>
 

@@ -583,7 +583,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       const isMonthMatch = isSameMonth(localVisualDate, currentMonthDate);
       let isMethodMatch = true;
       if (paymentMethodId !== 'all') {
-        isMethodMatch = t.payment_method_id === Number(paymentMethodId);
+        isMethodMatch = t.payment_method_id?.toString() === paymentMethodId;
       }
       return isMonthMatch && isMethodMatch;
     });
@@ -598,7 +598,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     let pendingRecurringAmount = 0;
     if (isCurrentMonth) {
       const activePlans = recurringPlans.filter(p => 
-        p.is_active && (paymentMethodId === 'all' || p.payment_method_id === Number(paymentMethodId))
+        p.is_active && (paymentMethodId === 'all' || p.payment_method_id?.toString() === paymentMethodId)
       );
       
       activePlans.forEach(plan => {

@@ -9,7 +9,8 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
-  Loader2
+  Loader2,
+  Tag
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { PageHeader } from '@/components/shared/page-header';
@@ -27,13 +28,27 @@ import { deleteInstallmentPlan } from "@/app/dashboard/installments/actions";
 import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
 import { FullPageLoader } from '@/components/shared/loader';
+import { InstallmentPlan } from '@/types/database';
 
-function InstallmentPlanCard({ plan }: { plan: any }) {
+interface PlanWithStatus extends InstallmentPlan {
+  paid: number;
+  remaining: number;
+  progress: number;
+  installmentsPaid: number;
+  remainingInstallments: number;
+  isFinished: boolean;
+  paymentMethodName?: string;
+  paymentMethodType?: string;
+}
+
+function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, startDeleteTransition] = useTransition();
   const router = useRouter();
-  const { fetchAllData } = useFinanceStore();
+  const { fetchAllData, categories } = useFinanceStore();
+
+  const category = categories.find(c => c.id === plan.category_id);
 
   const handleDelete = () => {
     setIsDeleteOpen(true);
@@ -69,8 +84,8 @@ function InstallmentPlanCard({ plan }: { plan: any }) {
         className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-5 transition-all hover:bg-slate-900 hover:border-slate-700 flex flex-col justify-between"
       >
         <div className="flex items-start justify-between mb-4">
-          <div>
-            <h3 className="font-semibold text-slate-200 group-hover:text-white transition-colors">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-slate-200 group-hover:text-white transition-colors truncate">
               {plan.description}
             </h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -79,17 +94,25 @@ function InstallmentPlanCard({ plan }: { plan: any }) {
             <p className="text-xs text-slate-400 mt-0.5 font-medium">
               Valor cuota: {formatCurrency(Number(plan.total_amount) / plan.installments_count)}
             </p>
-            {plan.paymentMethodName && (
-              <div className="flex items-center gap-1.5 mt-2 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md w-fit">
-                <CreditCard className="h-3 w-3" />
-                <span>{plan.paymentMethodName}</span>
-              </div>
-            )}
+            
+            <div className="flex flex-wrap gap-2 mt-3">
+              {plan.paymentMethodName && (
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md w-fit">
+                  <CreditCard className="h-3 w-3" />
+                  <span>{plan.paymentMethodName}</span>
+                </div>
+              )}
+              {category && (
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md w-fit">
+                  {category.emoji ? <span>{category.emoji}</span> : <Tag className="h-3 w-3" />}
+                  <span>{category.name}</span>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="text-right flex flex-col items-end">
+          <div className="text-right flex flex-col items-end ml-4">
             <div className="flex items-center gap-2 mb-1">
               <p className="text-sm font-bold text-slate-200 font-mono">
-                {/* Lógica ajustada para mostrar la cuota actual */}
                 {!plan.isFinished
                   ? `Cuota ${plan.installmentsPaid + 1} / ${plan.installments_count}`
                   : 'Finalizado'
@@ -188,7 +211,7 @@ export default function CuotasPage() {
   }
 
   // Prepare data for rendering
-  const plansWithProgress = installmentPlans.map((plan) => {
+  const plansWithProgress: PlanWithStatus[] = installmentPlans.map((plan) => {
     const status = getInstallmentStatus(plan.id);
     const paymentMethod = paymentMethods.find(pm => pm.id === plan.payment_method_id);
 
@@ -199,8 +222,8 @@ export default function CuotasPage() {
       ...status, // Usamos directamente las propiedades de getInstallmentStatus
       paymentMethodName: paymentMethod?.name,
       paymentMethodType: paymentMethod?.type
-    };
-  }).filter((p): p is NonNullable<typeof p> => p !== null);
+    } as PlanWithStatus;
+  }).filter((p): p is PlanWithStatus => p !== null);
 
   // Calculate Total Debt (usando la propiedad 'remaining' del nuevo status)
   const totalDebt = plansWithProgress.reduce((sum, plan) => sum + plan.remaining, 0);

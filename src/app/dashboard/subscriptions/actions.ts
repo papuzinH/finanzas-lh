@@ -29,14 +29,12 @@ export async function updateSubscription(id: string, data: SubscriptionSchema): 
 
     const { description, amount, is_active, category_id, payment_method_id } = validatedFields.data;
 
-    // Assuming subscriptions are always expenses, store as negative
-    const finalAmount = -Math.abs(amount);
 
     const { error } = await supabase
       .from('recurring_plans')
       .update({
         description,
-        amount: finalAmount,
+        amount,
         is_active,
         category_id,
         payment_method_id

@@ -29,14 +29,12 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
 
     const { description, amount, date, category_id, type } = validatedFields.data;
 
-    // Ensure amount sign matches type
-    const finalAmount = type === 'expense' ? -Math.abs(amount) : Math.abs(amount);
 
     const { error } = await supabase
       .from('transactions')
       .update({
         description,
-        amount: finalAmount,
+        amount,
         date: date.toISOString(),
         category_id,
         type,

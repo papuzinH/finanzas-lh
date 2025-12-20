@@ -28,22 +28,60 @@ export async function updateInstallmentPlan(id: string, data: InstallmentPlanSch
     }
 
     const { description, category_id } = validatedFields.data;
+    const finalCategoryId = category_id === '' ? null : category_id;
 
-    const { error } = await supabase
+    // 1. Actualizar el plan de cuotas
+    const { error: planError } = await supabase
       .from('installment_plans')
       .update({
         description,
-        category_id,
+        category_id: finalCategoryId,
       })
       .eq('id', id)
       .eq('user_id', user.id);
 
-    if (error) {
-      console.error('Error updating installment plan:', error);
+    if (planError) {
+      console.error('Error updating installment plan:', planError);
       return { error: 'Error al actualizar el plan de cuotas' };
     }
 
+    // 2. Actualizar todas las transacciones asociadas
+    // Obtenemos las transacciones actuales para preservar el sufijo (X/Y) si existe
+    const { data: transactions, error: fetchError } = await supabase
+      .from('transactions')
+      .select('id, description')
+      .eq('installment_plan_id', id)
+      .eq('user_id', user.id);
+
+    if (fetchError) {
+      console.error('Error fetching associated transactions:', fetchError);
+    } else if (transactions) {
+      // Actualizamos cada transacción para mantener su sufijo individual
+      const updatePromises = transactions.map(tx => {
+        let newTxDescription = description;
+        
+        // Intentar extraer el sufijo (X/Y) o similar al final
+        const suffixMatch = tx.description.match(/\s\(\d+\/\d+\)$/);
+        if (suffixMatch) {
+          newTxDescription += suffixMatch[0];
+        }
+
+        return supabase
+          .from('transactions')
+          .update({
+            description: newTxDescription,
+            category_id: finalCategoryId,
+          })
+          .eq('id', tx.id)
+          .eq('user_id', user.id);
+      });
+
+      await Promise.all(updatePromises);
+    }
+
     revalidatePath('/cuotas');
+    revalidatePath('/movimientos');
+    revalidatePath('/');
     return { success: true };
   } catch (error) {
     console.error('Unexpected error:', error);

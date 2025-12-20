@@ -64,7 +64,7 @@ export function EditSubscriptionDialog({
     resolver: zodResolver(subscriptionSchema),
     defaultValues: {
       description: subscription.description,
-      amount: Math.abs(subscription.amount),
+      amount: subscription.amount,
       is_active: subscription.is_active ?? true,
       category_id: subscription.category_id || "none",
       payment_method_id: subscription.payment_method_id || "none",
@@ -76,7 +76,7 @@ export function EditSubscriptionDialog({
     if (open) {
       form.reset({
         description: subscription.description,
-        amount: Math.abs(subscription.amount),
+        amount: subscription.amount,
         is_active: subscription.is_active ?? true,
         category_id: subscription.category_id || "none",
         payment_method_id: subscription.payment_method_id || "none",
