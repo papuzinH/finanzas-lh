@@ -5,6 +5,7 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // 1. EXCLUSIÓN: No procesar middleware para rutas de auth o archivos estáticos
+  // Usamos includes para ser más flexibles con slashes iniciales o rutas anidadas
   if (
     pathname.includes('/auth') || 
     pathname.includes('/login') || 
@@ -41,25 +42,17 @@ export async function updateSession(request: NextRequest) {
   )
 
   // 2. Verificamos el usuario
-  // Usamos getUser() que es más seguro que getSession()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  // Si hay un error 403 o similar, tratamos al usuario como no logueado
-  // pero evitamos redirigir si ya estamos en una ruta que no requiere auth (aunque ya filtramos arriba)
-  if (authError) {
-    console.error('Middleware Auth Error:', authError.message)
-  }
+  const { data: { user } } = await supabase.auth.getUser()
 
   // 3. Protección de rutas: Si no hay usuario, al login
   if (!user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    // Limpiar parámetros de búsqueda para evitar llevar el 'code' al login
-    url.search = ''
     return NextResponse.redirect(url)
   }
 
   // 4. Validación de telegram_chat_id
+  // Solo si no estamos ya en onboarding y no es una ruta de auth
   if (!pathname.startsWith('/onboarding')) {
     try {
       const { data: profile, error: dbError } = await supabase
@@ -69,7 +62,7 @@ export async function updateSession(request: NextRequest) {
         .single()
 
       if (dbError && dbError.code !== 'PGRST116') {
-        console.error('Middleware DB Error:', dbError.message)
+        console.error('Middleware DB Error:', dbError)
         return supabaseResponse
       }
 
@@ -81,8 +74,6 @@ export async function updateSession(request: NextRequest) {
         url.pathname = '/onboarding'
         
         const redirectResponse = NextResponse.redirect(url)
-        
-        // Copiar cookies de sesión a la respuesta de redirección
         supabaseResponse.cookies.getAll().forEach((cookie) => {
           redirectResponse.cookies.set(cookie.name, cookie.value, {
             path: cookie.path,
