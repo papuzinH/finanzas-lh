@@ -145,7 +145,7 @@ export async function signInWithGoogle() {
 
   // Usamos el helper en lugar de headers() para mayor estabilidad en Vercel
   const origin = getURL();
-  const redirectUrl = `${origin}/auth/callback`;
+  const redirectUrl = `${origin}/auth/callback?next=/dashboard`;
 
   console.log('🔐 Iniciando OAuth hacia:', redirectUrl); // Log para debug en Vercel
 
