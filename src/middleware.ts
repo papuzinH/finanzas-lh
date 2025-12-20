@@ -12,8 +12,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - auth/callback (EXCLUIR EXPLÍCITAMENTE)
      * - Any file with an extension (e.g. .svg, .png, .jpg, .webmanifest)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|js|css|webmanifest)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|auth/callback|.*\\.(?:svg|png|jpg|jpeg|gif|webp|js|css|webmanifest)$).*)',
   ],
 }
