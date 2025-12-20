@@ -83,12 +83,15 @@ export async function updateSession(request: NextRequest) {
         error: profileError?.message 
       })
 
-      // Validación robusta: debe existir, ser string y tener longitud > 0 después de trim
-      const telegramId = profile?.telegram_chat_id
-      const hasValidTelegramId = typeof telegramId === 'string' && telegramId.trim().length > 0
+      // Validación explícita de telegram_chat_id
+      // Si es null, undefined o string vacío -> Redirigir a onboarding
+      const currentTelegramId = profile?.telegram_chat_id
+      
+      // Verificamos que exista y no sea solo espacios en blanco
+      const isValid = currentTelegramId && currentTelegramId.trim().length > 0
 
-      if (!hasValidTelegramId) {
-        console.log("⚠️ Redirigiendo a Onboarding por falta de Telegram ID válido")
+      if (!isValid) {
+        console.log("⚠️ [Middleware] Usuario sin Telegram ID válido. Redirigiendo a /onboarding", { userId: user.id, telegramId: currentTelegramId })
         const url = request.nextUrl.clone()
         url.pathname = '/onboarding'
         return NextResponse.redirect(url)

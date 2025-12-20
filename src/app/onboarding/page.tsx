@@ -17,10 +17,10 @@ export default async function OnboardingPage() {
     .eq('id', user.id)
     .single()
 
-  const telegramId = profile?.telegram_chat_id
-  const hasValidTelegramId = typeof telegramId === 'string' && telegramId.trim().length > 0
+  const currentTelegramId = profile?.telegram_chat_id
+  const isValid = currentTelegramId && currentTelegramId.trim().length > 0
 
-  if (hasValidTelegramId) {
+  if (isValid) {
     redirect('/')
   }
 
