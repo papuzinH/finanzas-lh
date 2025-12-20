@@ -11,6 +11,10 @@ import { TransactionItem } from '@/components/shared/transaction-item';
 import { Filter, CreditCard, Wallet, ChevronDown, ChevronRight } from 'lucide-react';
 import { FullPageLoader } from '@/components/shared/loader';
 
+interface TransactionWithPeriod extends Transaction {
+  periodDate?: string;
+}
+
 export default function MovimientosPage() {
   const [isFutureOpen, setIsFutureOpen] = useState(true);
   const {
@@ -18,7 +22,8 @@ export default function MovimientosPage() {
     paymentMethods,
     fetchAllData,
     isInitialized,
-    isLoading
+    isLoading,
+    getMonthlyBalance
   } = useFinanceStore();
 
   const searchParams = useSearchParams();
@@ -42,7 +47,7 @@ export default function MovimientosPage() {
   const filteredTransactions = transactions.filter(t => {
     // CAMBIO CLAVE: Usamos 'periodDate' (la fecha virtual del store) si existe
     // Si no existe (porque t no es del store modificado o es legacy), fallback a t.date
-    const visualDateStr = (t as any).periodDate || t.date;
+    const visualDateStr = (t as TransactionWithPeriod).periodDate || t.date;
     const visualDate = parseISO(visualDateStr);
 
     // 1. Filtro de Mes (Ahora compara contra el mes visual/resumen)
@@ -98,7 +103,7 @@ export default function MovimientosPage() {
   };
 
   // Cálculo del Balance Mensual (Suma de todos los movimientos filtrados)
-  const monthlyBalance = filteredTransactions.reduce((acc, t) => acc + Number(t.amount), 0);
+  const monthlyBalance = getMonthlyBalance(currentMonthStr, selectedPaymentMethodId);
 
   // Helper de renderizado
   const renderSection = (

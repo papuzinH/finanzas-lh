@@ -10,6 +10,12 @@ import {
   User,
   Category,
 } from '@/types/database';
+
+// Extended transaction type with processing fields
+type ProcessedTransaction = Transaction & {
+  periodDate: string;
+  realPaymentDate: string;
+};
 import {
   addMonths,
   setDate,
@@ -20,12 +26,14 @@ import {
   isAfter,
   startOfDay,
   isSameDay,
+  isSameMonth,
+  parse,
   endOfMonth,
 } from 'date-fns';
 
 interface FinanceState {
   // State Raw
-  transactions: Transaction[];
+  transactions: ProcessedTransaction[];
   installmentPlans: InstallmentPlan[];
   paymentMethods: PaymentMethod[];
   recurringPlans: RecurringPlan[];
@@ -85,6 +93,7 @@ interface FinanceState {
   getGlobalIncome: () => number;
   getGlobalEffectiveExpenses: () => number;
   getExpensesByCategory: (scope: 'global' | 'current_month') => Record<string, number>;
+  getMonthlyBalance: (monthStr: string, paymentMethodId: string) => number;
 }
 
 // Helper para determinar si un gasto corresponde al mes actual (Scope)
@@ -547,5 +556,45 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         acc[cat] = (acc[cat] || 0) + Math.abs(Number(t.amount));
         return acc;
       }, {} as Record<string, number>);
+  },
+
+  getMonthlyBalance: (monthStr, paymentMethodId) => {
+    const { transactions, recurringPlans } = get();
+    const currentMonthDate = parse(monthStr, 'yyyy-MM', new Date());
+    const isCurrentMonth = isSameMonth(currentMonthDate, new Date());
+
+    const filtered = transactions.filter(t => {
+      const visualDateStr = t.periodDate || t.date;
+      const visualDate = parseISO(visualDateStr);
+      const isMonthMatch = isSameMonth(visualDate, currentMonthDate);
+      let isMethodMatch = true;
+      if (paymentMethodId !== 'all') {
+        isMethodMatch = t.payment_method_id === Number(paymentMethodId);
+      }
+      return isMonthMatch && isMethodMatch;
+    });
+
+    const transactionsBalance = filtered.reduce((acc, t) => {
+      if (t.type === 'income') return acc + Number(t.amount);
+      // Gastos y mensualidades (recurring_plan_id) se restan
+      return acc - Number(t.amount);
+    }, 0);
+
+    // Si es el mes actual, restamos los planes recurrentes que NO tengan una transacción asociada aún
+    let pendingRecurringAmount = 0;
+    if (isCurrentMonth) {
+      const activePlans = recurringPlans.filter(p => 
+        p.is_active && (paymentMethodId === 'all' || p.payment_method_id === Number(paymentMethodId))
+      );
+      
+      activePlans.forEach(plan => {
+        const hasTransaction = filtered.some(t => t.recurring_plan_id === plan.id);
+        if (!hasTransaction) {
+          pendingRecurringAmount += Number(plan.amount);
+        }
+      });
+    }
+
+    return transactionsBalance - pendingRecurringAmount;
   },
 }));
