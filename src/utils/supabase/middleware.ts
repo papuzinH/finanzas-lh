@@ -46,19 +46,41 @@ export async function updateSession(request: NextRequest) {
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth') &&
-    !request.nextUrl.pathname.startsWith('/onboarding') // Dejar pasar si es onboarding
+    !request.nextUrl.pathname.startsWith('/auth')
   ) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // 4. IMPORTANTE: Si YA hay usuario y trata de entrar al login -> Mandar al home
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
-     const url = request.nextUrl.clone()
-     url.pathname = '/'
-     return NextResponse.redirect(url)
+  // 4. Lógica para usuarios autenticados
+  if (user) {
+    // A. Si ya hay usuario y trata de entrar al login -> Mandar al home
+    if (request.nextUrl.pathname.startsWith('/login')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+
+    // B. Verificar telegram_chat_id para redirigir a onboarding si falta
+    // Excluimos rutas de auth, onboarding y archivos estáticos
+    if (
+      !request.nextUrl.pathname.startsWith('/onboarding') &&
+      !request.nextUrl.pathname.startsWith('/auth') &&
+      !request.nextUrl.pathname.includes('.')
+    ) {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('telegram_chat_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.telegram_chat_id) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/onboarding'
+        return NextResponse.redirect(url)
+      }
+    }
   }
 
   return supabaseResponse

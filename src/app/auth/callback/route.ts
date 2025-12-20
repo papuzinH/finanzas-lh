@@ -8,24 +8,32 @@ export async function GET(request: Request) {
   const next = searchParams.get('next') ?? '/'
 
   if (code) {
-    const cookieStore = await cookies()
+    // 1. Determinar la URL de redirección base
+    let redirectUrl = `${origin}${next}`
+    const forwardedHost = request.headers.get('x-forwarded-host')
+    const isLocalEnv = process.env.NODE_ENV === 'development'
+    
+    if (!isLocalEnv && forwardedHost) {
+      redirectUrl = `https://${forwardedHost}${next}`
+    }
 
+    // 2. Crear la respuesta de redirección
+    const response = NextResponse.redirect(redirectUrl)
+
+    // 3. Crear el cliente de Supabase vinculado a la respuesta para las cookies
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          getAll() {
+          async getAll() {
+            const cookieStore = await cookies()
             return cookieStore.getAll()
           },
           setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Server Action / Route Handler context
-            }
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            )
           },
         },
       }
@@ -34,34 +42,8 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      // Verificar si el usuario tiene telegram_chat_id
-      const { data: { user } } = await supabase.auth.getUser()
-      let redirectUrl = next
-
-      if (user) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('telegram_chat_id')
-          .eq('id', user.id)
-          .single()
-
-        if (!profile?.telegram_chat_id) {
-          redirectUrl = '/onboarding'
-        }
-      }
-
-      const forwardedHost = request.headers.get('x-forwarded-host')
-      const isLocalEnv = process.env.NODE_ENV === 'development'
-      
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${redirectUrl}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${redirectUrl}`)
-      } else {
-        return NextResponse.redirect(`${origin}${redirectUrl}`)
-      }
+      return response
     } else {
-      // 🚨 AQUÍ ESTÁ EL CAMBIO: Logueamos el error
       console.error("🔴 Error en Auth Callback:", error)
       return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
     }
