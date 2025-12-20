@@ -94,6 +94,14 @@ interface FinanceState {
   getGlobalEffectiveExpenses: () => number;
   getExpensesByCategory: (scope: 'global' | 'current_month') => Record<string, number>;
   getMonthlyBalance: (monthStr: string, paymentMethodId: string) => number;
+  getCategoryBreakdown: (scope: 'global' | 'current_month') => {
+    total: number;
+    items: Array<{
+      name: string;
+      value: number;
+      percentage: number;
+    }>;
+  };
 }
 
 // Helper para determinar si un gasto corresponde al mes actual (Scope)
@@ -596,5 +604,18 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     return transactionsBalance - pendingRecurringAmount;
+  },
+
+  getCategoryBreakdown: (scope) => {
+    const expenses = get().getExpensesByCategory(scope);
+    const total = Object.values(expenses).reduce((acc, val) => acc + val, 0);
+    
+    const items = Object.entries(expenses).map(([name, value]) => ({
+      name,
+      value,
+      percentage: total > 0 ? (value / total) * 100 : 0
+    })).sort((a, b) => b.value - a.value);
+
+    return { total, items };
   },
 }));

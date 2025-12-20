@@ -24,6 +24,8 @@ const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'
 export default function DashboardPage() {
   const [isInstallmentsModalOpen, setIsInstallmentsModalOpen] = useState(false);
   const [isFixedCostsModalOpen, setIsFixedCostsModalOpen] = useState(false);
+  const [isGlobalExpensesModalOpen, setIsGlobalExpensesModalOpen] = useState(false);
+  const [isMonthlyExpensesModalOpen, setIsMonthlyExpensesModalOpen] = useState(false);
 
   // Conectamos con el Store Global
   const { 
@@ -39,7 +41,7 @@ export default function DashboardPage() {
     getActiveRecurringPlans,
     getGlobalIncome,
     getGlobalEffectiveExpenses,
-    getExpensesByCategory,
+    getCategoryBreakdown,
     user
   } = useFinanceStore();
 
@@ -60,19 +62,12 @@ export default function DashboardPage() {
   const totalIncome = getGlobalIncome();
   const totalExpense = getGlobalEffectiveExpenses();
 
-  // Datos para el Gráfico 1: Gastos Globales por Categoría
-  const globalExpenses = getExpensesByCategory('global');
-  const globalChartData = Object.entries(globalExpenses)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
+  // Datos para los Gráficos y Modales
+  const globalBreakdown = getCategoryBreakdown('global');
+  const currentMonthBreakdown = getCategoryBreakdown('current_month');
 
-  // Datos para el Gráfico 2: Gastos del Mes Actual por Categoría
-  const currentMonthExpenses = getExpensesByCategory('current_month');
-  const currentMonthChartData = Object.entries(currentMonthExpenses)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
+  const globalChartData = globalBreakdown.items.slice(0, 5);
+  const currentMonthChartData = currentMonthBreakdown.items.slice(0, 5);
 
   if (isLoading && !isInitialized) {
     return <FullPageLoader text="Cargando finanzas..." />;
@@ -184,7 +179,10 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           
           {/* Gráfico 1: Gastos Globales */}
-          <div className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
+          <div 
+            onClick={() => setIsGlobalExpensesModalOpen(true)}
+            className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/30 p-5 cursor-pointer hover:bg-slate-800/30 transition-colors"
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-slate-500" />
@@ -230,7 +228,10 @@ export default function DashboardPage() {
           </div>
 
           {/* Gráfico 2: Gastos del Mes */}
-          <div className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
+          <div 
+            onClick={() => setIsMonthlyExpensesModalOpen(true)}
+            className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/30 p-5 cursor-pointer hover:bg-slate-800/30 transition-colors"
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
                 <PieChartIcon className="w-4 h-4 text-slate-500" />
@@ -366,6 +367,82 @@ export default function DashboardPage() {
             })
           ) : (
             <p className="text-slate-500 text-center py-4">No hay gastos fijos activos.</p>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isGlobalExpensesModalOpen}
+        onClose={() => setIsGlobalExpensesModalOpen(false)}
+        title="Desglose de Gastos Globales"
+      >
+        <div className="space-y-6">
+          <div className="text-center py-4 border-b border-slate-800">
+            <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Total Gastado</p>
+            <p className="text-3xl font-bold font-mono text-white">{formatCurrency(globalBreakdown.total)}</p>
+          </div>
+          <div className="space-y-4">
+            {globalBreakdown.items.map((item, index) => (
+              <div key={item.name} className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-300 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                    {item.name}
+                  </span>
+                  <span className="font-mono text-slate-100">{formatCurrency(item.value)}</span>
+                </div>
+                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all duration-500" 
+                    style={{ 
+                      width: `${item.percentage}%`,
+                      backgroundColor: COLORS[index % COLORS.length]
+                    }} 
+                  />
+                </div>
+                <p className="text-[10px] text-right text-slate-500">{item.percentage.toFixed(1)}% del total</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isMonthlyExpensesModalOpen}
+        onClose={() => setIsMonthlyExpensesModalOpen(false)}
+        title="Desglose de Gastos del Mes"
+      >
+        <div className="space-y-6">
+          <div className="text-center py-4 border-b border-slate-800">
+            <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Total del Mes</p>
+            <p className="text-3xl font-bold font-mono text-white">{formatCurrency(currentMonthBreakdown.total)}</p>
+          </div>
+          {currentMonthBreakdown.items.length > 0 ? (
+            <div className="space-y-4">
+              {currentMonthBreakdown.items.map((item, index) => (
+                <div key={item.name} className="space-y-1.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-300 flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                      {item.name}
+                    </span>
+                    <span className="font-mono text-slate-100">{formatCurrency(item.value)}</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500" 
+                      style={{ 
+                        width: `${item.percentage}%`,
+                        backgroundColor: COLORS[index % COLORS.length]
+                      }} 
+                    />
+                  </div>
+                  <p className="text-[10px] text-right text-slate-500">{item.percentage.toFixed(1)}% del total</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate-500 text-center py-4 italic">No hay gastos registrados este mes.</p>
           )}
         </div>
       </Modal>
