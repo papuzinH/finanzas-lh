@@ -49,7 +49,7 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/auth')
   ) {
     const url = request.nextUrl.clone()
-    url.pathname = '/'
+    url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
