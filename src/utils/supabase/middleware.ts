@@ -2,7 +2,19 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
-  // 1. Creamos una respuesta inicial base
+  const { pathname } = request.nextUrl
+
+  // 1. EXCLUSIÓN: No procesar middleware para rutas de auth o archivos estáticos
+  if (
+    pathname.startsWith('/auth') || 
+    pathname.startsWith('/login') || 
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/_next') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -16,14 +28,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          // 🛑 AQUÍ ESTÁ EL TRUCO PARA SOLUCIONAR EL BUG DEL F5 🛑
-          
-          // A. Actualizamos el REQUEST: Esto permite que supabase.auth.getUser() 
-          // vea la sesión actualizada INMEDIATAMENTE en esta misma ejecución.
           cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          
-          // B. Actualizamos el RESPONSE: Recreamos la respuesta para asegurar 
-          // que las cookies viajen al navegador.
           supabaseResponse = NextResponse.next({
             request,
           })
@@ -35,67 +40,38 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // 2. Verificamos el usuario. 
-  // IMPORTANTE: Al haber hecho el paso A arriba, getUser() ya no devolverá null falsamente.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // 2. Verificamos el usuario
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // 3. Lógica de Protección de Rutas
-  // Si NO hay usuario y NO estamos en una ruta pública -> Redirigir a Login
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
-  ) {
+  // 3. Protección de rutas: Si no hay usuario, al login
+  if (!user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // 4. Lógica para usuarios autenticados
-  if (user) {
-    // A. Si ya hay usuario y trata de entrar al login -> Mandar al home
-    if (request.nextUrl.pathname.startsWith('/login')) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/'
-      return NextResponse.redirect(url)
-    }
-
-    // B. Verificar telegram_chat_id para redirigir a onboarding si falta
-    // Excluimos rutas de auth, onboarding y archivos estáticos
-    if (
-      !request.nextUrl.pathname.startsWith('/onboarding') &&
-      !request.nextUrl.pathname.startsWith('/auth') &&
-      !request.nextUrl.pathname.includes('.')
-    ) {
-      const { data: profile, error: profileError } = await supabase
+  // 4. Validación de telegram_chat_id
+  // Solo si no estamos ya en onboarding y no es una ruta de auth
+  if (!pathname.startsWith('/onboarding')) {
+    try {
+      const { data: profile } = await supabase
         .from('users')
         .select('telegram_chat_id')
         .eq('id', user.id)
         .single()
 
-      console.log("🔍 Middleware Check:", { 
-        path: request.nextUrl.pathname, 
-        userId: user.id, 
-        hasProfile: !!profile, 
-        telegramId: profile?.telegram_chat_id,
-        error: profileError?.message 
-      })
-
-      // Validación explícita de telegram_chat_id
-      // Si es null, undefined o string vacío -> Redirigir a onboarding
-      const currentTelegramId = profile?.telegram_chat_id
-      
-      // Verificamos que exista y no sea solo espacios en blanco
-      const isValid = currentTelegramId && currentTelegramId.trim().length > 0
+      const telegramId = profile?.telegram_chat_id
+      const isValid = telegramId && telegramId.trim().length > 0
 
       if (!isValid) {
-        console.log("⚠️ [Middleware] Usuario sin Telegram ID válido. Redirigiendo a /onboarding", { userId: user.id, telegramId: currentTelegramId })
         const url = request.nextUrl.clone()
         url.pathname = '/onboarding'
+        // Redirigimos a onboarding. Las cookies de sesión ya van en la request.
         return NextResponse.redirect(url)
       }
+    } catch (error) {
+      // Si hay un error de DB, permitimos el paso para evitar bloquear al usuario
+      console.error('Middleware DB Error:', error)
     }
   }
 
