@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -107,7 +107,7 @@ export function EditSubscriptionDialog({
     });
   }
 
-  const onInvalid = (errors: any) => {
+  const onInvalid = (errors: FieldErrors<SubscriptionSchema>) => {
     console.error('Validation errors:', errors);
     toast.error('Por favor revisa los campos. Asegúrate de que el monto sea válido.');
   };

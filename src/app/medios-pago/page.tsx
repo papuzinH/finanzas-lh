@@ -17,7 +17,8 @@ export default function MediosPagoPage() {
     fetchAllData, 
     isInitialized, 
     isLoading,
-    getPaymentMethodStatus 
+    getPaymentMethodStatus,
+    getPaymentMethodTransactionsForCurrentMonth
   } = useFinanceStore();
 
   useEffect(() => {
@@ -26,18 +27,12 @@ export default function MediosPagoPage() {
     }
   }, [isInitialized, fetchAllData]);
 
-  if (isLoading && !isInitialized) {
-    return <FullPageLoader text="Cargando billetera..." />;
-  }
-
   // Optimizamos el cálculo de datos derivados con useMemo
   const { institutionalMethods, personalMethods } = useMemo(() => {
     const methodsWithData = paymentMethods.map(pm => {
       const status = getPaymentMethodStatus(pm.id);
       
-      const history = transactions
-        .filter((t: Transaction) => t.payment_method_id === pm.id)
-        .slice(0, 3);
+      const history = getPaymentMethodTransactionsForCurrentMonth(pm.id);
 
       const subscriptions = recurringPlans.filter(
           p => p.payment_method_id === pm.id && p.is_active
@@ -55,7 +50,11 @@ export default function MediosPagoPage() {
       institutionalMethods: methodsWithData.filter(m => !m.is_personal),
       personalMethods: methodsWithData.filter(m => m.is_personal)
     };
-  }, [paymentMethods, transactions, recurringPlans, getPaymentMethodStatus]);
+  }, [paymentMethods, transactions, recurringPlans, getPaymentMethodStatus, getPaymentMethodTransactionsForCurrentMonth]);
+
+  if (isLoading && !isInitialized) {
+    return <FullPageLoader text="Cargando billetera..." />;
+  }
 
 
   return (

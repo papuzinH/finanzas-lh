@@ -102,6 +102,7 @@ interface FinanceState {
       percentage: number;
     }>;
   };
+  getPaymentMethodTransactionsForCurrentMonth: (methodId: number) => ProcessedTransaction[];
   getMonthlyIncome: () => number;
   getMonthlyVariableExpenses: () => number;
 }
@@ -622,6 +623,24 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     })).sort((a, b) => b.value - a.value);
 
     return { total, items };
+  },
+
+  getPaymentMethodTransactionsForCurrentMonth: (methodId) => {
+    const { transactions, paymentMethods } = get();
+    const now = new Date();
+    
+    return transactions.filter(t => {
+      if (t.payment_method_id !== methodId) return false;
+      
+      const tDate = parseISO(t.date);
+      const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+      
+      if (t.type === 'income') {
+        return isSameMonth(localTDate, now);
+      }
+      
+      return isExpenseInCurrentMonthScope(t, paymentMethods, now);
+    });
   },
 
   getMonthlyIncome: () => {

@@ -6,10 +6,12 @@ import {
   Banknote, 
   CalendarClock 
 } from 'lucide-react';
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn, formatCurrency } from '@/lib/utils';
 import { PaymentMethod, Transaction, RecurringPlan } from '@/types/database';
+import { PaymentMethodDetailModal } from './payment-method-detail-modal';
 
 export interface PaymentCardProps {
   data: PaymentMethod & {
@@ -26,6 +28,7 @@ export interface PaymentCardProps {
 }
 
 export function InstitutionalCard({ data }: PaymentCardProps) {
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const isCredit = data.type === 'credit';
   const { status, history, subscriptions } = data;
 
@@ -39,9 +42,16 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
   const borderColor = isCredit ? "border-slate-700/50 hover:border-purple-500/30" : "border-slate-800 hover:border-blue-500/30";
 
   return (
-    <div className={cn("rounded-2xl border bg-slate-900/50 p-5 relative overflow-hidden transition-all", borderColor)}>
-      
-      {/* Header */}
+    <>
+      <div 
+        onClick={() => setIsDetailOpen(true)}
+        className={cn(
+          "rounded-2xl border bg-slate-900/50 p-5 relative overflow-hidden transition-all cursor-pointer active:scale-[0.98]", 
+          borderColor
+        )}
+      >
+        
+        {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", iconBg, iconColor)}>
@@ -104,25 +114,39 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
           </div>
         )}
 
-        {/* Últimos 3 movimientos */}
+        {/* Últimos movimientos del mes */}
         <div className="space-y-2">
+          <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-2">Movimientos del mes</p>
           {history.length > 0 ? (
             history.map((t, i) => (
               <div key={i} className="flex items-center justify-between text-xs group">
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <div className="h-1.5 w-1.5 rounded-full bg-slate-700 group-hover:bg-slate-500 transition-colors" />
+                  <div className={cn(
+                    "h-1.5 w-1.5 rounded-full transition-colors",
+                    t.type === 'income' ? "bg-emerald-500" : "bg-slate-700 group-hover:bg-slate-500"
+                  )} />
                   <span className="text-slate-400 truncate max-w-[150px]">{t.description}</span>
                 </div>
-                <span className="font-mono text-slate-500">
-                  {formatCurrency(t.amount)}
+                <span className={cn(
+                  "font-mono font-medium",
+                  t.type === 'income' ? "text-emerald-400" : "text-slate-500"
+                )}>
+                  {t.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(t.amount))}
                 </span>
               </div>
             ))
           ) : (
-            <p className="text-[10px] text-slate-600 italic pl-3">Sin movimientos recientes</p>
+            <p className="text-[10px] text-slate-600 italic pl-3">Sin movimientos este mes</p>
           )}
         </div>
       </div>
-    </div>
+      </div>
+
+      <PaymentMethodDetailModal 
+        isOpen={isDetailOpen} 
+        onOpenChange={setIsDetailOpen} 
+        data={data} 
+      />
+    </>
   );
 }
