@@ -67,7 +67,7 @@ export async function updateSession(request: NextRequest) {
       }
 
       const telegramId = profile?.telegram_chat_id
-      const isValid = telegramId && telegramId.trim().length > 0
+      const isValid = telegramId !== null && telegramId !== undefined && String(telegramId).trim().length > 0
 
       if (!isValid) {
         const url = request.nextUrl.clone()

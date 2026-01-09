@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ListOrdered, CreditCard, Wallet, CalendarClock, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, ListOrdered, CreditCard, Wallet, CalendarClock, TrendingUp, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function MainNav() {
@@ -35,11 +35,18 @@ export function MainNav() {
       href: '/mensualidades',
       icon: CalendarClock,
     },
+
+    {
+      label: 'Categorías',
+      href: '/categorias',
+      icon: Sparkles,
+    },
     {
       label: 'Inversiones',
       href: '/inversiones',
       icon: TrendingUp,
     },
+    
   ];
 
   return (
