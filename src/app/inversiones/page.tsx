@@ -25,7 +25,9 @@ export default function InversionesPage() {
     isInitialized,
     isLoading,
     fetchAllData,
-    getPortfolioStatus
+    getPortfolioStatus,
+    savings,
+    dolarBlue,
   } = useFinanceStore();
   const [isRefreshing, startRefreshTransition] = useTransition();
 
@@ -62,6 +64,16 @@ export default function InversionesPage() {
 
   const hasInvestments = portfolio.assets.length > 0;
 
+  // Total patrimonio: investments + savings
+  const savingsARS = savings.filter(s => s.currency === 'ARS').reduce((a, s) => a + Number(s.amount), 0);
+  const savingsUSD = savings.filter(s => s.currency === 'USD').reduce((a, s) => a + Number(s.amount), 0);
+  const dolarVenta = dolarBlue?.venta ?? 0;
+
+  const totalPatrimonioARS = portfolio.totalBalanceARS + savingsARS + (savingsUSD * dolarVenta) + (portfolio.totalBalanceUSD * dolarVenta);
+  const totalPatrimonioUSD = dolarVenta > 0
+    ? totalPatrimonioARS / dolarVenta
+    : portfolio.totalBalanceUSD + savingsUSD;
+
   if (isLoading && !isInitialized) {
     return <FullPageLoader text="Analizando mercado..." />;
   }
@@ -91,6 +103,29 @@ export default function InversionesPage() {
       </PageHeader>
 
       <main className="mx-auto max-w-[1440px] px-6 py-8 space-y-6">
+
+        {/* Total Patrimonio */}
+        <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 p-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <TrendingUp className="w-20 h-20 text-indigo-400" />
+          </div>
+          <p className="text-xs font-medium text-indigo-300 uppercase tracking-wider mb-2">Patrimonio Total</p>
+          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+            <p className="text-4xl font-bold text-white font-mono tracking-tight">
+              {formatCurrency(totalPatrimonioARS)}
+            </p>
+            {dolarVenta > 0 && (
+              <p className="text-xl font-semibold text-indigo-200/70 font-mono">
+                {formatCurrency(totalPatrimonioUSD, 'USD')}
+              </p>
+            )}
+          </div>
+          {dolarVenta > 0 && (
+            <p className="text-[11px] text-indigo-400/60 mt-2">
+              Dólar Blue: ${dolarVenta.toLocaleString('es-AR')}
+            </p>
+          )}
+        </div>
 
         {/* Summary Cards */}
         <div className={`grid grid-cols-1 ${hasInvestments ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-2'} gap-4`}>
