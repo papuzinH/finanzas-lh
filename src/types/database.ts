@@ -295,31 +295,40 @@ export interface Database {
       }
       investments: {
         Row: {
-          id: number
+          id: string
+          user_id: string
           ticker: string
           name: string
           type: string
           quantity: number
           avg_buy_price: number | null
-          currency: string
+          currency: string | null
+          created_at: string
+          data_source_url: string | null
         }
         Insert: {
-          id?: number
+          id?: string
+          user_id: string
           ticker: string
           name: string
           type: string
           quantity: number
           avg_buy_price?: number | null
-          currency?: string
+          currency?: string | null
+          created_at?: string
+          data_source_url?: string | null
         }
         Update: {
-          id?: number
+          id?: string
+          user_id?: string
           ticker?: string
           name?: string
           type?: string
           quantity?: number
           avg_buy_price?: number | null
-          currency?: string
+          currency?: string | null
+          created_at?: string
+          data_source_url?: string | null
         }
         Relationships: []
       }
@@ -340,6 +349,40 @@ export interface Database {
           last_update?: string | null
         }
         Relationships: []
+      }
+      savings: {
+        Row: {
+          id: string
+          user_id: string
+          amount: number
+          currency: 'ARS' | 'USD'
+          date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          amount: number
+          currency?: 'ARS' | 'USD'
+          date?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          amount?: number
+          currency?: 'ARS' | 'USD'
+          date?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "savings_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
@@ -368,3 +411,4 @@ export type Transaction = Tables<'transactions'>
 export type PaymentMethod = Tables<'payment_methods'>
 export type Investment = Tables<'investments'>
 export type MarketPrice = Tables<'market_prices'>
+export type Saving = Tables<'savings'>

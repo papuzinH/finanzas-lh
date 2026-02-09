@@ -1,13 +1,88 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
-import { installmentPlanSchema, type InstallmentPlanSchema } from '@/lib/schemas/installment-plan';
+import { installmentPlanSchema, type InstallmentPlanSchema, createInstallmentPlanSchema, type CreateInstallmentPlanSchema } from '@/lib/schemas/installment-plan';
 import { revalidatePath } from 'next/cache';
+import { addMonths } from 'date-fns';
 
 type ActionResponse = {
   error?: string;
   success?: boolean;
 };
+
+export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { error: 'No autorizado' };
+    }
+
+    const validatedFields = createInstallmentPlanSchema.safeParse(data);
+
+    if (!validatedFields.success) {
+      return { error: 'Datos inválidos' };
+    }
+
+    const { description, total_amount, installments_count, purchase_date, category_id, payment_method_id } = validatedFields.data;
+    const finalPaymentMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
+
+    // 1. Crear el plan de cuotas
+    const { data: plan, error: planError } = await supabase
+      .from('installment_plans')
+      .insert({
+        user_id: user.id,
+        description,
+        total_amount,
+        installments_count,
+        purchase_date: purchase_date.toISOString(),
+        category_id,
+        payment_method_id: finalPaymentMethodId,
+      })
+      .select('id')
+      .single();
+
+    if (planError || !plan) {
+      console.error('Error creating installment plan:', planError);
+      return { error: 'Error al crear el plan de cuotas' };
+    }
+
+    // 2. Crear las transacciones asociadas (una por cuota)
+    const installmentAmount = total_amount / installments_count;
+    const transactions = Array.from({ length: installments_count }, (_, i) => ({
+      user_id: user.id,
+      description: `${description} (${i + 1}/${installments_count})`,
+      amount: installmentAmount,
+      date: addMonths(purchase_date, i).toISOString(),
+      type: 'expense' as const,
+      category_id,
+      installment_plan_id: plan.id,
+      payment_method_id: finalPaymentMethodId,
+    }));
+
+    const { error: txError } = await supabase
+      .from('transactions')
+      .insert(transactions);
+
+    if (txError) {
+      console.error('Error creating installment transactions:', txError);
+      // Rollback: eliminar el plan creado
+      await supabase.from('installment_plans').delete().eq('id', plan.id);
+      return { error: 'Error al crear las cuotas. El plan fue revertido.' };
+    }
+
+    revalidatePath('/cuotas');
+    revalidatePath('/movimientos');
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    return { error: 'Ocurrió un error inesperado' };
+  }
+}
 
 export async function updateInstallmentPlan(id: string, data: InstallmentPlanSchema): Promise<ActionResponse> {
   try {

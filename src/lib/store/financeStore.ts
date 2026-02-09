@@ -9,6 +9,7 @@ import {
   MarketPrice,
   User,
   Category,
+  Saving,
 } from '@/types/database';
 
 // Extended transaction type with processing fields
@@ -31,6 +32,12 @@ import {
   endOfMonth,
 } from 'date-fns';
 
+interface DolarBlue {
+  compra: number;
+  venta: number;
+  fechaActualizacion: string;
+}
+
 interface FinanceState {
   // State Raw
   transactions: ProcessedTransaction[];
@@ -40,6 +47,8 @@ interface FinanceState {
   investments: Investment[];
   marketPrices: MarketPrice[];
   categories: Category[];
+  savings: Saving[];
+  dolarBlue: DolarBlue | null;
   user: User | null;
 
   // Status
@@ -158,6 +167,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   investments: [],
   categories: [],
   marketPrices: [],
+  savings: [],
+  dolarBlue: null,
   user: null,
   isLoading: true, // Start loading by default to prevent flash of empty content
   error: null,
@@ -194,6 +205,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         { data: marketPrices, error: mpError },
         { data: categories, error: catError },
         { data: userData, error: userError },
+        { data: savingsData, error: savError },
       ] = await Promise.all([
         supabase
           .from('transactions')
@@ -215,8 +227,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         supabase
           .from('investments')
           .select('*')
-          // .eq('user_id', authUser.id), // Comentado porque la tabla parece no tener user_id aún
-          ,
+          .eq('user_id', authUser.id),
         supabase
           .from('market_prices')
           .select('*'), // Global
@@ -230,13 +241,37 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           .select('*')
           .eq('id', authUser.id)
           .single(),
+        supabase
+          .from('savings')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .order('date', { ascending: false }),
       ]);
+
+      // Fetch dolar blue rate (non-blocking)
+      let dolarBlue: DolarBlue | null = null;
+      try {
+        const dolarRes = await fetch('https://dolarapi.com/v1/dolares/blue', {
+          signal: AbortSignal.timeout(5000),
+        });
+        if (dolarRes.ok) {
+          const dolarData = await dolarRes.json();
+          dolarBlue = {
+            compra: dolarData.compra,
+            venta: dolarData.venta,
+            fechaActualizacion: dolarData.fechaActualizacion,
+          };
+        }
+      } catch {
+        // Dolar API is optional, don't fail the whole fetch
+      }
 
       if (txError) throw txError;
       if (instError) throw instError;
       if (pmError) throw pmError;
       if (recError) throw recError;
       if (catError) throw catError;
+      if (savError) throw savError;
       if (userError && userError.code !== 'PGRST116') throw userError; // PGRST116 is "no rows returned"
 
       const methods = (paymentMethodsData as PaymentMethod[]) || [];
@@ -279,6 +314,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         investments: (investments as Investment[]) || [],
         marketPrices: (marketPrices as MarketPrice[]) || [],
         categories: (categories as Category[]) || [],
+        savings: (savingsData as Saving[]) || [],
+        dolarBlue,
         user: (userData as User) || null,
         isInitialized: true,
       });

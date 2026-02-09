@@ -8,9 +8,10 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
-import { Filter, CreditCard, ChevronDown, ChevronRight, Tag } from 'lucide-react';
+import { Filter, CreditCard, ChevronDown, ChevronRight, Tag, Plus } from 'lucide-react';
 import { FullPageLoader } from '@/components/shared/loader';
 import { Button } from '@/components/ui/button';
+import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ interface TransactionWithPeriod extends Transaction {
 
 export default function MovimientosPage() {
   const [isFutureOpen, setIsFutureOpen] = useState(true);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const {
     transactions,
     paymentMethods,
@@ -188,7 +190,7 @@ export default function MovimientosPage() {
         <div className="mx-auto max-w-[1440px] px-4 py-2 flex flex-col md:flex-row justify-between items-center gap-2 md:gap-0">
           <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
           
-          <div className="flex items-center justify-between w-full md:w-auto md:block md:text-right border-t border-slate-800/50 pt-2 md:border-0 md:pt-0">
+          <div className="flex items-center justify-between w-full md:w-auto md:flex md:items-center md:gap-4 border-t border-slate-800/50 pt-2 md:border-0 md:pt-0">
             <span className="text-xs text-slate-400 font-medium uppercase tracking-wider md:hidden">Balance Total</span>
             <div className="text-right">
               <p className="hidden md:block text-[10px] text-slate-400 uppercase tracking-wider font-medium">Balance Mensual</p>
@@ -199,6 +201,14 @@ export default function MovimientosPage() {
                 {formatCurrency(monthlyBalance)}
               </p>
             </div>
+            <Button
+              onClick={() => setIsCreateOpen(true)}
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Nuevo
+            </Button>
           </div>
         </div>
 
@@ -269,6 +279,8 @@ export default function MovimientosPage() {
           )}
         </div>
       </header>
+
+      <CreateTransactionDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
       <main className="mx-auto max-w-[1440px] px-4 py-6">
         {filteredTransactions.length === 0 ? (

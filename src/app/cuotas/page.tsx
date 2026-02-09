@@ -29,6 +29,8 @@ import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
 import { FullPageLoader } from '@/components/shared/loader';
 import { InstallmentPlan } from '@/types/database';
+import { CreateInstallmentPlanDialog } from "@/components/installments/create-plan-dialog";
+import { Plus } from 'lucide-react';
 
 interface PlanWithStatus extends InstallmentPlan {
   paid: number;
@@ -190,7 +192,8 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
 }
 
 export default function CuotasPage() {
-  const { 
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const {
     installmentPlans, 
     paymentMethods, 
     fetchAllData, 
@@ -232,11 +235,22 @@ export default function CuotasPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
       {/* Header */}
-      <PageHeader 
-        title="Mis Cuotas" 
+      <PageHeader
+        title="Mis Cuotas"
         icon={<CreditCard className="h-5 w-5" />}
         containerClassName="max-w-[1440px]"
-      />
+      >
+        <Button
+          onClick={() => setIsCreateOpen(true)}
+          size="sm"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white"
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Nuevo Plan
+        </Button>
+      </PageHeader>
+
+      <CreateInstallmentPlanDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
       <main className="mx-auto max-w-[1440px] px-6 py-8">
         {/* Total Debt Summary */}

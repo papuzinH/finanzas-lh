@@ -1,7 +1,6 @@
 "use client"
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface PortfolioDistributionProps {
   data: { name: string; value: number }[];
@@ -20,51 +19,47 @@ const COLORS = [
 export function PortfolioDistribution({ data }: PortfolioDistributionProps) {
   if (!data || data.length === 0) {
     return (
-      <Card className="h-full">
-        <CardHeader>
-          <CardTitle>Composición</CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center h-[300px] text-muted-foreground">
+      <div className="h-full rounded-xl border border-slate-800 bg-slate-900/40 p-4 flex flex-col">
+        <h3 className="text-sm font-semibold text-slate-300 mb-4">Composición</h3>
+        <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
           No hay datos para mostrar
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle>Composición de Cartera</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={5}
-                dataKey="value"
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
-                ))}
-              </Pie>
-              <Tooltip 
-                formatter={(value: number) => 
-                  new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
-                }
-                contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
-                itemStyle={{ color: '#f3f4f6' }}
-              />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="h-full rounded-xl border border-slate-800 bg-slate-900/40 p-4 flex flex-col">
+      <h3 className="text-sm font-semibold text-slate-300 mb-4">Composición de Cartera</h3>
+      <div className="flex-1 w-full min-h-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={80}
+              paddingAngle={5}
+              dataKey="value"
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(value: number) =>
+                new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value)
+              }
+              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px', fontSize: '12px', color: '#e2e8f0' }}
+              itemStyle={{ color: '#e2e8f0' }}
+            />
+            <Legend
+              wrapperStyle={{ color: '#94a3b8', fontSize: '12px' }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }

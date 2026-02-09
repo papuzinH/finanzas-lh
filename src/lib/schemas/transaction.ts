@@ -9,3 +9,9 @@ export const transactionSchema = z.object({
 });
 
 export type TransactionSchema = z.infer<typeof transactionSchema>;
+
+export const createTransactionSchema = transactionSchema.extend({
+  payment_method_id: z.string().nullable().optional(),
+});
+
+export type CreateTransactionSchema = z.infer<typeof createTransactionSchema>;

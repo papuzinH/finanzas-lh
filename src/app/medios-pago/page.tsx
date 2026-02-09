@@ -6,6 +6,7 @@ import { Transaction } from '@/types/database';
 import { Wallet } from 'lucide-react';
 import { InstitutionalCard } from '@/components/medios-pago/institutional-card';
 import { PersonalDebtCard } from '@/components/medios-pago/personal-debt-card';
+import { CreatePaymentMethodDialog } from '@/components/medios-pago/create-payment-method-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { FullPageLoader } from '@/components/shared/loader';
 
@@ -59,11 +60,13 @@ export default function MediosPagoPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
-      <PageHeader 
-        title="Medios de Pago" 
+      <PageHeader
+        title="Medios de Pago"
         icon={<Wallet className="h-5 w-5" />}
         containerClassName="max-w-[1440px]"
-      />
+      >
+        <CreatePaymentMethodDialog />
+      </PageHeader>
 
       <main className="mx-auto max-w-[1440px] px-6 py-8 space-y-10">
         
