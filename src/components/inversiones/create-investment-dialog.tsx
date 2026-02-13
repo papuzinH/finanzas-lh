@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { createInvestment } from '@/app/inversiones/actions'
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { useRouter } from 'next/navigation'
+import { detectCurrencyFromTicker } from '@/lib/utils'
 
 const INVESTMENT_TYPES = [
   { value: 'stock', label: 'Accion' },
@@ -38,6 +39,24 @@ export function CreateInvestmentDialog() {
   const [quantity, setQuantity] = useState('')
   const [avgBuyPrice, setAvgBuyPrice] = useState('')
   const [currency, setCurrency] = useState('ARS')
+
+  // Auto-detect currency from ticker suffix
+  const handleTickerChange = (value: string) => {
+    const upper = value.toUpperCase()
+    setTicker(upper)
+    const detected = detectCurrencyFromTicker(upper)
+    if (detected) {
+      setCurrency(detected)
+    }
+  }
+
+  // Auto-set currency when type changes to crypto
+  const handleTypeChange = (value: string) => {
+    setType(value)
+    if (value === 'crypto') {
+      setCurrency('USD')
+    }
+  }
 
   const resetForm = () => {
     setTicker('')
@@ -89,7 +108,7 @@ export function CreateInvestmentDialog() {
       <DialogContent className="sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">
+            <DialogTitle className="text-xl font-bold bg-linear-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">
               Agregar Inversion
             </DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -97,14 +116,14 @@ export function CreateInvestmentDialog() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-5 py-6">
-            <div className="grid grid-cols-3 gap-3">
+          <div className="grid gap-4 py-4 md:py-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-2">
                 <Label className="text-slate-300">Ticker</Label>
                 <Input
                   value={ticker}
-                  onChange={e => setTicker(e.target.value)}
-                  placeholder="GGAL"
+                  onChange={e => handleTickerChange(e.target.value)}
+                  placeholder="AL30D"
                   className="bg-slate-900 border-slate-800 focus:border-indigo-500/50 uppercase"
                   required
                 />
@@ -124,7 +143,7 @@ export function CreateInvestmentDialog() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label className="text-slate-300">Tipo</Label>
-                <Select value={type} onValueChange={setType}>
+                <Select value={type} onValueChange={handleTypeChange}>
                   <SelectTrigger className="bg-slate-900 border-slate-800">
                     <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>

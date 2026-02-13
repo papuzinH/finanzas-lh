@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { investmentSchema, type InvestmentSchema } from '@/lib/schemas/investment'
+import { detectCurrencyFromTicker } from '@/lib/utils'
 import * as cheerio from 'cheerio'
 
 type ActionResponse = {
@@ -12,12 +13,18 @@ type ActionResponse = {
 
 // --- INVESTMENTS ---
 
+/**
+ * Construye la URL de fuente de datos para cotización.
+ * Para bonos en dólares (suffix D/C), se usa el ticker base sin suffix.
+ */
 function buildDataSourceUrl(ticker: string, type: string): string {
   const t = ticker.toUpperCase()
   if (type === 'crypto') {
     return `https://iol.invertironline.com/titulo/cotizacion/CRIPTO/${t}/1`
   }
-  return `https://iol.invertironline.com/titulo/cotizacion/BCBA/${t}/1`
+  // Para bonos, usar ticker base (sin D/C) en IOL
+  const baseTicker = (type === 'bond') ? t.replace(/[DC]$/, '') : t
+  return `https://iol.invertironline.com/titulo/cotizacion/BCBA/${baseTicker}/1`
 }
 
 export async function createInvestment(data: InvestmentSchema): Promise<ActionResponse> {
@@ -33,6 +40,11 @@ export async function createInvestment(data: InvestmentSchema): Promise<ActionRe
 
     const dataSourceUrl = validated.data.data_source_url || buildDataSourceUrl(validated.data.ticker, validated.data.type)
 
+    // Auto-detect currency from ticker suffix if not explicitly set
+    const detectedCurrency = detectCurrencyFromTicker(validated.data.ticker)
+    const finalCurrency = validated.data.currency || detectedCurrency || 
+      (validated.data.type === 'crypto' ? 'USD' : 'ARS')
+
     const insertData = {
       user_id: user.id,
       ticker: validated.data.ticker,
@@ -40,7 +52,7 @@ export async function createInvestment(data: InvestmentSchema): Promise<ActionRe
       type: validated.data.type,
       quantity: validated.data.quantity,
       avg_buy_price: validated.data.avg_buy_price ?? null,
-      currency: validated.data.currency || 'ARS',
+      currency: finalCurrency,
       data_source_url: dataSourceUrl,
     }
 

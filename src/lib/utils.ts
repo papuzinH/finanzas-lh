@@ -13,6 +13,41 @@ export const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+/**
+ * Formatea moneda de forma inteligente para inversiones.
+ * Detecta la moneda por:
+ * 1. Parámetro explícito `currency`
+ * 2. Suffix del ticker: tickers que terminan en 'D' o 'C' → USD (ej: AL30D, GD30C)
+ * 3. Default: ARS
+ */
+export const formatTickerCurrency = (
+  amount: number,
+  ticker?: string,
+  currency?: 'ARS' | 'USD' | string | null,
+): string => {
+  const resolvedCurrency = currency || detectCurrencyFromTicker(ticker) || 'ARS';
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: resolvedCurrency === 'USD' ? 'USD' : 'ARS',
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
+/**
+ * Detecta la moneda probable a partir del ticker del activo argentino.
+ * - Suffix 'D' → dólares (ej: AL30D, GD30D, AE38D)
+ * - Suffix 'C' → dólar cable (ej: GD30C)
+ * - Crypto → USD
+ * - Resto → ARS
+ */
+export const detectCurrencyFromTicker = (ticker?: string): 'ARS' | 'USD' | null => {
+  if (!ticker) return null;
+  const t = ticker.toUpperCase().trim();
+  // Bonos en dólar MEP o Cable
+  if (/^[A-Z]{2}\d{2}[DC]$/.test(t)) return 'USD';
+  return null;
+};
+
 export const formatDate = (dateString: string | Date) => {
   let date = typeof dateString === 'string' ? parseISO(dateString) : dateString;
   

@@ -81,13 +81,13 @@ export function SavingsCard() {
   }
 
   return (
-    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6 relative overflow-hidden">
-      <div className="absolute top-0 right-0 p-4 opacity-10">
-        <PiggyBank className="w-16 h-16 text-amber-500" />
+    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 md:p-6 relative overflow-hidden">
+      <div className="absolute top-0 right-0 p-3 opacity-10">
+        <PiggyBank className="w-12 md:w-16 h-12 md:h-16 text-amber-500" />
       </div>
 
-      <p className="text-xs font-medium text-amber-300 uppercase tracking-wider mb-1">Dinero Ahorrado</p>
-      <p className="text-3xl font-bold text-white font-mono tracking-tight">
+      <p className="text-[10px] md:text-xs font-medium text-amber-300 uppercase tracking-wider mb-1">Dinero Ahorrado</p>
+      <p className="text-xl md:text-3xl font-bold text-white font-mono tracking-tight">
         {formatCurrency(totalInARS)}
       </p>
 
@@ -121,7 +121,7 @@ export function SavingsCard() {
                 size="sm"
                 disabled={isPending}
                 onClick={() => handleDelete(s)}
-                className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-opacity"
+                className="h-5 w-5 p-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-opacity"
               >
                 <Trash2 className="w-3 h-3" />
               </Button>

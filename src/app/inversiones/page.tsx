@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useTransition } from "react";
 import { useFinanceStore } from "@/lib/store/financeStore";
 import { PortfolioDistribution } from "@/components/inversiones/portfolio-distribution";
 import { CreateInvestmentDialog } from "@/components/inversiones/create-investment-dialog";
 import { SavingsCard } from "@/components/inversiones/savings-card";
 import { PageHeader } from "@/components/shared/page-header";
-import { TrendingUp, DollarSign, Wallet, RefreshCw, Loader2 } from "lucide-react";
+import { TrendingUp, DollarSign, Wallet, RefreshCw, Loader2, BarChart3 } from "lucide-react";
 import { FullPageLoader } from "@/components/shared/loader";
 import { Button } from "@/components/ui/button";
 import { updateMarketPrices } from "@/app/inversiones/actions";
 import { toast } from "sonner";
+import { formatTickerCurrency } from "@/lib/utils";
 
-const formatCurrency = (amount: number, currency: 'ARS' | 'USD' = 'ARS') => {
+const fmtCurrency = (amount: number, currency: 'ARS' | 'USD' = 'ARS') => {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
-    currency: currency,
+    currency,
     minimumFractionDigits: 2,
   }).format(amount);
 };
@@ -56,7 +57,7 @@ export default function InversionesPage() {
       .map(asset => ({
         name: asset.ticker,
         value: asset.currentValue,
-        currency: asset.currency
+        currency: asset.currency ?? undefined
       }))
       .filter(item => item.value > 0)
       .sort((a, b) => b.value - a.value);
@@ -85,50 +86,52 @@ export default function InversionesPage() {
         icon={<TrendingUp className="h-5 w-5" />}
         containerClassName="max-w-[1440px]"
       >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefreshPrices}
-          disabled={isRefreshing}
-          className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
-        >
-          {isRefreshing ? (
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-          ) : (
-            <RefreshCw className="w-4 h-4 mr-2" />
-          )}
-          {isRefreshing ? 'Actualizando...' : 'Cotizaciones'}
-        </Button>
-        <CreateInvestmentDialog />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshPrices}
+            disabled={isRefreshing}
+            className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
+          >
+            {isRefreshing ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-1 md:mr-2" />
+            ) : (
+              <RefreshCw className="w-4 h-4 mr-1 md:mr-2" />
+            )}
+            <span className="hidden sm:inline">{isRefreshing ? 'Actualizando...' : 'Cotizaciones'}</span>
+          </Button>
+          <CreateInvestmentDialog />
+        </div>
       </PageHeader>
 
-      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8 space-y-6">
+      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8 space-y-5 md:space-y-6">
 
         {/* Total Patrimonio */}
-        <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 p-6 relative overflow-hidden">
+        <div className="rounded-2xl border border-indigo-500/20 bg-linear-to-br from-indigo-500/10 via-violet-500/5 to-slate-950 p-5 md:p-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-10">
-            <TrendingUp className="w-20 h-20 text-indigo-400" />
+            <TrendingUp className="w-16 md:w-20 h-16 md:h-20 text-indigo-400" />
           </div>
-          <p className="text-xs font-medium text-indigo-300 uppercase tracking-wider mb-2">Patrimonio Total</p>
-          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-            <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-white font-mono tracking-tight break-all md:break-normal">
-              {formatCurrency(totalPatrimonioARS)}
+          <p className="text-[10px] md:text-xs font-medium text-indigo-300 uppercase tracking-wider mb-1.5">Patrimonio Total</p>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-baseline gap-1 sm:gap-x-6 sm:gap-y-2">
+            <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-white font-mono tracking-tight">
+              {fmtCurrency(totalPatrimonioARS)}
             </p>
             {dolarVenta > 0 && (
-              <p className="text-xl font-semibold text-indigo-200/70 font-mono">
-                {formatCurrency(totalPatrimonioUSD, 'USD')}
+              <p className="text-lg sm:text-xl font-semibold text-indigo-200/70 font-mono">
+                {fmtCurrency(totalPatrimonioUSD, 'USD')}
               </p>
             )}
           </div>
           {dolarVenta > 0 && (
-            <p className="text-[11px] text-indigo-400/60 mt-2">
+            <p className="text-[10px] md:text-[11px] text-indigo-400/60 mt-1.5">
               Dólar Blue: ${dolarVenta.toLocaleString('es-AR')}
             </p>
           )}
         </div>
 
         {/* Summary Cards */}
-        <div className={`grid grid-cols-1 ${hasInvestments ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-2'} gap-4`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${hasInvestments ? 'lg:grid-cols-4' : ''} gap-3 md:gap-4`}>
 
           {/* Savings Card (always visible) */}
           <SavingsCard />
@@ -136,42 +139,42 @@ export default function InversionesPage() {
           {hasInvestments && (
             <>
               {/* Total ARS */}
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <DollarSign className="w-16 h-16 text-emerald-500" />
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 md:p-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-3 opacity-10">
+                  <DollarSign className="w-12 md:w-16 h-12 md:h-16 text-emerald-500" />
                 </div>
-                <p className="text-xs font-medium text-emerald-300 uppercase tracking-wider mb-1">Total en Pesos</p>
-                <p className="text-3xl font-bold text-white font-mono tracking-tight">
-                  {formatCurrency(portfolio.totalBalanceARS)}
+                <p className="text-[10px] md:text-xs font-medium text-emerald-300 uppercase tracking-wider mb-1">Total en Pesos</p>
+                <p className="text-xl md:text-3xl font-bold text-white font-mono tracking-tight">
+                  {fmtCurrency(portfolio.totalBalanceARS)}
                 </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                    +{formatCurrency(portfolio.totalProfitARS)} Ganancia
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${portfolio.totalProfitARS >= 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}`}>
+                    {portfolio.totalProfitARS >= 0 ? '+' : ''}{fmtCurrency(portfolio.totalProfitARS)}
                   </span>
                 </div>
               </div>
 
               {/* Total USD */}
-              <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <Wallet className="w-16 h-16 text-sky-500" />
+              <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-4 md:p-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-3 opacity-10">
+                  <Wallet className="w-12 md:w-16 h-12 md:h-16 text-sky-500" />
                 </div>
-                <p className="text-xs font-medium text-sky-300 uppercase tracking-wider mb-1">Total en Dólares</p>
-                <p className="text-3xl font-bold text-white font-mono tracking-tight">
-                  {formatCurrency(portfolio.totalBalanceUSD, 'USD')}
+                <p className="text-[10px] md:text-xs font-medium text-sky-300 uppercase tracking-wider mb-1">Total en Dólares</p>
+                <p className="text-xl md:text-3xl font-bold text-white font-mono tracking-tight">
+                  {fmtCurrency(portfolio.totalBalanceUSD, 'USD')}
                 </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-[10px] text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full">
-                    +{formatCurrency(portfolio.totalProfitUSD, 'USD')} Ganancia
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${portfolio.totalProfitUSD >= 0 ? 'text-sky-400 bg-sky-500/10' : 'text-red-400 bg-red-500/10'}`}>
+                    {portfolio.totalProfitUSD >= 0 ? '+' : ''}{fmtCurrency(portfolio.totalProfitUSD, 'USD')}
                   </span>
                 </div>
               </div>
 
               {/* Last Update */}
-              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6 flex flex-col justify-center items-center text-center">
-                <RefreshCw className="h-8 w-8 text-slate-600 mb-2" />
-                <p className="text-slate-400 text-sm">Última cotización</p>
-                <p className="text-slate-200 font-mono text-sm mt-1">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 md:p-6 flex flex-col justify-center items-center text-center">
+                <RefreshCw className="h-6 w-6 md:h-8 md:w-8 text-slate-600 mb-2" />
+                <p className="text-slate-400 text-xs md:text-sm">Última cotización</p>
+                <p className="text-slate-200 font-mono text-xs md:text-sm mt-1">
                   {portfolio.lastUpdate
                     ? new Date(portfolio.lastUpdate).toLocaleString('es-AR')
                     : 'Esperando mercado...'}
@@ -182,44 +185,62 @@ export default function InversionesPage() {
         </div>
 
         {hasInvestments ? (
-          /* Charts and Details */
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[500px]">
+          <>
+            {/* Charts and Details */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:h-[500px]">
 
-            {/* Chart */}
-            <div className="lg:col-span-2 h-[300px] lg:h-full">
-              <PortfolioDistribution data={chartData} />
-            </div>
+              {/* Chart */}
+              <div className="lg:col-span-2 h-[280px] sm:h-80 lg:h-full">
+                <PortfolioDistribution data={chartData} />
+              </div>
 
-            {/* Assets List */}
-            <div className="lg:col-span-1 border border-slate-800 bg-slate-900/40 rounded-xl p-4 overflow-y-auto max-h-[400px] lg:max-h-none">
-              <h3 className="text-sm font-semibold text-slate-300 mb-4 sticky top-0 bg-slate-900/95 py-2 backdrop-blur-sm">
-                Tenencias
-              </h3>
-              <div className="space-y-3">
-                {portfolio.assets.map((asset) => (
-                  <div key={asset.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-900 border border-slate-800/60 hover:border-slate-700 transition-colors">
-                    <div>
-                      <div className="font-bold text-sm text-slate-200">{asset.ticker}</div>
-                      <div className="text-[10px] text-slate-500">{asset.quantity} nominales</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-mono text-sm font-medium text-slate-200">
-                        {formatCurrency(asset.currentValue, asset.currency === 'USD' ? 'USD' : 'ARS')}
+              {/* Assets List */}
+              <div className="lg:col-span-1 border border-slate-800 bg-slate-900/40 rounded-xl p-3 md:p-4 overflow-y-auto max-h-[350px] sm:max-h-[400px] lg:max-h-none">
+                <h3 className="text-xs md:text-sm font-semibold text-slate-300 mb-3 md:mb-4 sticky top-0 bg-slate-900/95 py-2 backdrop-blur-sm flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-slate-500" />
+                  Tenencias
+                  <span className="text-[10px] font-normal text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded-full ml-auto">
+                    {portfolio.assets.length}
+                  </span>
+                </h3>
+                <div className="space-y-2 md:space-y-3">
+                  {portfolio.assets.map((asset) => {
+                    const assetCurrency = (asset.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD';
+                    return (
+                      <div key={asset.id} className="flex items-center justify-between p-2.5 md:p-3 rounded-lg bg-slate-900 border border-slate-800/60 hover:border-slate-700 transition-colors">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-slate-200">{asset.ticker}</span>
+                            <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${
+                              assetCurrency === 'USD' 
+                                ? 'bg-sky-500/10 text-sky-400' 
+                                : 'bg-emerald-500/10 text-emerald-400'
+                            }`}>
+                              {assetCurrency}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 truncate">{asset.quantity} × {formatTickerCurrency(asset.lastPrice, asset.ticker, asset.currency)}</div>
+                        </div>
+                        <div className="text-right shrink-0 ml-2">
+                          <div className="font-mono text-sm font-medium text-slate-200">
+                            {formatTickerCurrency(asset.currentValue, asset.ticker, asset.currency)}
+                          </div>
+                          <div className={`text-[10px] font-mono ${asset.profitPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {asset.profitPercent >= 0 ? '+' : ''}{asset.profitPercent.toFixed(2)}%
+                          </div>
+                        </div>
                       </div>
-                      <div className={`text-[10px] ${asset.profitPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {asset.profitPercent >= 0 ? '+' : ''}{asset.profitPercent.toFixed(2)}%
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          </>
         ) : (
           /* Empty State */
-          <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
+          <div className="flex flex-col items-center justify-center py-12 md:py-16 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
             <TrendingUp className="h-8 w-8 mb-3 opacity-50" />
-            <p>No tienes inversiones registradas.</p>
+            <p className="text-sm">No tienes inversiones registradas.</p>
             <p className="text-xs mt-1 mb-4">Agrega tu primer activo para trackear tu portafolio.</p>
             <CreateInvestmentDialog />
           </div>
