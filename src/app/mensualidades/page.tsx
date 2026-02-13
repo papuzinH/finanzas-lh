@@ -227,14 +227,14 @@ export default function MensualidadesPage() {
 
       <CreateSubscriptionDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
-      <main className="mx-auto max-w-[1440px] px-6 py-8">
+      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8">
         {/* Hero Card: Total Monthly Cost */}
         <div className="mb-8 relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 p-8 shadow-xl backdrop-blur-sm">
           <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-purple-500/10 blur-2xl"></div>
           
           <div className="relative z-10 text-center">
             <p className="text-sm font-medium text-purple-300 uppercase tracking-wider mb-2">Costo Fijo Mensual</p>
-            <h2 className="text-4xl font-bold text-white font-mono tracking-tight">
+            <h2 className="text-3xl md:text-4xl font-bold text-white font-mono tracking-tight">
               {formatCurrency(totalMonthlyCost)}
             </h2>
             <p className="text-xs text-slate-500 mt-2">

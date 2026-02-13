@@ -212,8 +212,8 @@ export default function MovimientosPage() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-[1440px] px-4 py-3 flex flex-wrap gap-3 items-center">
-          <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 rounded-lg px-2 py-1">
+        <div className="mx-auto max-w-[1440px] px-4 py-3 flex flex-wrap gap-3 items-center overflow-x-auto">
+          <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 rounded-lg px-2 py-1 min-w-0 flex-wrap sm:flex-nowrap">
             <Filter className="h-3.5 w-3.5 text-slate-500" />
             <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mr-1">Filtros</span>
             
@@ -222,7 +222,7 @@ export default function MovimientosPage() {
               value={selectedPaymentMethodId} 
               onValueChange={(val) => handleFilterChange('paymentMethod', val)}
             >
-              <SelectTrigger className="h-8 w-[140px] bg-transparent border-none focus:ring-0 text-xs text-slate-300 hover:text-white transition-colors">
+              <SelectTrigger className="h-8 w-[120px] sm:w-[140px] bg-transparent border-none focus:ring-0 text-xs text-slate-300 hover:text-white transition-colors">
                 <div className="flex items-center gap-2 truncate">
                   <CreditCard className="h-3 w-3 shrink-0" />
                   <SelectValue placeholder="Medio de Pago" />
@@ -245,7 +245,7 @@ export default function MovimientosPage() {
               value={selectedCategoryId} 
               onValueChange={(val) => handleFilterChange('category', val)}
             >
-              <SelectTrigger className="h-8 w-[140px] bg-transparent border-none focus:ring-0 text-xs text-slate-300 hover:text-white transition-colors">
+              <SelectTrigger className="h-8 w-[120px] sm:w-[140px] bg-transparent border-none focus:ring-0 text-xs text-slate-300 hover:text-white transition-colors">
                 <div className="flex items-center gap-2 truncate">
                   <Tag className="h-3 w-3 shrink-0" />
                   <SelectValue placeholder="Categoría" />

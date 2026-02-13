@@ -23,7 +23,7 @@ export default async function CategoriesPage() {
         <CreateCategoryDialog />
       </PageHeader>
 
-      <main className="mx-auto max-w-[1440px] px-6 py-8">
+      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8">
         <p className="text-sm text-slate-400 mb-6">
           Administra las etiquetas para tus gastos. Las descripciones ayudan a la IA a clasificar automáticamente.
         </p>

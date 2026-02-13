@@ -138,4 +138,9 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #334155;
   }
+
+  /* Safe area for iOS devices with notch/gesture bar */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }

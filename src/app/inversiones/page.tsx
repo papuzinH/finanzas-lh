@@ -102,7 +102,7 @@ export default function InversionesPage() {
         <CreateInvestmentDialog />
       </PageHeader>
 
-      <main className="mx-auto max-w-[1440px] px-6 py-8 space-y-6">
+      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8 space-y-6">
 
         {/* Total Patrimonio */}
         <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 p-6 relative overflow-hidden">
@@ -111,7 +111,7 @@ export default function InversionesPage() {
           </div>
           <p className="text-xs font-medium text-indigo-300 uppercase tracking-wider mb-2">Patrimonio Total</p>
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-            <p className="text-4xl font-bold text-white font-mono tracking-tight">
+            <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-white font-mono tracking-tight break-all md:break-normal">
               {formatCurrency(totalPatrimonioARS)}
             </p>
             {dolarVenta > 0 && (
@@ -183,15 +183,15 @@ export default function InversionesPage() {
 
         {hasInvestments ? (
           /* Charts and Details */
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[500px]">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[500px]">
 
             {/* Chart */}
-            <div className="lg:col-span-2 h-full">
+            <div className="lg:col-span-2 h-[300px] lg:h-full">
               <PortfolioDistribution data={chartData} />
             </div>
 
             {/* Assets List */}
-            <div className="lg:col-span-1 border border-slate-800 bg-slate-900/40 rounded-xl p-4 overflow-y-auto">
+            <div className="lg:col-span-1 border border-slate-800 bg-slate-900/40 rounded-xl p-4 overflow-y-auto max-h-[400px] lg:max-h-none">
               <h3 className="text-sm font-semibold text-slate-300 mb-4 sticky top-0 bg-slate-900/95 py-2 backdrop-blur-sm">
                 Tenencias
               </h3>

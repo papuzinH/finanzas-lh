@@ -252,12 +252,12 @@ export default function CuotasPage() {
 
       <CreateInstallmentPlanDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
-      <main className="mx-auto max-w-[1440px] px-6 py-8">
+      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8">
         {/* Total Debt Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-6 text-center">
             <p className="text-xs font-medium text-indigo-300 uppercase tracking-wider mb-1">Deuda Futura</p>
-            <p className="text-2xl font-bold text-indigo-400 font-mono tracking-tight">
+            <p className="text-xl md:text-2xl font-bold text-indigo-400 font-mono tracking-tight">
               {formatCurrency(totalDebt)}
             </p>
             <p className="text-[10px] text-slate-500 mt-2">
@@ -266,7 +266,7 @@ export default function CuotasPage() {
           </div>
           <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-6 text-center">
             <p className="text-xs font-medium text-rose-300 uppercase tracking-wider mb-1">Vence este mes</p>
-            <p className="text-2xl font-bold text-rose-400 font-mono tracking-tight">
+            <p className="text-xl md:text-2xl font-bold text-rose-400 font-mono tracking-tight">
               {formatCurrency(currentMonthDebt)}
             </p>
             <p className="text-[10px] text-slate-500 mt-2">

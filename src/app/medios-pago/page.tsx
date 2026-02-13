@@ -68,7 +68,7 @@ export default function MediosPagoPage() {
         <CreatePaymentMethodDialog />
       </PageHeader>
 
-      <main className="mx-auto max-w-[1440px] px-6 py-8 space-y-10">
+      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8 space-y-8 md:space-y-10">
         
         {/* Sección 1: Billetera y Bancos */}
         <section>

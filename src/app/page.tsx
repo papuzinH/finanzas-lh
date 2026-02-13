@@ -83,7 +83,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto max-w-[1440px] px-6 py-4 flex justify-between items-center">
+        <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white">Hola, {user?.first_name || 'Usuario'} 👋</h1>
        
@@ -92,7 +92,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-6">
+      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 space-y-6">
         
         {/* SECCIÓN A: ESTADO PATRIMONIAL (Bento Grid) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -107,7 +107,7 @@ export default function DashboardPage() {
               <p className="text-sm text-slate-400 font-medium">Balance Actual</p>
               <div className="group/tooltip relative">
                 <Info className="w-4 h-4 text-slate-500 cursor-help hover:text-slate-300 transition-colors" />
-                <div className="absolute left-0 top-6 w-64 p-3 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl opacity-0 group-hover/tooltip:opacity-100 transition-all duration-200 pointer-events-none z-50 text-xs text-slate-300 translate-y-2 group-hover/tooltip:translate-y-0">
+                <div className="absolute left-0 md:left-0 right-0 md:right-auto top-6 w-auto md:w-64 p-3 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl opacity-0 group-hover/tooltip:opacity-100 transition-all duration-200 pointer-events-none z-50 text-xs text-slate-300 translate-y-2 group-hover/tooltip:translate-y-0">
                   <p className="font-bold text-slate-100 mb-2 border-b border-slate-700 pb-1">Cálculo del Balance</p>
                   <div className="space-y-1 font-mono">
                     <div className="flex justify-between">
@@ -131,10 +131,10 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <h2 className={`text-4xl font-bold font-mono tracking-tighter relative z-10 ${globalBalance >= 0 ? 'text-white' : 'text-red-400'}`}>
+            <h2 className={`text-3xl md:text-4xl font-bold font-mono tracking-tighter relative z-10 ${globalBalance >= 0 ? 'text-white' : 'text-red-400'}`}>
               {formatCurrency(globalBalance)}
             </h2>
-            <div className="flex gap-4 mt-4">
+            <div className="flex flex-wrap gap-2 md:gap-4 mt-4">
               <div className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
                 <ArrowUpRight className="w-3 h-3" />
                 <span>Ingresos {formatCurrency(totalIncome)}</span>
@@ -252,7 +252,7 @@ export default function DashboardPage() {
                   <div key={item.name} className="flex items-center justify-between text-[10px]">
                     <div className="flex items-center gap-1.5">
                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                      <span className="text-slate-400 truncate max-w-[60px]">{item.name}</span>
+                      <span className="text-slate-400 truncate max-w-20 md:max-w-[60px]">{item.name}</span>
                     </div>
                     <span className="font-mono text-slate-300">{formatCurrency(item.value)}</span>
                   </div>
