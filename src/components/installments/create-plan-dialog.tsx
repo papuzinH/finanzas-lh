@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
@@ -47,7 +47,7 @@ export function CreateInstallmentPlanDialog({
   onOpenChange,
 }: CreateInstallmentPlanDialogProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories, paymentMethods } = useFinanceStore();
 
   const form = useForm<CreateInstallmentPlanSchema>({
@@ -69,7 +69,8 @@ export function CreateInstallmentPlanDialog({
     : 0;
 
   async function onSubmit(data: CreateInstallmentPlanSchema) {
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const formattedData = {
         ...data,
         payment_method_id: data.payment_method_id === 'none' ? null : data.payment_method_id,
@@ -86,7 +87,9 @@ export function CreateInstallmentPlanDialog({
         onOpenChange(false);
         router.refresh();
       }
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (

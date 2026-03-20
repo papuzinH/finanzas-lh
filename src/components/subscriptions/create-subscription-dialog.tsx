@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
@@ -44,7 +44,7 @@ export function CreateSubscriptionDialog({
   onOpenChange,
 }: CreateSubscriptionDialogProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories, paymentMethods } = useFinanceStore();
 
   const form = useForm<CreateSubscriptionSchema>({
@@ -58,7 +58,8 @@ export function CreateSubscriptionDialog({
   });
 
   async function onSubmit(data: CreateSubscriptionSchema) {
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const formattedData = {
         ...data,
         payment_method_id: data.payment_method_id === 'none' ? null : data.payment_method_id,
@@ -75,7 +76,9 @@ export function CreateSubscriptionDialog({
         onOpenChange(false);
         router.refresh();
       }
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
@@ -55,7 +55,7 @@ export function EditTransactionDialog({
   transaction,
 }: EditTransactionDialogProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories } = useFinanceStore();
 
   const form = useForm<TransactionSchema>({
@@ -70,7 +70,8 @@ export function EditTransactionDialog({
   });
 
   async function onSubmit(data: TransactionSchema) {
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await updateTransaction(transaction.id.toString(), data);
 
       if (result.error) {
@@ -81,7 +82,9 @@ export function EditTransactionDialog({
         onOpenChange(false);
         router.refresh();
       }
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
@@ -54,7 +54,7 @@ export function EditInstallmentPlanDialog({
   plan,
 }: EditInstallmentPlanDialogProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories } = useFinanceStore();
 
   const form = useForm<InstallmentPlanSchema>({
@@ -66,7 +66,8 @@ export function EditInstallmentPlanDialog({
   });
 
   async function onSubmit(data: InstallmentPlanSchema) {
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await updateInstallmentPlan(plan.id.toString(), data);
 
       if (result.error) {
@@ -77,7 +78,9 @@ export function EditInstallmentPlanDialog({
         onOpenChange(false);
         router.refresh();
       }
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (

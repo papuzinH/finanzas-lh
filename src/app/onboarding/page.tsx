@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
-import { OnboardingClient } from './onboarding-client'
+import { OnboardingFlow } from './onboarding-flow'
 
 export default async function OnboardingPage() {
   const supabase = await createClient()
@@ -10,23 +10,20 @@ export default async function OnboardingPage() {
     redirect('/login')
   }
 
-  // Verificar si ya tiene telegram_chat_id
+  // Verificar si ya completó el onboarding
   const { data: profile } = await supabase
     .from('users')
-    .select('telegram_chat_id')
+    .select('onboarding_completed')
     .eq('id', user.id)
     .single()
 
-  const currentTelegramId = profile?.telegram_chat_id
-  const isValid = currentTelegramId && currentTelegramId.trim().length > 0
-
-  if (isValid) {
+  if (profile?.onboarding_completed) {
     redirect('/')
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
-      <OnboardingClient userId={user.id} />
+      <OnboardingFlow />
     </div>
   )
 }

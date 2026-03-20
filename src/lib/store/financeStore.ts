@@ -209,14 +209,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   isInitialized: false,
 
   fetchAllData: async () => {
-    // If already loading (and not just initialized default), return.
-    // But we need to allow the first fetch even if isLoading is true by default.
-    // So we check if it's a subsequent fetch or the initial one.
-    // Actually, if isLoading is true, we might still want to fetch if it's the *initial* state.
-    // Let's just set isLoading to true again to be safe, or check isInitialized.
-    
-    if (get().isLoading && get().isInitialized) return; 
-    
     set({ isLoading: true, error: null });
     const supabase = createClient();
 

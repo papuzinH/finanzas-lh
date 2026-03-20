@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import {
@@ -54,7 +54,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
   const router = useRouter();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isDeleting, startDeleteTransition] = useTransition();
+  const [isDeleting, setIsDeleting] = useState(false);
   const { fetchAllData, categories } = useFinanceStore();
   
   const category = categories.find(c => c.id === transaction.category_id);
@@ -68,8 +68,9 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
     setIsDeleteOpen(true);
   };
 
-  const confirmDelete = () => {
-    startDeleteTransition(async () => {
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
       const result = await deleteTransaction(transaction.id.toString());
       if (result.error) {
         toast.error(result.error);
@@ -79,7 +80,9 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
         router.refresh();
       }
       setIsDeleteOpen(false);
-    });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (

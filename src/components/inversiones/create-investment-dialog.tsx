@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
@@ -29,7 +29,7 @@ const INVESTMENT_TYPES = [
 
 export function CreateInvestmentDialog() {
   const [open, setOpen] = useState(false)
-  const [isPending, startTransition] = useTransition()
+  const [isPending, setIsPending] = useState(false)
   const { fetchAllData } = useFinanceStore()
   const router = useRouter()
 
@@ -67,7 +67,7 @@ export function CreateInvestmentDialog() {
     setCurrency('ARS')
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!ticker || !name || !type || !quantity) {
@@ -75,7 +75,8 @@ export function CreateInvestmentDialog() {
       return
     }
 
-    startTransition(async () => {
+    setIsPending(true)
+    try {
       const result = await createInvestment({
         ticker: ticker.toUpperCase(),
         name,
@@ -94,7 +95,9 @@ export function CreateInvestmentDialog() {
         await fetchAllData()
         router.refresh()
       }
-    })
+    } finally {
+      setIsPending(false)
+    }
   }
 
   return (

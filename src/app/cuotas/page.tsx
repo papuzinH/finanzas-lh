@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { 
   CreditCard, 
@@ -46,7 +46,7 @@ interface PlanWithStatus extends InstallmentPlan {
 function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isDeleting, startDeleteTransition] = useTransition();
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
   const { fetchAllData, categories } = useFinanceStore();
 
@@ -56,8 +56,9 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
     setIsDeleteOpen(true);
   };
 
-  const confirmDelete = () => {
-    startDeleteTransition(async () => {
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
       const result = await deleteInstallmentPlan(plan.id.toString());
       if (result.error) {
         toast.error(result.error);
@@ -67,7 +68,9 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
         router.refresh();
       }
       setIsDeleteOpen(false);
-    });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (

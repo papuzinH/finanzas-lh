@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
@@ -38,7 +38,7 @@ const PAYMENT_TYPES = [
 
 export function CreatePaymentMethodDialog() {
   const [open, setOpen] = useState(false)
-  const [isPending, startTransition] = useTransition()
+  const [isPending, setIsPending] = useState(false)
   const { fetchAllData } = useFinanceStore()
   const router = useRouter()
 
@@ -54,7 +54,8 @@ export function CreatePaymentMethodDialog() {
   })
 
   async function onSubmit(data: CreatePaymentMethodSchema) {
-    startTransition(async () => {
+    setIsPending(true)
+    try {
       const result = await createPaymentMethod(data)
 
       if (result.error) {
@@ -66,7 +67,9 @@ export function CreatePaymentMethodDialog() {
         await fetchAllData()
         router.refresh()
       }
-    })
+    } finally {
+      setIsPending(false)
+    }
   }
 
   return (

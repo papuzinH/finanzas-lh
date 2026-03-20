@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
@@ -57,7 +57,7 @@ export function EditSubscriptionDialog({
   subscription,
 }: EditSubscriptionDialogProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const { fetchAllData, paymentMethods, categories } = useFinanceStore();
 
   const form = useForm<SubscriptionSchema>({
@@ -86,7 +86,8 @@ export function EditSubscriptionDialog({
   
 
   async function onSubmit(data: SubscriptionSchema) {
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       // Limpiar valores "none" antes de enviar
       const formattedData = {
         ...data,
@@ -104,7 +105,9 @@ export function EditSubscriptionDialog({
         onOpenChange(false);
         router.refresh();
       }
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   const onInvalid = (errors: FieldErrors<SubscriptionSchema>) => {

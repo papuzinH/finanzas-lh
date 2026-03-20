@@ -11,6 +11,7 @@ export async function updateSession(request: NextRequest) {
     pathname.includes('/login') || 
     pathname.includes('/signup') ||
     pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
     pathname.includes('.')
   ) {
     return NextResponse.next({ request })
@@ -51,13 +52,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 4. Validación de telegram_chat_id
+  // 4. Validación de onboarding completado
   // Solo si no estamos ya en onboarding y no es una ruta de auth
   if (!pathname.startsWith('/onboarding')) {
     try {
       const { data: profile, error: dbError } = await supabase
         .from('users')
-        .select('telegram_chat_id')
+        .select('onboarding_completed')
         .eq('id', user.id)
         .single()
 
@@ -66,10 +67,9 @@ export async function updateSession(request: NextRequest) {
         return supabaseResponse
       }
 
-      const telegramId = profile?.telegram_chat_id
-      const isValid = telegramId !== null && telegramId !== undefined && String(telegramId).trim().length > 0
+      const isOnboarded = profile?.onboarding_completed === true
 
-      if (!isValid) {
+      if (!isOnboarded) {
         const url = request.nextUrl.clone()
         url.pathname = '/onboarding'
         

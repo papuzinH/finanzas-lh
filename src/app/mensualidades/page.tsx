@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { 
   RefreshCw, 
@@ -51,7 +51,7 @@ const getServiceIcon = (description: string, category: string | null) => {
 function SubscriptionCard({ plan }: { plan: any }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isDeleting, startDeleteTransition] = useTransition();
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
   const { fetchAllData, categories } = useFinanceStore();
 
@@ -61,8 +61,9 @@ function SubscriptionCard({ plan }: { plan: any }) {
     setIsDeleteOpen(true);
   };
 
-  const confirmDelete = () => {
-    startDeleteTransition(async () => {
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
       const result = await deleteSubscription(plan.id.toString());
       if (result.error) {
         toast.error(result.error);
@@ -72,7 +73,9 @@ function SubscriptionCard({ plan }: { plan: any }) {
         router.refresh();
       }
       setIsDeleteOpen(false);
-    });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (

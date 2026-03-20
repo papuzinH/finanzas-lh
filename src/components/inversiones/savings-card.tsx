@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { PiggyBank, Plus, Trash2, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,7 +30,7 @@ export function SavingsCard() {
   const { savings, dolarBlue, fetchAllData } = useFinanceStore()
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [isPending, startTransition] = useTransition()
+  const [isPending, setIsPending] = useState(false)
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS')
 
@@ -44,7 +44,7 @@ export function SavingsCard() {
 
   const totalInARS = totalARS + (dolarBlue ? totalUSD * dolarBlue.venta : 0)
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     const numAmount = Number(amount)
     if (!numAmount || numAmount <= 0) {
@@ -52,7 +52,8 @@ export function SavingsCard() {
       return
     }
 
-    startTransition(async () => {
+    setIsPending(true)
+    try {
       const result = await createSaving({ amount: numAmount, currency })
       if (result.error) {
         toast.error(result.error)
@@ -64,11 +65,14 @@ export function SavingsCard() {
         await fetchAllData()
         router.refresh()
       }
-    })
+    } finally {
+      setIsPending(false)
+    }
   }
 
-  const handleDelete = (saving: Saving) => {
-    startTransition(async () => {
+  const handleDelete = async (saving: Saving) => {
+    setIsPending(true)
+    try {
       const result = await deleteSaving(saving.id)
       if (result.error) {
         toast.error(result.error)
@@ -77,7 +81,9 @@ export function SavingsCard() {
         await fetchAllData()
         router.refresh()
       }
-    })
+    } finally {
+      setIsPending(false)
+    }
   }
 
   return (

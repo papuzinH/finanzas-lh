@@ -49,20 +49,23 @@ export interface Database {
       users: {
         Row: {
           id: number
-          telegram_chat_id: string
+          telegram_chat_id: string | null
           first_name: string | null
+          onboarding_completed: boolean
           created_at: string
         }
         Insert: {
           id?: number
-          telegram_chat_id: string
+          telegram_chat_id?: string | null
           first_name?: string | null
+          onboarding_completed?: boolean
           created_at?: string
         }
         Update: {
           id?: number
-          telegram_chat_id?: string
+          telegram_chat_id?: string | null
           first_name?: string | null
+          onboarding_completed?: boolean
           created_at?: string
         }
         Relationships: []
