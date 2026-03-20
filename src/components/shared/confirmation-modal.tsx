@@ -43,12 +43,12 @@ export function ConfirmationModal({
             {description}
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
-            className="text-slate-400 hover:text-white hover:bg-slate-800"
+            className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-white hover:bg-slate-800"
           >
             {cancelText}
           </Button>
@@ -56,7 +56,11 @@ export function ConfirmationModal({
             variant={variant}
             onClick={onConfirm}
             disabled={isLoading}
-            className={variant === "destructive" ? "bg-red-900/50 text-red-200 hover:bg-red-900 hover:text-red-100 border border-red-900" : ""}
+            className={
+              variant === "destructive"
+                ? "w-full sm:w-auto h-11 sm:h-9 bg-red-600 text-white hover:bg-red-700 border-0"
+                : "w-full sm:w-auto h-11 sm:h-9"
+            }
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {confirmText}

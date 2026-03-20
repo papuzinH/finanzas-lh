@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { parseISO } from "date-fns"
+import { parseLocalDate } from "./utils/dates"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -49,12 +50,18 @@ export const detectCurrencyFromTicker = (ticker?: string): 'ARS' | 'USD' | null 
 };
 
 export const formatDate = (dateString: string | Date) => {
-  let date = typeof dateString === 'string' ? parseISO(dateString) : dateString;
-  
-  // Si es un string de fecha (YYYY-MM-DD), parseISO lo toma como UTC.
-  // Ajustamos para que se trate como hora local y no se mueva de día.
-  if (typeof dateString === 'string' && !dateString.includes('T')) {
-    date = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+  let date: Date;
+
+  if (typeof dateString === 'string') {
+    // Si es un string de fecha (YYYY-MM-DD sin hora), parsearlo como LOCAL
+    if (!dateString.includes('T')) {
+      date = parseLocalDate(dateString);
+    } else {
+      // Si es un string ISO completo (con hora), parsearlo normalmente
+      date = parseISO(dateString);
+    }
+  } else {
+    date = dateString;
   }
 
   return new Intl.DateTimeFormat('es-AR', {

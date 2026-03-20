@@ -37,9 +37,9 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       >
         <div className="flex items-center justify-between p-4 border-b border-slate-800">
           <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
-          <button 
+          <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-colors"
+            className="flex items-center justify-center size-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors active:scale-95 touch-manipulation"
           >
             <X className="w-5 h-5" />
           </button>

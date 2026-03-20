@@ -31,6 +31,7 @@ import {
   parse,
   endOfMonth,
 } from 'date-fns';
+import { parseLocalDate } from '@/lib/utils/dates';
 
 interface DolarBlue {
   compra: number;
@@ -114,48 +115,77 @@ interface FinanceState {
   getPaymentMethodTransactionsForCurrentMonth: (methodId: number) => ProcessedTransaction[];
   getMonthlyIncome: () => number;
   getMonthlyVariableExpenses: () => number;
+  getMonthlyExpensesBreakdown: () => {
+    variableExpenses: number;
+    installmentsTotal: number;
+    subscriptionsCost: number;
+    totalExpenses: number;
+    income: number;
+    netBalance: number;
+  };
 }
 
-// Helper para determinar si un gasto corresponde al mes actual (Scope)
+/**
+ * Determina si un gasto (transaction) pertenece al "mes actual" según su tipo y método de pago.
+ *
+ * Lógica:
+ * 1. Si es cuota de plan (installment_plan_id) en tarjeta de crédito:
+ *    -> Pertenece al mes si su fecha cae en el mes de VENCIMIENTO (payment_day)
+ *       de la tarjeta. Se calcula según closing_day/payment_day.
+ *
+ * 2. Para todo lo demás:
+ *    -> Mes calendario simple (basado en today's month)
+ *
+ * Ejemplo:
+ * - Tarjeta cierra día 24, vence día 6
+ * - Cuota registrada el 10 de marzo (durante el ciclo de cierre 24-23)
+ * - Pertenece al mes de vencimiento = ABRIL (día 6)
+ * - Si hoy es 19 de marzo, esta cuota SÍ se incluye en "mes actual" (si vence en abril)
+ * - Si hoy es 19 de abril, esta cuota SÍ se incluye en "mes actual" (mes de vencimiento actual)
+ *
+ * @param t - Transaction a evaluar
+ * @param methods - Array de PaymentMethod para lookup
+ * @param now - Fecha de referencia (típicamente today)
+ * @returns true si el gasto pertenece al mes actual según su contexto
+ */
 const isExpenseInCurrentMonthScope = (t: Transaction, methods: PaymentMethod[], now: Date) => {
   if (t.type !== 'expense') return false;
-  
-  const tDate = parseISO(t.date);
-  // Ajuste para evitar el desfase de zona horaria (UTC -> Local)
-  const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
-  
+
+  // Parsear la fecha correctamente como LOCAL (no UTC)
+  const localTDate = parseLocalDate(t.date);
+
   // 1. Si es Cuota (Installment) -> Usar lógica de Ciclo de Tarjeta
   if (t.installment_plan_id) {
-      const method = methods.find((m) => m.id === t.payment_method_id);
-      if (
-        method &&
-        method.type === 'credit' &&
-        method.default_closing_day &&
-        method.default_payment_day
-      ) {
-           const closingDay = method.default_closing_day;
-           const paymentDay = method.default_payment_day;
-           
-           // Fecha de cierre de este mes
-           const closingDateThisMonth = setDate(now, closingDay);
-           
-           // Fecha de pago correspondiente a ese cierre
-           let paymentDateForThisCycle = setDate(closingDateThisMonth, paymentDay);
-           if (paymentDay <= closingDay) {
-              paymentDateForThisCycle = addMonths(paymentDateForThisCycle, 1);
-           }
-           
-           return (
-              localTDate.getMonth() === paymentDateForThisCycle.getMonth() &&
-              localTDate.getFullYear() === paymentDateForThisCycle.getFullYear()
-           );
+    const method = methods.find((m) => m.id === t.payment_method_id);
+    if (
+      method &&
+      method.type === 'credit' &&
+      method.default_closing_day &&
+      method.default_payment_day
+    ) {
+      const closingDay = method.default_closing_day;
+      const paymentDay = method.default_payment_day;
+
+      // Fecha de cierre de este mes
+      const closingDateThisMonth = setDate(now, closingDay);
+
+      // Fecha de pago correspondiente a ese cierre
+      let paymentDateForThisCycle = setDate(closingDateThisMonth, paymentDay);
+      if (paymentDay <= closingDay) {
+        paymentDateForThisCycle = addMonths(paymentDateForThisCycle, 1);
       }
+
+      return (
+        localTDate.getMonth() === paymentDateForThisCycle.getMonth() &&
+        localTDate.getFullYear() === paymentDateForThisCycle.getFullYear()
+      );
+    }
   }
-  
+
   // 2. Si NO es cuota (o no es tarjeta con ciclo definido) -> Usar Mes Calendario
   return (
-      localTDate.getMonth() === now.getMonth() &&
-      localTDate.getFullYear() === now.getFullYear()
+    localTDate.getMonth() === now.getMonth() &&
+    localTDate.getFullYear() === now.getFullYear()
   );
 };
 
@@ -284,8 +314,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         let periodDate = t.date; // Default: Misma fecha
 
         if (method && method.type === 'credit') {
-          const tDate = parseISO(t.date);
-          const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+          const localTDate = parseLocalDate(t.date);
           const dayOfMonth = getDate(localTDate);
 
           // Si la fecha de pago es a principio de mes (ej: día 6) y la tarjeta vence cerca (ej: día 6)
@@ -386,28 +415,53 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     };
   },
 
+  /**
+   * FÓRMULA DEL BALANCE GLOBAL DE CHANCHITO
+   * ==========================================
+   * Balance = Σ(ingresos) - Σ(gastos) donde gastos incluye cuotas, gastos variables, etc.
+   *
+   * Este es el balance HISTÓRICO REAL basado en transacciones registradas.
+   *
+   * IMPORTANTE - NO incluye burn_rate_mensual (suscripciones activas):
+   * - Las suscripciones son INDICADORES PROYECTADOS, no gasto realizado
+   * - Si se restaran, causaría double-counting
+   * - Ejemplo: Usuario con 1000 ingresos históricos, 500 gastos, 200 de suscripciones activas
+   *   Erróneo:  1000 - 500 - 200 = 300 (resta gasto futuro)
+   *   Correcto: 1000 - 500 = 500 (solo transacciones realizadas)
+   *
+   * Para análisis y proyecciones mensuales, usa:
+   * - getMonthlyBurnRate() - suma de suscripciones activas (gasto proyectado)
+   * - getMonthlyExpensesBreakdown() - desglose completo: variable + cuotas + suscripciones
+   */
   getGlobalBalance: () => {
-    const { transactions, getCurrentMonthInstallmentsTotal, getMonthlyBurnRate } = get();
+    const { transactions } = get();
 
-    // 1. Suma de todos los ingresos
+    // 1. Suma de TODOS los ingresos históricos
     const totalIncome = transactions
       .filter((t) => t.type === 'income')
       .reduce((acc, t) => acc + Number(t.amount), 0);
 
-    // 2. Suma de gastos que NO son cuotas
-    const totalNonInstallmentExpenses = transactions
-      .filter((t) => t.type === 'expense' && !t.installment_plan_id)
+    // 2. Suma de TODOS los gastos históricos (gastos variables + cuotas)
+    // NO incluye suscripciones proyectadas (burn_rate)
+    const totalExpenses = transactions
+      .filter((t) => t.type === 'expense')
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
-    // 3. Cuotas del mes actual
-    const currentMonthInstallments = getCurrentMonthInstallmentsTotal();
-
-    // 4. Gastos fijos mensuales
-    const monthlyBurnRate = getMonthlyBurnRate();
-
-    return totalIncome - totalNonInstallmentExpenses - currentMonthInstallments - monthlyBurnRate;
+    return totalIncome - totalExpenses;
   },
 
+  /**
+   * Retorna la suma de TODAS las suscripciones activas.
+   *
+   * Este es un INDICADOR PROYECTADO de gasto mensual recurrente, no una cantidad
+   * de gasto realizado. Útil para:
+   * - Estimar flujo de caja futuro
+   * - Alertas si el burn rate es alto
+   * - Dashboard de suscripciones
+   *
+   * NOTA: NO se resta de getGlobalBalance() para evitar double-counting.
+   * Los gastos reales de suscripciones SÍ aparecen como transacciones.
+   */
   getMonthlyBurnRate: () => {
     const { recurringPlans } = get();
     return recurringPlans
@@ -458,6 +512,25 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     };
   },
 
+  /**
+   * Retorna el estado de consumo de un método de pago.
+   *
+   * Para tarjetas de crédito:
+   * - Calcula el período actual según closing_day/payment_day
+   * - Agrupa ingresos, gastos y cuotas del ciclo
+   * - Retorna currentConsumption = ingresos - gastos - cuotas - suscripciones
+   *
+   * Para débito/efectivo:
+   * - Usa mes calendario
+   * - currentConsumption es el balance histórico hasta fin de mes
+   *
+   * Resultado:
+   * - currentConsumption: Balance neto del período (consumo real - ingresos)
+   * - fixedCosts: Suscripciones activas en este método
+   * - projectedTotal: Mismo que currentConsumption (consistencia)
+   * - nextClosingDate: Próxima fecha de cierre (solo crédito)
+   * - nextPaymentDate: Próxima fecha de vencimiento (solo crédito)
+   */
   getPaymentMethodStatus: (methodId: number) => {
     const { transactions, recurringPlans, paymentMethods } = get();
     const method = paymentMethods.find((m) => m.id === methodId);
@@ -514,8 +587,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         
         // Para Crédito CON fechas: Solo ingresos del ciclo
         if (method.type === 'credit' && startDate && endDate) {
-             const tDate = parseISO(t.date);
-             const localTDate = new Date(tDate.valueOf() + tDate.getTimezoneOffset() * 60 * 1000);
+             const localTDate = parseLocalDate(t.date);
              return localTDate >= startDate && localTDate <= endDate;
         }
         
@@ -531,8 +603,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         
         // Para Crédito CON fechas: Solo gastos del ciclo
         if (method.type === 'credit' && startDate && endDate) {
-             const tDate = parseISO(t.date);
-             const localTDate = new Date(tDate.valueOf() + tDate.getTimezoneOffset() * 60 * 1000);
+             const localTDate = parseLocalDate(t.date);
              return localTDate >= startDate && localTDate <= endDate;
         }
 
@@ -548,17 +619,15 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         
         // CRÉDITO CON FECHAS: Solo las del ciclo actual
         if (method.type === 'credit' && nextPaymentDate) {
-             const tDate = parseISO(t.date);
-             const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+             const localTDate = parseLocalDate(t.date);
              return (
                 localTDate.getMonth() === nextPaymentDate.getMonth() &&
                 localTDate.getFullYear() === nextPaymentDate.getFullYear()
              );
-        } 
-        
+        }
+
         // DÉBITO/EFECTIVO (o Crédito sin fechas): Histórico hasta fin de mes
-        const tDate = parseISO(t.date);
-        const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+        const localTDate = parseLocalDate(t.date);
         return localTDate <= endOfMonth(now);
       })
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
@@ -581,6 +650,17 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     };
   },
 
+  /**
+   * Retorna la suma total de cuotas que vencen en el mes actual.
+   *
+   * La "mes actual" se define según el tipo de pago:
+   * - Tarjeta de crédito: Mes de vencimiento según ciclo de facturación (closing_day/payment_day)
+   * - Débito/Efectivo: Mes calendario (hoy pertenece a este mes)
+   *
+   * Ej: Si hoy es 19 de marzo y la tarjeta cierra día 20 con pago día 6:
+   *   - Cuotas con fecha 2-20 marzo = vencimiento 6 de abril = SÍ se incluyen
+   *   - Cuotas con fecha 21 marzo+ = vencimiento 6 de mayo = NO se incluyen
+   */
   getCurrentMonthInstallmentsTotal: () => {
     const { transactions, paymentMethods } = get();
     const now = new Date();
@@ -649,9 +729,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     const filtered = transactions.filter(t => {
       const visualDateStr = t.periodDate || t.date;
-      const visualDate = parseISO(visualDateStr);
-      // Ajuste para evitar el desfase de zona horaria (UTC -> Local)
-      const localVisualDate = new Date(visualDate.getTime() + visualDate.getTimezoneOffset() * 60000);
+      // Parsear como fecha LOCAL
+      const localVisualDate = parseLocalDate(visualDateStr);
       const isMonthMatch = isSameMonth(localVisualDate, currentMonthDate);
       let isMethodMatch = true;
       if (paymentMethodId !== 'all') {
@@ -684,10 +763,22 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     return transactionsBalance - pendingRecurringAmount;
   },
 
+  /**
+   * Retorna desglose de gastos por categoría con porcentajes.
+   *
+   * @param scope - 'global' = todos los gastos históricos, 'current_month' = mes actual
+   *
+   * Retorna:
+   * - total: Suma total de gastos en el scope
+   * - items: Array de {name, value, percentage} ordenado por mayor gasto
+   *
+   * Nota: La "mes actual" respeta ciclos de tarjeta si aplica.
+   * Útil para dashboard de análisis de gastos por categoría.
+   */
   getCategoryBreakdown: (scope) => {
     const expenses = get().getExpensesByCategory(scope);
     const total = Object.values(expenses).reduce((acc, val) => acc + val, 0);
-    
+
     const items = Object.entries(expenses).map(([name, value]) => ({
       name,
       value,
@@ -700,12 +791,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   getPaymentMethodTransactionsForCurrentMonth: (methodId) => {
     const { transactions, paymentMethods } = get();
     const now = new Date();
-    
+
     return transactions.filter(t => {
       if (t.payment_method_id !== methodId) return false;
-      
-      const tDate = parseISO(t.date);
-      const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+
+      const localTDate = parseLocalDate(t.date);
       
       if (t.type === 'income') {
         return isSameMonth(localTDate, now);
@@ -721,23 +811,85 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     return transactions
       .filter((t) => {
         if (t.type !== 'income') return false;
-        const tDate = parseISO(t.date);
-        const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+        const localTDate = parseLocalDate(t.date);
         return isSameMonth(localTDate, now);
       })
       .reduce((acc, t) => acc + Number(t.amount), 0);
   },
 
+  /**
+   * Retorna la suma de gastos VARIABLES del mes actual.
+   *
+   * Solo incluye:
+   * - Gastos normales (sin cuota de plan de cuotas)
+   * - Sin suscripciones (sin recurring_plan_id)
+   *
+   * Excluye:
+   * - Cuotas (installment_plan_id)
+   * - Suscripciones activas (recurring_plan_id)
+   *
+   * Útil para:
+   * - Ver qué se gastó en consumo real (no recurrente)
+   * - Presupuestar variable vs. fijo
+   * - Dashboard de gastos mensuales
+   *
+   * Nota: La "mes actual" respeta el ciclo de tarjeta si aplica (ver isExpenseInCurrentMonthScope)
+   */
   getMonthlyVariableExpenses: () => {
     const { transactions, paymentMethods } = get();
     const now = new Date();
     return transactions
-      .filter((t) => 
-        t.type === 'expense' && 
-        !t.installment_plan_id && 
-        !t.recurring_plan_id && 
+      .filter((t) =>
+        t.type === 'expense' &&
+        !t.installment_plan_id &&
+        !t.recurring_plan_id &&
         isExpenseInCurrentMonthScope(t, paymentMethods, now)
       )
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+  },
+
+  /**
+   * Retorna un desglose completo de gastos del mes actual por tipo.
+   *
+   * Útil para:
+   * - Dashboard mobile con resumen de gastos
+   * - Análisis de composición del gasto (variable vs fijo vs cuotas)
+   * - Proyección de flujo de caja mensual
+   *
+   * Retorna:
+   * - variableExpenses: Gastos sin cuotas ni suscripciones
+   * - installmentsTotal: Cuotas que vencen este mes
+   * - subscriptionsCost: Suscripciones activas (burn rate)
+   * - totalExpenses: Suma de los tres anteriores
+   * - income: Ingresos del mes actual
+   * - netBalance: income - totalExpenses (balance DEL MES, no histórico)
+   *
+   * IMPORTANTE: netBalance es diferente de getGlobalBalance():
+   * - netBalance = proyección mensual (puede ser negativo en mes malo)
+   * - getGlobalBalance() = histórico acumulado real
+   */
+  getMonthlyExpensesBreakdown: () => {
+    const {
+      getMonthlyVariableExpenses,
+      getCurrentMonthInstallmentsTotal,
+      getMonthlyBurnRate,
+      getMonthlyIncome,
+    } = get();
+
+    const variableExpenses = getMonthlyVariableExpenses();
+    const installmentsTotal = getCurrentMonthInstallmentsTotal();
+    const subscriptionsCost = getMonthlyBurnRate();
+    const totalExpenses = variableExpenses + installmentsTotal + subscriptionsCost;
+    const income = getMonthlyIncome();
+    const netBalance = income - totalExpenses;
+
+    return {
+      variableExpenses,
+      installmentsTotal,
+      subscriptionsCost,
+      totalExpenses,
+      income,
+      netBalance,
+    };
   },
 }));

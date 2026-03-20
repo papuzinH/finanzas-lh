@@ -82,7 +82,7 @@ export function EditInstallmentPlanDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-slate-900 border-slate-800 text-slate-200">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[425px] bg-slate-900 border-slate-800 text-slate-200">
         <DialogHeader>
           <DialogTitle>Editar Plan de Cuotas</DialogTitle>
           <DialogDescription className="text-slate-400">
@@ -156,19 +156,19 @@ export function EditInstallmentPlanDialog({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-4">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="border-slate-700 hover:bg-slate-800 hover:text-slate-200 text-slate-300"
+                className="w-full sm:w-auto h-11 sm:h-9 border-slate-700 hover:bg-slate-800 hover:text-slate-200 text-slate-300"
               >
                 Cancelar
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={isPending}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="w-full sm:w-auto h-11 sm:h-9 bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Guardar Cambios

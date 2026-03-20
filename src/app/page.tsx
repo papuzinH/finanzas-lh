@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  Wallet, 
-  CreditCard, 
-  CalendarClock, 
+import {
+  ArrowUpRight,
+  ArrowDownRight,
+  Wallet,
+  CreditCard,
+  CalendarClock,
   TrendingUp,
   PieChart as PieChartIcon,
   Info,
@@ -20,6 +20,10 @@ import { formatCurrency } from '@/lib/utils';
 import { TransactionItem } from '@/components/shared/transaction-item';
 import { Modal } from '@/components/shared/modal';
 import { FullPageLoader } from '@/components/shared/loader';
+import { DashboardSkeleton } from '@/components/ui/skeletons';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import { BalanceCard } from '@/components/dashboard/balance-card';
+import { MetricRow } from '@/components/dashboard/metric-row';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
 
@@ -56,6 +60,11 @@ export default function DashboardPage() {
     }
   }, [isInitialized, fetchAllData]);
 
+  // Función para refresh manual (pull-to-refresh)
+  const handleManualRefresh = async () => {
+    await fetchAllData();
+  };
+
   // --- CÁLCULOS PARA LA VISTA ---
   
   const globalBalance = getGlobalBalance();
@@ -75,11 +84,13 @@ export default function DashboardPage() {
   const globalChartData = globalBreakdown.items.slice(0, 5);
   const currentMonthChartData = currentMonthBreakdown.items.slice(0, 5);
 
+  // Mostrar skeleton mientras carga o si no está inicializado
   if (isLoading && !isInitialized) {
-    return <FullPageLoader text="Cargando finanzas..." />;
+    return <DashboardSkeleton />;
   }
 
-  return (
+  // Componente del dashboard principal
+  const dashboardContent = (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
@@ -93,120 +104,60 @@ export default function DashboardPage() {
       </header>
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 space-y-6">
-        
+
         {/* SECCIÓN A: ESTADO PATRIMONIAL (Bento Grid) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          
-          {/* Card 1: Balance Principal (Ocupa toda la fila superior) */}
-          <div className="col-span-2 lg:col-span-4 rounded-2xl bg-linear-to-br from-slate-900 to-slate-950 border border-slate-800 p-6 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Wallet className="w-24 h-24 text-emerald-500" />
-            </div>
-            
-            <div className="flex items-center gap-2 mb-1 relative z-10">
-              <p className="text-sm text-slate-400 font-medium">Balance Actual</p>
-              <div className="group/tooltip relative">
-                <Info className="w-4 h-4 text-slate-500 cursor-help hover:text-slate-300 transition-colors" />
-                <div className="absolute left-0 md:left-0 right-0 md:right-auto top-6 w-auto md:w-64 p-3 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl opacity-0 group-hover/tooltip:opacity-100 transition-all duration-200 pointer-events-none z-50 text-xs text-slate-300 translate-y-2 group-hover/tooltip:translate-y-0">
-                  <p className="font-bold text-slate-100 mb-2 border-b border-slate-700 pb-1">Cálculo del Balance</p>
-                  <div className="space-y-1 font-mono">
-                    <div className="flex justify-between">
-                      <span>Ingresos Totales</span>
-                      <span className="text-emerald-400">+</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Gastos Efectivos</span>
-                      <span className="text-red-400">-</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Cuotas este mes</span>
-                      <span className="text-red-400">-</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Fijos Mensuales</span>
-                      <span className="text-red-400">-</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <h2 className={`text-3xl md:text-4xl font-bold font-mono tracking-tighter relative z-10 ${globalBalance >= 0 ? 'text-white' : 'text-red-400'}`}>
-              {formatCurrency(globalBalance)}
-            </h2>
-            <div className="flex flex-wrap gap-2 md:gap-4 mt-4">
-              <div className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
-                <ArrowUpRight className="w-3 h-3" />
-                <span>Ingresos {formatCurrency(totalIncome)}</span>
-              </div>
-              <div className="flex items-center gap-1 text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded-md">
-                <ArrowDownRight className="w-3 h-3" />
-                <span>Gastos {formatCurrency(totalExpense)}</span>
-              </div>
-            </div>
-          </div>
+          {/* New: Expandible Balance Card */}
+          <BalanceCard
+            globalBalance={globalBalance}
+            monthlyIncome={monthlyIncome}
+            monthlyExpenses={monthlyVariableExpenses}
+            installments={currentMonthInstallments}
+            burnRate={monthlyBurnRate}
+          />
 
-          {/* Card 2: Ingresos este mes */}
-          <div className="col-span-1 rounded-2xl bg-slate-900/50 border border-slate-800 p-4 flex flex-col justify-between">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
-                <DollarSign className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-medium text-slate-300">Ingresos mes</span>
-            </div>
-            <div>
-              <p className="text-lg font-bold font-mono text-emerald-400">{formatCurrency(monthlyIncome)}</p>
-              <p className="text-[10px] text-slate-500">Total percibido</p>
-            </div>
-          </div>
+          {/* Metric Row 1: Ingresos y Gastos Variables */}
+          <MetricRow
+            items={[
+              {
+                label: "Ingresos mes",
+                value: formatCurrency(monthlyIncome),
+                sublabel: "Total percibido",
+                color: "emerald",
+                icon: DollarSign,
+              },
+              {
+                label: "Variables mes",
+                value: formatCurrency(monthlyVariableExpenses),
+                sublabel: "Gastos del día a día",
+                color: "rose",
+                icon: ShoppingBag,
+              },
+            ]}
+          />
 
-          {/* Card 3: Gastos variables este mes */}
-          <div className="col-span-1 rounded-2xl bg-slate-900/50 border border-slate-800 p-4 flex flex-col justify-between">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400">
-                <ShoppingBag className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-medium text-slate-300">Variables mes</span>
-            </div>
-            <div>
-              <p className="text-lg font-bold font-mono text-rose-400">{formatCurrency(monthlyVariableExpenses)}</p>
-              <p className="text-[10px] text-slate-500">Gastos del día a día</p>
-            </div>
-          </div>
-
-          {/* Card 4: Deuda Cuotas (Solo Mes Actual) */}
-          <div 
-            onClick={() => setIsInstallmentsModalOpen(true)}
-            className="col-span-1 rounded-2xl bg-slate-900/50 border border-slate-800 p-4 flex flex-col justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
-                <CreditCard className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-medium text-slate-300">Cuotas mes</span>
-            </div>
-            <div>
-              <p className="text-lg font-bold font-mono text-indigo-400">{formatCurrency(currentMonthInstallments)}</p>
-              <p className="text-[10px] text-slate-500">Ciclo actual</p>
-            </div>
-          </div>
-
-          {/* Card 5: Costo Fijo (Burn Rate) */}
-          <div 
-            onClick={() => setIsFixedCostsModalOpen(true)}
-            className="col-span-1 rounded-2xl bg-slate-900/50 border border-slate-800 p-4 flex flex-col justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
-                <CalendarClock className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-medium text-slate-300">Fijos mes</span>
-            </div>
-            <div>
-              <p className="text-lg font-bold font-mono text-amber-400">{formatCurrency(monthlyBurnRate)}</p>
-              <p className="text-[10px] text-slate-500">Suscripciones</p>
-            </div>
-          </div>
+          {/* Metric Row 2: Cuotas y Suscripciones */}
+          <MetricRow
+            items={[
+              {
+                label: "Cuotas mes",
+                value: formatCurrency(currentMonthInstallments),
+                sublabel: "Ciclo actual",
+                color: "indigo",
+                icon: CreditCard,
+                onClick: () => setIsInstallmentsModalOpen(true),
+              },
+              {
+                label: "Fijos mes",
+                value: formatCurrency(monthlyBurnRate),
+                sublabel: "Suscripciones",
+                color: "amber",
+                icon: CalendarClock,
+                onClick: () => setIsFixedCostsModalOpen(true),
+              },
+            ]}
+          />
         </div>
 
         {/* SECCIÓN B: ANÁLISIS VISUAL (Charts) */}
@@ -481,5 +432,12 @@ export default function DashboardPage() {
         </div>
       </Modal>
     </div>
+  );
+
+  // Retornar con pull-to-refresh envuelto
+  return (
+    <PullToRefresh onRefresh={handleManualRefresh}>
+      {dashboardContent}
+    </PullToRefresh>
   );
 }

@@ -3,13 +3,13 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
-import { 
-  Coffee, 
-  ShoppingBag, 
-  Home as HomeIcon, 
-  Car, 
-  Smartphone, 
-  DollarSign, 
+import {
+  Coffee,
+  ShoppingBag,
+  Home as HomeIcon,
+  Car,
+  Smartphone,
+  DollarSign,
   CreditCard,
   MoreVertical,
   Pencil,
@@ -17,6 +17,7 @@ import {
   Loader2
 } from "lucide-react";
 import { isFuture, parseISO } from "date-fns";
+import { parseLocalDate } from '@/lib/utils/dates';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,9 +58,8 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
   const { fetchAllData, categories } = useFinanceStore();
   
   const category = categories.find(c => c.id === transaction.category_id);
-  
-  const tDate = parseISO(transaction.date);
-  const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+
+  const localTDate = parseLocalDate(transaction.date);
   const isFutureDate = isFuture(localTDate);
   const isIncome = transaction.type === 'income';
   const isCredit = paymentMethodType === 'credit';

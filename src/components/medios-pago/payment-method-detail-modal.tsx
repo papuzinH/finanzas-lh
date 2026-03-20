@@ -11,6 +11,7 @@ import { Transaction, RecurringPlan } from '@/types/database';
 import { CalendarClock, ArrowUpCircle, ArrowDownCircle, CreditCard, Wallet, Banknote } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { parseLocalDate } from '@/lib/utils/dates';
 
 interface PaymentMethodDetailModalProps {
   isOpen: boolean;
@@ -42,8 +43,8 @@ export function PaymentMethodDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] bg-slate-900 border-slate-800 text-slate-200 p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-slate-900 border-slate-800 text-slate-200">
+        <DialogHeader className="p-6 pb-0 flex-shrink-0">
           <div className="flex items-center gap-3 mb-2">
             <div className={cn(
               "flex h-10 w-10 items-center justify-center rounded-xl",
@@ -58,7 +59,7 @@ export function PaymentMethodDetailModal({
           </p>
         </DialogHeader>
 
-        <div className="p-6 space-y-8">
+        <div className="overflow-y-auto flex-1 p-6 space-y-8">
           {/* Resumen de Saldos */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800/50">
@@ -94,9 +95,8 @@ export function PaymentMethodDetailModal({
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
               {history.length > 0 ? (
                 history.map((t) => {
-                  const tDate = parseISO(t.date);
-                  const localTDate = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
-                  
+                  const localTDate = parseLocalDate(t.date);
+
                   return (
                     <div key={t.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-950/30 border border-slate-800/30 hover:bg-slate-800/30 transition-colors group">
                       <div className="flex items-center gap-3">

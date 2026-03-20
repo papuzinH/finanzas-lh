@@ -105,7 +105,7 @@ export function CreateInvestmentDialog() {
           Nueva Inversion
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-xl font-bold bg-linear-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">
@@ -197,19 +197,19 @@ export function CreateInvestmentDialog() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2">
             <Button
               type="button"
               variant="ghost"
               onClick={() => setOpen(false)}
-              className="text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+              className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isPending}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[120px]"
+              className="w-full sm:w-auto h-11 sm:h-9 bg-indigo-600 hover:bg-indigo-700 text-white"
             >
               {isPending ? (
                 <>

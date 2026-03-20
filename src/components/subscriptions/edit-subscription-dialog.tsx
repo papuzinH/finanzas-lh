@@ -114,12 +114,13 @@ export function EditSubscriptionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-slate-900 border-slate-800 text-slate-200">
-        <DialogHeader>
+      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[425px] bg-slate-900 border-slate-800 text-slate-200">
+        <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
           <DialogTitle>Editar Suscripción</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
+          <form id="edit-subscription-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="contents">
+            <div className="overflow-y-auto flex-1 px-6 space-y-4">
             <FormField
               control={form.control}
               name="description"
@@ -249,26 +250,29 @@ export function EditSubscriptionDialog({
               )}
             />
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="border-slate-700 hover:bg-slate-800 hover:text-slate-200 text-slate-300"
-              >
-                Cancelar
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isPending}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Guardar Cambios
-              </Button>
             </div>
           </form>
         </Form>
+
+        <div className="px-4 sm:px-6 py-4 border-t border-slate-700/50 flex-shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto h-11 sm:h-9 border-slate-700 hover:bg-slate-800 hover:text-slate-200 text-slate-300"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form="edit-subscription-form"
+            disabled={isPending}
+            className="w-full sm:w-auto h-11 sm:h-9 bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Guardar Cambios
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

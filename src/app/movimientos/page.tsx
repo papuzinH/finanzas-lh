@@ -5,6 +5,7 @@ import { useFinanceStore } from '@/lib/store/financeStore';
 import { MonthSelector } from '@/components/dashboard/month-selector';
 import { parseISO, isSameDay, isSameMonth, parse, format } from 'date-fns';
 import { cn, formatCurrency } from '@/lib/utils';
+import { parseLocalDate } from '@/lib/utils/dates';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
@@ -60,9 +61,8 @@ export default function MovimientosPage() {
     // CAMBIO CLAVE: Usamos 'periodDate' (la fecha virtual del store) si existe
     // Si no existe (porque t no es del store modificado o es legacy), fallback a t.date
     const visualDateStr = (t as TransactionWithPeriod).periodDate || t.date;
-    const visualDate = parseISO(visualDateStr);
-    // Ajuste para evitar el desfase de zona horaria (UTC -> Local)
-    const localVisualDate = new Date(visualDate.getTime() + visualDate.getTimezoneOffset() * 60000);
+    // Parsear como fecha LOCAL
+    const localVisualDate = parseLocalDate(visualDateStr);
 
     // 1. Filtro de Mes (Ahora compara contra el mes visual/resumen)
     const isMonthMatch = isSameMonth(localVisualDate, currentMonthDate);
@@ -92,10 +92,8 @@ export default function MovimientosPage() {
   today.setHours(0, 0, 0, 0);
 
   filteredTransactions.forEach(t => {
-    // Usamos una fecha con ajuste de zona horaria local para comparar días correctamente
-    const tDate = parseISO(t.date);
-    // Ajuste para evitar el desfase de zona horaria (UTC -> Local)
-    const tDateOnly = new Date(tDate.getTime() + tDate.getTimezoneOffset() * 60000);
+    // Parsear como fecha LOCAL y luego usar para comparación de días
+    const tDateOnly = parseLocalDate(t.date);
     tDateOnly.setHours(0, 0, 0, 0);
 
     if (tDateOnly > today) {
@@ -295,9 +293,8 @@ export default function MovimientosPage() {
             {renderSection('Hoy', groups.hoy, "text-emerald-400")}
             
             {pastDates.map(dateKey => {
-              const date = parseISO(dateKey);
-              // Ajuste para evitar el desfase de zona horaria
-              const localDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+              // Parsear la fecha string como LOCAL
+              const localDate = parseLocalDate(dateKey);
               const title = new Intl.DateTimeFormat('es-AR', { 
                 day: 'numeric', 
                 month: 'long' 
