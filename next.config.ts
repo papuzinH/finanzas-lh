@@ -4,6 +4,14 @@ import withPWAInit from "@ducanh2912/next-pwa";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+    ],
+  },
 };
 
 const withPWA = withPWAInit({

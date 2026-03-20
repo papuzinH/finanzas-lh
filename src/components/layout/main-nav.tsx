@@ -12,7 +12,8 @@ import {
   TrendingUp, 
   Sparkles,
   Menu,
-  X
+  X,
+  UserCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
@@ -25,6 +26,7 @@ const navItems = [
   { label: 'Fijos',        href: '/mensualidades', icon: CalendarClock },
   { label: 'Categorías',   href: '/categorias',    icon: Sparkles },
   { label: 'Inversiones',  href: '/inversiones',   icon: TrendingUp },
+  { label: 'Mi perfil',    href: '/perfil',        icon: UserCircle },
 ];
 
 // Los primeros 4 siempre visibles en bottom bar, el 5to es "Más"

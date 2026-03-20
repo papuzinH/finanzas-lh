@@ -51,6 +51,8 @@ interface FinanceState {
   savings: Saving[];
   dolarBlue: DolarBlue | null;
   user: User | null;
+  authEmail: string | null;
+  authAvatarUrl: string | null;
 
   // Status
   isLoading: boolean;
@@ -200,6 +202,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   savings: [],
   dolarBlue: null,
   user: null,
+  authEmail: null,
+  authAvatarUrl: null,
   isLoading: true, // Start loading by default to prevent flash of empty content
   error: null,
   isInitialized: false,
@@ -221,7 +225,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
       if (!authUser) {
-        set({ isLoading: false, isInitialized: true, user: null });
+        set({ isLoading: false, isInitialized: true, user: null, authEmail: null, authAvatarUrl: null });
         return;
       }
 
@@ -346,6 +350,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         savings: (savingsData as Saving[]) || [],
         dolarBlue,
         user: (userData as User) || null,
+        authEmail: authUser.email ?? null,
+        authAvatarUrl: (authUser.user_metadata?.avatar_url as string) ?? null,
         isInitialized: true,
       });
     } catch (error) {
