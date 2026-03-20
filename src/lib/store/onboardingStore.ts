@@ -25,6 +25,7 @@ interface OnboardingState {
   userName: string | null
   proposedCategories: ProposedCategory[]
   savedPaymentMethods: SavedPaymentMethod[]
+  pendingCreditCards: string[]
   isComplete: boolean
 
   // Actions
@@ -44,6 +45,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   userName: null,
   proposedCategories: [],
   savedPaymentMethods: [],
+  pendingCreditCards: [],
   isComplete: false,
 
   addMessage: (msg) => set(s => ({
@@ -59,10 +61,13 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   setListening: (listening) => set({ isListening: listening }),
 
   sendMessage: async (text: string) => {
-    const { addMessage, setLoading, currentStep, proposedCategories, savedPaymentMethods } = get()
+    const { addMessage, setLoading, currentStep, proposedCategories, savedPaymentMethods, messages, pendingCreditCards } = get()
 
     addMessage({ role: 'user', content: text })
     setLoading(true)
+
+    // Build conversation history for context
+    const history = messages.slice(-10).map(m => ({ role: m.role, content: m.content }))
 
     try {
       const response = await fetch('/api/chat/onboarding', {
@@ -74,6 +79,8 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
           context: {
             proposedCategories,
             savedPaymentMethods,
+            history,
+            pendingCreditCards,
           },
         }),
       })
@@ -91,11 +98,24 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
         }
 
         if (data.data?.paymentMethod) {
-          updates.savedPaymentMethods = [...get().savedPaymentMethods, data.data.paymentMethod]
+          // Check if it's an update to an existing method (e.g., adding dates to credit card)
+          const existing = get().savedPaymentMethods
+          const existingIdx = existing.findIndex(m => m.id === data.data!.paymentMethod!.id)
+          if (existingIdx >= 0) {
+            const updated = [...existing]
+            updated[existingIdx] = data.data.paymentMethod
+            updates.savedPaymentMethods = updated
+          } else {
+            updates.savedPaymentMethods = [...existing, data.data.paymentMethod]
+          }
         }
 
         if (data.data?.allPaymentMethods) {
           updates.savedPaymentMethods = data.data.allPaymentMethods
+        }
+
+        if (data.data?.pendingCreditCards) {
+          updates.pendingCreditCards = data.data.pendingCreditCards
         }
 
         if (data.data?.onboardingComplete) {
@@ -109,7 +129,6 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
 
         // Extract name from the name step
         if (currentStep === 'name' && data.success && data.nextStep === 'categories') {
-          // Name was saved successfully — we can extract it from the message
           const nameMatch = data.message.match(/¡Un gusto, (.+?)!/)
           if (nameMatch) {
             updates.userName = nameMatch[1]
@@ -141,6 +160,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
     userName: null,
     proposedCategories: [],
     savedPaymentMethods: [],
+    pendingCreditCards: [],
     isComplete: false,
   }),
 }))

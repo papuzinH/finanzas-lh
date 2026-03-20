@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/lautaro.hudson/Desktop/Proyectos/finanzas-lh -type f \\\\\\(-name *nav* -o -name *profile* -o -name *header* -o -name *layout* \\\\\\))",
+      "Bash(npx:*)",
+      "Bash(find C:Userslautaro.hudsonDesktopProyectosfinanzas-lh -path */medios-pago* -type f -name *.ts -o -name *.tsx)",
+      "Bash(find C:Userslautaro.hudsonDesktopProyectosfinanzas-lh/src -name *payment* -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(grep -v \"//\")"
+    ]
+  }
+}

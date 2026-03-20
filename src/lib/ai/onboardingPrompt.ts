@@ -95,11 +95,11 @@ Reglas:
 }
 
 const PROMPT_PAYMENT_METHODS = `Sos un asistente que extrae información de medios de pago del mensaje del usuario.
-El usuario está configurando sus medios de pago uno por uno.
+El usuario está configurando sus medios de pago. Puede mencionar uno o varios en un solo mensaje, y también puede editar o borrar medios ya cargados.
 
-Devolvé EXCLUSIVAMENTE un JSON con esta estructura:
+Devolvé EXCLUSIVAMENTE un JSON con una de estas estructuras:
 
-Si el usuario describe un medio de pago:
+--- Si el usuario describe UN solo medio de pago ---
 {
   "intention": "create",
   "name": "Visa",
@@ -108,7 +108,32 @@ Si el usuario describe un medio de pago:
   "payment_day": 5
 }
 
-Si el usuario indica que terminó (ej: "listo", "no tengo más", "eso es todo"):
+--- Si el usuario describe VARIOS medios en un mensaje ---
+{
+  "intention": "create_batch",
+  "methods": [
+    { "name": "Efectivo", "type": "cash", "closing_day": null, "payment_day": null },
+    { "name": "Mercado Pago", "type": "debit", "closing_day": null, "payment_day": null },
+    { "name": "Visa", "type": "credit", "closing_day": null, "payment_day": null }
+  ],
+  "needs_follow_up": ["Visa"]
+}
+
+--- Si el usuario quiere BORRAR un medio ya cargado ---
+{
+  "intention": "delete",
+  "delete_name": "Efectivo"
+}
+
+--- Si el usuario quiere CAMBIAR un medio ya cargado ---
+{
+  "intention": "edit",
+  "old_name": "Efectivo",
+  "new_name": "Mercado Pago",
+  "new_type": "debit"
+}
+
+--- Si el usuario indica que TERMINÓ ---
 {
   "intention": "finish"
 }
@@ -123,6 +148,21 @@ Reglas para "create":
 - Si dice "Visa" sin especificar, asumí credit.
 - Si dice "Mercado Pago" sin especificar, asumí debit.
 - Si dice solo "Efectivo" o "Cash", type es "cash".
+
+Reglas para "create_batch":
+- Detectá cuando el usuario lista varios medios separados por comas, "y", o enumeración.
+- Ejemplos: "efectivo, mercado pago y visa crédito", "tengo visa, master y efectivo"
+- methods: array con cada medio detectado.
+- needs_follow_up: nombres de tarjetas credit que NO tienen closing_day/payment_day definidos. Solo incluí credit sin fechas.
+- Si TODAS las tarjetas credit ya tienen fechas, needs_follow_up debe ser array vacío.
+
+Reglas para "delete":
+- Detectá intenciones de borrar: "borrá efectivo", "sacá la visa", "eliminá mercado pago", "quitá efectivo"
+- delete_name: el nombre del medio a borrar.
+
+Reglas para "edit":
+- Detectá intenciones de cambio: "cambiá efectivo por mercado pago", "renombrá visa a bbva"
+- old_name: nombre actual, new_name: nombre nuevo, new_type: tipo nuevo (si cambia).
 
 Reglas para "finish":
 - Detectá intención de terminar: "listo", "ya está", "no más", "esos son todos", "terminé", etc.

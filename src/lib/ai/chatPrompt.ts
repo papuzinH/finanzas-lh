@@ -9,7 +9,12 @@ export interface Category {
   emoji: string | null
 }
 
-export function buildChatPrompt(categories: Category[]): string {
+export interface ConversationMessage {
+  role: 'user' | 'chanchito'
+  content: string
+}
+
+export function buildChatPrompt(categories: Category[], conversationHistory?: ConversationMessage[]): string {
   // Construir la lista de categorías en formato de referencia
   const categoriesPrompt = categories
     .map((cat) => `- ${cat.emoji || '📁'} ${cat.name}: para ${cat.name.toLowerCase()}`)
@@ -26,9 +31,18 @@ export function buildChatPrompt(categories: Category[]): string {
 
   const now = new Date().toISOString().split('T')[0] // Formato YYYY-MM-DD
 
+  // Construir sección de historial conversacional
+  const historySection = conversationHistory && conversationHistory.length > 0
+    ? `\nHISTORIAL DE CONVERSACIÓN (mensajes recientes, de más antiguo a más nuevo):
+${conversationHistory.map(m => `${m.role === 'user' ? 'USUARIO' : 'ASISTENTE'}: ${m.content}`).join('\n')}
+---
+Usá este historial para resolver referencias implícitas (ej: "esa categoría", "el anterior", "ahora la otra", "sí borralo").
+Si el asistente pidió confirmación en su último mensaje, priorizá detectar la intención "confirmar_accion".\n`
+    : ''
+
   return `Actúa como un asistente financiero experto en el contexto económico argentino.
 Tu objetivo es extraer datos estructurados de un mensaje natural y categorizarlos con precisión usando los IDs provistos.
-
+${historySection}
 INPUTS:
 1. Mensaje del Usuario: el usuario escribirá un mensaje sobre un gasto, ingreso, suscripción o configuración de tarjeta.
 
@@ -127,10 +141,56 @@ Devuelve esta estructura:
   "respuesta": "Tu respuesta en español, amigable y breve. Recordale que podés registrar gastos, ingresos, cuotas y suscripciones."
 }
 
+--- CASO F: EDITAR UNA ENTIDAD EXISTENTE ---
+Si el usuario quiere modificar/editar/cambiar algo existente (ej: "cambiá la categoría del café a Comida", "editá el monto del último gasto a 5000", "renombrá la categoría Ropa a Indumentaria", "cambiá el cierre de la Visa al 20").
+Devuelve esta estructura:
+{
+  "intencion": "editar",
+  "entidad": "transaccion | medio_pago | categoria | suscripcion",
+  "busqueda": "Keyword o descripción para encontrar la entidad (ej: 'café', 'Visa', 'Ropa', 'Netflix')",
+  "cambios": {
+    "campo": "nuevo_valor"
+  }
+}
+
+Campos editables por entidad:
+- transaccion: "description", "amount", "category" (nombre), "payment_method" (nombre), "type" ("expense"/"income")
+- medio_pago: "name", "type" ("credit"/"debit"/"cash"), "closing_day" (número), "payment_day" (número)
+- categoria: "name", "emoji"
+- suscripcion: "description", "amount", "currency", "is_active" (true/false)
+
+--- CASO G: ELIMINAR UNA ENTIDAD ---
+Si el usuario quiere borrar/eliminar/quitar algo (ej: "borrá el gasto del café", "eliminá la categoría Ropa", "sacá el medio de pago Efectivo", "cancelá la suscripción de Netflix").
+Devuelve esta estructura:
+{
+  "intencion": "eliminar",
+  "entidad": "transaccion | medio_pago | categoria | suscripcion | cuota",
+  "busqueda": "Keyword para encontrar la entidad"
+}
+
+--- CASO H: CONFIRMAR UNA ACCIÓN PENDIENTE ---
+Si en el mensaje anterior el asistente pidió confirmación (por ejemplo, para reasignar transacciones antes de borrar un medio de pago), y el usuario responde confirmando, cancelando, o indicando a dónde reasignar.
+Devuelve esta estructura:
+{
+  "intencion": "confirmar_accion",
+  "accion": "reasignar | confirmar | cancelar",
+  "reasignar_a": "Nombre de la entidad destino (solo si accion es 'reasignar')"
+}
+
+Ejemplos de confirmación:
+- "sí, borralo" → { "intencion": "confirmar_accion", "accion": "confirmar" }
+- "no, cancelá" → { "intencion": "confirmar_accion", "accion": "cancelar" }
+- "reasignalas a Mercado Pago" → { "intencion": "confirmar_accion", "accion": "reasignar", "reasignar_a": "Mercado Pago" }
+- "pasalas a Otros" → { "intencion": "confirmar_accion", "accion": "reasignar", "reasignar_a": "Otros" }
+
 REGLAS CRÍTICAS DE PROCESAMIENTO:
 1. Si detectas palabras como "Cobré", "Sueldo", "Me transfirieron", "Ingreso", define "tipo": "income" y "categoria": "Ingresos".
 2. Si "es_gasto_real" es false, el resto de campos pueden ser null.
 3. Prioriza tu lista de categorías personalizada. Si no encaja, usa "Otros".
 4. Si el usuario dice palabras como 'mensual', 'suscripción', 'débito automático', 'plan', prioriza la intención 'suscripcion' sobre 'transaccion'.
-5. El campo "category_id" ES OBLIGATORIO para transacciones y suscripciones. Nunca lo dejes null si encontraste una categoría.`
+5. El campo "category_id" ES OBLIGATORIO para transacciones y suscripciones. Nunca lo dejes null si encontraste una categoría.
+6. Si el usuario dice "borrá", "eliminá", "sacá", "quitá" → intención "eliminar".
+7. Si el usuario dice "cambiá", "editá", "modificá", "renombrá", "actualizá" → intención "editar".
+8. Si el mensaje anterior del asistente pedía confirmación y el usuario responde sí/no/reasignar → intención "confirmar_accion".
+9. CONTEXTO CONVERSACIONAL: Usá el historial de la conversación para resolver referencias implícitas. Si el usuario dice "ahora la menos gastada" después de preguntar por la más gastada, entendé que pregunta por la categoría con menor gasto. Si dice "borrá esa", referenciá la entidad mencionada en el mensaje anterior.`
 }

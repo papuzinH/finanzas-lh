@@ -208,56 +208,222 @@ async function handlePaymentMethods(
     const prompt = buildOnboardingPrompt('payment_methods')
     const geminiText = await callGemini(prompt, message)
     const parsed = parseGeminiJson(geminiText) as {
-      intention: 'create' | 'finish'
+      intention: 'create' | 'create_batch' | 'delete' | 'edit' | 'finish'
+      // Single create
       name?: string
       type?: 'credit' | 'debit' | 'cash'
       closing_day?: number | null
       payment_day?: number | null
+      // Batch create
+      methods?: Array<{
+        name: string
+        type: 'credit' | 'debit' | 'cash'
+        closing_day?: number | null
+        payment_day?: number | null
+      }>
+      needs_follow_up?: string[]
+      // Delete
+      delete_name?: string
+      // Edit
+      old_name?: string
+      new_name?: string
+      new_type?: 'credit' | 'debit' | 'cash'
     }
 
-    if (parsed.intention === 'finish') {
-      // User is done — fetch all payment methods and ask for default
-      const supabase = await createClient()
-      const { data: methods } = await supabase
-        .from('payment_methods')
-        .select('id, name, type, default_closing_day, default_payment_day')
-        .eq('user_id', userId)
+    const supabase = await createClient()
 
-      if (!methods || methods.length === 0) {
+    // --- FINISH ---
+    if (parsed.intention === 'finish') {
+      return finishPaymentMethods(supabase, userId)
+    }
+
+    // --- DELETE ---
+    if (parsed.intention === 'delete' && parsed.delete_name) {
+      const { data: existing } = await supabase
+        .from('payment_methods')
+        .select('id, name')
+        .eq('user_id', userId)
+        .ilike('name', `%${parsed.delete_name}%`)
+        .limit(1)
+        .single()
+
+      if (!existing) {
         return {
           success: false,
-          message: 'Todavía no tenés ningún medio de pago cargado. Decime al menos uno, por ejemplo: *"Efectivo"*',
+          message: `No encontré un medio de pago llamado "${parsed.delete_name}". ¿Podés verificar el nombre?`,
           step: 'payment_methods',
         }
       }
 
-      const allMethods: SavedPaymentMethod[] = methods.map(m => ({
-        id: m.id,
-        name: m.name,
-        type: m.type as 'credit' | 'debit' | 'cash',
-        closingDay: m.default_closing_day,
-        paymentDay: m.default_payment_day,
-      }))
-
-      const methodList = allMethods.map(m => {
-        const icon = m.type === 'credit' ? '💳' : m.type === 'debit' ? '🏧' : '💵'
-        let text = `${icon} **${m.name}**`
-        if (m.type === 'credit' && m.closingDay && m.paymentDay) {
-          text += ` (Cierra: ${m.closingDay}, Vence: ${m.paymentDay})`
-        }
-        return text
-      }).join('\n')
+      await supabase
+        .from('payment_methods')
+        .delete()
+        .eq('id', existing.id)
+        .eq('user_id', userId)
 
       return {
         success: true,
-        message: `¡Perfecto! Tus medios de pago:\n\n${methodList}\n\n¿Cuál es el que más usás? Escribí su nombre.`,
+        message: `🗑️ **${existing.name}** eliminado. ¿Tenés otro medio o decí **"Listo"** para continuar?`,
         step: 'payment_methods',
-        nextStep: 'default_payment',
-        data: { allPaymentMethods: allMethods },
       }
     }
 
-    // Create payment method
+    // --- EDIT ---
+    if (parsed.intention === 'edit' && parsed.old_name) {
+      const { data: existing } = await supabase
+        .from('payment_methods')
+        .select('id, name')
+        .eq('user_id', userId)
+        .ilike('name', `%${parsed.old_name}%`)
+        .limit(1)
+        .single()
+
+      if (!existing) {
+        return {
+          success: false,
+          message: `No encontré un medio llamado "${parsed.old_name}". ¿Podés verificar?`,
+          step: 'payment_methods',
+        }
+      }
+
+      // Delete old and create new
+      await supabase
+        .from('payment_methods')
+        .delete()
+        .eq('id', existing.id)
+        .eq('user_id', userId)
+
+      const newType = parsed.new_type || 'debit'
+      const { data: newMethod, error: insertErr } = await supabase
+        .from('payment_methods')
+        .insert({
+          user_id: userId,
+          name: parsed.new_name || parsed.old_name,
+          type: newType,
+          default_closing_day: null,
+          default_payment_day: null,
+        })
+        .select('id, name, type, default_closing_day, default_payment_day')
+        .single()
+
+      if (insertErr || !newMethod) {
+        return { success: false, message: 'Error al editar el medio de pago.', step: 'payment_methods' }
+      }
+
+      const icon = newType === 'credit' ? '💳' : newType === 'debit' ? '🏧' : '💵'
+      const savedMethod: SavedPaymentMethod = {
+        id: newMethod.id,
+        name: newMethod.name,
+        type: newMethod.type as 'credit' | 'debit' | 'cash',
+        closingDay: newMethod.default_closing_day,
+        paymentDay: newMethod.default_payment_day,
+      }
+
+      let msg = `✅ Cambiado "${existing.name}" → ${icon} **${newMethod.name}**.`
+      if (newType === 'credit') {
+        msg += ` Necesito las fechas de cierre y vencimiento. ¿Qué día cierra y qué día vence?`
+      } else {
+        msg += ` ¿Otro medio o **"Listo"**?`
+      }
+
+      return {
+        success: true,
+        message: msg,
+        step: 'payment_methods',
+        data: { paymentMethod: savedMethod },
+      }
+    }
+
+    // --- BATCH CREATE ---
+    if (parsed.intention === 'create_batch' && parsed.methods && parsed.methods.length > 0) {
+      const saved: SavedPaymentMethod[] = []
+      const creditNeedingDates: string[] = []
+
+      for (const m of parsed.methods) {
+        // Skip credit cards without dates — save non-credit immediately
+        if (m.type === 'credit' && (!m.closing_day || !m.payment_day)) {
+          creditNeedingDates.push(m.name)
+          // Still insert credit card without dates, we'll update later
+          const { data: newMethod } = await supabase
+            .from('payment_methods')
+            .insert({
+              user_id: userId,
+              name: m.name,
+              type: m.type,
+              default_closing_day: null,
+              default_payment_day: null,
+            })
+            .select('id, name, type, default_closing_day, default_payment_day')
+            .single()
+
+          if (newMethod) {
+            saved.push({
+              id: newMethod.id,
+              name: newMethod.name,
+              type: newMethod.type as 'credit' | 'debit' | 'cash',
+              closingDay: null,
+              paymentDay: null,
+            })
+          }
+        } else {
+          const { data: newMethod } = await supabase
+            .from('payment_methods')
+            .insert({
+              user_id: userId,
+              name: m.name,
+              type: m.type,
+              default_closing_day: m.closing_day ?? null,
+              default_payment_day: m.payment_day ?? null,
+            })
+            .select('id, name, type, default_closing_day, default_payment_day')
+            .single()
+
+          if (newMethod) {
+            saved.push({
+              id: newMethod.id,
+              name: newMethod.name,
+              type: newMethod.type as 'credit' | 'debit' | 'cash',
+              closingDay: newMethod.default_closing_day,
+              paymentDay: newMethod.default_payment_day,
+            })
+          }
+        }
+      }
+
+      const nonCredit = saved.filter(m => m.type !== 'credit' || (m.closingDay && m.paymentDay))
+      const savedNames = nonCredit.map(m => {
+        const icon = m.type === 'credit' ? '💳' : m.type === 'debit' ? '🏧' : '💵'
+        return `${icon} ${m.name}`
+      })
+
+      let msg = ''
+      if (savedNames.length > 0) {
+        msg += `✅ Guardados: ${savedNames.join(', ')}. `
+      }
+
+      if (creditNeedingDates.length > 0) {
+        msg += `Para **${creditNeedingDates[0]}**, ¿qué día cierra y qué día vence?`
+        return {
+          success: true,
+          message: msg,
+          step: 'payment_methods',
+          data: {
+            allPaymentMethods: saved,
+            pendingCreditCards: creditNeedingDates,
+          },
+        }
+      }
+
+      msg += `¿Tenés otro medio o decí **"Listo"**?`
+      return {
+        success: true,
+        message: msg,
+        step: 'payment_methods',
+        data: { allPaymentMethods: saved },
+      }
+    }
+
+    // --- SINGLE CREATE (original flow) ---
     if (!parsed.name || !parsed.type) {
       return {
         success: false,
@@ -266,16 +432,78 @@ async function handlePaymentMethods(
       }
     }
 
-    // Validate credit card has dates
-    if (parsed.type === 'credit' && (!parsed.closing_day || !parsed.payment_day)) {
-      return {
-        success: false,
-        message: `Para tarjetas de crédito necesito el día de cierre y vencimiento.\nProbá: *"${parsed.name} crédito cierra el XX y vence el YY"*`,
-        step: 'payment_methods',
+    // Check if this is a follow-up for a credit card missing dates
+    // (user provides dates like "cierra el 24, vence el 5")
+    if (parsed.type === 'credit' && parsed.closing_day && parsed.payment_day) {
+      // Try to update an existing credit card without dates
+      const { data: existingCredit } = await supabase
+        .from('payment_methods')
+        .select('id, name')
+        .eq('user_id', userId)
+        .ilike('name', `%${parsed.name}%`)
+        .eq('type', 'credit')
+        .is('default_closing_day', null)
+        .limit(1)
+        .single()
+
+      if (existingCredit) {
+        // Update existing credit card with dates
+        await supabase
+          .from('payment_methods')
+          .update({
+            default_closing_day: parsed.closing_day,
+            default_payment_day: parsed.payment_day,
+          })
+          .eq('id', existingCredit.id)
+
+        const savedMethod: SavedPaymentMethod = {
+          id: existingCredit.id,
+          name: existingCredit.name,
+          type: 'credit',
+          closingDay: parsed.closing_day,
+          paymentDay: parsed.payment_day,
+        }
+
+        return {
+          success: true,
+          message: `💳 **${existingCredit.name}** configurada: cierra el ${parsed.closing_day}, vence el ${parsed.payment_day}. ¿Otro medio o **"Listo"**?`,
+          step: 'payment_methods',
+          data: { paymentMethod: savedMethod },
+        }
       }
     }
 
-    const supabase = await createClient()
+    // Validate credit card has dates
+    if (parsed.type === 'credit' && (!parsed.closing_day || !parsed.payment_day)) {
+      // Insert without dates, ask for them
+      const { data: newMethod } = await supabase
+        .from('payment_methods')
+        .insert({
+          user_id: userId,
+          name: parsed.name,
+          type: parsed.type,
+          default_closing_day: null,
+          default_payment_day: null,
+        })
+        .select('id, name, type, default_closing_day, default_payment_day')
+        .single()
+
+      const savedMethod: SavedPaymentMethod = {
+        id: newMethod?.id ?? 0,
+        name: parsed.name,
+        type: 'credit',
+        closingDay: null,
+        paymentDay: null,
+      }
+
+      return {
+        success: true,
+        message: `💳 **${parsed.name}** guardada. Necesito las fechas: ¿qué día cierra y qué día vence?`,
+        step: 'payment_methods',
+        data: { paymentMethod: savedMethod },
+      }
+    }
+
     const { data: newMethod, error: insertError } = await supabase
       .from('payment_methods')
       .insert({
@@ -313,6 +541,62 @@ async function handlePaymentMethods(
   } catch (error) {
     console.error('Error in handlePaymentMethods:', error)
     return { success: false, message: 'Error al procesar el medio de pago. Intentá de nuevo.', step: 'payment_methods' }
+  }
+}
+
+/**
+ * Helper: Finaliza el paso de medios de pago, listando todo y pidiendo default.
+ */
+async function finishPaymentMethods(supabase: Awaited<ReturnType<typeof createClient>>, userId: number): Promise<OnboardingResponse> {
+  const { data: methods } = await supabase
+    .from('payment_methods')
+    .select('id, name, type, default_closing_day, default_payment_day')
+    .eq('user_id', userId)
+
+  if (!methods || methods.length === 0) {
+    return {
+      success: false,
+      message: 'Todavía no tenés ningún medio de pago cargado. Decime al menos uno, por ejemplo: *"Efectivo"*',
+      step: 'payment_methods',
+    }
+  }
+
+  // Check if any credit cards are missing dates
+  const creditMissingDates = methods.filter(m =>
+    m.type === 'credit' && (!m.default_closing_day || !m.default_payment_day)
+  )
+
+  if (creditMissingDates.length > 0) {
+    return {
+      success: false,
+      message: `Antes de terminar, necesito las fechas de **${creditMissingDates[0].name}**. ¿Qué día cierra y qué día vence?`,
+      step: 'payment_methods',
+    }
+  }
+
+  const allMethods: SavedPaymentMethod[] = methods.map(m => ({
+    id: m.id,
+    name: m.name,
+    type: m.type as 'credit' | 'debit' | 'cash',
+    closingDay: m.default_closing_day,
+    paymentDay: m.default_payment_day,
+  }))
+
+  const methodList = allMethods.map(m => {
+    const icon = m.type === 'credit' ? '💳' : m.type === 'debit' ? '🏧' : '💵'
+    let text = `${icon} **${m.name}**`
+    if (m.type === 'credit' && m.closingDay && m.paymentDay) {
+      text += ` (Cierra: ${m.closingDay}, Vence: ${m.paymentDay})`
+    }
+    return text
+  }).join('\n')
+
+  return {
+    success: true,
+    message: `¡Perfecto! Tus medios de pago:\n\n${methodList}\n\n¿Cuál es el que más usás? Escribí su nombre.`,
+    step: 'payment_methods',
+    nextStep: 'default_payment',
+    data: { allPaymentMethods: allMethods },
   }
 }
 

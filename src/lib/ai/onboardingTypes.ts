@@ -19,6 +19,9 @@ export interface OnboardingRequest {
 export interface OnboardingContext {
   proposedCategories?: ProposedCategory[]
   savedPaymentMethods?: SavedPaymentMethod[]
+  history?: Array<{ role: 'user' | 'chanchito'; content: string }>
+  /** Credit cards pending follow-up for closing/payment day */
+  pendingCreditCards?: string[]
 }
 
 export interface ProposedCategory {
@@ -51,11 +54,25 @@ export interface ConfirmCategoriesResult {
 }
 
 export interface PaymentMethodResult {
-  intention: 'create' | 'finish'
+  intention: 'create' | 'finish' | 'create_batch' | 'delete' | 'edit'
   name?: string
   type?: 'credit' | 'debit' | 'cash'
   closingDay?: number | null
   paymentDay?: number | null
+  // Batch fields
+  methods?: Array<{
+    name: string
+    type: 'credit' | 'debit' | 'cash'
+    closing_day?: number | null
+    payment_day?: number | null
+  }>
+  needs_follow_up?: string[] // credit cards that need closing/payment day
+  // Delete fields
+  delete_name?: string
+  // Edit fields
+  old_name?: string
+  new_name?: string
+  new_type?: 'credit' | 'debit' | 'cash'
 }
 
 export interface DefaultPaymentResult {
@@ -72,5 +89,6 @@ export interface OnboardingResponse {
     paymentMethod?: SavedPaymentMethod
     allPaymentMethods?: SavedPaymentMethod[]
     onboardingComplete?: boolean
+    pendingCreditCards?: string[]
   }
 }

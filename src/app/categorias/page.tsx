@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { PageHeader } from '@/components/shared/page-header'
 import { CreateCategoryDialog } from '@/components/categories/create-category-dialog'
+import { CategoryCardActions } from '@/components/categories/category-card-actions'
 import { Tag } from 'lucide-react'
 
 export default async function CategoriesPage() {
@@ -46,6 +47,10 @@ export default async function CategoriesPage() {
                     {cat.description || "Sin descripción"}
                   </p>
                 </div>
+                <CategoryCardActions
+                  category={cat}
+                  allCategories={categories ?? []}
+                />
               </div>
             </div>
           ))}

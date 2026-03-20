@@ -11,6 +11,9 @@ import type {
   InstallmentData,
   SubscriptionData,
   CardConfigData,
+  EditData,
+  DeleteData,
+  ConfirmActionData,
   QueryType,
   QueryFilters,
 } from './intentParser'
@@ -20,6 +23,23 @@ export interface ChatResponse {
   message: string
   data?: any
 }
+
+/**
+ * Estado de acciones pendientes de confirmación (en memoria del servidor).
+ * Se limpia después de 5 minutos de inactividad.
+ * Clave: userId numérico
+ */
+interface PendingAction {
+  type: 'delete_with_deps'
+  entity: 'medio_pago' | 'categoria' | 'cuota'
+  entityId: number
+  entityName: string
+  dependencyCount: number
+  dependencyType: string // 'transacciones', 'planes', etc.
+  timestamp: number
+}
+
+const pendingActions = new Map<number, PendingAction>()
 
 /**
  * Interfaz para representar un payment method resuelto con todos sus detalles.
@@ -126,6 +146,12 @@ export async function handleIntent(intent: ChatIntent, userId: number): Promise<
       return handleCardConfig(intent.data, userId)
     case 'query':
       return handleQuery(intent.queryType, intent.filters, userId)
+    case 'edit':
+      return handleEdit(intent.data, userId)
+    case 'delete':
+      return handleDelete(intent.data, userId)
+    case 'confirm_action':
+      return handleConfirmAction(intent.data, userId)
     case 'conversation':
       return { success: true, message: intent.reply }
     case 'error':
@@ -944,6 +970,624 @@ async function handleUltimosMovimientos(supabase: any, userId: number, filters: 
     message: `📋 Últimos ${limit} movimientos:\n${lines.join('\n')}`,
   }
 }
+
+// ============================================
+// Handlers de edición y eliminación
+// ============================================
+
+/**
+ * Maneja la edición de entidades existentes.
+ */
+async function handleEdit(data: EditData, userId: number): Promise<ChatResponse> {
+  try {
+    const supabase = await createClient()
+
+    switch (data.entity) {
+      case 'transaccion': {
+        const { data: txns, error } = await supabase
+          .from('transactions')
+          .select('id, description, amount, type, date, category_id, payment_method_id')
+          .eq('user_id', userId)
+          .ilike('description', `%${data.search}%`)
+          .order('date', { ascending: false })
+          .limit(1)
+
+        if (error || !txns || txns.length === 0) {
+          return { success: false, message: `No encontré una transacción que coincida con "${data.search}".` }
+        }
+
+        const txn = txns[0]
+        const updates: Record<string, unknown> = {}
+
+        if (data.changes.description) updates.description = data.changes.description
+        if (data.changes.amount) updates.amount = Number(data.changes.amount)
+        if (data.changes.type) updates.type = data.changes.type
+
+        // Resolver categoría por nombre si se proporcionó
+        if (data.changes.category) {
+          const { data: cats } = await supabase
+            .from('categories')
+            .select('id, name')
+            .eq('user_id', userId)
+            .ilike('name', `%${data.changes.category}%`)
+            .limit(1)
+
+          if (cats && cats.length > 0) {
+            updates.category_id = cats[0].id
+          }
+        }
+
+        // Resolver medio de pago por nombre
+        if (data.changes.payment_method) {
+          const pm = await resolvePaymentMethod(supabase, userId, String(data.changes.payment_method))
+          if (pm) updates.payment_method_id = pm.id
+        }
+
+        if (Object.keys(updates).length === 0) {
+          return { success: false, message: 'No se especificaron cambios válidos.' }
+        }
+
+        const { error: updateError } = await supabase
+          .from('transactions')
+          .update(updates)
+          .eq('id', txn.id)
+          .eq('user_id', userId)
+
+        if (updateError) {
+          return { success: false, message: 'Error al actualizar la transacción.' }
+        }
+
+        return {
+          success: true,
+          message: `✅ Transacción "${txn.description}" actualizada: ${Object.entries(updates).map(([k, v]) => `${k} → ${v}`).join(', ')}`,
+        }
+      }
+
+      case 'medio_pago': {
+        const { data: methods, error } = await supabase
+          .from('payment_methods')
+          .select('id, name, type')
+          .eq('user_id', userId)
+          .ilike('name', `%${data.search}%`)
+          .limit(1)
+
+        if (error || !methods || methods.length === 0) {
+          return { success: false, message: `No encontré un medio de pago que coincida con "${data.search}".` }
+        }
+
+        const method = methods[0]
+        const updates: Record<string, unknown> = {}
+
+        if (data.changes.name) updates.name = data.changes.name
+        if (data.changes.type) updates.type = data.changes.type
+        if (data.changes.closing_day !== undefined) updates.default_closing_day = Number(data.changes.closing_day)
+        if (data.changes.payment_day !== undefined) updates.default_payment_day = Number(data.changes.payment_day)
+
+        if (Object.keys(updates).length === 0) {
+          return { success: false, message: 'No se especificaron cambios válidos.' }
+        }
+
+        const { error: updateError } = await supabase
+          .from('payment_methods')
+          .update(updates)
+          .eq('id', method.id)
+          .eq('user_id', userId)
+
+        if (updateError) {
+          return { success: false, message: 'Error al actualizar el medio de pago.' }
+        }
+
+        return {
+          success: true,
+          message: `✅ Medio de pago "${method.name}" actualizado: ${Object.entries(updates).map(([k, v]) => `${k} → ${v}`).join(', ')}`,
+        }
+      }
+
+      case 'categoria': {
+        const { data: cats, error } = await supabase
+          .from('categories')
+          .select('id, name, emoji')
+          .eq('user_id', userId)
+          .ilike('name', `%${data.search}%`)
+          .limit(1)
+
+        if (error || !cats || cats.length === 0) {
+          return { success: false, message: `No encontré una categoría que coincida con "${data.search}".` }
+        }
+
+        const cat = cats[0]
+        const updates: Record<string, unknown> = {}
+
+        if (data.changes.name) updates.name = data.changes.name
+        if (data.changes.emoji) updates.emoji = data.changes.emoji
+
+        if (Object.keys(updates).length === 0) {
+          return { success: false, message: 'No se especificaron cambios válidos.' }
+        }
+
+        const { error: updateError } = await supabase
+          .from('categories')
+          .update(updates)
+          .eq('id', cat.id)
+          .eq('user_id', userId)
+
+        if (updateError) {
+          return { success: false, message: 'Error al actualizar la categoría.' }
+        }
+
+        return {
+          success: true,
+          message: `✅ Categoría "${cat.name}" actualizada: ${Object.entries(updates).map(([k, v]) => `${k} → ${v}`).join(', ')}`,
+        }
+      }
+
+      case 'suscripcion': {
+        const { data: subs, error } = await supabase
+          .from('recurring_plans')
+          .select('id, description, amount, currency')
+          .eq('user_id', userId)
+          .ilike('description', `%${data.search}%`)
+          .limit(1)
+
+        if (error || !subs || subs.length === 0) {
+          return { success: false, message: `No encontré una suscripción que coincida con "${data.search}".` }
+        }
+
+        const sub = subs[0]
+        const updates: Record<string, unknown> = {}
+
+        if (data.changes.description) updates.description = data.changes.description
+        if (data.changes.amount) updates.amount = Number(data.changes.amount)
+        if (data.changes.currency) updates.currency = data.changes.currency
+        if (data.changes.is_active !== undefined) updates.is_active = data.changes.is_active
+
+        if (Object.keys(updates).length === 0) {
+          return { success: false, message: 'No se especificaron cambios válidos.' }
+        }
+
+        const { error: updateError } = await supabase
+          .from('recurring_plans')
+          .update(updates)
+          .eq('id', sub.id)
+          .eq('user_id', userId)
+
+        if (updateError) {
+          return { success: false, message: 'Error al actualizar la suscripción.' }
+        }
+
+        return {
+          success: true,
+          message: `✅ Suscripción "${sub.description}" actualizada: ${Object.entries(updates).map(([k, v]) => `${k} → ${v}`).join(', ')}`,
+        }
+      }
+
+      default:
+        return { success: false, message: 'Tipo de entidad no soportada para edición.' }
+    }
+  } catch (error) {
+    console.error('Error in handleEdit:', error)
+    return { success: false, message: 'Error inesperado al editar.' }
+  }
+}
+
+/**
+ * Maneja la eliminación de entidades con validación de dependencias.
+ */
+async function handleDelete(data: DeleteData, userId: number): Promise<ChatResponse> {
+  try {
+    const supabase = await createClient()
+
+    switch (data.entity) {
+      case 'transaccion': {
+        const { data: txns, error } = await supabase
+          .from('transactions')
+          .select('id, description, amount, date')
+          .eq('user_id', userId)
+          .ilike('description', `%${data.search}%`)
+          .order('date', { ascending: false })
+          .limit(1)
+
+        if (error || !txns || txns.length === 0) {
+          return { success: false, message: `No encontré una transacción que coincida con "${data.search}".` }
+        }
+
+        const txn = txns[0]
+        const { error: deleteError } = await supabase
+          .from('transactions')
+          .delete()
+          .eq('id', txn.id)
+          .eq('user_id', userId)
+
+        if (deleteError) {
+          return { success: false, message: 'Error al eliminar la transacción.' }
+        }
+
+        return {
+          success: true,
+          message: `🗑️ Transacción eliminada: "${txn.description}" - ${formatMoney(txn.amount)} (${txn.date})`,
+        }
+      }
+
+      case 'medio_pago': {
+        const { data: methods, error } = await supabase
+          .from('payment_methods')
+          .select('id, name')
+          .eq('user_id', userId)
+          .ilike('name', `%${data.search}%`)
+          .limit(1)
+
+        if (error || !methods || methods.length === 0) {
+          return { success: false, message: `No encontré un medio de pago que coincida con "${data.search}".` }
+        }
+
+        const method = methods[0]
+
+        // Verificar dependencias: transacciones
+        const { count: txCount } = await supabase
+          .from('transactions')
+          .select('id', { count: 'exact' })
+          .eq('payment_method_id', method.id)
+          .eq('user_id', userId)
+
+        // Verificar dependencias: planes de cuotas
+        const { count: planCount } = await supabase
+          .from('installment_plans')
+          .select('id', { count: 'exact' })
+          .eq('payment_method_id', method.id)
+          .eq('user_id', userId)
+
+        // Verificar dependencias: suscripciones
+        const { count: subCount } = await supabase
+          .from('recurring_plans')
+          .select('id', { count: 'exact' })
+          .eq('payment_method_id', method.id)
+          .eq('user_id', userId)
+
+        const totalDeps = (txCount ?? 0) + (planCount ?? 0) + (subCount ?? 0)
+
+        if (totalDeps > 0) {
+          // Guardar acción pendiente de confirmación
+          pendingActions.set(userId, {
+            type: 'delete_with_deps',
+            entity: 'medio_pago',
+            entityId: method.id,
+            entityName: method.name,
+            dependencyCount: totalDeps,
+            dependencyType: 'entidades',
+            timestamp: Date.now(),
+          })
+
+          const details: string[] = []
+          if (txCount && txCount > 0) details.push(`${txCount} transacciones`)
+          if (planCount && planCount > 0) details.push(`${planCount} planes de cuotas`)
+          if (subCount && subCount > 0) details.push(`${subCount} suscripciones`)
+
+          return {
+            success: true,
+            message: `⚠️ El medio de pago "${method.name}" tiene ${details.join(', ')} asociadas. ¿Querés reasignarlas a otro medio de pago, o cancelar la eliminación?`,
+          }
+        }
+
+        // Sin dependencias: eliminar directamente
+        const { error: deleteError } = await supabase
+          .from('payment_methods')
+          .delete()
+          .eq('id', method.id)
+          .eq('user_id', userId)
+
+        if (deleteError) {
+          return { success: false, message: 'Error al eliminar el medio de pago.' }
+        }
+
+        return {
+          success: true,
+          message: `🗑️ Medio de pago "${method.name}" eliminado.`,
+        }
+      }
+
+      case 'categoria': {
+        const { data: cats, error } = await supabase
+          .from('categories')
+          .select('id, name, emoji')
+          .eq('user_id', userId)
+          .ilike('name', `%${data.search}%`)
+          .limit(1)
+
+        if (error || !cats || cats.length === 0) {
+          return { success: false, message: `No encontré una categoría que coincida con "${data.search}".` }
+        }
+
+        const cat = cats[0]
+
+        // Verificar dependencias
+        const { count: txCount } = await supabase
+          .from('transactions')
+          .select('id', { count: 'exact' })
+          .eq('category_id', cat.id)
+          .eq('user_id', userId)
+
+        if (txCount && txCount > 0) {
+          pendingActions.set(userId, {
+            type: 'delete_with_deps',
+            entity: 'categoria',
+            entityId: cat.id as unknown as number, // categories use UUID but same flow
+            entityName: cat.name,
+            dependencyCount: txCount,
+            dependencyType: 'transacciones',
+            timestamp: Date.now(),
+          })
+
+          return {
+            success: true,
+            message: `⚠️ La categoría "${cat.emoji || ''} ${cat.name}" tiene ${txCount} transacciones asociadas. ¿Querés reasignarlas a otra categoría, o cancelar?`,
+          }
+        }
+
+        const { error: deleteError } = await supabase
+          .from('categories')
+          .delete()
+          .eq('id', cat.id)
+          .eq('user_id', userId)
+
+        if (deleteError) {
+          return { success: false, message: 'Error al eliminar la categoría.' }
+        }
+
+        return {
+          success: true,
+          message: `🗑️ Categoría "${cat.emoji || ''} ${cat.name}" eliminada.`,
+        }
+      }
+
+      case 'suscripcion': {
+        const { data: subs, error } = await supabase
+          .from('recurring_plans')
+          .select('id, description, amount, currency')
+          .eq('user_id', userId)
+          .ilike('description', `%${data.search}%`)
+          .limit(1)
+
+        if (error || !subs || subs.length === 0) {
+          return { success: false, message: `No encontré una suscripción que coincida con "${data.search}".` }
+        }
+
+        const sub = subs[0]
+
+        // Suscripciones se desactivan, no se eliminan hard
+        const { error: updateError } = await supabase
+          .from('recurring_plans')
+          .update({ is_active: false })
+          .eq('id', sub.id)
+          .eq('user_id', userId)
+
+        if (updateError) {
+          return { success: false, message: 'Error al desactivar la suscripción.' }
+        }
+
+        return {
+          success: true,
+          message: `🗑️ Suscripción "${sub.description}" desactivada (${formatMoney(sub.amount)} ${sub.currency}/mes).`,
+        }
+      }
+
+      case 'cuota': {
+        const { data: plans, error } = await supabase
+          .from('installment_plans')
+          .select('id, description, total_amount, installments_count')
+          .eq('user_id', userId)
+          .ilike('description', `%${data.search}%`)
+          .limit(1)
+
+        if (error || !plans || plans.length === 0) {
+          return { success: false, message: `No encontré un plan de cuotas que coincida con "${data.search}".` }
+        }
+
+        const plan = plans[0]
+
+        // Contar cuotas futuras (no pagadas)
+        const today = formatLocalDate(new Date())
+        const { count: futureCount } = await supabase
+          .from('transactions')
+          .select('id', { count: 'exact' })
+          .eq('installment_plan_id', plan.id)
+          .eq('user_id', userId)
+          .gte('date', today)
+
+        if (futureCount && futureCount > 0) {
+          pendingActions.set(userId, {
+            type: 'delete_with_deps',
+            entity: 'cuota',
+            entityId: plan.id,
+            entityName: plan.description,
+            dependencyCount: futureCount,
+            dependencyType: 'cuotas futuras',
+            timestamp: Date.now(),
+          })
+
+          return {
+            success: true,
+            message: `⚠️ El plan "${plan.description}" tiene ${futureCount} cuotas futuras. ¿Confirmo eliminar el plan y sus cuotas pendientes, o cancelar?`,
+          }
+        }
+
+        // Sin cuotas futuras, eliminar plan
+        const { error: deleteError } = await supabase
+          .from('installment_plans')
+          .delete()
+          .eq('id', plan.id)
+          .eq('user_id', userId)
+
+        if (deleteError) {
+          return { success: false, message: 'Error al eliminar el plan de cuotas.' }
+        }
+
+        return {
+          success: true,
+          message: `🗑️ Plan de cuotas "${plan.description}" eliminado.`,
+        }
+      }
+
+      default:
+        return { success: false, message: 'Tipo de entidad no soportada para eliminación.' }
+    }
+  } catch (error) {
+    console.error('Error in handleDelete:', error)
+    return { success: false, message: 'Error inesperado al eliminar.' }
+  }
+}
+
+/**
+ * Maneja confirmaciones de acciones pendientes (reasignar, confirmar delete, cancelar).
+ */
+async function handleConfirmAction(data: ConfirmActionData, userId: number): Promise<ChatResponse> {
+  const pending = pendingActions.get(userId)
+
+  if (!pending) {
+    return { success: false, message: 'No hay ninguna acción pendiente de confirmación.' }
+  }
+
+  // Limpiar si pasaron más de 5 minutos
+  if (Date.now() - pending.timestamp > 5 * 60 * 1000) {
+    pendingActions.delete(userId)
+    return { success: false, message: 'La acción expiró. Si querés eliminar algo, pedímelo de nuevo.' }
+  }
+
+  try {
+    const supabase = await createClient()
+
+    if (data.action === 'cancel') {
+      pendingActions.delete(userId)
+      return { success: true, message: '❌ Operación cancelada.' }
+    }
+
+    if (data.action === 'confirm_delete') {
+      // Confirmar eliminación sin reasignación
+      if (pending.entity === 'cuota') {
+        // Eliminar cuotas futuras + plan
+        const today = formatLocalDate(new Date())
+        await supabase
+          .from('transactions')
+          .delete()
+          .eq('installment_plan_id', pending.entityId)
+          .eq('user_id', userId)
+          .gte('date', today)
+
+        await supabase
+          .from('installment_plans')
+          .delete()
+          .eq('id', pending.entityId)
+          .eq('user_id', userId)
+
+        pendingActions.delete(userId)
+        return {
+          success: true,
+          message: `🗑️ Plan "${pending.entityName}" eliminado junto con sus ${pending.dependencyCount} cuotas futuras.`,
+        }
+      }
+
+      pendingActions.delete(userId)
+      return { success: false, message: 'Para esta entidad necesitás reasignar las dependencias antes de eliminar.' }
+    }
+
+    if (data.action === 'reassign') {
+      if (!data.reassignTo) {
+        return { success: false, message: '¿A qué entidad querés reasignar? Decime el nombre.' }
+      }
+
+      if (pending.entity === 'medio_pago') {
+        // Buscar el nuevo medio de pago
+        const newMethod = await resolvePaymentMethod(supabase, userId, data.reassignTo)
+        if (!newMethod) {
+          return { success: false, message: `No encontré un medio de pago que coincida con "${data.reassignTo}".` }
+        }
+
+        // Reasignar transacciones
+        await supabase
+          .from('transactions')
+          .update({ payment_method_id: newMethod.id })
+          .eq('payment_method_id', pending.entityId)
+          .eq('user_id', userId)
+
+        // Reasignar planes de cuotas
+        await supabase
+          .from('installment_plans')
+          .update({ payment_method_id: newMethod.id })
+          .eq('payment_method_id', pending.entityId)
+          .eq('user_id', userId)
+
+        // Reasignar suscripciones
+        await supabase
+          .from('recurring_plans')
+          .update({ payment_method_id: newMethod.id })
+          .eq('payment_method_id', pending.entityId)
+          .eq('user_id', userId)
+
+        // Eliminar el medio de pago original
+        await supabase
+          .from('payment_methods')
+          .delete()
+          .eq('id', pending.entityId)
+          .eq('user_id', userId)
+
+        pendingActions.delete(userId)
+        return {
+          success: true,
+          message: `✅ ${pending.dependencyCount} entidades reasignadas a "${newMethod.name}". Medio de pago "${pending.entityName}" eliminado.`,
+        }
+      }
+
+      if (pending.entity === 'categoria') {
+        // Buscar la nueva categoría
+        const { data: cats } = await supabase
+          .from('categories')
+          .select('id, name, emoji')
+          .eq('user_id', userId)
+          .ilike('name', `%${data.reassignTo}%`)
+          .limit(1)
+
+        if (!cats || cats.length === 0) {
+          return { success: false, message: `No encontré una categoría que coincida con "${data.reassignTo}".` }
+        }
+
+        const newCat = cats[0]
+
+        // Reasignar transacciones
+        await supabase
+          .from('transactions')
+          .update({ category_id: newCat.id })
+          .eq('category_id', pending.entityId)
+          .eq('user_id', userId)
+
+        // Eliminar la categoría original
+        await supabase
+          .from('categories')
+          .delete()
+          .eq('id', pending.entityId)
+          .eq('user_id', userId)
+
+        pendingActions.delete(userId)
+        return {
+          success: true,
+          message: `✅ ${pending.dependencyCount} transacciones reasignadas a "${newCat.emoji || ''} ${newCat.name}". Categoría "${pending.entityName}" eliminada.`,
+        }
+      }
+
+      pendingActions.delete(userId)
+      return { success: false, message: 'Reasignación no soportada para este tipo de entidad.' }
+    }
+
+    pendingActions.delete(userId)
+    return { success: false, message: 'Acción no reconocida.' }
+  } catch (error) {
+    console.error('Error in handleConfirmAction:', error)
+    pendingActions.delete(userId)
+    return { success: false, message: 'Error inesperado al procesar la confirmación.' }
+  }
+}
+
+// ============================================
+// Sub-handlers de consulta
+// ============================================
 
 async function handleProyeccionMes(supabase: any, userId: number): Promise<ChatResponse> {
   const { start } = getCurrentMonthRange()

@@ -29,3 +29,6 @@ export const createPaymentMethodSchema = z.object({
 )
 
 export type CreatePaymentMethodSchema = z.infer<typeof createPaymentMethodSchema>
+
+export const updatePaymentMethodSchema = createPaymentMethodSchema
+export type UpdatePaymentMethodSchema = CreatePaymentMethodSchema

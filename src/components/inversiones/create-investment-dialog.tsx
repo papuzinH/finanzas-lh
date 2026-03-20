@@ -111,7 +111,7 @@ export function CreateInvestmentDialog() {
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold bg-linear-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">
+            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">
               Agregar Inversion
             </DialogTitle>
             <DialogDescription className="text-slate-400">

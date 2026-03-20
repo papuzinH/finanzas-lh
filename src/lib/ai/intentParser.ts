@@ -28,12 +28,33 @@ export interface QueryFilters {
   limite: number | null
 }
 
+export type EntityType = 'transaccion' | 'medio_pago' | 'categoria' | 'suscripcion' | 'cuota'
+
+export interface EditData {
+  entity: EntityType
+  search: string
+  changes: Record<string, unknown>
+}
+
+export interface DeleteData {
+  entity: EntityType
+  search: string
+}
+
+export interface ConfirmActionData {
+  action: 'reassign' | 'confirm_delete' | 'cancel'
+  reassignTo?: string // nombre de la entidad destino para reasignación
+}
+
 export type ChatIntent =
   | { type: 'transaction'; data: TransactionData }
   | { type: 'installment'; data: InstallmentData }
   | { type: 'subscription'; data: SubscriptionData }
   | { type: 'card_config'; data: CardConfigData }
   | { type: 'query'; queryType: QueryType; filters: QueryFilters }
+  | { type: 'edit'; data: EditData }
+  | { type: 'delete'; data: DeleteData }
+  | { type: 'confirm_action'; data: ConfirmActionData }
   | { type: 'conversation'; reply: string }
   | { type: 'error'; message: string }
 
@@ -123,11 +144,33 @@ interface GeminiQueryResponse {
   filtros: QueryFilters
 }
 
+interface GeminiEditResponse {
+  intencion: 'editar'
+  entidad: EntityType
+  busqueda: string
+  cambios: Record<string, unknown>
+}
+
+interface GeminiDeleteResponse {
+  intencion: 'eliminar'
+  entidad: EntityType
+  busqueda: string
+}
+
+interface GeminiConfirmActionResponse {
+  intencion: 'confirmar_accion'
+  accion: 'reasignar' | 'confirmar' | 'cancelar'
+  reasignar_a?: string
+}
+
 type GeminiResponse =
   | GeminiTransactionResponse
   | GeminiCardConfigResponse
   | GeminiSubscriptionResponse
   | GeminiQueryResponse
+  | GeminiEditResponse
+  | GeminiDeleteResponse
+  | GeminiConfirmActionResponse
   | GeminiConversationResponse
 
 /**
@@ -250,6 +293,47 @@ export function parseGeminiResponse(rawResponse: string): ChatIntent {
       return {
         type: 'conversation',
         reply: convData.respuesta,
+      }
+    }
+
+    // CASO F: Editar entidad
+    if (parsed.intencion === 'editar') {
+      const editData = parsed as GeminiEditResponse
+      return {
+        type: 'edit',
+        data: {
+          entity: editData.entidad,
+          search: editData.busqueda,
+          changes: editData.cambios || {},
+        },
+      }
+    }
+
+    // CASO G: Eliminar entidad
+    if (parsed.intencion === 'eliminar') {
+      const deleteData = parsed as GeminiDeleteResponse
+      return {
+        type: 'delete',
+        data: {
+          entity: deleteData.entidad,
+          search: deleteData.busqueda,
+        },
+      }
+    }
+
+    // CASO H: Confirmar acción pendiente (reasignar, confirmar delete, cancelar)
+    if (parsed.intencion === 'confirmar_accion') {
+      const confirmData = parsed as GeminiConfirmActionResponse
+      return {
+        type: 'confirm_action',
+        data: {
+          action: confirmData.accion === 'reasignar'
+            ? 'reassign'
+            : confirmData.accion === 'confirmar'
+              ? 'confirm_delete'
+              : 'cancel',
+          reassignTo: confirmData.reasignar_a,
+        },
       }
     }
 

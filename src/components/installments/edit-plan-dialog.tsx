@@ -85,100 +85,105 @@ export function EditInstallmentPlanDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[425px] bg-slate-900 border-slate-800 text-slate-200">
-        <DialogHeader>
-          <DialogTitle>Editar Plan de Cuotas</DialogTitle>
+      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
+        <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
+          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
+            Editar Plan de Cuotas
+          </DialogTitle>
           <DialogDescription className="text-slate-400">
             Solo puedes editar el nombre y la categoría. El monto y la cantidad de cuotas no se pueden modificar para mantener la integridad del historial.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descripción</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Ej: Compra TV" 
-                      {...field} 
-                      className="bg-slate-950 border-slate-800 focus-visible:ring-slate-700"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="category_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoría</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
+          <form id="edit-plan-form" onSubmit={form.handleSubmit(onSubmit)} className="contents">
+            <div className="overflow-y-auto flex-1 px-6 space-y-4">
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-slate-300">Descripción</FormLabel>
                     <FormControl>
-                      <SelectTrigger className="bg-slate-950 border-slate-800 focus:ring-slate-700">
-                        <SelectValue placeholder="Seleccionar categoría" />
-                      </SelectTrigger>
+                      <Input
+                        placeholder="Ej: Compra TV"
+                        {...field}
+                        className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                      />
                     </FormControl>
-                    <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.emoji} {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <FormLabel className="text-slate-400">Monto Total</FormLabel>
-                <Input 
-                  disabled 
-                  value={formatCurrency(plan.total_amount)}
-                  className="bg-slate-950/50 border-slate-800 text-slate-500 cursor-not-allowed"
-                />
-              </div>
-              <div className="space-y-2">
-                <FormLabel className="text-slate-400">Cuotas</FormLabel>
-                <Input 
-                  disabled 
-                  value={plan.installments_count.toString()}
-                  className="bg-slate-950/50 border-slate-800 text-slate-500 cursor-not-allowed"
-                />
-              </div>
-            </div>
+              <FormField
+                control={form.control}
+                name="category_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-slate-300">Categoría</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="bg-slate-900 border-slate-800">
+                          <SelectValue placeholder="Seleccionar categoría" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.emoji} {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="w-full sm:w-auto h-11 sm:h-9 border-slate-700 hover:bg-slate-800 hover:text-slate-200 text-slate-300"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={isPending}
-                className="w-full sm:w-auto h-11 sm:h-9 bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Guardar Cambios
-              </Button>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <FormLabel className="text-slate-500">Monto Total</FormLabel>
+                  <Input
+                    disabled
+                    value={formatCurrency(plan.total_amount)}
+                    className="bg-slate-900/50 border-slate-800 text-slate-500 cursor-not-allowed"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <FormLabel className="text-slate-500">Cuotas</FormLabel>
+                  <Input
+                    disabled
+                    value={plan.installments_count.toString()}
+                    className="bg-slate-900/50 border-slate-800 text-slate-500 cursor-not-allowed"
+                  />
+                </div>
+              </div>
             </div>
           </form>
         </Form>
+
+        <div className="px-4 sm:px-6 py-4 border-t border-slate-800 flex-shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form="edit-plan-form"
+            disabled={isPending}
+            className="w-full sm:w-auto h-11 sm:h-9 bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Guardar Cambios
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

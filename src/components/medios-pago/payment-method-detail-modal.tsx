@@ -43,7 +43,7 @@ export function PaymentMethodDetailModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-slate-900 border-slate-800 text-slate-200">
+      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
         <DialogHeader className="p-6 pb-0 flex-shrink-0">
           <div className="flex items-center gap-3 mb-2">
             <div className={cn(
@@ -62,7 +62,7 @@ export function PaymentMethodDetailModal({
         <div className="overflow-y-auto flex-1 p-6 space-y-8">
           {/* Resumen de Saldos */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800/50">
+            <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800/50">
               <p className="text-[10px] text-slate-500 uppercase mb-1 font-semibold">
                 {isCredit ? 'Consumo Total' : 'Saldo Actual'}
               </p>
@@ -73,7 +73,7 @@ export function PaymentMethodDetailModal({
                 {formatCurrency(status.projectedTotal)}
               </p>
             </div>
-            <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800/50">
+            <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800/50">
               <p className="text-[10px] text-slate-500 uppercase mb-1 font-semibold">Costos Fijos</p>
               <p className="text-xl font-bold font-mono text-slate-300">
                 {formatCurrency(status.fixedCosts)}
@@ -98,7 +98,7 @@ export function PaymentMethodDetailModal({
                   const localTDate = parseLocalDate(t.date);
 
                   return (
-                    <div key={t.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-950/30 border border-slate-800/30 hover:bg-slate-800/30 transition-colors group">
+                    <div key={t.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-900/30 border border-slate-800/30 hover:bg-slate-800/30 transition-colors group">
                       <div className="flex items-center gap-3">
                         <div className={cn(
                           "p-2 rounded-lg",
@@ -130,7 +130,7 @@ export function PaymentMethodDetailModal({
                   );
                 })
               ) : (
-                <div className="text-center py-8 bg-slate-950/20 rounded-2xl border border-dashed border-slate-800">
+                <div className="text-center py-8 bg-slate-900/20 rounded-2xl border border-dashed border-slate-800">
                   <p className="text-xs text-slate-600 italic">No hay movimientos registrados este mes</p>
                 </div>
               )}

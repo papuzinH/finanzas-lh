@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -117,9 +118,14 @@ export function EditSubscriptionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[425px] bg-slate-900 border-slate-800 text-slate-200">
+      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
         <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
-          <DialogTitle>Editar Suscripción</DialogTitle>
+          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">
+            Editar Suscripción
+          </DialogTitle>
+          <DialogDescription className="text-slate-400">
+            Modificá los datos del gasto fijo.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form id="edit-subscription-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="contents">
@@ -134,7 +140,7 @@ export function EditSubscriptionDialog({
                     <Input 
                       placeholder="Ej: Netflix" 
                       {...field} 
-                      className="bg-slate-950 border-slate-800 focus-visible:ring-slate-700"
+                      className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
                     />
                   </FormControl>
                   <FormMessage />
@@ -162,7 +168,7 @@ export function EditSubscriptionDialog({
                         // Al ser 0, fallará la validación .positive() si es requerido, mostrando el error correcto.
                         field.onChange(isNaN(numberValue) ? 0 : numberValue);
                       }}
-                      className="bg-slate-950 border-slate-800 focus-visible:ring-slate-700"
+                      className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
                     />
                   </FormControl>
                   <FormMessage />
@@ -181,7 +187,7 @@ export function EditSubscriptionDialog({
                     value={field.value || "none"}
                   >
                     <FormControl>
-                      <SelectTrigger className="bg-slate-950 border-slate-800 focus:ring-slate-700">
+                      <SelectTrigger className="bg-slate-900 border-slate-800">
                         <SelectValue placeholder="Seleccionar categoría" />
                       </SelectTrigger>
                     </FormControl>
@@ -210,7 +216,7 @@ export function EditSubscriptionDialog({
                     value={field.value || "none"}
                   >
                     <FormControl>
-                      <SelectTrigger className="bg-slate-950 border-slate-800 focus:ring-slate-700">
+                      <SelectTrigger className="bg-slate-900 border-slate-800">
                         <SelectValue placeholder="Selecciona un método de pago" />
                       </SelectTrigger>
                     </FormControl>
@@ -257,12 +263,12 @@ export function EditSubscriptionDialog({
           </form>
         </Form>
 
-        <div className="px-4 sm:px-6 py-4 border-t border-slate-700/50 flex-shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+        <div className="px-4 sm:px-6 py-4 border-t border-slate-800 flex-shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="w-full sm:w-auto h-11 sm:h-9 border-slate-700 hover:bg-slate-800 hover:text-slate-200 text-slate-300"
+            className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
           >
             Cancelar
           </Button>
@@ -270,7 +276,7 @@ export function EditSubscriptionDialog({
             type="submit"
             form="edit-subscription-form"
             disabled={isPending}
-            className="w-full sm:w-auto h-11 sm:h-9 bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="w-full sm:w-auto h-11 sm:h-9 bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Guardar Cambios

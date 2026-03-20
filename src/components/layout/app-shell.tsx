@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { MainNav } from '@/components/layout/main-nav';
+import { UserProfileSheet } from '@/components/layout/user-profile-sheet';
 import { FullPageLoader } from '@/components/shared/loader';
 import { ChatWidgetWrapper } from '@/components/chat/ChatWidgetWrapper';
 
@@ -25,6 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <MainNav />
+      <UserProfileSheet />
       <main className="min-h-screen pb-20 md:pb-0 md:pl-64">
         {children}
       </main>

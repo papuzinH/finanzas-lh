@@ -21,9 +21,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { buildChatPrompt } from '@/lib/ai/chatPrompt'
+import { buildChatPrompt, type ConversationMessage } from '@/lib/ai/chatPrompt'
 import { parseGeminiResponse } from '@/lib/ai/intentParser'
 import { handleIntent } from '@/lib/ai/handlers'
+
+/**
+ * Trunca el historial de conversación a los últimos N mensajes
+ * y máximo maxChars caracteres totales (para no exceder ventana de contexto).
+ */
+function truncateHistory(
+  history: Array<{ role: 'user' | 'chanchito'; content: string }>,
+  maxMessages: number,
+  maxChars: number
+): ConversationMessage[] {
+  // Tomar los últimos N mensajes
+  const recent = history.slice(-maxMessages)
+
+  // Truncar por caracteres totales (de más reciente a más antiguo)
+  let totalChars = 0
+  const result: ConversationMessage[] = []
+
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const msg = recent[i]
+    const charCount = msg.content.length + (msg.role === 'user' ? 9 : 12) // "USUARIO: " o "ASISTENTE: "
+    if (totalChars + charCount > maxChars) break
+    totalChars += charCount
+    result.unshift({ role: msg.role, content: msg.content })
+  }
+
+  return result
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,7 +66,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Parsear body
-    const { message } = await req.json()
+    const body = await req.json()
+    const { message, history } = body as {
+      message: string
+      history?: Array<{ role: 'user' | 'chanchito'; content: string }>
+    }
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return NextResponse.json({ error: 'Mensaje requerido' }, { status: 400 })
@@ -73,11 +104,14 @@ export async function POST(req: NextRequest) {
 
     const userCategories = categories || []
 
-    // 5. Construir prompt y llamar a Gemini
+    // 5. Construir prompt con historial conversacional y llamar a Gemini
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '')
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-    const systemPrompt = buildChatPrompt(userCategories)
+    // Truncar historial a últimos 10 mensajes y ~2000 chars para no exceder contexto
+    const truncatedHistory = truncateHistory(history || [], 10, 2000)
+
+    const systemPrompt = buildChatPrompt(userCategories, truncatedHistory)
 
     let geminiText: string
     try {

@@ -3,17 +3,16 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  ListOrdered, 
-  CreditCard, 
-  Wallet, 
-  CalendarClock, 
-  TrendingUp, 
+import {
+  LayoutDashboard,
+  ListOrdered,
+  CreditCard,
+  Wallet,
+  CalendarClock,
+  TrendingUp,
   Sparkles,
   Menu,
   X,
-  UserCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
@@ -26,7 +25,6 @@ const navItems = [
   { label: 'Fijos',        href: '/mensualidades', icon: CalendarClock },
   { label: 'Categorías',   href: '/categorias',    icon: Sparkles },
   { label: 'Inversiones',  href: '/inversiones',   icon: TrendingUp },
-  { label: 'Mi perfil',    href: '/perfil',        icon: UserCircle },
 ];
 
 // Los primeros 4 siempre visibles en bottom bar, el 5to es "Más"
