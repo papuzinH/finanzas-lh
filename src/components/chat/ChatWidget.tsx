@@ -130,20 +130,22 @@ export function ChatWidget() {
             </div>
 
             {/* Messages Area */}
-            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.length === 0 ? (
-                <>
-                  <WelcomeMessage />
-                  <QuickActions />
-                </>
-              ) : (
-                <>
-                  {messages.map((msg) => (
-                    <ChatBubble key={msg.id} message={msg} />
-                  ))}
-                  {isLoading && <TypingIndicator />}
-                </>
-              )}
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4">
+              <div className="flex flex-col justify-end min-h-full space-y-4">
+                {messages.length === 0 ? (
+                  <>
+                    <WelcomeMessage />
+                    <QuickActions />
+                  </>
+                ) : (
+                  <>
+                    {messages.map((msg) => (
+                      <ChatBubble key={msg.id} message={msg} />
+                    ))}
+                    {isLoading && <TypingIndicator />}
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Input */}
