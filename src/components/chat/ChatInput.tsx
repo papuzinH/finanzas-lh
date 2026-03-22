@@ -51,7 +51,6 @@ export function ChatInput() {
     await sendMessage(input.trim())
     setInput('')
     resetTranscript()
-    inputRef.current?.focus()
   }
 
   const handleMicClick = () => {
