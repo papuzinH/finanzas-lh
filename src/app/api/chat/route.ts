@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { buildChatPrompt, type ConversationMessage } from '@/lib/ai/chatPrompt'
+import { buildChatPrompt, type ConversationMessage, type GoalContext } from '@/lib/ai/chatPrompt'
 import { parseGeminiResponse } from '@/lib/ai/intentParser'
 import { handleIntent } from '@/lib/ai/handlers'
 
@@ -104,6 +104,84 @@ export async function POST(req: NextRequest) {
 
     const userCategories = categories || []
 
+    // 5b. Obtener contexto de objetivos para el prompt (non-blocking on error)
+    let goalContext: GoalContext | undefined
+    try {
+      const now = new Date()
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      const monthStart = `${currentMonth}-01`
+      const today = now.toISOString().split('T')[0]
+
+      const [
+        { data: savingsGoalsData },
+        { data: contributionsData },
+        { data: budgetsData },
+        { data: expensesData },
+        { data: categoriesForBudget },
+      ] = await Promise.all([
+        supabase.from('savings_goals').select('*').eq('user_id', user.id).eq('is_active', true),
+        supabase.from('savings_goal_contributions').select('*').eq('user_id', user.id),
+        supabase.from('category_budgets').select('*, categories(name, emoji)').eq('user_id', user.id).eq('is_active', true),
+        supabase.from('transactions').select('amount, category_id').eq('user_id', user.id).eq('type', 'expense').gte('date', monthStart).lte('date', today),
+        supabase.from('categories').select('id, name, emoji').or(`user_id.eq.${user.id},is_system.eq.true`),
+      ])
+
+      const spentByCategory: Record<string, number> = {}
+      expensesData?.forEach((t: any) => {
+        spentByCategory[t.category_id] = (spentByCategory[t.category_id] || 0) + Math.abs(Number(t.amount))
+      })
+
+      const catMap: Record<string, { name: string; emoji: string | null }> = {}
+      categoriesForBudget?.forEach((c: any) => { catMap[c.id] = { name: c.name, emoji: c.emoji } })
+
+      goalContext = {
+        savingsGoals: (savingsGoalsData || []).map((g: any) => {
+          const contributions = (contributionsData || []).filter((c: any) => c.goal_id === g.id)
+          const total = contributions.reduce((s: number, c: any) => s + Number(c.amount), 0)
+          const monthTotal = contributions
+            .filter((c: any) => c.date.startsWith(currentMonth))
+            .reduce((s: number, c: any) => s + Number(c.amount), 0)
+          const effective = g.type === 'monthly' ? monthTotal : total
+          const percent = g.target_amount > 0 ? (effective / g.target_amount) * 100 : 0
+          let daysLeft: number | null = null
+          if (g.type === 'one_time' && g.target_date) {
+            daysLeft = Math.ceil((new Date(g.target_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          }
+          return {
+            id: g.id,
+            name: g.name,
+            type: g.type,
+            targetAmount: Number(g.target_amount),
+            currency: g.currency,
+            targetDate: g.target_date,
+            totalContributed: total,
+            currentMonthContributed: monthTotal,
+            percent,
+            daysLeft,
+            status: effective >= Number(g.target_amount) ? 'completed' : 'active',
+          }
+        }),
+        categoryBudgets: (budgetsData || []).map((b: any) => {
+          const cat = b.categories || catMap[b.category_id] || { name: b.category_id, emoji: null }
+          const spent = spentByCategory[b.category_id] || 0
+          const limit = Number(b.amount)
+          const percent = limit > 0 ? (spent / limit) * 100 : 0
+          return {
+            id: b.id,
+            categoryName: cat.name,
+            categoryEmoji: cat.emoji,
+            limit,
+            currency: b.currency,
+            spent,
+            percent,
+            status: percent >= 100 ? 'exceeded' : percent >= 80 ? 'warning' : 'ok',
+          }
+        }),
+      }
+    } catch {
+      // Goals context is optional, don't fail the chat
+    }
+
     // 5. Construir prompt con historial conversacional y llamar a Gemini
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '')
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
@@ -111,7 +189,7 @@ export async function POST(req: NextRequest) {
     // Truncar historial a últimos 10 mensajes y ~2000 chars para no exceder contexto
     const truncatedHistory = truncateHistory(history || [], 10, 2000)
 
-    const systemPrompt = buildChatPrompt(userCategories, truncatedHistory)
+    const systemPrompt = buildChatPrompt(userCategories, truncatedHistory, goalContext)
 
     let geminiText: string
     try {

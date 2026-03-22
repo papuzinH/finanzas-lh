@@ -10,6 +10,9 @@ import {
   User,
   Category,
   Saving,
+  SavingsGoal,
+  SavingsGoalContribution,
+  CategoryBudget,
 } from '@/types/database';
 
 // Extended transaction type with processing fields
@@ -49,6 +52,9 @@ interface FinanceState {
   marketPrices: MarketPrice[];
   categories: Category[];
   savings: Saving[];
+  savingsGoals: SavingsGoal[];
+  savingsGoalContributions: SavingsGoalContribution[];
+  categoryBudgets: CategoryBudget[];
   dolarBlue: DolarBlue | null;
   user: User | null;
   authEmail: string | null;
@@ -61,6 +67,7 @@ interface FinanceState {
 
   // Actions
   fetchAllData: () => Promise<void>;
+  fetchGoalsData: () => Promise<void>;
 
   // Computed Getters (Logic)
   getPortfolioStatus: () => {
@@ -125,6 +132,38 @@ interface FinanceState {
     income: number;
     netBalance: number;
   };
+
+  // Goals Getters
+  getSavingsGoalProgress: (goalId: string) => {
+    goal: SavingsGoal;
+    totalContributed: number;
+    currentMonthContributed: number;
+    target: number;
+    percent: number;
+    remaining: number;
+    daysLeft: number | null;
+    status: 'active' | 'completed';
+  } | null;
+
+  getCategoryBudgetStatus: (categoryId: string) => {
+    budget: CategoryBudget;
+    categoryName: string;
+    categoryEmoji: string | null;
+    spent: number;
+    limit: number;
+    percent: number;
+    status: 'ok' | 'warning' | 'exceeded';
+  } | null;
+
+  getAllBudgetStatuses: () => Array<{
+    budget: CategoryBudget;
+    categoryName: string;
+    categoryEmoji: string | null;
+    spent: number;
+    limit: number;
+    percent: number;
+    status: 'ok' | 'warning' | 'exceeded';
+  }>;
 }
 
 /**
@@ -200,6 +239,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   categories: [],
   marketPrices: [],
   savings: [],
+  savingsGoals: [],
+  savingsGoalContributions: [],
+  categoryBudgets: [],
   dolarBlue: null,
   user: null,
   authEmail: null,
@@ -232,6 +274,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         { data: categories, error: catError },
         { data: userData, error: userError },
         { data: savingsData, error: savError },
+        { data: savingsGoalsData, error: goalsError },
+        { data: contributionsData, error: contribError },
+        { data: budgetsData, error: budgetsError },
       ] = await Promise.all([
         supabase
           .from('transactions')
@@ -272,6 +317,20 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           .select('*')
           .eq('user_id', authUser.id)
           .order('date', { ascending: false }),
+        supabase
+          .from('savings_goals')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('savings_goal_contributions')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .order('date', { ascending: false }),
+        supabase
+          .from('category_budgets')
+          .select('*')
+          .eq('user_id', authUser.id),
       ]);
 
       // Fetch dolar blue rate (non-blocking)
@@ -299,6 +358,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       if (catError) throw catError;
       if (savError) throw savError;
       if (userError && userError.code !== 'PGRST116') throw userError; // PGRST116 is "no rows returned"
+      // Goals errors are non-blocking (tables may not exist yet in DEV)
+      if (goalsError) console.warn('Goals fetch error (may be missing migration):', goalsError.message);
+      if (contribError) console.warn('Contributions fetch error:', contribError.message);
+      if (budgetsError) console.warn('Budgets fetch error:', budgetsError.message);
 
       const methods = (paymentMethodsData as PaymentMethod[]) || [];
       const rawTransactions = (transactionsData as Transaction[]) || [];
@@ -340,6 +403,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         marketPrices: (marketPrices as MarketPrice[]) || [],
         categories: (categories as Category[]) || [],
         savings: (savingsData as Saving[]) || [],
+        savingsGoals: (savingsGoalsData as SavingsGoal[]) || [],
+        savingsGoalContributions: (contributionsData as SavingsGoalContribution[]) || [],
+        categoryBudgets: (budgetsData as CategoryBudget[]) || [],
         dolarBlue,
         user: (userData as User) || null,
         authEmail: authUser.email ?? null,
@@ -889,5 +955,133 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       income,
       netBalance,
     };
+  },
+
+  /**
+   * Recarga solo los datos de objetivos (metas + aportes + presupuestos).
+   * Útil después de CRUD de objetivos sin necesidad de recargar todo.
+   */
+  fetchGoalsData: async () => {
+    const supabase = createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+
+    const [
+      { data: savingsGoalsData },
+      { data: contributionsData },
+      { data: budgetsData },
+    ] = await Promise.all([
+      supabase.from('savings_goals').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
+      supabase.from('savings_goal_contributions').select('*').eq('user_id', authUser.id).order('date', { ascending: false }),
+      supabase.from('category_budgets').select('*').eq('user_id', authUser.id),
+    ]);
+
+    set({
+      savingsGoals: (savingsGoalsData as SavingsGoal[]) || [],
+      savingsGoalContributions: (contributionsData as SavingsGoalContribution[]) || [],
+      categoryBudgets: (budgetsData as CategoryBudget[]) || [],
+    });
+  },
+
+  /**
+   * Retorna el progreso de una meta de ahorro específica.
+   *
+   * Para metas 'one_time':
+   *   - totalContributed: suma de TODOS los aportes históricos
+   *   - daysLeft: días hasta target_date (null si no hay fecha)
+   *   - status: 'completed' si totalContributed >= target
+   *
+   * Para metas 'monthly':
+   *   - currentMonthContributed: suma de aportes del mes actual
+   *   - totalContributed: suma histórica (informativo)
+   *   - daysLeft: null (no aplica)
+   *   - status: 'completed' si currentMonthContributed >= target
+   */
+  getSavingsGoalProgress: (goalId: string) => {
+    const { savingsGoals, savingsGoalContributions } = get();
+    const goal = savingsGoals.find((g) => g.id === goalId);
+    if (!goal) return null;
+
+    const goalContributions = savingsGoalContributions.filter((c) => c.goal_id === goalId);
+    const totalContributed = goalContributions.reduce((acc, c) => acc + Number(c.amount), 0);
+
+    const now = new Date();
+    const currentMonthContributed = goalContributions
+      .filter((c) => {
+        const [year, month] = c.date.split('-').map(Number);
+        return year === now.getFullYear() && month === now.getMonth() + 1;
+      })
+      .reduce((acc, c) => acc + Number(c.amount), 0);
+
+    const target = Number(goal.target_amount);
+
+    // Para metas mensuales el progreso es del mes actual
+    const effectiveContributed = goal.type === 'monthly' ? currentMonthContributed : totalContributed;
+    const percent = target > 0 ? Math.min((effectiveContributed / target) * 100, 100) : 0;
+    const remaining = Math.max(target - effectiveContributed, 0);
+
+    let daysLeft: number | null = null;
+    if (goal.type === 'one_time' && goal.target_date) {
+      const targetDate = parseLocalDate(goal.target_date);
+      const diffMs = targetDate.getTime() - startOfDay(now).getTime();
+      daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    }
+
+    const status: 'active' | 'completed' = effectiveContributed >= target ? 'completed' : 'active';
+
+    return {
+      goal,
+      totalContributed,
+      currentMonthContributed,
+      target,
+      percent,
+      remaining,
+      daysLeft,
+      status,
+    };
+  },
+
+  /**
+   * Retorna el estado de un presupuesto mensual por categoría.
+   *
+   * El gasto se calcula dinámicamente usando getExpensesByCategory('current_month')
+   * que ya maneja la lógica de ciclos de tarjeta.
+   *
+   * Estados:
+   * - 'ok': < 80% del límite
+   * - 'warning': 80–100% del límite
+   * - 'exceeded': > 100% del límite
+   */
+  getCategoryBudgetStatus: (categoryId: string) => {
+    const { categoryBudgets, categories, getExpensesByCategory } = get();
+    const budget = categoryBudgets.find((b) => b.category_id === categoryId && b.is_active);
+    if (!budget) return null;
+
+    const category = categories.find((c) => c.id === categoryId);
+    const categoryName = category?.name ?? 'Sin categoría';
+    const categoryEmoji = category?.emoji ?? null;
+
+    const expensesByCategory = getExpensesByCategory('current_month');
+    const spent = expensesByCategory[categoryName] ?? 0;
+    const limit = Number(budget.amount);
+    const percent = limit > 0 ? (spent / limit) * 100 : 0;
+
+    const status: 'ok' | 'warning' | 'exceeded' =
+      percent >= 100 ? 'exceeded' : percent >= 80 ? 'warning' : 'ok';
+
+    return { budget, categoryName, categoryEmoji, spent, limit, percent, status };
+  },
+
+  /**
+   * Retorna el estado de TODOS los presupuestos activos del usuario.
+   * Ordenados por porcentaje de gasto (mayor primero) para mostrar las alertas más urgentes.
+   */
+  getAllBudgetStatuses: () => {
+    const { categoryBudgets, getCategoryBudgetStatus } = get();
+    return categoryBudgets
+      .filter((b) => b.is_active)
+      .map((b) => getCategoryBudgetStatus(b.category_id))
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+      .sort((a, b) => b.percent - a.percent);
   },
 }));

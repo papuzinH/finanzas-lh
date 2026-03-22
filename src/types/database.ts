@@ -387,6 +387,119 @@ export interface Database {
           }
         ]
       }
+      savings_goals: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          type: 'one_time' | 'monthly'
+          target_amount: number
+          currency: 'ARS' | 'USD'
+          target_date: string | null
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          type: 'one_time' | 'monthly'
+          target_amount: number
+          currency?: 'ARS' | 'USD'
+          target_date?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          type?: 'one_time' | 'monthly'
+          target_amount?: number
+          currency?: 'ARS' | 'USD'
+          target_date?: string | null
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      savings_goal_contributions: {
+        Row: {
+          id: string
+          goal_id: string
+          user_id: string
+          amount: number
+          currency: 'ARS' | 'USD'
+          note: string | null
+          date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          goal_id: string
+          user_id: string
+          amount: number
+          currency?: 'ARS' | 'USD'
+          note?: string | null
+          date?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          goal_id?: string
+          user_id?: string
+          amount?: number
+          currency?: 'ARS' | 'USD'
+          note?: string | null
+          date?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "savings_goal_contributions_goal_id_fkey"
+            columns: ["goal_id"]
+            referencedRelation: "savings_goals"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      category_budgets: {
+        Row: {
+          id: string
+          user_id: string
+          category_id: string
+          amount: number
+          currency: 'ARS' | 'USD'
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          category_id: string
+          amount: number
+          currency?: 'ARS' | 'USD'
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          category_id?: string
+          amount?: number
+          currency?: 'ARS' | 'USD'
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_budgets_category_id_fkey"
+            columns: ["category_id"]
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -415,3 +528,6 @@ export type PaymentMethod = Tables<'payment_methods'>
 export type Investment = Tables<'investments'>
 export type MarketPrice = Tables<'market_prices'>
 export type Saving = Tables<'savings'>
+export type SavingsGoal = Tables<'savings_goals'>
+export type SavingsGoalContribution = Tables<'savings_goal_contributions'>
+export type CategoryBudget = Tables<'category_budgets'>

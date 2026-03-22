@@ -14,7 +14,33 @@ export interface ConversationMessage {
   content: string
 }
 
-export function buildChatPrompt(categories: Category[], conversationHistory?: ConversationMessage[]): string {
+export interface GoalContext {
+  savingsGoals: Array<{
+    id: string
+    name: string
+    type: 'one_time' | 'monthly'
+    targetAmount: number
+    currency: 'ARS' | 'USD'
+    targetDate: string | null
+    totalContributed: number
+    currentMonthContributed: number
+    percent: number
+    daysLeft: number | null
+    status: 'active' | 'completed'
+  }>
+  categoryBudgets: Array<{
+    id: string
+    categoryName: string
+    categoryEmoji: string | null
+    limit: number
+    currency: 'ARS' | 'USD'
+    spent: number
+    percent: number
+    status: 'ok' | 'warning' | 'exceeded'
+  }>
+}
+
+export function buildChatPrompt(categories: Category[], conversationHistory?: ConversationMessage[], goalContext?: GoalContext): string {
   // Construir la lista de categorías en formato de referencia
   const categoriesPrompt = categories
     .map((cat) => `- ${cat.emoji || '📁'} ${cat.name}: para ${cat.name.toLowerCase()}`)
@@ -31,6 +57,24 @@ export function buildChatPrompt(categories: Category[], conversationHistory?: Co
 
   const now = new Date().toISOString().split('T')[0] // Formato YYYY-MM-DD
 
+  // Construir sección de contexto de objetivos
+  let goalsSection = ''
+  if (goalContext && (goalContext.savingsGoals.length > 0 || goalContext.categoryBudgets.length > 0)) {
+    const goalsText = goalContext.savingsGoals.length > 0
+      ? `\nMETAS DE AHORRO DEL USUARIO:\n${goalContext.savingsGoals.map(g =>
+          `- "${g.name}" (${g.type === 'one_time' ? 'meta única' : 'mensual'}): objetivo ${g.currency} ${g.targetAmount.toLocaleString()}, progreso ${g.percent.toFixed(1)}%${g.type === 'one_time' ? `, ${g.daysLeft !== null ? g.daysLeft + ' días restantes' : 'sin fecha'}` : ', este mes: ' + g.currentMonthContributed.toLocaleString()}, estado: ${g.status === 'completed' ? '✅ lograda' : '⏳ activa'} [ID: ${g.id}]`
+        ).join('\n')}`
+      : ''
+
+    const budgetsText = goalContext.categoryBudgets.length > 0
+      ? `\nPRESUPUESTOS MENSUALES DEL USUARIO:\n${goalContext.categoryBudgets.map(b =>
+          `- ${b.categoryEmoji || ''} ${b.categoryName}: límite ${b.currency} ${b.limit.toLocaleString()}, gastado ${b.spent.toLocaleString()} (${b.percent.toFixed(1)}%), estado: ${b.status === 'exceeded' ? '🔴 superado' : b.status === 'warning' ? '🟡 cuidado' : '🟢 ok'} [ID: ${b.id}]`
+        ).join('\n')}`
+      : ''
+
+    goalsSection = goalsText + budgetsText + '\n'
+  }
+
   // Construir sección de historial conversacional
   const historySection = conversationHistory && conversationHistory.length > 0
     ? `\nHISTORIAL DE CONVERSACIÓN (mensajes recientes, de más antiguo a más nuevo):
@@ -42,7 +86,7 @@ Si el asistente pidió confirmación en su último mensaje, priorizá detectar l
 
   return `Actúa como un asistente financiero experto en el contexto económico argentino.
 Tu objetivo es extraer datos estructurados de un mensaje natural y categorizarlos con precisión usando los IDs provistos.
-${historySection}
+${goalsSection}${historySection}
 INPUTS:
 1. Mensaje del Usuario: el usuario escribirá un mensaje sobre un gasto, ingreso, suscripción o configuración de tarjeta.
 
@@ -183,6 +227,78 @@ Ejemplos de confirmación:
 - "reasignalas a Mercado Pago" → { "intencion": "confirmar_accion", "accion": "reasignar", "reasignar_a": "Mercado Pago" }
 - "pasalas a Otros" → { "intencion": "confirmar_accion", "accion": "reasignar", "reasignar_a": "Otros" }
 
+--- CASO I: CREAR META DE AHORRO ---
+Si el usuario quiere crear una nueva meta de ahorro (ej: "Quiero ahorrar para las vacaciones", "Poneme una meta de $200.000 para junio").
+Devuelve esta estructura:
+{
+  "intencion": "crear_objetivo_ahorro",
+  "nombre": "Nombre descriptivo de la meta (ej: 'Vacaciones en Brasil')",
+  "tipo": "one_time" (meta con fecha límite) o "monthly" (ahorro mensual recurrente),
+  "monto_objetivo": 200000, (número positivo),
+  "moneda": "ARS" (o "USD" si especifica),
+  "fecha_objetivo": "YYYY-MM-DD" (solo para tipo one_time, null si es monthly. Calculá la fecha lógica a partir del texto)
+}
+
+--- CASO J: CREAR PRESUPUESTO POR CATEGORÍA ---
+Si el usuario quiere establecer un límite mensual de gasto por categoría (ej: "Que en comida no gaste más de $80.000 por mes", "Poneme un presupuesto de entretenimiento de $50.000").
+Devuelve esta estructura:
+{
+  "intencion": "crear_presupuesto",
+  "categoria": "Nombre de la categoría",
+  "category_id": "El UUID exacto sacado del DICCIONARIO DE IDs",
+  "monto_limite": 80000, (número positivo, límite mensual),
+  "moneda": "ARS" (o "USD" si especifica)
+}
+
+--- CASO K: CONSULTAR OBJETIVOS O PRESUPUESTOS ---
+Si el usuario pregunta sobre sus metas, objetivos de ahorro o presupuestos (ej: "¿Cómo voy con mis objetivos?", "¿Cuánto me falta para mi meta de vacaciones?", "¿Cómo están mis presupuestos?").
+Devuelve esta estructura:
+{
+  "intencion": "consultar_objetivo",
+  "tipo_consulta": "lista_metas | meta_especifica | lista_presupuestos | presupuesto_especifico | resumen_objetivos",
+  "busqueda": "keyword para encontrar la meta/presupuesto específico, o null para listas"
+}
+
+Tipos de consulta:
+- lista_metas: "¿Qué metas tengo?", "Mis objetivos de ahorro"
+- meta_especifica: "¿Cuánto me falta para vacaciones?", "¿Cómo va mi meta de emergencia?"
+- lista_presupuestos: "¿Cómo van mis presupuestos?", "Mis límites de gasto"
+- presupuesto_especifico: "¿Cuánto gasté en comida este mes?", "¿Cómo está mi presupuesto de transporte?"
+- resumen_objetivos: "¿Cómo estoy con mis metas?", "Resumen de objetivos"
+
+--- CASO L: EDITAR META O PRESUPUESTO ---
+Si el usuario quiere modificar una meta existente o un presupuesto (ej: "Cambiá mi meta de vacaciones a $300.000", "Actualizá mi presupuesto de comida a $100.000").
+Devuelve esta estructura:
+{
+  "intencion": "editar_objetivo",
+  "entidad": "objetivo | presupuesto",
+  "busqueda": "keyword para encontrar la meta/presupuesto",
+  "cambios": { "campo": "nuevo_valor" }
+}
+Campos editables para objetivo: "nombre", "monto_objetivo", "fecha_objetivo", "moneda"
+Campos editables para presupuesto: "monto_limite", "moneda"
+
+--- CASO M: ELIMINAR META O PRESUPUESTO ---
+Si el usuario quiere eliminar una meta o presupuesto (ej: "Borrá mi meta de vacaciones", "Eliminá el presupuesto de comida").
+Devuelve esta estructura:
+{
+  "intencion": "eliminar_objetivo",
+  "entidad": "objetivo | presupuesto",
+  "busqueda": "keyword para encontrar la meta/presupuesto"
+}
+
+--- CASO N: REGISTRAR APORTE A META ---
+Si el usuario quiere registrar dinero que aportó a una meta (ej: "Puse $10.000 en mi meta de vacaciones", "Aporté $500 USD al fondo de emergencia").
+Devuelve esta estructura:
+{
+  "intencion": "aportar_meta",
+  "busqueda": "keyword para encontrar la meta",
+  "monto": 10000, (número positivo),
+  "moneda": "ARS" (o "USD"),
+  "nota": "nota opcional o null",
+  "fecha": "YYYY-MM-DD" (hoy por defecto: ${now})
+}
+
 REGLAS CRÍTICAS DE PROCESAMIENTO:
 1. Si detectas palabras como "Cobré", "Sueldo", "Me transfirieron", "Ingreso", define "tipo": "income" y "categoria": "Ingresos".
 2. Si "es_gasto_real" es false, el resto de campos pueden ser null.
@@ -192,5 +308,9 @@ REGLAS CRÍTICAS DE PROCESAMIENTO:
 6. Si el usuario dice "borrá", "eliminá", "sacá", "quitá" → intención "eliminar".
 7. Si el usuario dice "cambiá", "editá", "modificá", "renombrá", "actualizá" → intención "editar".
 8. Si el mensaje anterior del asistente pedía confirmación y el usuario responde sí/no/reasignar → intención "confirmar_accion".
-9. CONTEXTO CONVERSACIONAL: Usá el historial de la conversación para resolver referencias implícitas. Si el usuario dice "ahora la menos gastada" después de preguntar por la más gastada, entendé que pregunta por la categoría con menor gasto. Si dice "borrá esa", referenciá la entidad mencionada en el mensaje anterior.`
+9. CONTEXTO CONVERSACIONAL: Usá el historial de la conversación para resolver referencias implícitas.
+10. Si el usuario menciona "meta", "objetivo de ahorro", "ahorro para X" → priorizar intenciones crear_objetivo_ahorro o consultar_objetivo según corresponda.
+11. Si el usuario menciona "presupuesto", "límite de gasto", "no gastar más de X en Y" → priorizar crear_presupuesto o consultar_objetivo.
+12. Si el usuario dice "aporté", "puse", "guardé" refiriéndose a una meta → intención "aportar_meta".
+13. Los IDs de metas y presupuestos están en el contexto inicial. Usalos para editar/eliminar cuando el usuario refiera a una meta por nombre. Si el usuario dice "ahora la menos gastada" después de preguntar por la más gastada, entendé que pregunta por la categoría con menor gasto. Si dice "borrá esa", referenciá la entidad mencionada en el mensaje anterior.`
 }
