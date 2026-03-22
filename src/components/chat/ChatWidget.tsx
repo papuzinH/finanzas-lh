@@ -23,12 +23,12 @@ function WelcomeMessage() {
 
 export function ChatWidget() {
   const { isOpen, toggleChat, messages, isLoading, isListening } = useChatStore()
-  const scrollEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll al último mensaje
+  // Auto-scroll al último mensaje (scroll interno, no de la página)
   useEffect(() => {
-    if (scrollEndRef.current) {
-      scrollEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
     }
   }, [messages, isLoading])
 
@@ -83,8 +83,8 @@ export function ChatWidget() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed z-50
-                       inset-0 md:inset-auto
-                       md:bottom-24 md:right-6 md:w-96 md:h-[600px] md:max-h-[80vh]
+                       top-0 left-0 right-0 h-[100dvh] md:h-auto
+                       md:inset-auto md:bottom-24 md:right-6 md:w-96 md:h-[600px] md:max-h-[80vh]
                        md:rounded-2xl
                        bg-zinc-950 md:border md:border-zinc-800
                        md:shadow-2xl
@@ -130,7 +130,7 @@ export function ChatWidget() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.length === 0 ? (
                 <>
                   <WelcomeMessage />
@@ -142,7 +142,6 @@ export function ChatWidget() {
                     <ChatBubble key={msg.id} message={msg} />
                   ))}
                   {isLoading && <TypingIndicator />}
-                  <div ref={scrollEndRef} />
                 </>
               )}
             </div>
