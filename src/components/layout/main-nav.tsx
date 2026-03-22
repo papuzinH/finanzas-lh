@@ -11,6 +11,7 @@ import {
   CalendarClock,
   TrendingUp,
   Sparkles,
+  Target,
   Menu,
   X,
 } from 'lucide-react';
@@ -22,6 +23,7 @@ const navItems = [
   { label: 'Movimientos',  href: '/movimientos',   icon: ListOrdered },
   { label: 'Billetera',    href: '/medios-pago',   icon: Wallet },
   { label: 'Cuotas',       href: '/cuotas',        icon: CreditCard },
+  { label: 'Objetivos',    href: '/objetivos',     icon: Target },
   { label: 'Fijos',        href: '/mensualidades', icon: CalendarClock },
   { label: 'Categorías',   href: '/categorias',    icon: Sparkles },
   { label: 'Inversiones',  href: '/inversiones',   icon: TrendingUp },

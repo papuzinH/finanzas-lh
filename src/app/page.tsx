@@ -24,6 +24,7 @@ import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { BalanceCard } from '@/components/dashboard/balance-card';
 import { MetricRow } from '@/components/dashboard/metric-row';
+import { BudgetOverviewStrip } from '@/components/goals/budget-overview-strip';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
 
@@ -268,6 +269,9 @@ export default function DashboardPage() {
           </div>
 
         </div>
+
+        {/* SECCIÓN B.5: PRESUPUESTOS DEL MES */}
+        <BudgetOverviewStrip />
 
         {/* SECCIÓN C: ÚLTIMOS MOVIMIENTOS */}
         <div>

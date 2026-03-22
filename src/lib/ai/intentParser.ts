@@ -28,7 +28,7 @@ export interface QueryFilters {
   limite: number | null
 }
 
-export type EntityType = 'transaccion' | 'medio_pago' | 'categoria' | 'suscripcion' | 'cuota'
+export type EntityType = 'transaccion' | 'medio_pago' | 'categoria' | 'suscripcion' | 'cuota' | 'objetivo' | 'presupuesto'
 
 export interface EditData {
   entity: EntityType
@@ -46,6 +46,47 @@ export interface ConfirmActionData {
   reassignTo?: string // nombre de la entidad destino para reasignación
 }
 
+export interface CreateGoalData {
+  name: string
+  type: 'one_time' | 'monthly'
+  targetAmount: number
+  currency: 'ARS' | 'USD'
+  targetDate: string | null
+}
+
+export interface CreateBudgetData {
+  categoryName: string
+  categoryId: string
+  limitAmount: number
+  currency: 'ARS' | 'USD'
+}
+
+export type GoalQueryType = 'lista_metas' | 'meta_especifica' | 'lista_presupuestos' | 'presupuesto_especifico' | 'resumen_objetivos'
+
+export interface GoalQueryData {
+  queryType: GoalQueryType
+  search: string | null
+}
+
+export interface GoalEditData {
+  entity: 'objetivo' | 'presupuesto'
+  search: string
+  changes: Record<string, unknown>
+}
+
+export interface GoalDeleteData {
+  entity: 'objetivo' | 'presupuesto'
+  search: string
+}
+
+export interface GoalContributionData {
+  search: string
+  amount: number
+  currency: 'ARS' | 'USD'
+  note: string | null
+  date: string
+}
+
 export type ChatIntent =
   | { type: 'transaction'; data: TransactionData }
   | { type: 'installment'; data: InstallmentData }
@@ -55,6 +96,12 @@ export type ChatIntent =
   | { type: 'edit'; data: EditData }
   | { type: 'delete'; data: DeleteData }
   | { type: 'confirm_action'; data: ConfirmActionData }
+  | { type: 'create_goal'; data: CreateGoalData }
+  | { type: 'create_budget'; data: CreateBudgetData }
+  | { type: 'query_goal'; data: GoalQueryData }
+  | { type: 'edit_goal'; data: GoalEditData }
+  | { type: 'delete_goal'; data: GoalDeleteData }
+  | { type: 'goal_contribution'; data: GoalContributionData }
   | { type: 'conversation'; reply: string }
   | { type: 'error'; message: string }
 
@@ -163,6 +210,51 @@ interface GeminiConfirmActionResponse {
   reasignar_a?: string
 }
 
+interface GeminiCreateGoalResponse {
+  intencion: 'crear_objetivo_ahorro'
+  nombre: string
+  tipo: 'one_time' | 'monthly'
+  monto_objetivo: number
+  moneda: 'ARS' | 'USD'
+  fecha_objetivo: string | null
+}
+
+interface GeminiCreateBudgetResponse {
+  intencion: 'crear_presupuesto'
+  categoria: string
+  category_id: string
+  monto_limite: number
+  moneda: 'ARS' | 'USD'
+}
+
+interface GeminiQueryGoalResponse {
+  intencion: 'consultar_objetivo'
+  tipo_consulta: GoalQueryType
+  busqueda: string | null
+}
+
+interface GeminiEditGoalResponse {
+  intencion: 'editar_objetivo'
+  entidad: 'objetivo' | 'presupuesto'
+  busqueda: string
+  cambios: Record<string, unknown>
+}
+
+interface GeminiDeleteGoalResponse {
+  intencion: 'eliminar_objetivo'
+  entidad: 'objetivo' | 'presupuesto'
+  busqueda: string
+}
+
+interface GeminiGoalContributionResponse {
+  intencion: 'aportar_meta'
+  busqueda: string
+  monto: number
+  moneda: 'ARS' | 'USD'
+  nota: string | null
+  fecha: string
+}
+
 type GeminiResponse =
   | GeminiTransactionResponse
   | GeminiCardConfigResponse
@@ -172,6 +264,12 @@ type GeminiResponse =
   | GeminiDeleteResponse
   | GeminiConfirmActionResponse
   | GeminiConversationResponse
+  | GeminiCreateGoalResponse
+  | GeminiCreateBudgetResponse
+  | GeminiQueryGoalResponse
+  | GeminiEditGoalResponse
+  | GeminiDeleteGoalResponse
+  | GeminiGoalContributionResponse
 
 /**
  * Parsea la respuesta JSON de Gemini y retorna una intención tipada.
@@ -333,6 +431,87 @@ export function parseGeminiResponse(rawResponse: string): ChatIntent {
               ? 'confirm_delete'
               : 'cancel',
           reassignTo: confirmData.reasignar_a,
+        },
+      }
+    }
+
+    // CASO I: Crear meta de ahorro
+    if (parsed.intencion === 'crear_objetivo_ahorro') {
+      const d = parsed as GeminiCreateGoalResponse
+      return {
+        type: 'create_goal',
+        data: {
+          name: d.nombre,
+          type: d.tipo,
+          targetAmount: d.monto_objetivo,
+          currency: d.moneda ?? 'ARS',
+          targetDate: d.fecha_objetivo ?? null,
+        },
+      }
+    }
+
+    // CASO J: Crear presupuesto
+    if (parsed.intencion === 'crear_presupuesto') {
+      const d = parsed as GeminiCreateBudgetResponse
+      return {
+        type: 'create_budget',
+        data: {
+          categoryName: d.categoria,
+          categoryId: d.category_id,
+          limitAmount: d.monto_limite,
+          currency: d.moneda ?? 'ARS',
+        },
+      }
+    }
+
+    // CASO K: Consultar objetivos
+    if (parsed.intencion === 'consultar_objetivo') {
+      const d = parsed as GeminiQueryGoalResponse
+      return {
+        type: 'query_goal',
+        data: {
+          queryType: d.tipo_consulta,
+          search: d.busqueda ?? null,
+        },
+      }
+    }
+
+    // CASO L: Editar objetivo o presupuesto
+    if (parsed.intencion === 'editar_objetivo') {
+      const d = parsed as GeminiEditGoalResponse
+      return {
+        type: 'edit_goal',
+        data: {
+          entity: d.entidad,
+          search: d.busqueda,
+          changes: d.cambios || {},
+        },
+      }
+    }
+
+    // CASO M: Eliminar objetivo o presupuesto
+    if (parsed.intencion === 'eliminar_objetivo') {
+      const d = parsed as GeminiDeleteGoalResponse
+      return {
+        type: 'delete_goal',
+        data: {
+          entity: d.entidad,
+          search: d.busqueda,
+        },
+      }
+    }
+
+    // CASO N: Aportar a meta
+    if (parsed.intencion === 'aportar_meta') {
+      const d = parsed as GeminiGoalContributionResponse
+      return {
+        type: 'goal_contribution',
+        data: {
+          search: d.busqueda,
+          amount: d.monto,
+          currency: d.moneda ?? 'ARS',
+          note: d.nota ?? null,
+          date: d.fecha,
         },
       }
     }

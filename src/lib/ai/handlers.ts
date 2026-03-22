@@ -16,6 +16,12 @@ import type {
   ConfirmActionData,
   QueryType,
   QueryFilters,
+  CreateGoalData,
+  CreateBudgetData,
+  GoalQueryData,
+  GoalEditData,
+  GoalDeleteData,
+  GoalContributionData,
 } from './intentParser'
 
 export interface ChatResponse {
@@ -152,6 +158,18 @@ export async function handleIntent(intent: ChatIntent, userId: number): Promise<
       return handleDelete(intent.data, userId)
     case 'confirm_action':
       return handleConfirmAction(intent.data, userId)
+    case 'create_goal':
+      return handleCreateGoal(intent.data)
+    case 'create_budget':
+      return handleCreateBudget(intent.data)
+    case 'query_goal':
+      return handleQueryGoal(intent.data)
+    case 'edit_goal':
+      return handleEditGoal(intent.data)
+    case 'delete_goal':
+      return handleDeleteGoal(intent.data)
+    case 'goal_contribution':
+      return handleGoalContribution(intent.data)
     case 'conversation':
       return { success: true, message: intent.reply }
     case 'error':
@@ -1634,5 +1652,438 @@ async function handleProyeccionMes(supabase: any, userId: number): Promise<ChatR
   return {
     success: true,
     message: `🔮 Proyección de ${mes}:\n💸 Gastado hasta hoy: ${formatMoney(gastadoHoy)}\n🔄 Fijos restantes: ${formatMoney(burnRate)}\n📉 Total proyectado: ${formatMoney(totalProyectado)}\n💚 Ingresos: ${formatMoney(ingresos)}\n⚖️ Balance proyectado: ${formatMoney(balanceProyectado)}`,
+  }
+}
+
+// ============================================================
+// HANDLERS DE OBJETIVOS Y PRESUPUESTOS
+// ============================================================
+
+/**
+ * Obtiene el auth UUID del usuario actual desde Supabase.
+ * Los handlers de objetivos necesitan el UUID (no el id numérico)
+ * porque las tablas goals/budgets usan auth.uid() como user_id.
+ */
+async function getAuthUserId(): Promise<string | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return user?.id ?? null
+}
+
+async function handleCreateGoal(data: CreateGoalData): Promise<ChatResponse> {
+  try {
+    const supabase = await createClient()
+    const authId = await getAuthUserId()
+    if (!authId) return { success: false, message: 'No autorizado' }
+
+    const { error } = await supabase.from('savings_goals').insert({
+      user_id: authId,
+      name: data.name,
+      type: data.type,
+      target_amount: data.targetAmount,
+      currency: data.currency,
+      target_date: data.targetDate,
+    })
+
+    if (error) return { success: false, message: `Error al crear la meta: ${error.message}` }
+
+    const typeLabel = data.type === 'one_time' ? 'meta única' : 'meta mensual'
+    const dateLabel = data.targetDate ? ` para el ${data.targetDate}` : ''
+    return {
+      success: true,
+      message: `🎯 ¡Meta de ahorro creada!\n**"${data.name}"** (${typeLabel})\nObjetivo: ${data.currency} ${data.targetAmount.toLocaleString()}${dateLabel}\n\nPodés registrar aportes desde la sección Objetivos o diciéndome "Aporté $X a mi meta de ${data.name}".`,
+    }
+  } catch {
+    return { success: false, message: 'Error inesperado al crear la meta' }
+  }
+}
+
+async function handleCreateBudget(data: CreateBudgetData): Promise<ChatResponse> {
+  try {
+    const supabase = await createClient()
+    const authId = await getAuthUserId()
+    if (!authId) return { success: false, message: 'No autorizado' }
+
+    const { error } = await supabase.from('category_budgets').upsert(
+      {
+        user_id: authId,
+        category_id: data.categoryId,
+        amount: data.limitAmount,
+        currency: data.currency,
+        is_active: true,
+      },
+      { onConflict: 'user_id,category_id' }
+    )
+
+    if (error) return { success: false, message: `Error al crear el presupuesto: ${error.message}` }
+
+    return {
+      success: true,
+      message: `💰 ¡Presupuesto configurado!\n**${data.categoryName}**: límite mensual de ${data.currency} ${data.limitAmount.toLocaleString()}\n\nTe avisaré cuando estés cerca del límite al registrar gastos en esa categoría.`,
+    }
+  } catch {
+    return { success: false, message: 'Error inesperado al crear el presupuesto' }
+  }
+}
+
+async function handleQueryGoal(data: GoalQueryData): Promise<ChatResponse> {
+  try {
+    const supabase = await createClient()
+    const authId = await getAuthUserId()
+    if (!authId) return { success: false, message: 'No autorizado' }
+
+    const { queryType, search } = data
+    const now = new Date()
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+    if (queryType === 'lista_metas' || queryType === 'resumen_objetivos') {
+      const { data: goals } = await supabase
+        .from('savings_goals')
+        .select('*, savings_goal_contributions(*)')
+        .eq('user_id', authId)
+        .eq('is_active', true)
+
+      if (!goals || goals.length === 0) {
+        return { success: true, message: '🎯 No tenés metas de ahorro activas. Podés crear una diciéndome "Quiero ahorrar $X para Y".' }
+      }
+
+      const lines = goals.map((g: any) => {
+        const contributions: any[] = g.savings_goal_contributions || []
+        const total = contributions.reduce((s: number, c: any) => s + Number(c.amount), 0)
+        const monthTotal = contributions
+          .filter((c: any) => c.date.startsWith(currentMonth))
+          .reduce((s: number, c: any) => s + Number(c.amount), 0)
+        const effective = g.type === 'monthly' ? monthTotal : total
+        const pct = g.target_amount > 0 ? ((effective / g.target_amount) * 100).toFixed(1) : '0'
+        const typeLabel = g.type === 'monthly' ? '(mensual)' : g.target_date ? `(hasta ${g.target_date})` : ''
+        return `• **${g.name}** ${typeLabel}: ${g.currency} ${effective.toLocaleString()} / ${Number(g.target_amount).toLocaleString()} (${pct}%)`
+      })
+
+      if (queryType === 'resumen_objetivos') {
+        // Also include budgets
+        const { data: budgets } = await supabase
+          .from('category_budgets')
+          .select('*, categories(name, emoji)')
+          .eq('user_id', authId)
+          .eq('is_active', true)
+
+        if (budgets && budgets.length > 0) {
+          const today = now.toISOString().split('T')[0]
+          const start = `${currentMonth}-01`
+          const { data: expenses } = await supabase
+            .from('transactions')
+            .select('amount, category_id')
+            .eq('user_id', authId)
+            .eq('type', 'expense')
+            .gte('date', start)
+            .lte('date', today)
+
+          const spentByCategory: Record<string, number> = {}
+          expenses?.forEach((t: any) => {
+            spentByCategory[t.category_id] = (spentByCategory[t.category_id] || 0) + Math.abs(Number(t.amount))
+          })
+
+          const budgetLines = budgets.map((b: any) => {
+            const cat = b.categories
+            const spent = spentByCategory[b.category_id] || 0
+            const pct = b.amount > 0 ? ((spent / b.amount) * 100).toFixed(1) : '0'
+            const statusEmoji = Number(pct) >= 100 ? '🔴' : Number(pct) >= 80 ? '🟡' : '🟢'
+            return `• ${statusEmoji} **${cat?.emoji || ''} ${cat?.name || b.category_id}**: ${spent.toLocaleString()} / ${Number(b.amount).toLocaleString()} ${b.currency} (${pct}%)`
+          })
+
+          return {
+            success: true,
+            message: `📊 **Resumen de Objetivos**\n\n🎯 **Metas de ahorro:**\n${lines.join('\n')}\n\n💰 **Presupuestos mensuales:**\n${budgetLines.join('\n')}`,
+          }
+        }
+      }
+
+      return { success: true, message: `🎯 **Tus metas de ahorro:**\n${lines.join('\n')}` }
+    }
+
+    if (queryType === 'meta_especifica' && search) {
+      const { data: goals } = await supabase
+        .from('savings_goals')
+        .select('*, savings_goal_contributions(*)')
+        .eq('user_id', authId)
+        .ilike('name', `%${search}%`)
+        .limit(1)
+
+      if (!goals || goals.length === 0) {
+        return { success: true, message: `No encontré ninguna meta con "${search}". Revisá la sección Objetivos para ver todas tus metas.` }
+      }
+
+      const g = goals[0]
+      const contributions: any[] = g.savings_goal_contributions || []
+      const total = contributions.reduce((s: number, c: any) => s + Number(c.amount), 0)
+      const monthTotal = contributions
+        .filter((c: any) => c.date.startsWith(currentMonth))
+        .reduce((s: number, c: any) => s + Number(c.amount), 0)
+      const effective = g.type === 'monthly' ? monthTotal : total
+      const remaining = Math.max(Number(g.target_amount) - effective, 0)
+      const pct = g.target_amount > 0 ? ((effective / g.target_amount) * 100).toFixed(1) : '0'
+
+      let dateInfo = ''
+      if (g.type === 'one_time' && g.target_date) {
+        const targetDate = new Date(g.target_date)
+        const daysLeft = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        dateInfo = daysLeft > 0 ? `\n⏳ ${daysLeft} días restantes` : '\n⚠️ Fecha objetivo vencida'
+      }
+
+      return {
+        success: true,
+        message: `🎯 **${g.name}** (${g.type === 'monthly' ? 'mensual' : 'meta única'})\n💰 ${g.currency} ${effective.toLocaleString()} / ${Number(g.target_amount).toLocaleString()} (${pct}%)\n📉 Te faltan: ${g.currency} ${remaining.toLocaleString()}${dateInfo}`,
+      }
+    }
+
+    if (queryType === 'lista_presupuestos') {
+      const { data: budgets } = await supabase
+        .from('category_budgets')
+        .select('*, categories(name, emoji)')
+        .eq('user_id', authId)
+        .eq('is_active', true)
+
+      if (!budgets || budgets.length === 0) {
+        return { success: true, message: '💰 No tenés presupuestos configurados. Podés crear uno diciéndome "Poneme un presupuesto de $X en Comida".' }
+      }
+
+      const today = now.toISOString().split('T')[0]
+      const start = `${currentMonth}-01`
+      const { data: expenses } = await supabase
+        .from('transactions')
+        .select('amount, category_id')
+        .eq('user_id', authId)
+        .eq('type', 'expense')
+        .gte('date', start)
+        .lte('date', today)
+
+      const spentByCategory: Record<string, number> = {}
+      expenses?.forEach((t: any) => {
+        spentByCategory[t.category_id] = (spentByCategory[t.category_id] || 0) + Math.abs(Number(t.amount))
+      })
+
+      const lines = budgets.map((b: any) => {
+        const cat = b.categories
+        const spent = spentByCategory[b.category_id] || 0
+        const pct = b.amount > 0 ? ((spent / b.amount) * 100).toFixed(1) : '0'
+        const statusEmoji = Number(pct) >= 100 ? '🔴' : Number(pct) >= 80 ? '🟡' : '🟢'
+        return `• ${statusEmoji} **${cat?.emoji || ''} ${cat?.name}**: ${spent.toLocaleString()} / ${Number(b.amount).toLocaleString()} ${b.currency} (${pct}%)`
+      })
+
+      return { success: true, message: `💰 **Presupuestos del mes:**\n${lines.join('\n')}` }
+    }
+
+    if (queryType === 'presupuesto_especifico' && search) {
+      const { data: budgets } = await supabase
+        .from('category_budgets')
+        .select('*, categories(name, emoji)')
+        .eq('user_id', authId)
+        .eq('is_active', true)
+
+      if (!budgets) return { success: true, message: 'No encontré presupuestos.' }
+
+      const budget = budgets.find((b: any) =>
+        b.categories?.name?.toLowerCase().includes(search.toLowerCase())
+      )
+
+      if (!budget) {
+        return { success: true, message: `No encontré presupuesto para "${search}".` }
+      }
+
+      const today = now.toISOString().split('T')[0]
+      const start = `${currentMonth}-01`
+      const { data: expenses } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('user_id', authId)
+        .eq('type', 'expense')
+        .eq('category_id', budget.category_id)
+        .gte('date', start)
+        .lte('date', today)
+
+      const spent = expenses?.reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0) ?? 0
+      const limit = Number(budget.amount)
+      const remaining = Math.max(limit - spent, 0)
+      const pct = limit > 0 ? ((spent / limit) * 100).toFixed(1) : '0'
+      const cat = budget.categories
+      const statusEmoji = Number(pct) >= 100 ? '🔴 Superado' : Number(pct) >= 80 ? '🟡 Cuidado' : '🟢 OK'
+
+      return {
+        success: true,
+        message: `💰 **Presupuesto ${cat?.emoji || ''} ${cat?.name}** — ${statusEmoji}\nGastaste: ${budget.currency} ${spent.toLocaleString()} / ${limit.toLocaleString()} (${pct}%)\nDisponible: ${budget.currency} ${remaining.toLocaleString()}`,
+      }
+    }
+
+    return { success: true, message: 'No pude procesar la consulta sobre objetivos. Intentá ser más específico.' }
+  } catch {
+    return { success: false, message: 'Error al consultar objetivos' }
+  }
+}
+
+async function handleEditGoal(data: GoalEditData): Promise<ChatResponse> {
+  try {
+    const supabase = await createClient()
+    const authId = await getAuthUserId()
+    if (!authId) return { success: false, message: 'No autorizado' }
+
+    if (data.entity === 'objetivo') {
+      const { data: goals } = await supabase
+        .from('savings_goals')
+        .select('id, name')
+        .eq('user_id', authId)
+        .ilike('name', `%${data.search}%`)
+        .limit(1)
+
+      if (!goals || goals.length === 0) {
+        return { success: false, message: `No encontré ninguna meta con "${data.search}".` }
+      }
+
+      const goal = goals[0]
+      const updates: Record<string, unknown> = {}
+      if (data.changes.nombre) updates.name = data.changes.nombre
+      if (data.changes.monto_objetivo) updates.target_amount = data.changes.monto_objetivo
+      if (data.changes.fecha_objetivo) updates.target_date = data.changes.fecha_objetivo
+      if (data.changes.moneda) updates.currency = data.changes.moneda
+
+      const { error } = await supabase.from('savings_goals').update(updates).eq('id', goal.id)
+      if (error) return { success: false, message: `Error al editar: ${error.message}` }
+
+      return { success: true, message: `✅ Meta **"${goal.name}"** actualizada correctamente.` }
+    }
+
+    if (data.entity === 'presupuesto') {
+      const { data: budgets } = await supabase
+        .from('category_budgets')
+        .select('id, categories(name)')
+        .eq('user_id', authId)
+        .eq('is_active', true)
+
+      if (!budgets) return { success: false, message: 'Error al buscar presupuestos.' }
+
+      const budget = budgets.find((b: any) =>
+        b.categories?.name?.toLowerCase().includes(data.search.toLowerCase())
+      )
+
+      if (!budget) {
+        return { success: false, message: `No encontré presupuesto para "${data.search}".` }
+      }
+
+      const updates: Record<string, unknown> = {}
+      if (data.changes.monto_limite) updates.amount = data.changes.monto_limite
+      if (data.changes.moneda) updates.currency = data.changes.moneda
+
+      const { error } = await supabase.from('category_budgets').update(updates).eq('id', budget.id)
+      if (error) return { success: false, message: `Error al editar: ${error.message}` }
+
+      const catName = (budget as any).categories?.name || data.search
+      return { success: true, message: `✅ Presupuesto de **${catName}** actualizado.` }
+    }
+
+    return { success: false, message: 'Entidad no reconocida para editar.' }
+  } catch {
+    return { success: false, message: 'Error inesperado al editar objetivo' }
+  }
+}
+
+async function handleDeleteGoal(data: GoalDeleteData): Promise<ChatResponse> {
+  try {
+    const supabase = await createClient()
+    const authId = await getAuthUserId()
+    if (!authId) return { success: false, message: 'No autorizado' }
+
+    if (data.entity === 'objetivo') {
+      const { data: goals } = await supabase
+        .from('savings_goals')
+        .select('id, name')
+        .eq('user_id', authId)
+        .ilike('name', `%${data.search}%`)
+        .limit(1)
+
+      if (!goals || goals.length === 0) {
+        return { success: false, message: `No encontré ninguna meta con "${data.search}".` }
+      }
+
+      const goal = goals[0]
+      const { error } = await supabase.from('savings_goals').delete().eq('id', goal.id)
+      if (error) return { success: false, message: `Error al eliminar: ${error.message}` }
+
+      return { success: true, message: `🗑️ Meta **"${goal.name}"** eliminada (incluyendo todos sus aportes).` }
+    }
+
+    if (data.entity === 'presupuesto') {
+      const { data: budgets } = await supabase
+        .from('category_budgets')
+        .select('id, categories(name)')
+        .eq('user_id', authId)
+        .eq('is_active', true)
+
+      if (!budgets) return { success: false, message: 'Error al buscar presupuestos.' }
+
+      const budget = budgets.find((b: any) =>
+        b.categories?.name?.toLowerCase().includes(data.search.toLowerCase())
+      )
+
+      if (!budget) {
+        return { success: false, message: `No encontré presupuesto para "${data.search}".` }
+      }
+
+      const { error } = await supabase.from('category_budgets').delete().eq('id', budget.id)
+      if (error) return { success: false, message: `Error al eliminar: ${error.message}` }
+
+      const catName = (budget as any).categories?.name || data.search
+      return { success: true, message: `🗑️ Presupuesto de **${catName}** eliminado.` }
+    }
+
+    return { success: false, message: 'Entidad no reconocida para eliminar.' }
+  } catch {
+    return { success: false, message: 'Error inesperado al eliminar objetivo' }
+  }
+}
+
+async function handleGoalContribution(data: GoalContributionData): Promise<ChatResponse> {
+  try {
+    const supabase = await createClient()
+    const authId = await getAuthUserId()
+    if (!authId) return { success: false, message: 'No autorizado' }
+
+    const { data: goals } = await supabase
+      .from('savings_goals')
+      .select('id, name, target_amount, currency')
+      .eq('user_id', authId)
+      .ilike('name', `%${data.search}%`)
+      .limit(1)
+
+    if (!goals || goals.length === 0) {
+      return { success: false, message: `No encontré ninguna meta con "${data.search}". Revisá la sección Objetivos.` }
+    }
+
+    const goal = goals[0]
+
+    const { error } = await supabase.from('savings_goal_contributions').insert({
+      goal_id: goal.id,
+      user_id: authId,
+      amount: data.amount,
+      currency: data.currency,
+      note: data.note,
+      date: data.date,
+    })
+
+    if (error) return { success: false, message: `Error al registrar el aporte: ${error.message}` }
+
+    // Calculate new total
+    const { data: contributions } = await supabase
+      .from('savings_goal_contributions')
+      .select('amount')
+      .eq('goal_id', goal.id)
+
+    const total = contributions?.reduce((s: number, c: any) => s + Number(c.amount), 0) ?? data.amount
+    const pct = Number(goal.target_amount) > 0 ? ((total / Number(goal.target_amount)) * 100).toFixed(1) : '0'
+
+    return {
+      success: true,
+      message: `🐷 ¡Aporte registrado!\n+${data.currency} ${data.amount.toLocaleString()} a **"${goal.name}"**\n\nProgreso total: ${goal.currency} ${total.toLocaleString()} / ${Number(goal.target_amount).toLocaleString()} (${pct}%)`,
+    }
+  } catch {
+    return { success: false, message: 'Error inesperado al registrar el aporte' }
   }
 }
