@@ -216,7 +216,8 @@ async function checkBudgetAlert(
   const limit = Number(budget.amount)
   const percent = limit > 0 ? (spent / limit) * 100 : 0
 
-  const cat = budget.categories as { name: string; emoji: string | null } | null
+  const catRaw = budget.categories as unknown as { name: string; emoji: string | null } | { name: string; emoji: string | null }[] | null
+  const cat = Array.isArray(catRaw) ? (catRaw[0] ?? null) : catRaw
   const label = cat ? `${cat.emoji ?? ''} ${cat.name}`.trim() : 'la categoría'
 
   if (percent >= 100) {
