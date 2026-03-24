@@ -1048,8 +1048,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * que ya maneja la lógica de ciclos de tarjeta.
    *
    * Estados:
-   * - 'ok': < 80% del límite
-   * - 'warning': 80–100% del límite
+   * - 'ok': < 75% del límite
+   * - 'warning': 75–100% del límite
    * - 'exceeded': > 100% del límite
    */
   getCategoryBudgetStatus: (categoryId: string) => {
@@ -1067,7 +1067,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const percent = limit > 0 ? (spent / limit) * 100 : 0;
 
     const status: 'ok' | 'warning' | 'exceeded' =
-      percent >= 100 ? 'exceeded' : percent >= 80 ? 'warning' : 'ok';
+      percent >= 100 ? 'exceeded' : percent >= 75 ? 'warning' : 'ok';
 
     return { budget, categoryName, categoryEmoji, spent, limit, percent, status };
   },

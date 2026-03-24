@@ -47,7 +47,7 @@ export function CreateTransactionDialog({
 }: CreateTransactionDialogProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
-  const { fetchAllData, categories, paymentMethods } = useFinanceStore();
+  const { fetchAllData, categories, paymentMethods, getCategoryBudgetStatus } = useFinanceStore();
 
   const form = useForm<CreateTransactionSchema>({
     resolver: zodResolver(createTransactionSchema),
@@ -76,6 +76,20 @@ export function CreateTransactionDialog({
       } else {
         toast.success('Movimiento creado correctamente');
         await fetchAllData();
+
+        if (data.type === 'expense' && data.category_id) {
+          const budgetStatus = getCategoryBudgetStatus(data.category_id);
+          if (budgetStatus?.status === 'exceeded') {
+            toast.warning(
+              `🔴 Superaste el presupuesto de ${budgetStatus.categoryEmoji ?? ''} ${budgetStatus.categoryName} (${Math.round(budgetStatus.percent)}% usado)`
+            );
+          } else if (budgetStatus?.status === 'warning') {
+            toast.warning(
+              `⚠️ Cerca del límite en ${budgetStatus.categoryEmoji ?? ''} ${budgetStatus.categoryName} (${Math.round(budgetStatus.percent)}% usado)`
+            );
+          }
+        }
+
         form.reset();
         onOpenChange(false);
         router.refresh();

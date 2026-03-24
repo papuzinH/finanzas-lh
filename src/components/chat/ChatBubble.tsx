@@ -27,6 +27,17 @@ export function ChatBubble({ message }: ChatBubbleProps) {
     }).format(amount)
   }
 
+  /** Convierte **texto** en <strong> y preserva saltos de línea */
+  function formatMessage(text: string) {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g)
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>
+      }
+      return part
+    })
+  }
+
   return (
     <motion.div
       variants={containerVariants}
@@ -46,13 +57,13 @@ export function ChatBubble({ message }: ChatBubbleProps) {
         {/* Burbuja de texto */}
         <div
           className={cn(
-            'rounded-2xl px-4 py-2.5 max-w-xs break-words text-sm',
+            'rounded-2xl px-4 py-2.5 max-w-[80%] break-words text-sm whitespace-pre-line',
             isUser
               ? 'bg-indigo-600 text-white rounded-br-sm ml-auto'
               : 'bg-zinc-800 text-slate-100 rounded-bl-sm mr-auto'
           )}
         >
-          {message.content}
+          {formatMessage(message.content)}
         </div>
 
         {/* Card de resultado de acción (solo para Chanchito) */}
@@ -61,7 +72,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.2, delay: 0.1 }}
-            className="border border-emerald-500/30 rounded-xl bg-emerald-500/5 p-3 mr-auto max-w-xs"
+            className="border border-emerald-500/30 rounded-xl bg-emerald-500/5 p-3 mr-auto max-w-[80%]"
           >
             <div className="flex items-start gap-3">
               {message.actionResult.emoji && (

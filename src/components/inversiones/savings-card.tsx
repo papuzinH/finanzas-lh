@@ -141,10 +141,9 @@ export function SavingsCard() {
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button
-              size="sm"
-              className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-7 px-3"
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs min-h-[44px] px-4"
             >
-              <Plus className="w-3 h-3 mr-1" />
+              <Plus className="w-4 h-4 mr-1.5" />
               Sumar ahorro
             </Button>
           </DialogTrigger>

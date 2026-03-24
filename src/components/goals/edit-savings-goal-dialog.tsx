@@ -48,7 +48,7 @@ export function EditSavingsGoalDialog({ goal }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-100 hover:bg-slate-800">
+        <Button variant="ghost" size="icon" aria-label="Editar meta" className="h-11 w-11 text-slate-400 hover:text-slate-100 hover:bg-slate-800">
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>

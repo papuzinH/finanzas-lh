@@ -81,7 +81,8 @@ export function SavingsGoalCard({ goal }: Props) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10"
+            aria-label="Eliminar meta"
+            className="h-11 w-11 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10"
             onClick={handleDelete}
             disabled={deleting}
           >

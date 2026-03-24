@@ -178,6 +178,57 @@ export async function handleIntent(intent: ChatIntent, userId: number): Promise<
 }
 
 /**
+ * Consulta Supabase y retorna un mensaje de alerta si la categoría está
+ * cerca (≥75%) o superó su presupuesto mensual.
+ * Retorna null si no hay presupuesto activo o el gasto está bajo el umbral.
+ */
+async function checkBudgetAlert(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: number,
+  categoryId: string | null
+): Promise<string | null> {
+  if (!categoryId) return null
+
+  const { data: budget } = await supabase
+    .from('category_budgets')
+    .select('amount, currency, categories(name, emoji)')
+    .eq('user_id', userId)
+    .eq('category_id', categoryId)
+    .eq('is_active', true)
+    .single()
+
+  if (!budget) return null
+
+  const now = new Date()
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString()
+
+  const { data: txs } = await supabase
+    .from('transactions')
+    .select('amount')
+    .eq('user_id', userId)
+    .eq('category_id', categoryId)
+    .eq('type', 'expense')
+    .gte('date', firstDay)
+    .lte('date', lastDay)
+
+  const spent = (txs ?? []).reduce((sum: number, t: { amount: number }) => sum + Number(t.amount), 0)
+  const limit = Number(budget.amount)
+  const percent = limit > 0 ? (spent / limit) * 100 : 0
+
+  const cat = budget.categories as { name: string; emoji: string | null } | null
+  const label = cat ? `${cat.emoji ?? ''} ${cat.name}`.trim() : 'la categoría'
+
+  if (percent >= 100) {
+    return `\n\n🔴 *Atención:* superaste el presupuesto de **${label}** (${Math.round(percent)}% usado de $${limit.toLocaleString('es-AR')}).`
+  }
+  if (percent >= 75) {
+    return `\n\n⚠️ *Aviso:* estás cerca del límite de **${label}** (${Math.round(percent)}% usado de $${limit.toLocaleString('es-AR')}).`
+  }
+  return null
+}
+
+/**
  * Maneja una transacción simple (gasto o ingreso)
  */
 async function handleTransaction(data: TransactionData, userId: number): Promise<ChatResponse> {
@@ -212,9 +263,14 @@ async function handleTransaction(data: TransactionData, userId: number): Promise
     const typeLabel = data.type === 'expense' ? 'Gasto' : 'Ingreso'
     const methodLabel = paymentMethod ? ` con ${paymentMethod.name}` : ''
 
+    const budgetAlert =
+      data.type === 'expense'
+        ? await checkBudgetAlert(supabase, userId, data.categoryId ?? null)
+        : null
+
     return {
       success: true,
-      message: `✅ ${typeLabel} registrado: ${data.description} - $${data.amount}${methodLabel}`,
+      message: `✅ ${typeLabel} registrado: ${data.description} - $${data.amount}${methodLabel}${budgetAlert ?? ''}`,
     }
   } catch (error) {
     console.error('Unexpected error in handleTransaction:', error)
@@ -2048,7 +2104,7 @@ async function handleGoalContribution(data: GoalContributionData): Promise<ChatR
 
     const { data: goals } = await supabase
       .from('savings_goals')
-      .select('id, name, target_amount, currency')
+      .select('id, name, target_amount, currency, type')
       .eq('user_id', authId)
       .ilike('name', `%${data.search}%`)
       .limit(1)
@@ -2073,15 +2129,34 @@ async function handleGoalContribution(data: GoalContributionData): Promise<ChatR
     // Calculate new total
     const { data: contributions } = await supabase
       .from('savings_goal_contributions')
-      .select('amount')
+      .select('amount, date')
       .eq('goal_id', goal.id)
 
     const total = contributions?.reduce((s: number, c: any) => s + Number(c.amount), 0) ?? data.amount
-    const pct = Number(goal.target_amount) > 0 ? ((total / Number(goal.target_amount)) * 100).toFixed(1) : '0'
+
+    // Para metas mensuales el progreso se mide por el mes actual
+    const now = new Date()
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const monthTotal = contributions
+      ?.filter((c: any) => c.date.startsWith(currentMonth))
+      .reduce((s: number, c: any) => s + Number(c.amount), 0) ?? data.amount
+
+    const effectiveTotal = goal.type === 'monthly' ? monthTotal : total
+    const targetAmount = Number(goal.target_amount)
+    const pct = targetAmount > 0 ? Math.min((effectiveTotal / targetAmount) * 100, 100).toFixed(1) : '0'
+
+    const isCompleted = targetAmount > 0 && effectiveTotal >= targetAmount
+
+    if (isCompleted) {
+      return {
+        success: true,
+        message: `🎉 ¡Aporte registrado!\n+${data.currency} ${data.amount.toLocaleString()} a **"${goal.name}"**\n\n🏆 **¡Meta completada!** Llegaste a ${goal.currency} ${effectiveTotal.toLocaleString()} / ${targetAmount.toLocaleString()} (100%). ¡Felicitaciones! Podés archivar la meta desde la sección Objetivos.`,
+      }
+    }
 
     return {
       success: true,
-      message: `🐷 ¡Aporte registrado!\n+${data.currency} ${data.amount.toLocaleString()} a **"${goal.name}"**\n\nProgreso total: ${goal.currency} ${total.toLocaleString()} / ${Number(goal.target_amount).toLocaleString()} (${pct}%)`,
+      message: `🐷 ¡Aporte registrado!\n+${data.currency} ${data.amount.toLocaleString()} a **"${goal.name}"**\n\nProgreso total: ${goal.currency} ${effectiveTotal.toLocaleString()} / ${targetAmount.toLocaleString()} (${pct}%)`,
     }
   } catch {
     return { success: false, message: 'Error inesperado al registrar el aporte' }

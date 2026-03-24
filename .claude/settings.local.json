@@ -5,7 +5,15 @@
       "Bash(npx:*)",
       "Bash(find C:Userslautaro.hudsonDesktopProyectosfinanzas-lh -path */medios-pago* -type f -name *.ts -o -name *.tsx)",
       "Bash(find C:Userslautaro.hudsonDesktopProyectosfinanzas-lh/src -name *payment* -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
-      "Bash(grep -v \"//\")"
+      "Bash(grep -v \"//\")",
+      "Bash(cargo install:*)",
+      "mcp__claude_ai_Notion__notion-fetch",
+      "Bash(node test-runner.mjs)",
+      "mcp__claude_ai_Notion__notion-update-page",
+      "Bash(npm run:*)",
+      "Bash(node -e \":*)",
+      "Bash(node fix-runner.mjs)",
+      "Bash(rm fix-runner.mjs)"
     ]
   }
 }

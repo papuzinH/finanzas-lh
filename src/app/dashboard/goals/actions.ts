@@ -112,6 +112,23 @@ export async function addGoalContribution(formData: FormData) {
   return { success: true }
 }
 
+export async function completeGoal(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('savings_goals')
+    .update({ is_active: false })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/objetivos')
+  return { success: true }
+}
+
 export async function deleteGoalContribution(id: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

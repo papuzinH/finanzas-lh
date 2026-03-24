@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Tests para buildChatPrompt - chatPrompt
  * Función pura que construye el system prompt
@@ -325,6 +326,418 @@ test('maneja emoji con variaciones', () => {
   const prompt = buildChatPrompt(categories)
   expect(prompt.includes('✈️')).toBe(true)
   expect(prompt.includes('🍕')).toBe(true)
+})
+
+// ============================================
+// Historial conversacional
+// ============================================
+
+test('sin historial no incluye sección HISTORIAL', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('HISTORIAL DE CONVERSACIÓN')).toBe(false)
+})
+
+test('historial vacío no incluye sección HISTORIAL', () => {
+  const prompt = buildChatPrompt([], [])
+  expect(prompt.includes('HISTORIAL DE CONVERSACIÓN')).toBe(false)
+})
+
+test('con historial incluye sección HISTORIAL DE CONVERSACIÓN', () => {
+  const history = [
+    { role: 'user' as const, content: 'Gasté 5000 en comida' },
+    { role: 'chanchito' as const, content: '✅ Gasto registrado: Comida $5000' },
+  ]
+  const prompt = buildChatPrompt([], history)
+  expect(prompt.includes('HISTORIAL DE CONVERSACIÓN')).toBe(true)
+})
+
+test('historial formatea mensajes del usuario como USUARIO:', () => {
+  const history = [
+    { role: 'user' as const, content: 'mensaje de prueba del usuario' },
+  ]
+  const prompt = buildChatPrompt([], history)
+  expect(prompt.includes('USUARIO: mensaje de prueba del usuario')).toBe(true)
+})
+
+test('historial formatea mensajes de chanchito como ASISTENTE:', () => {
+  const history = [
+    { role: 'chanchito' as const, content: 'respuesta del asistente' },
+  ]
+  const prompt = buildChatPrompt([], history)
+  expect(prompt.includes('ASISTENTE: respuesta del asistente')).toBe(true)
+})
+
+test('historial incluye instrucción de referencias implícitas', () => {
+  const history = [
+    { role: 'user' as const, content: 'algo' },
+  ]
+  const prompt = buildChatPrompt([], history)
+  expect(prompt.includes('referencias implícitas')).toBe(true)
+})
+
+test('historial con múltiples mensajes los incluye todos', () => {
+  const history = [
+    { role: 'user' as const, content: 'primer mensaje' },
+    { role: 'chanchito' as const, content: 'primera respuesta' },
+    { role: 'user' as const, content: 'segundo mensaje' },
+  ]
+  const prompt = buildChatPrompt([], history)
+  expect(prompt.includes('primer mensaje')).toBe(true)
+  expect(prompt.includes('primera respuesta')).toBe(true)
+  expect(prompt.includes('segundo mensaje')).toBe(true)
+})
+
+test('historial incluye instrucción de detectar confirmar_accion', () => {
+  const history = [
+    { role: 'chanchito' as const, content: '¿Querés reasignar las transacciones?' },
+    { role: 'user' as const, content: 'sí' },
+  ]
+  const prompt = buildChatPrompt([], history)
+  expect(prompt.includes('confirmar_accion')).toBe(true)
+})
+
+// ============================================
+// Contexto de objetivos (goalContext)
+// ============================================
+
+test('sin goalContext no incluye sección de metas', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('METAS DE AHORRO')).toBe(false)
+  expect(prompt.includes('PRESUPUESTOS MENSUALES')).toBe(false)
+})
+
+test('goalContext vacío no incluye sección de metas', () => {
+  const prompt = buildChatPrompt([], undefined, { savingsGoals: [], categoryBudgets: [] })
+  expect(prompt.includes('METAS DE AHORRO')).toBe(false)
+  expect(prompt.includes('PRESUPUESTOS MENSUALES')).toBe(false)
+})
+
+test('goalContext con metas incluye METAS DE AHORRO', () => {
+  const goalContext = {
+    savingsGoals: [{
+      id: 'g1',
+      name: 'Vacaciones',
+      type: 'one_time' as const,
+      targetAmount: 100000,
+      currency: 'ARS' as const,
+      targetDate: '2026-12-31',
+      totalContributed: 30000,
+      currentMonthContributed: 5000,
+      percent: 30,
+      daysLeft: 280,
+      status: 'active' as const,
+    }],
+    categoryBudgets: [],
+  }
+  const prompt = buildChatPrompt([], undefined, goalContext)
+  expect(prompt.includes('METAS DE AHORRO DEL USUARIO')).toBe(true)
+  expect(prompt.includes('Vacaciones')).toBe(true)
+})
+
+test('goalContext con presupuestos incluye PRESUPUESTOS MENSUALES', () => {
+  const goalContext = {
+    savingsGoals: [],
+    categoryBudgets: [{
+      id: 'b1',
+      categoryName: 'Comida',
+      categoryEmoji: '🍔',
+      limit: 50000,
+      currency: 'ARS' as const,
+      spent: 30000,
+      percent: 60,
+      status: 'ok' as const,
+    }],
+  }
+  const prompt = buildChatPrompt([], undefined, goalContext)
+  expect(prompt.includes('PRESUPUESTOS MENSUALES DEL USUARIO')).toBe(true)
+  expect(prompt.includes('Comida')).toBe(true)
+})
+
+test('goalContext muestra porcentaje de progreso de meta', () => {
+  const goalContext = {
+    savingsGoals: [{
+      id: 'g1',
+      name: 'Auto',
+      type: 'one_time' as const,
+      targetAmount: 1000000,
+      currency: 'ARS' as const,
+      targetDate: '2027-01-01',
+      totalContributed: 250000,
+      currentMonthContributed: 0,
+      percent: 25,
+      daysLeft: 280,
+      status: 'active' as const,
+    }],
+    categoryBudgets: [],
+  }
+  const prompt = buildChatPrompt([], undefined, goalContext)
+  expect(prompt.includes('25.0%')).toBe(true)
+})
+
+test('goalContext muestra estado excedido del presupuesto', () => {
+  const goalContext = {
+    savingsGoals: [],
+    categoryBudgets: [{
+      id: 'b2',
+      categoryName: 'Ropa',
+      categoryEmoji: '👕',
+      limit: 20000,
+      currency: 'ARS' as const,
+      spent: 25000,
+      percent: 125,
+      status: 'exceeded' as const,
+    }],
+  }
+  const prompt = buildChatPrompt([], undefined, goalContext)
+  expect(prompt.includes('superado')).toBe(true)
+})
+
+test('prompt incluye CASO F para editar entidad', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CASO F')).toBe(true)
+  expect(prompt.includes('editar')).toBe(true)
+})
+
+test('prompt incluye CASO G para eliminar entidad', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CASO G')).toBe(true)
+  expect(prompt.includes('eliminar')).toBe(true)
+})
+
+// ============================================
+// CASO H: confirmar_accion (dependency checks)
+// ============================================
+
+test('prompt incluye CASO H para confirmar acción pendiente', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CASO H')).toBe(true)
+})
+
+test('prompt incluye intención "confirmar_accion" en CASO H', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('confirmar_accion')).toBe(true)
+})
+
+test('prompt incluye acción "reasignar" en CASO H', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('reasignar')).toBe(true)
+})
+
+test('prompt incluye acción "confirmar" en CASO H', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('"confirmar"')).toBe(true)
+})
+
+test('prompt incluye acción "cancelar" en CASO H', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('"cancelar"')).toBe(true)
+})
+
+test('prompt incluye campo "reasignar_a" en CASO H', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('reasignar_a')).toBe(true)
+})
+
+test('prompt incluye ejemplo "sí, borralo" para confirmar_accion', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('borralo')).toBe(true)
+})
+
+test('prompt incluye ejemplo "no, cancelá" para confirmar_accion', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('cancelá')).toBe(true)
+})
+
+test('prompt incluye ejemplo de reasignación a Mercado Pago', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('Mercado Pago')).toBe(true)
+})
+
+// ============================================
+// CASO D: consultas
+// ============================================
+
+test('prompt incluye CASO D para consultas financieras', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CASO D')).toBe(true)
+})
+
+test('prompt incluye intención "consulta"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('"consulta"')).toBe(true)
+})
+
+test('prompt incluye tipo "balance_global"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('balance_global')).toBe(true)
+})
+
+test('prompt incluye tipo "gasto_mes"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('gasto_mes')).toBe(true)
+})
+
+test('prompt incluye tipo "proyeccion_mes"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('proyeccion_mes')).toBe(true)
+})
+
+test('prompt incluye tipo "ultimos_movimientos"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('ultimos_movimientos')).toBe(true)
+})
+
+test('prompt incluye campo "filtros" en CASO D', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('"filtros"')).toBe(true)
+})
+
+// ============================================
+// CASO E: conversación
+// ============================================
+
+test('prompt incluye CASO E para mensajes no financieros', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CASO E')).toBe(true)
+})
+
+test('prompt incluye intención "conversacion"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('"conversacion"')).toBe(true)
+})
+
+test('prompt incluye campo "respuesta" para conversacion', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('"respuesta"')).toBe(true)
+})
+
+// ============================================
+// CASO I-N: metas de ahorro y presupuestos
+// ============================================
+
+test('prompt incluye CASO I para metas de ahorro', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CASO I')).toBe(true)
+})
+
+test('prompt incluye intención "crear_objetivo_ahorro"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('crear_objetivo_ahorro')).toBe(true)
+})
+
+test('prompt incluye tipos de meta "one_time" y "monthly"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('one_time')).toBe(true)
+  expect(prompt.includes('monthly')).toBe(true)
+})
+
+test('prompt incluye CASO J para presupuestos por categoría', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CASO J')).toBe(true)
+})
+
+test('prompt incluye intención "crear_presupuesto"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('crear_presupuesto')).toBe(true)
+})
+
+test('prompt incluye campo "monto_limite"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('monto_limite')).toBe(true)
+})
+
+test('prompt incluye CASO K para consultar objetivos', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CASO K')).toBe(true)
+})
+
+test('prompt incluye intención "consultar_objetivo"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('consultar_objetivo')).toBe(true)
+})
+
+test('prompt incluye tipo de consulta "lista_metas"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('lista_metas')).toBe(true)
+})
+
+test('prompt incluye tipo de consulta "resumen_objetivos"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('resumen_objetivos')).toBe(true)
+})
+
+test('prompt incluye CASO L para editar metas', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CASO L')).toBe(true)
+})
+
+test('prompt incluye intención "editar_objetivo"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('editar_objetivo')).toBe(true)
+})
+
+test('prompt incluye CASO M para eliminar metas', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CASO M')).toBe(true)
+})
+
+test('prompt incluye intención "eliminar_objetivo"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('eliminar_objetivo')).toBe(true)
+})
+
+test('prompt incluye CASO N para aportar a metas', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CASO N')).toBe(true)
+})
+
+test('prompt incluye intención "aportar_meta"', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('aportar_meta')).toBe(true)
+})
+
+// ============================================
+// REGLAS CRÍTICAS #6-13 (edit/delete/confirm/contexto)
+// ============================================
+
+test('REGLA 6: mapea "borrá/eliminá" a intención eliminar', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('borrá')).toBe(true)
+  expect(prompt.includes('"eliminar"')).toBe(true)
+})
+
+test('REGLA 7: mapea "cambiá/editá" a intención editar', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('cambiá')).toBe(true)
+  expect(prompt.includes('"editar"')).toBe(true)
+})
+
+test('REGLA 8: mapea respuesta de confirmación a confirmar_accion', () => {
+  const prompt = buildChatPrompt([])
+  // La regla menciona confirmar_accion para respuestas sí/no/reasignar
+  expect(prompt.includes('confirmar_accion')).toBe(true)
+})
+
+test('REGLA 9: menciona CONTEXTO CONVERSACIONAL', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('CONTEXTO CONVERSACIONAL')).toBe(true)
+})
+
+test('REGLA 10-11: menciona metas y presupuestos como intenciones destino', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('crear_objetivo_ahorro') || prompt.includes('consultar_objetivo')).toBe(true)
+  expect(prompt.includes('crear_presupuesto') || prompt.includes('consultar_objetivo')).toBe(true)
+})
+
+test('REGLA 12: mapea "aporté/puse/guardé" a aportar_meta', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('aporté') || prompt.includes('puse') || prompt.includes('guardé')).toBe(true)
+  expect(prompt.includes('aportar_meta')).toBe(true)
+})
+
+test('REGLA 13: menciona IDs de metas para editar/eliminar por nombre', () => {
+  const prompt = buildChatPrompt([])
+  expect(prompt.includes('IDs de metas') || prompt.includes('IDs')).toBe(true)
 })
 
 console.log(`\n=== Resultados ===`)

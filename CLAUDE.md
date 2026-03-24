@@ -1,75 +1,54 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+# Chanchito – PWA de finanzas personales
+Next.js App Router · Supabase (PostgreSQL + Auth) · Zustand · TypeScript
 
 ## Comandos
-
 ```bash
-npm run dev      # Servidor de desarrollo con Turbopack
-npm run build    # Build de producción con Webpack (next build --webpack)
+npm run dev      # Desarrollo (Turbopack)
+npm run build    # Producción (Webpack)
 npm run lint     # ESLint
-npm run start    # Servidor de producción
 ```
+Sin tests configurados.
 
-> No hay tests configurados en este proyecto.
+## Reglas Server / Client
+- `app/` → Server Components por defecto.
+- `'use client'` solo si se necesitan hooks o event listeners.
+- Server Components: fetch con `utils/supabase/server.ts`.
+- Client Components: NUNCA fetch directo → solo `useFinanceStore`.
+- Prohibido: `useEffect` para fetching, SWR, React Query.
 
-## Arquitectura
+## Store: `lib/store/financeStore.ts`
+Única fuente de verdad cliente. **Leer antes de modificar componentes.**
+Toda lógica de negocio (sumas, cálculos, porcentajes) va en el store, NO en componentes.
 
-**Chanchito** es una PWA de finanzas personales construida con Next.js App Router, Supabase (PostgreSQL + Auth) y Zustand para estado global.
-
-### Regla cardinal: Server vs. Client
-
-- Todos los archivos en `app/` son Server Components por defecto.
-- Solo usar `'use client'` cuando se necesiten hooks (`useState`, `useEffect`, `useFinanceStore`) o event listeners.
-- **Server Components** → fetch directo con `utils/supabase/server.ts`.
-- **Client Components** → NUNCA fetch directo; consumir estado via `useFinanceStore`.
-- Prohibido: `useEffect` para fetching, SWR o React Query (salvo que se pida explícitamente).
-
-### Estado global: `lib/store/financeStore.ts`
-
-Es la única fuente de verdad del lado cliente. **Leer este archivo antes de modificar cualquier componente** para verificar si ya existe un selector/getter.
-
-**Regla crítica:** Toda la lógica de negocio (sumas, cálculos, porcentajes) va en el store, NO en los componentes.
-
-Getters principales disponibles:
-- `getPortfolioStatus()` – análisis del portafolio de inversiones
+Getters disponibles:
+- `getPortfolioStatus()` – portafolio de inversiones
 - `getGlobalBalance()` – balance total
-- `getMonthlyBurnRate()` – suma de planes recurrentes activos
-- `getInstallmentStatus(planId)` – progreso de pago de cuotas
-- `getPaymentMethodStatus(methodId)` – lógica compleja de ciclo de tarjeta de crédito vs débito/efectivo
+- `getMonthlyBurnRate()` – planes recurrentes activos
+- `getInstallmentStatus(planId)` – progreso de cuotas
+- `getPaymentMethodStatus(methodId)` – ciclo tarjeta crédito vs débito/efectivo
 - `getExpensesByCategory(scope)` – desglose por categoría
 - `getMonthlyBalance(monthStr, methodId)` – balance mensual
 
-`fetchAllData()` carga todo en paralelo (Promise.all) desde Supabase y además consulta la API del dólar blue (no-blocking).
+`fetchAllData()` → Promise.all desde Supabase + API dólar blue (non-blocking).
 
-### Procesamiento de fechas y ciclos de tarjeta
+## Fechas y ciclos de tarjeta
+- `periodDate` → fecha visual para agrupación mensual (puede diferir de la real)
+- `realPaymentDate` → fecha real de transacción
+- `isExpenseInCurrentMonthScope()` → determina pertenencia al mes según ciclo cierre/pago
+- **Siempre** usar `parseLocalDate()` de `lib/utils/dates.ts` (evita bugs UTC)
 
-Hay lógica especial para cuotas de tarjeta de crédito:
-- `periodDate` – fecha visual para agrupar en vistas mensuales (puede diferir de la fecha real)
-- `realPaymentDate` – fecha real de la transacción
-- `isExpenseInCurrentMonthScope()` – determina si un gasto pertenece al "mes actual" según el ciclo de cierre/pago de la tarjeta
-- Usar siempre `parseLocalDate()` de `lib/utils/dates.ts` para evitar bugs de timezone UTC
+## UI
+- Dark mode: `bg-slate-950`, `text-slate-50`, acentos Indigo/Violet.
+- Shadcn UI siempre (nunca `<div>` crudo si existe `<Card>`).
+- Íconos: `lucide-react` (importar específicos).
+- Mobile-first: `w-full` → `md:w-auto`.
 
-### UI: Neo-Bank estética
+## TypeScript
+- Tipos de `types/database.ts`. Nunca `any`.
+- Imports absolutos: `@/components/...`, `@/lib/...`
+- Schemas Zod en `lib/schemas/` + React Hook Form + `@hookform/resolvers`.
 
-- **Tema:** Dark mode por defecto. `bg-slate-950`, `text-slate-50`, acentos Indigo/Violet.
-- **Componentes:** Shadcn UI siempre (nunca `<div>` crudo si existe un `<Card>`).
-- **Íconos:** `lucide-react`, importar íconos específicos.
-- **Responsividad:** Mobile-first. `w-full` en mobile, `md:w-auto` en desktop.
-
-### TypeScript
-
-- Tipos de `types/database.ts` (auto-generados de Supabase). Nunca `any`.
-- Imports absolutos: `@/components/...`, `@/lib/...`, etc.
-- Variables de entorno públicas: `process.env.NEXT_PUBLIC_*`.
-
-### Validación
-
-Schemas Zod en `lib/schemas/` para cada entidad (transaction, installment-plan, payment-method, category, investment, subscription). Usados con React Hook Form + `@hookform/resolvers`.
-
-### Pipeline de despliegue
-
-- Branch `master` → producción automática en Vercel (base de datos PROD de Supabase).
-- `.env.local` apunta a Supabase DEV durante desarrollo.
-- PRs generan preview URLs de Vercel conectadas a base DEV.
-- Los cambios de schema SQL deben aplicarse a PROD antes de hacer merge.
+## Deploy
+- `master` → producción automática en Vercel (Supabase PROD).
+- `.env.local` → Supabase DEV.
+- Cambios de schema SQL: aplicar a PROD **antes** del merge.

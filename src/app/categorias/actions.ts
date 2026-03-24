@@ -71,10 +71,22 @@ export async function updateCategory(id: string, formData: FormData) {
 export async function getCategoryDependencies(id: string) {
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { transactions: 0, installmentPlans: 0, recurringPlans: 0, total: 0 }
+
+  // Obtenemos el id numérico interno del usuario (las tablas legacy usan integer user_id)
+  const { data: dbUser } = await supabase
+    .from('users')
+    .select('id')
+    .limit(1)
+    .single()
+
+  if (!dbUser) return { transactions: 0, installmentPlans: 0, recurringPlans: 0, total: 0 }
+
   const [{ count: txCount }, { count: planCount }, { count: recurringCount }] = await Promise.all([
-    supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('category_id', id),
-    supabase.from('installment_plans').select('id', { count: 'exact', head: true }).eq('category_id', id),
-    supabase.from('recurring_plans').select('id', { count: 'exact', head: true }).eq('category_id', id),
+    supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('category_id', id).eq('user_id', dbUser.id),
+    supabase.from('installment_plans').select('id', { count: 'exact', head: true }).eq('category_id', id).eq('user_id', dbUser.id),
+    supabase.from('recurring_plans').select('id', { count: 'exact', head: true }).eq('category_id', id).eq('user_id', dbUser.id),
   ])
 
   return {
@@ -91,10 +103,19 @@ export async function deleteCategoryReassign(id: string, newCategoryId: string) 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
+  // Obtenemos el id numérico interno del usuario (las tablas legacy usan integer user_id)
+  const { data: dbUser } = await supabase
+    .from('users')
+    .select('id')
+    .limit(1)
+    .single()
+
+  if (!dbUser) return { error: 'Usuario no encontrado' }
+
   await Promise.all([
-    supabase.from('transactions').update({ category_id: newCategoryId }).eq('category_id', id),
-    supabase.from('installment_plans').update({ category_id: newCategoryId }).eq('category_id', id),
-    supabase.from('recurring_plans').update({ category_id: newCategoryId }).eq('category_id', id),
+    supabase.from('transactions').update({ category_id: newCategoryId }).eq('category_id', id).eq('user_id', dbUser.id),
+    supabase.from('installment_plans').update({ category_id: newCategoryId }).eq('category_id', id).eq('user_id', dbUser.id),
+    supabase.from('recurring_plans').update({ category_id: newCategoryId }).eq('category_id', id).eq('user_id', dbUser.id),
   ])
 
   const { error } = await supabase
@@ -115,10 +136,19 @@ export async function deleteCategoryUnlink(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
+  // Obtenemos el id numérico interno del usuario (las tablas legacy usan integer user_id)
+  const { data: dbUser } = await supabase
+    .from('users')
+    .select('id')
+    .limit(1)
+    .single()
+
+  if (!dbUser) return { error: 'Usuario no encontrado' }
+
   await Promise.all([
-    supabase.from('transactions').update({ category_id: null }).eq('category_id', id),
-    supabase.from('installment_plans').update({ category_id: null }).eq('category_id', id),
-    supabase.from('recurring_plans').update({ category_id: null }).eq('category_id', id),
+    supabase.from('transactions').update({ category_id: null }).eq('category_id', id).eq('user_id', dbUser.id),
+    supabase.from('installment_plans').update({ category_id: null }).eq('category_id', id).eq('user_id', dbUser.id),
+    supabase.from('recurring_plans').update({ category_id: null }).eq('category_id', id).eq('user_id', dbUser.id),
   ])
 
   const { error } = await supabase

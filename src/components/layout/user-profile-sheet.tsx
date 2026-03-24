@@ -42,7 +42,7 @@ export function UserProfileSheet() {
       {/* Botón avatar fijo en la esquina superior derecha */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed top-4 right-4 z-50 rounded-full ring-2 ring-slate-700 hover:ring-emerald-500/60 transition-all focus:outline-none"
+        className="fixed top-3 right-3 z-50 flex h-11 w-11 items-center justify-center rounded-full ring-2 ring-slate-700 hover:ring-emerald-500/60 transition-all focus-visible:outline-none focus-visible:ring-indigo-500"
         aria-label="Abrir perfil"
       >
         {authAvatarUrl ? (

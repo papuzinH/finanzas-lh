@@ -43,7 +43,7 @@ export function CreateSavingsGoalDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20">
+        <Button className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20">
           <Target className="w-4 h-4 mr-2" />
           Nueva Meta
         </Button>
