@@ -123,7 +123,7 @@ export function CreateTransactionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
         <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
           <DialogTitle className="text-xl font-bold bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent">
             Nuevo Movimiento
@@ -145,7 +145,7 @@ export function CreateTransactionDialog({
                     <Input
                       placeholder="Ej: Compra supermercado"
                       {...field}
-                      className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                      className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                     />
                   </FormControl>
                   <FormMessage />
@@ -170,7 +170,7 @@ export function CreateTransactionDialog({
                           const value = parseFloat(e.target.value);
                           field.onChange(isNaN(value) ? 0 : value);
                         }}
-                        className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                        className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                       />
                     </FormControl>
                     <FormMessage />
@@ -189,11 +189,11 @@ export function CreateTransactionDialog({
                       defaultValue={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger className="bg-slate-900 border-slate-800">
+                        <SelectTrigger className="bg-surface-raised border-slate-800">
                           <SelectValue placeholder="Seleccionar tipo" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                      <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
                         <SelectItem value="expense">Gasto</SelectItem>
                         <SelectItem value="income">Ingreso</SelectItem>
                       </SelectContent>
@@ -215,11 +215,11 @@ export function CreateTransactionDialog({
                     defaultValue={field.value}
                   >
                     <FormControl>
-                      <SelectTrigger className="bg-slate-900 border-slate-800">
+                      <SelectTrigger className="bg-surface-raised border-slate-800">
                         <SelectValue placeholder="Seleccionar categoría" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                    <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.emoji} {category.name}
@@ -243,11 +243,11 @@ export function CreateTransactionDialog({
                     value={field.value || 'none'}
                   >
                     <FormControl>
-                      <SelectTrigger className="bg-slate-900 border-slate-800">
+                      <SelectTrigger className="bg-surface-raised border-slate-800">
                         <SelectValue placeholder="Selecciona un método de pago" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                    <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
                       <SelectItem value="none">Sin asignar</SelectItem>
                       {paymentMethods.map((method) => (
                         <SelectItem
@@ -275,7 +275,7 @@ export function CreateTransactionDialog({
                       type="date"
                       value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
                       onChange={(e) => field.onChange(new Date(e.target.value))}
-                      className="bg-slate-900 border-slate-800 focus:border-indigo-500/50 block w-full"
+                      className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 block w-full"
                     />
                   </FormControl>
                   <FormMessage />

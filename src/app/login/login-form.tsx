@@ -13,7 +13,7 @@ function GoogleButton() {
     <Button
       type="submit"
       variant="outline"
-      className="w-full border-slate-700 bg-slate-950 hover:bg-slate-800 hover:text-slate-50"
+      className="w-full border-slate-700 bg-surface hover:bg-surface-raised hover:text-slate-50"
       disabled={pending}
     >
       {pending ? (
@@ -33,7 +33,7 @@ export function LoginForm() {
   const error = searchParams.get('error')
 
   return (
-    <Card className="w-full max-w-sm border-slate-800 bg-slate-900 text-slate-50">
+    <Card className="w-full max-w-sm border-slate-800 bg-surface-raised text-slate-50">
       <CardHeader className="space-y-1 text-center">
         <CardTitle className="text-2xl font-bold">Bienvenido</CardTitle>
         <CardDescription className="text-slate-400">

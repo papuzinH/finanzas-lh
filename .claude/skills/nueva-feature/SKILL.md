@@ -38,7 +38,7 @@ lib/schemas/        ← nuevo schema Zod si aplica
 
 ## 5. UI checklist
 - [ ] Shadcn UI (`Card`, `Button`, `Dialog`, etc.) — nunca `<div>` crudo
-- [ ] Dark mode: `bg-slate-950`, acentos `indigo-*` / `violet-*`
+- [ ] Dark mode: `bg-surface`, acentos `indigo-*` / `violet-*`
 - [ ] Mobile-first: empezá con `w-full`, luego `md:w-auto`
 - [ ] Íconos: `lucide-react`, importar solo los necesarios
 

@@ -81,7 +81,7 @@ export default function InversionesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
+    <div className="min-h-screen bg-surface text-slate-50 font-sans pb-24">
       <PageHeader
         title="Inversiones"
         icon={<TrendingUp className="h-5 w-5" />}
@@ -172,8 +172,8 @@ export default function InversionesPage() {
               </div>
 
               {/* Last Update */}
-              <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 md:p-6 flex flex-col justify-center items-center text-center">
-                <RefreshCw className="h-6 w-6 md:h-8 md:w-8 text-slate-600 mb-2" />
+              <div className="rounded-xl border border-slate-800 bg-surface-raised/50 p-4 md:p-6 flex flex-col justify-center items-center text-center">
+                <RefreshCw className="h-6 w-6 md:h-8 md:w-8 text-slate-400 mb-2" />
                 <p className="text-slate-400 text-xs md:text-sm">Última cotización</p>
                 <p className="text-slate-200 font-mono text-xs md:text-sm mt-1">
                   {portfolio.lastUpdate
@@ -196,11 +196,11 @@ export default function InversionesPage() {
               </div>
 
               {/* Assets List */}
-              <div className="lg:col-span-1 border border-slate-800 bg-slate-900/40 rounded-xl p-3 md:p-4 overflow-y-auto max-h-[350px] sm:max-h-[400px] lg:max-h-none">
-                <h3 className="text-xs md:text-sm font-semibold text-slate-300 mb-3 md:mb-4 sticky top-0 bg-slate-900/95 py-2 backdrop-blur-sm flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-slate-500" />
+              <div className="lg:col-span-1 border border-slate-800 bg-surface-raised/40 rounded-xl p-3 md:p-4 overflow-y-auto max-h-[350px] sm:max-h-[400px] lg:max-h-none">
+                <h3 className="text-xs md:text-sm font-semibold text-slate-300 mb-3 md:mb-4 sticky top-0 bg-surface-raised/95 py-2 backdrop-blur-sm flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-slate-400" />
                   Tenencias
-                  <span className="text-[10px] font-normal text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded-full ml-auto">
+                  <span className="text-[10px] font-normal text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-full ml-auto">
                     {portfolio.assets.length}
                   </span>
                 </h3>
@@ -209,7 +209,7 @@ export default function InversionesPage() {
                     const assetCurrency = (asset.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD';
                     return (
                       <StaggeredItem key={asset.id}>
-                        <div className="flex items-center justify-between p-2.5 md:p-3 rounded-lg bg-slate-900 border border-slate-800/60 hover:border-slate-700 transition-colors">
+                        <div className="flex items-center justify-between p-2.5 md:p-3 rounded-lg bg-surface-raised border border-slate-800/60 hover:border-slate-700 transition-colors">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-sm text-slate-200">{asset.ticker}</span>
@@ -221,7 +221,7 @@ export default function InversionesPage() {
                                 {assetCurrency}
                               </span>
                             </div>
-                            <div className="text-[10px] text-slate-500 truncate">{asset.quantity} × {formatTickerCurrency(asset.lastPrice, asset.ticker, asset.currency)}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{asset.quantity} × {formatTickerCurrency(asset.lastPrice, asset.ticker, asset.currency)}</div>
                           </div>
                           <div className="text-right shrink-0 ml-2">
                             <div className="font-mono text-sm font-medium text-slate-200">
@@ -241,10 +241,10 @@ export default function InversionesPage() {
           </>
         ) : (
           /* Empty State */
-          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 text-center">
+          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 text-center">
             <TrendingUp className="h-16 w-16 text-slate-700 mb-4" />
             <h3 className="text-lg font-semibold text-slate-200 mb-2">Empezá a hacer crecer tu plata</h3>
-            <p className="text-sm text-slate-500 max-w-xs mb-6">
+            <p className="text-sm text-slate-400 max-w-xs mb-6">
               Registrá tus activos — acciones, CEDEARs, crypto — y seguí el valor de tu portafolio en tiempo real.
             </p>
             <CreateInvestmentDialog />

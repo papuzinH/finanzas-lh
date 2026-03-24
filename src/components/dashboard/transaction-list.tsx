@@ -47,7 +47,7 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
 
   if (transactions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
+      <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-slate-800 bg-surface-raised/30 text-slate-500">
         <p className="text-sm">No hay movimientos registrados.</p>
       </div>
     );
@@ -66,7 +66,7 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
         <motion.div 
           key={t.id} 
           variants={item}
-          className="group flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-900/40 p-4 transition-all hover:bg-slate-900 hover:border-slate-700"
+          className="group flex items-center justify-between rounded-xl border border-slate-800/60 bg-surface-raised/40 p-4 transition-all hover:bg-surface-raised hover:border-slate-700"
         >
           <div className="flex items-center gap-4">
             <div className={`flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 ${

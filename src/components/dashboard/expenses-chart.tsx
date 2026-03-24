@@ -18,7 +18,7 @@ interface ExpensesChartProps {
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/90 p-2 shadow-xl backdrop-blur-md">
+      <div className="rounded-lg border border-slate-800 bg-surface-raised/90 p-2 shadow-xl backdrop-blur-md">
         <p className="text-xs font-medium text-slate-300">{payload[0].name}</p>
         <p className="font-mono text-sm font-bold text-white">
           {new Intl.NumberFormat('es-AR', {
@@ -37,14 +37,14 @@ const CustomTooltip = ({ active, payload }: any) => {
 export default function ExpensesChart({ data }: ExpensesChartProps) {
   if (data.length === 0) {
     return (
-      <div className="flex h-[300px] w-full items-center justify-center rounded-xl border border-slate-800 bg-slate-900/50 text-slate-500">
+      <div className="flex h-[300px] w-full items-center justify-center rounded-xl border border-slate-800 bg-surface-raised/50 text-slate-400">
         <p className="text-sm">No hay datos de gastos</p>
       </div>
     );
   }
 
   return (
-    <div className="h-[300px] w-full rounded-xl border border-slate-800 bg-slate-900/50 p-4 shadow-sm">
+    <div className="h-[300px] w-full rounded-xl border border-slate-800 bg-surface-raised/50 p-4 shadow-sm" role="img" aria-label={`Gastos por categoría: ${data.map(d => d.name).join(', ')}`}>
       <h3 className="mb-4 text-sm font-medium text-slate-400">Gastos por Categoría</h3>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
@@ -70,7 +70,7 @@ export default function ExpensesChart({ data }: ExpensesChartProps) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             formatter={(value, entry: any) => (
               <span className="text-xs text-slate-400 ml-1">
-                {value} <span className="text-slate-600">({new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(entry.payload.value)})</span>
+                {value} <span className="text-slate-400">({new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(entry.payload.value)})</span>
               </span>
             )}
           />

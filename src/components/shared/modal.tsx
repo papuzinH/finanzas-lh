@@ -32,7 +32,9 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
+        role="dialog"
+        aria-modal="true"
+        className="relative w-full max-w-lg bg-surface-overlay border border-slate-800 rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-slate-800">
@@ -40,7 +42,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
           <button
             onClick={onClose}
             aria-label="Cerrar"
-            className="flex items-center justify-center size-11 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors active:scale-95 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+            className="flex items-center justify-center size-11 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors active:scale-95 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
           >
             <X className="w-5 h-5" />
           </button>
@@ -52,15 +54,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       <div
         className="absolute inset-0 -z-10"
         onClick={onClose}
-        role="button"
-        aria-label="Close modal"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onClose();
-          }
-        }}
+        aria-hidden="true"
       />
     </div>
   );

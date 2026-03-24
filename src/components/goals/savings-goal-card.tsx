@@ -68,7 +68,7 @@ export function SavingsGoalCard({ goal }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
+    <div className="rounded-2xl border border-slate-800 bg-surface-raised/40 p-5 space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">

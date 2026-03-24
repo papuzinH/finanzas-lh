@@ -121,7 +121,7 @@ export function OnboardingFlow() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.1 }}
                   >
-                    <Card className="border-slate-800 bg-slate-900/50">
+                    <Card className="border-slate-800 bg-surface-raised/50">
                       <CardContent className="flex items-center gap-4 p-4">
                         <div className={cn('rounded-xl p-2.5', feat.bg)}>
                           <feat.icon className={cn('h-5 w-5', feat.color)} />
@@ -247,7 +247,7 @@ function SlideWrapper({ children }: { children: React.ReactNode }) {
 
 function SummaryItem({ emoji, label, value }: { emoji: string; label: string; value: string }) {
   return (
-    <Card className="border-slate-800 bg-slate-900/50">
+    <Card className="border-slate-800 bg-surface-raised/50">
       <CardContent className="flex items-center gap-3 p-3">
         <span className="text-xl">{emoji}</span>
         <div>

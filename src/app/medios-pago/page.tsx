@@ -59,7 +59,7 @@ export default function MediosPagoPage() {
 
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
+    <div className="min-h-screen bg-surface text-slate-50 font-sans pb-24">
       <PageHeader
         title="Medios de Pago"
         icon={<Wallet className="h-5 w-5" />}

@@ -22,7 +22,7 @@ const COLORS = [
 export function PortfolioDistribution({ data }: PortfolioDistributionProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="h-full rounded-xl border border-slate-800 bg-slate-900/40 p-3 md:p-4 flex flex-col">
+      <div className="h-full rounded-xl border border-slate-800 bg-surface-raised/40 p-3 md:p-4 flex flex-col">
         <h3 className="text-xs md:text-sm font-semibold text-slate-300 mb-4">Composición</h3>
         <div className="flex-1 flex items-center justify-center text-slate-500 text-xs md:text-sm">
           No hay datos para mostrar
@@ -32,7 +32,7 @@ export function PortfolioDistribution({ data }: PortfolioDistributionProps) {
   }
 
   return (
-    <div className="h-full rounded-xl border border-slate-800 bg-slate-900/40 p-3 md:p-4 flex flex-col">
+    <div className="h-full rounded-xl border border-slate-800 bg-surface-raised/40 p-3 md:p-4 flex flex-col">
       <h3 className="text-xs md:text-sm font-semibold text-slate-300 mb-3 md:mb-4">Composición de Cartera</h3>
       <div className="flex-1 w-full min-h-0">
         <ResponsiveContainer width="100%" height="100%">

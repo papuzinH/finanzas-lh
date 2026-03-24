@@ -69,7 +69,7 @@ export function Loader({
 
 export function FullPageLoader({ text = "Cargando..." }: { text?: string }) {
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-surface/80 backdrop-blur-md">
       <Loader size="xl" text={text} />
     </div>
   );

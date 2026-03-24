@@ -69,7 +69,7 @@ export function DebtSummary() {
   const totalDebt = useFinanceStore((state) => state.computed.totalDebt)
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card className="bg-surface-raised border-slate-800">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-red-500" />

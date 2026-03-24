@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Target } from 'lucide-react'
+import { Loader2, Plus, Target } from 'lucide-react'
 import { toast } from 'sonner'
 import { createSavingsGoal } from '@/app/dashboard/goals/actions'
 import { useFinanceStore } from '@/lib/store/financeStore'
@@ -43,12 +43,11 @@ export function CreateSavingsGoalDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="min-h-[44px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20">
-          <Target className="w-4 h-4 mr-2" />
-          Nueva Meta
+        <Button size="icon" className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
+          <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[480px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[480px] bg-surface-overlay border-slate-800 text-slate-50">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
@@ -66,7 +65,7 @@ export function CreateSavingsGoalDialog() {
                 id="name"
                 name="name"
                 placeholder="Ej: Vacaciones en Brasil, Fondo de emergencia..."
-                className="bg-slate-900 border-slate-800 focus:border-emerald-500/50"
+                className="bg-surface-raised border-slate-800 focus:border-emerald-500/50"
                 required
               />
             </div>
@@ -74,10 +73,10 @@ export function CreateSavingsGoalDialog() {
             <div className="space-y-2">
               <Label className="text-slate-300">Tipo de meta</Label>
               <Select name="type" value={type} onValueChange={(v) => setType(v as 'one_time' | 'monthly')}>
-                <SelectTrigger className="bg-slate-900 border-slate-800">
+                <SelectTrigger className="bg-surface-raised border-slate-800">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800">
+                <SelectContent className="bg-surface-overlay border-slate-800">
                   <SelectItem value="one_time">
                     <div>
                       <div className="font-medium">Meta con fecha límite</div>
@@ -104,17 +103,17 @@ export function CreateSavingsGoalDialog() {
                   min="1"
                   step="0.01"
                   placeholder="500000"
-                  className="bg-slate-900 border-slate-800 focus:border-emerald-500/50"
+                  className="bg-surface-raised border-slate-800 focus:border-emerald-500/50"
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-300">Moneda</Label>
                 <Select name="currency" value={currency} onValueChange={(v) => setCurrency(v as 'ARS' | 'USD')}>
-                  <SelectTrigger className="bg-slate-900 border-slate-800">
+                  <SelectTrigger className="bg-surface-raised border-slate-800">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800">
+                  <SelectContent className="bg-surface-overlay border-slate-800">
                     <SelectItem value="ARS">🇦🇷 ARS</SelectItem>
                     <SelectItem value="USD">🇺🇸 USD</SelectItem>
                   </SelectContent>
@@ -129,7 +128,7 @@ export function CreateSavingsGoalDialog() {
                   id="target_date"
                   name="target_date"
                   type="date"
-                  className="bg-slate-900 border-slate-800 focus:border-emerald-500/50"
+                  className="bg-surface-raised border-slate-800 focus:border-emerald-500/50"
                   required={type === 'one_time'}
                 />
               </div>

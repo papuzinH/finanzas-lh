@@ -15,7 +15,7 @@ export default async function CategoriesPage() {
     .order('name', { ascending: true })
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
+    <div className="min-h-screen bg-surface text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
       <PageHeader
         title="Mis Categorías"
         icon={<Tag className="h-5 w-5" />}

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Loader2, Sparkles, Smile } from 'lucide-react'
+import { Loader2, Plus, Sparkles, Smile } from 'lucide-react'
 import { toast } from 'sonner'
 import { generateCategoryDescription } from '@/app/actions/ai'
 import { createCategory } from '@/app/dashboard/categories/actions'
@@ -79,11 +79,11 @@ export function CreateCategoryDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
-          + Nueva Categoría
+        <Button size="icon" className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
+          <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
@@ -100,12 +100,12 @@ export function CreateCategoryDialog() {
                 <PopoverTrigger asChild>
                   <Button 
                     variant="outline" 
-                    className="w-16 h-16 text-3xl p-0 border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-indigo-500/50 transition-all"
+                    className="w-16 h-16 text-3xl p-0 border-slate-800 bg-surface-raised hover:bg-slate-800 hover:border-indigo-500/50 transition-all"
                   >
                     {emoji}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-64 p-2 bg-slate-900 border-slate-800 shadow-2xl">
+                <PopoverContent className="w-64 p-2 bg-surface-overlay border-slate-800 shadow-2xl">
                   <div className="grid grid-cols-5 gap-1">
                     {COMMON_EMOJIS.map((e) => (
                       <button
@@ -128,7 +128,7 @@ export function CreateCategoryDialog() {
                   value={name} 
                   onChange={e => setName(e.target.value)} 
                   placeholder="Ej: Comida Rápida, Gimnasio..." 
-                  className="bg-slate-900 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20"
+                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20"
                   required
                 />
               </div>
@@ -160,7 +160,7 @@ export function CreateCategoryDialog() {
                   value={description} 
                   onChange={e => setDescription(e.target.value)} 
                   placeholder="Explica qué gastos entran acá..." 
-                  className="bg-slate-900 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 min-h-[100px] resize-none"
+                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 min-h-[100px] resize-none"
                   required
                 />
                 <AnimatePresence>
@@ -169,7 +169,7 @@ export function CreateCategoryDialog() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center rounded-md"
+                      className="absolute inset-0 bg-surface-raised/50 backdrop-blur-[1px] flex items-center justify-center rounded-md"
                     >
                       <div className="flex items-center gap-2 text-indigo-400 font-medium">
                         <Sparkles className="w-4 h-4 animate-pulse" />

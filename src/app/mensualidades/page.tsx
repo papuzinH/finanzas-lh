@@ -28,7 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { EditSubscriptionDialog } from "@/components/subscriptions/edit-subscription-dialog";
 import { ConfirmationModal } from "@/components/shared/confirmation-modal";
-import { FullPageLoader } from '@/components/shared/loader';
+import { SubscriptionsSkeleton } from '@/components/ui/skeletons';
 import { deleteSubscription } from "@/app/dashboard/subscriptions/actions";
 import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
@@ -95,15 +95,15 @@ function SubscriptionCard({ plan }: { plan: any }) {
         className={cn(
           "group relative flex flex-col justify-between rounded-xl border p-4 transition-all",
           plan.is_active 
-            ? "border-slate-800 bg-slate-900/40 hover:bg-slate-900 hover:border-slate-700" 
-            : "border-slate-800/50 bg-slate-900/20 opacity-60 grayscale"
+            ? "border-slate-800 bg-surface-raised/40 hover:bg-surface-raised hover:border-slate-700" 
+            : "border-slate-800/50 bg-surface-raised/20 opacity-60 grayscale"
         )}
       >
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-4">
             <div className={cn(
               "flex h-10 w-10 items-center justify-center rounded-full border border-slate-800",
-              plan.is_active ? "bg-slate-800 text-slate-300 group-hover:text-white" : "bg-slate-900 text-slate-600"
+              plan.is_active ? "bg-slate-800 text-slate-300 group-hover:text-white" : "bg-surface-raised text-slate-400"
             )}>
               {category?.emoji ? <span className="text-lg">{category.emoji}</span> : getServiceIcon(plan.description, category?.name || null)}
             </div>
@@ -125,7 +125,7 @@ function SubscriptionCard({ plan }: { plan: any }) {
             </p>
             <div className="flex items-center justify-end gap-1.5 mt-1">
               <div className={cn("h-1.5 w-1.5 rounded-full", plan.is_active ? "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" : "bg-slate-600")} />
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider">
                   {plan.is_active ? 'Activo' : 'Inactivo'}
               </p>
             </div>
@@ -140,7 +140,7 @@ function SubscriptionCard({ plan }: { plan: any }) {
               <span>{plan.paymentMethodName}</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-600 bg-slate-900/50 px-2 py-1 rounded-md">
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-surface-raised/50 px-2 py-1 rounded-md">
               <CreditCard className="h-3 w-3" />
               <span>Sin asignar</span>
             </div>
@@ -148,11 +148,11 @@ function SubscriptionCard({ plan }: { plan: any }) {
 
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-slate-200 hover:bg-slate-800/50">
+              <Button variant="ghost" size="icon" aria-label="Opciones de suscripción" className="h-6 w-6 min-h-11 min-w-11 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
                 <MoreVertical className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-200">
+            <DropdownMenuContent align="end" className="bg-surface-overlay border-slate-800 text-slate-200">
               <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-slate-800 focus:text-slate-200 cursor-pointer">
                 <Pencil className="mr-2 h-4 w-4" />
                 Editar
@@ -197,7 +197,7 @@ export default function MensualidadesPage() {
   }, [isInitialized, fetchAllData]);
 
   if (isLoading && !isInitialized) {
-    return <FullPageLoader text="Cargando suscripciones..." />;
+    return <SubscriptionsSkeleton />;
   }
 
   // Preparamos los datos combinando planes con sus medios de pago
@@ -212,7 +212,7 @@ export default function MensualidadesPage() {
   const totalMonthlyCost = getMonthlyBurnRate();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
+    <div className="min-h-screen bg-surface text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
       {/* Header */}
       <PageHeader
         title="Suscripciones y Fijos"
@@ -221,11 +221,10 @@ export default function MensualidadesPage() {
       >
         <Button
           onClick={() => setIsCreateOpen(true)}
-          size="sm"
-          className="bg-indigo-600 hover:bg-indigo-700 text-white"
+          size="icon"
+          className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
         >
-          <Plus className="h-4 w-4 mr-1" />
-          Nuevo Gasto Fijo
+          <Plus className="h-4 w-4" />
         </Button>
       </PageHeader>
 
@@ -233,7 +232,7 @@ export default function MensualidadesPage() {
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8">
         {/* Hero Card: Total Monthly Cost */}
-        <div className="mb-8 relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 p-8 shadow-xl backdrop-blur-sm">
+        <div className="mb-8 relative overflow-hidden rounded-2xl border border-slate-800 bg-surface-raised/50 p-8 shadow-xl backdrop-blur-sm">
           <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-purple-500/10 blur-2xl"></div>
           
           <div className="relative z-10 text-center">
@@ -241,7 +240,7 @@ export default function MensualidadesPage() {
             <h2 className="text-3xl md:text-4xl font-bold text-white font-mono tracking-tight">
               {formatCurrency(totalMonthlyCost)}
             </h2>
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-slate-400 mt-2">
               Suma de {plansWithPayment.filter(p => p.is_active).length} servicios activos
             </p>
           </div>
@@ -249,18 +248,18 @@ export default function MensualidadesPage() {
 
         {/* Services Grid */}
         {plansWithPayment.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 text-center">
+          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 text-center">
             <CalendarClock className="h-16 w-16 text-slate-700 mb-4" />
             <h3 className="text-lg font-semibold text-slate-200 mb-2">Registrá tus gastos fijos y suscripciones</h3>
-            <p className="text-sm text-slate-500 max-w-xs mb-6">
+            <p className="text-sm text-slate-400 max-w-xs mb-6">
               Netflix, alquiler, gimnasio... sumá tus gastos recurrentes y sabé de antemano cuánto se te va cada mes.
             </p>
             <Button
               onClick={() => setIsCreateOpen(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              size="icon"
+              className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo Gasto Fijo
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
         ) : (

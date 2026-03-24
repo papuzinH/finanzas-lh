@@ -132,7 +132,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
 
   const cardInner = (
     <div className={cn(
-      "group relative flex items-center justify-between rounded-xl border border-slate-800/40 bg-slate-900/20 p-3 transition-all hover:bg-slate-900/60 hover:border-slate-700 hover:shadow-lg hover:shadow-black/20",
+      "group relative flex items-center justify-between rounded-xl border border-slate-800/40 bg-surface-raised/20 p-3 transition-all hover:bg-surface-raised/60 hover:border-slate-700 hover:shadow-lg hover:shadow-black/20",
       !canSwipe && "pr-10"
     )}>
       {/* Left: Icon & Info */}
@@ -157,7 +157,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
                 {paymentMethodName}
               </span>
             )}
-            {paymentMethodName && <span className="text-slate-500">•</span>}
+            {paymentMethodName && <span className="text-slate-400">•</span>}
             <span className="capitalize">{category?.name || 'Varios'}</span>
           </div>
         </div>
@@ -197,7 +197,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-200">
+            <DropdownMenuContent align="end" className="bg-surface-overlay border-slate-800 text-slate-200">
               {transaction.installment_plan_id ? (
                 <DropdownMenuItem disabled className="text-slate-500 cursor-not-allowed opacity-50">
                   <span className="text-xs">Gestionar en Cuotas</span>

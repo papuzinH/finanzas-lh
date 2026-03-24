@@ -70,7 +70,7 @@ export function DeletePaymentMethodDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
         <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
           <DialogTitle className="text-xl font-bold text-rose-400">
             Eliminar medio de pago
@@ -106,10 +106,10 @@ export function DeletePaymentMethodDialog({
                   Reasignar todos los datos a otro medio de pago:
                 </p>
                 <Select value={reassignTo} onValueChange={setReassignTo}>
-                  <SelectTrigger className="bg-slate-900 border-slate-800">
+                  <SelectTrigger className="bg-surface-raised border-slate-800">
                     <SelectValue placeholder="Seleccionar medio de pago" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800">
+                  <SelectContent className="bg-surface-overlay border-slate-800">
                     <SelectItem value="none" className="focus:bg-slate-800 text-slate-500">
                       Seleccioná un medio de pago...
                     </SelectItem>

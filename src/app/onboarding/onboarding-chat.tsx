@@ -109,7 +109,7 @@ export function OnboardingChat({ onComplete }: OnboardingChatProps) {
   }
 
   return (
-    <div className="flex flex-col rounded-xl border border-slate-800 bg-slate-900/50 backdrop-blur-sm overflow-hidden"
+    <div className="flex flex-col rounded-xl border border-slate-800 bg-surface-raised/50 backdrop-blur-sm overflow-hidden"
       style={{ height: 'min(480px, 60vh)' }}
     >
       {/* Messages area */}
@@ -126,7 +126,7 @@ export function OnboardingChat({ onComplete }: OnboardingChatProps) {
       {/* Input area */}
       <form
         onSubmit={handleSubmit}
-        className="border-t border-slate-800 p-3 bg-slate-950/80 flex gap-2"
+        className="border-t border-slate-800 p-3 bg-surface/80 flex gap-2"
       >
         <input
           ref={inputRef}
@@ -142,7 +142,7 @@ export function OnboardingChat({ onComplete }: OnboardingChatProps) {
                 : 'Escribí tu respuesta...'
           }
           className={cn(
-            'flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100',
+            'flex-1 bg-surface-raised border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100',
             'placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500',
             'disabled:opacity-50 transition-colors',
             isListening && transcript && 'text-slate-300 italic'

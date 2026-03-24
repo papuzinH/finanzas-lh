@@ -11,7 +11,7 @@ Revisá y mejorá la experiencia de usuario del componente o sección indicada, 
 ## 1. Diagnóstico primero
 Antes de tocar código, listá los problemas encontrados en el archivo objetivo:
 - Botones con área de toque < 44x44px (mínimo WCAG para mobile)
-- Textos con bajo contraste sobre `bg-slate-950`
+- Textos con bajo contraste sobre `bg-surface`
 - Elementos interactivos sin estado `hover:`, `focus:`, `active:` o `disabled:`
 - Formularios sin labels visibles o sin mensajes de error accesibles
 - Íconos sin texto alternativo o `aria-label`
@@ -63,8 +63,8 @@ Antes de tocar código, listá los problemas encontrados en el archivo objetivo:
 ## 4. Paleta dark mode Chanchito
 | Uso | Clase |
 |-----|-------|
-| Fondo base | `bg-slate-950` |
-| Fondo card | `bg-slate-900` |
+| Fondo base | `bg-surface` |
+| Fondo card | `bg-surface-raised` |
 | Hover sutil | `hover:bg-slate-800` |
 | Texto principal | `text-slate-50` |
 | Texto secundario | `text-slate-400` |

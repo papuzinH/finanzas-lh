@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Wallet } from 'lucide-react'
+import { Loader2, Plus, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { createCategoryBudget } from '@/app/dashboard/goals/actions'
 import { useFinanceStore } from '@/lib/store/financeStore'
@@ -56,12 +56,11 @@ export function CreateBudgetDialog({ categories }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
-          <Wallet className="w-4 h-4 mr-2" />
-          Nuevo Presupuesto
+        <Button size="icon" className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
+          <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[440px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="sm:max-w-[440px] bg-surface-overlay border-slate-800 text-slate-50">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
@@ -79,10 +78,10 @@ export function CreateBudgetDialog({ categories }: Props) {
                 <p className="text-sm text-slate-500 italic">Todas las categorías ya tienen presupuesto asignado.</p>
               ) : (
                 <Select name="category_id" value={categoryId} onValueChange={setCategoryId} required>
-                  <SelectTrigger className="bg-slate-900 border-slate-800">
+                  <SelectTrigger className="bg-surface-raised border-slate-800">
                     <SelectValue placeholder="Elegí una categoría..." />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800 max-h-60">
+                  <SelectContent className="bg-surface-overlay border-slate-800 max-h-60">
                     {availableCategories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         {cat.emoji} {cat.name}
@@ -103,17 +102,17 @@ export function CreateBudgetDialog({ categories }: Props) {
                   min="1"
                   step="0.01"
                   placeholder="80000"
-                  className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-300">Moneda</Label>
                 <Select name="currency" value={currency} onValueChange={(v) => setCurrency(v as 'ARS' | 'USD')}>
-                  <SelectTrigger className="bg-slate-900 border-slate-800">
+                  <SelectTrigger className="bg-surface-raised border-slate-800">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800">
+                  <SelectContent className="bg-surface-overlay border-slate-800">
                     <SelectItem value="ARS">🇦🇷 ARS</SelectItem>
                     <SelectItem value="USD">🇺🇸 USD</SelectItem>
                   </SelectContent>

@@ -36,6 +36,7 @@ export function TrendChart() {
   const data = getMonthlyTrend(6);
 
   return (
+    <div role="img" aria-label="Tendencia de ingresos vs gastos de los últimos 6 meses">
     <ResponsiveContainer width="100%" height={200}>
       <AreaChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
         <defs>
@@ -78,5 +79,6 @@ export function TrendChart() {
         />
       </AreaChart>
     </ResponsiveContainer>
+    </div>
   );
 }

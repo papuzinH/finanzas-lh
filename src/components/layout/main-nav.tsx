@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
@@ -14,6 +14,7 @@ import {
   Target,
   Menu,
   X,
+  User,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
@@ -33,7 +34,7 @@ const navItems = [
 const PRIMARY_NAV_ITEMS = navItems.slice(0, 4);
 const SECONDARY_NAV_ITEMS = navItems.slice(4);
 
-export function MainNav() {
+export function MainNav({ onOpenProfile }: { onOpenProfile?: () => void }) {
   const pathname = usePathname();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
@@ -73,6 +74,7 @@ export function MainNav() {
               transition={{ duration: 0.2 }}
               className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
               onClick={() => setIsMoreOpen(false)}
+              aria-hidden="true"
             />
           )}
         </AnimatePresence>
@@ -89,14 +91,14 @@ export function MainNav() {
             >
               <div className="mx-3 mb-2 rounded-2xl border border-slate-800 bg-[var(--surface-overlay)]/95 backdrop-blur-xl shadow-2xl shadow-black/40 overflow-hidden">
                 <div className="px-4 pt-4 pb-2 border-b border-slate-800/50">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Más opciones</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Más opciones</p>
                 </div>
                 <div className="p-2">
                   {SECONDARY_NAV_ITEMS.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href;
                     return (
-                      <Link key={item.href} href={item.href} onClick={() => setIsMoreOpen(false)}>
+                      <Link key={item.href} href={item.href} onClick={() => setIsMoreOpen(false)} data-tour={item.href === '/objetivos' ? 'nav-objetivos' : undefined}>
                         <motion.div
                           whileTap={{ scale: 0.97 }}
                           className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors ${
@@ -114,6 +116,18 @@ export function MainNav() {
                       </Link>
                     );
                   })}
+                  {/* Separador + item Perfil */}
+                  <div className="mx-4 my-1 border-t border-slate-800/50" />
+                  <button
+                    onClick={() => {
+                      onOpenProfile?.();
+                      setIsMoreOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-3.5 rounded-xl transition-colors text-slate-300 active:bg-slate-800"
+                  >
+                    <User className="h-5 w-5" />
+                    <span className="text-sm font-medium">Perfil</span>
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -127,7 +141,7 @@ export function MainNav() {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
-                <Link key={item.href} href={item.href} className="flex-1" onClick={() => setIsMoreOpen(false)}>
+                <Link key={item.href} href={item.href} className="flex-1" onClick={() => setIsMoreOpen(false)} data-tour={item.href === '/medios-pago' ? 'nav-billetera' : undefined}>
                   <motion.div
                     whileTap={{ scale: 0.85 }}
                     className="flex flex-col items-center justify-center gap-0.5 py-1.5 relative"
@@ -154,8 +168,11 @@ export function MainNav() {
 
             {/* Botón "Más" */}
             <button 
+              data-tour="nav-mas"
               onClick={() => setIsMoreOpen(!isMoreOpen)} 
               className="flex-1"
+              aria-label={isMoreOpen ? "Cerrar menú" : "Más opciones"}
+              aria-expanded={isMoreOpen}
             >
               <motion.div
                 whileTap={{ scale: 0.85 }}
@@ -217,14 +234,14 @@ export function MainNav() {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
-              <Link key={item.href} href={item.href} className="block">
+              <Link key={item.href} href={item.href} className="block" data-tour={item.href === '/medios-pago' ? 'nav-billetera' : item.href === '/objetivos' ? 'nav-objetivos' : undefined}>
                 <motion.div
                   whileHover={{ x: 4 }}
                   whileTap={{ scale: 0.98 }}
                   className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-emerald-500/10 text-emerald-500'
-                      : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                      : 'text-slate-400 hover:bg-surface-raised hover:text-slate-200'
                   }`}
                 >
                   <Icon className="h-5 w-5" />

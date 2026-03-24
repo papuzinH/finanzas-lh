@@ -36,11 +36,14 @@ export function ChatWidget() {
     <>
       {/* FAB Button */}
       <motion.button
+        data-tour="fab"
         onClick={toggleChat}
+        aria-label={isOpen ? "Cerrar chat" : "Abrir chat"}
         className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50
                    bg-indigo-600 hover:bg-indigo-500 text-white
                    rounded-full w-14 h-14 flex items-center justify-center
-                   shadow-lg shadow-indigo-600/25 transition-colors"
+                   shadow-lg shadow-indigo-600/25 transition-colors
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         whileTap={{ scale: 0.9 }}
         whileHover={{ scale: 1.05 }}
       >
@@ -102,7 +105,8 @@ export function ChatWidget() {
                 </div>
                 <button
                   onClick={toggleChat}
-                  className="md:hidden p-2 text-slate-400 hover:text-slate-100 transition-colors"
+                  aria-label="Cerrar chat"
+                  className="md:hidden p-2 min-h-11 min-w-11 flex items-center justify-center text-slate-400 hover:text-slate-100 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 >
                   <X className="w-5 h-5" />
                 </button>

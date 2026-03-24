@@ -32,9 +32,9 @@ export default function ObjetivosPage() {
   const warningCount = budgetStatuses.filter((s) => s.status === 'warning').length
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 pb-24">
+    <div className="min-h-screen bg-surface text-slate-50 pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-slate-800 bg-surface/80 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-4">
           <h1 className="text-xl font-bold tracking-tight text-white">Objetivos</h1>
           <p className="text-sm text-slate-400 mt-0.5">Metas de ahorro y presupuestos mensuales</p>
@@ -63,7 +63,7 @@ export default function ObjetivosPage() {
           </div>
 
           {activeGoals.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 py-16 text-center">
+            <div className="rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 py-16 text-center">
               <PiggyBank className="h-16 w-16 text-slate-700 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-slate-200 mb-2">Ponele un objetivo a tu ahorro</h3>
               <p className="text-slate-500 text-sm max-w-xs mx-auto mb-6">
@@ -127,7 +127,7 @@ export default function ObjetivosPage() {
           </div>
 
           {activeBudgets.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 py-16 text-center">
+            <div className="rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 py-16 text-center">
               <Wallet className="h-16 w-16 text-slate-700 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-slate-200 mb-2">Controlá en qué gastás tu plata</h3>
               <p className="text-slate-500 text-sm max-w-xs mx-auto mb-6">

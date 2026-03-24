@@ -14,7 +14,8 @@ import {
   Info,
   ShoppingBag,
   DollarSign,
-  Flame
+  Flame,
+  Plus
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
@@ -30,6 +31,7 @@ import { BudgetOverviewStrip } from '@/components/goals/budget-overview-strip';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import { CategoryComparison } from '@/components/dashboard/category-comparison';
 import { InsightsCarousel } from '@/components/dashboard/insights-carousel';
+import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
 
@@ -38,6 +40,7 @@ export default function DashboardPage() {
   const [isFixedCostsModalOpen, setIsFixedCostsModalOpen] = useState(false);
   const [isGlobalExpensesModalOpen, setIsGlobalExpensesModalOpen] = useState(false);
   const [isMonthlyExpensesModalOpen, setIsMonthlyExpensesModalOpen] = useState(false);
+  const [isCreateTxOpen, setIsCreateTxOpen] = useState(false);
 
   // Conectamos con el Store Global
   const { 
@@ -102,7 +105,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[var(--surface)] text-slate-50 font-sans pb-24">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-slate-800 bg-[var(--surface)]/80 backdrop-blur-md">
-        <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-4 flex justify-between items-center">
+        <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold tracking-tight text-white">Hola, {user?.first_name || 'Usuario'} 👋</h1>
             {streak.days > 0 && (
@@ -123,7 +126,13 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-          <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700" />
+          <button
+            onClick={() => setIsCreateTxOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+            aria-label="Nueva transacción"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
       </header>
 
@@ -135,13 +144,15 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
           {/* Expandible Balance Card */}
-          <BalanceCard
-            globalBalance={globalBalance}
-            monthlyIncome={monthlyIncome}
-            monthlyExpenses={monthlyVariableExpenses}
-            installments={currentMonthInstallments}
-            burnRate={monthlyBurnRate}
-          />
+          <div data-tour="balance-card" className="col-span-2 lg:col-span-4">
+            <BalanceCard
+              globalBalance={globalBalance}
+              monthlyIncome={monthlyIncome}
+              monthlyExpenses={monthlyVariableExpenses}
+              installments={currentMonthInstallments}
+              burnRate={monthlyBurnRate}
+            />
+          </div>
 
           {/* Insights Carousel */}
           <div className="col-span-2 lg:col-span-4">
@@ -202,7 +213,7 @@ export default function DashboardPage() {
 
         {/* Separador: Análisis */}
         <div className="flex items-center gap-2 mt-8 mb-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Análisis</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Análisis</h2>
           <div className="flex-1 h-px bg-slate-800" />
         </div>
 
@@ -213,7 +224,7 @@ export default function DashboardPage() {
           <div className="col-span-full rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-slate-500" />
+                <TrendingUp className="w-4 h-4 text-slate-400" />
                 Tendencia Ingreso vs Gasto
               </h3>
               <div className="flex items-center gap-3 text-[10px] text-slate-400">
@@ -231,7 +242,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-slate-500" />
+                <TrendingUp className="w-4 h-4 text-slate-400" />
                 Gastos Globales
               </h3>
             </div>
@@ -280,7 +291,7 @@ export default function DashboardPage() {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                <PieChartIcon className="w-4 h-4 text-slate-500" />
+                <PieChartIcon className="w-4 h-4 text-slate-400" />
                 Gastos este Mes
               </h3>
             </div>
@@ -322,7 +333,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <div className="h-40 flex items-center justify-center text-xs text-slate-500 italic">
+              <div className="h-40 flex items-center justify-center text-xs text-slate-400 italic">
                 Sin gastos este mes
               </div>
             )}
@@ -337,7 +348,7 @@ export default function DashboardPage() {
 
         {/* Separador: Últimos movimientos */}
         <div className="flex items-center gap-2 mt-8 mb-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Últimos movimientos</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Últimos movimientos</h2>
           <div className="flex-1 h-px bg-slate-800" />
           <Link href="/movimientos" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">Ver todos</Link>
         </div>
@@ -384,7 +395,7 @@ export default function DashboardPage() {
               );
             })
           ) : (
-            <p className="text-slate-500 text-center py-4">No hay cuotas para este mes.</p>
+            <p className="text-slate-400 text-center py-4">No hay cuotas para este mes.</p>
           )}
         </div>
       </Modal>
@@ -419,7 +430,7 @@ export default function DashboardPage() {
               );
             })
           ) : (
-            <p className="text-slate-500 text-center py-4">No hay gastos fijos activos.</p>
+            <p className="text-slate-400 text-center py-4">No hay gastos fijos activos.</p>
           )}
         </div>
       </Modal>
@@ -453,7 +464,7 @@ export default function DashboardPage() {
                     }} 
                   />
                 </div>
-                <p className="text-[10px] text-right text-slate-500">{item.percentage.toFixed(1)}% del total</p>
+                <p className="text-[10px] text-right text-slate-400">{item.percentage.toFixed(1)}% del total</p>
               </div>
             ))}
           </div>
@@ -490,15 +501,16 @@ export default function DashboardPage() {
                       }} 
                     />
                   </div>
-                  <p className="text-[10px] text-right text-slate-500">{item.percentage.toFixed(1)}% del total</p>
+                  <p className="text-[10px] text-right text-slate-400">{item.percentage.toFixed(1)}% del total</p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-slate-500 text-center py-4 italic">No hay gastos registrados este mes.</p>
+            <p className="text-slate-400 text-center py-4 italic">No hay gastos registrados este mes.</p>
           )}
         </div>
       </Modal>
+      <CreateTransactionDialog open={isCreateTxOpen} onOpenChange={setIsCreateTxOpen} />
     </div>
   );
 

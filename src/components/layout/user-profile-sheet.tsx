@@ -23,9 +23,13 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-export function UserProfileSheet() {
+interface UserProfileSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function UserProfileSheet({ open, onOpenChange }: UserProfileSheetProps) {
   const { user, authEmail, authAvatarUrl } = useFinanceStore();
-  const [open, setOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const createdAt = user?.created_at
@@ -41,8 +45,8 @@ export function UserProfileSheet() {
     <>
       {/* Botón avatar fijo en la esquina superior derecha */}
       <button
-        onClick={() => setOpen(true)}
-        className="fixed top-3 right-3 z-50 flex h-11 w-11 items-center justify-center rounded-full ring-2 ring-slate-700 hover:ring-emerald-500/60 transition-all focus-visible:outline-none focus-visible:ring-indigo-500"
+        onClick={() => onOpenChange(true)}
+        className="fixed top-3 right-3 z-50 hidden md:flex h-11 w-11 items-center justify-center rounded-full ring-2 ring-slate-700 hover:ring-emerald-500/60 transition-all focus-visible:outline-none focus-visible:ring-indigo-500"
         aria-label="Abrir perfil"
       >
         {authAvatarUrl ? (
@@ -61,7 +65,7 @@ export function UserProfileSheet() {
       </button>
 
       {/* Panel lateral desde la derecha */}
-      <Sheet open={open} onOpenChange={setOpen}>
+      <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
           className="w-80 border-slate-800 bg-[var(--surface)] text-slate-50 p-0 overflow-y-auto"
@@ -102,27 +106,27 @@ export function UserProfileSheet() {
               <CardContent className="space-y-4">
                 {authEmail && (
                   <div className="flex items-center gap-3">
-                    <Mail className="h-4 w-4 text-slate-500 shrink-0" />
+                    <Mail className="h-4 w-4 text-slate-400 shrink-0" />
                     <div>
-                      <p className="text-xs text-slate-500">Email</p>
+                      <p className="text-xs text-slate-400">Email</p>
                       <p className="text-sm text-slate-200 break-all">{authEmail}</p>
                     </div>
                   </div>
                 )}
 
                 <div className="flex items-center gap-3">
-                  <ShieldCheck className="h-4 w-4 text-slate-500 shrink-0" />
+                  <ShieldCheck className="h-4 w-4 text-slate-400 shrink-0" />
                   <div>
-                    <p className="text-xs text-slate-500">Autenticación</p>
+                    <p className="text-xs text-slate-400">Autenticación</p>
                     <p className="text-sm text-slate-200">Google OAuth</p>
                   </div>
                 </div>
 
                 {user?.telegram_chat_id && (
                   <div className="flex items-center gap-3">
-                    <MessageCircle className="h-4 w-4 text-slate-500 shrink-0" />
+                    <MessageCircle className="h-4 w-4 text-slate-400 shrink-0" />
                     <div>
-                      <p className="text-xs text-slate-500">Telegram Chat ID</p>
+                      <p className="text-xs text-slate-400">Telegram Chat ID</p>
                       <p className="text-sm text-slate-200">{user.telegram_chat_id}</p>
                     </div>
                   </div>
@@ -130,9 +134,9 @@ export function UserProfileSheet() {
 
                 {createdAt && (
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-slate-500 shrink-0" />
+                    <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
                     <div>
-                      <p className="text-xs text-slate-500">Miembro desde</p>
+                      <p className="text-xs text-slate-400">Miembro desde</p>
                       <p className="text-sm text-slate-200">{createdAt}</p>
                     </div>
                   </div>

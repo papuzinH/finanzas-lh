@@ -36,7 +36,7 @@ export function ConfirmationModal({
 }: ConfirmationModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-slate-900 border-slate-800 text-slate-200">
+      <DialogContent className="sm:max-w-[425px] bg-surface-overlay border-slate-800 text-slate-200">
         <DialogHeader>
           <DialogTitle className="text-white">{title}</DialogTitle>
           <DialogDescription className="text-slate-400">

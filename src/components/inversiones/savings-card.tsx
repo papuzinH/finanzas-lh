@@ -112,13 +112,13 @@ export function SavingsCard() {
       {savings.length > 0 && (
         <div className="mt-4 max-h-32 overflow-y-auto space-y-1.5 pr-1">
           {savings.map(s => (
-            <div key={s.id} className="flex items-center justify-between text-xs bg-slate-900/50 rounded-lg px-3 py-1.5 group">
+            <div key={s.id} className="flex items-center justify-between text-xs bg-surface-raised/50 rounded-lg px-3 py-1.5 group">
               <div className="flex items-center gap-2">
                 <DollarSign className="w-3 h-3 text-amber-500/50" />
                 <span className="text-slate-300 font-mono">
                   {formatCurrency(Number(s.amount), s.currency)}
                 </span>
-                <span className="text-slate-600">
+                <span className="text-slate-400">
                   {new Date(s.date).toLocaleDateString('es-AR')}
                 </span>
               </div>
@@ -147,7 +147,7 @@ export function SavingsCard() {
               Sumar ahorro
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[400px] bg-slate-950 border-slate-800 text-slate-50">
+          <DialogContent className="sm:max-w-[400px] bg-surface-overlay border-slate-800 text-slate-50">
             <form onSubmit={handleAdd}>
               <DialogHeader>
                 <DialogTitle className="text-lg font-bold text-amber-300">
@@ -166,7 +166,7 @@ export function SavingsCard() {
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
                     placeholder="10000"
-                    className="bg-slate-900 border-slate-800 focus:border-amber-500/50 text-lg font-mono"
+                    className="bg-surface-raised border-slate-800 focus:border-amber-500/50 text-lg font-mono"
                     autoFocus
                     required
                   />
@@ -174,10 +174,10 @@ export function SavingsCard() {
                 <div>
                   <Label className="text-slate-300 mb-2 block">Moneda</Label>
                   <Select value={currency} onValueChange={v => setCurrency(v as 'ARS' | 'USD')}>
-                    <SelectTrigger className="bg-slate-900 border-slate-800">
+                    <SelectTrigger className="bg-surface-raised border-slate-800">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-800">
+                    <SelectContent className="bg-surface-overlay border-slate-800">
                       <SelectItem value="ARS" className="focus:bg-slate-800">ARS</SelectItem>
                       <SelectItem value="USD" className="focus:bg-slate-800">USD</SelectItem>
                     </SelectContent>

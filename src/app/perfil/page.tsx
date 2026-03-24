@@ -46,9 +46,9 @@ export default function PerfilPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 pb-24">
+    <div className="min-h-screen bg-surface text-slate-50 pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-slate-800 bg-surface/80 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-4">
           <h1 className="text-xl font-bold tracking-tight text-white">Mi perfil</h1>
         </div>
@@ -79,34 +79,34 @@ export default function PerfilPage() {
         </div>
 
         {/* Info de la cuenta */}
-        <Card className="border-slate-800 bg-slate-900">
+        <Card className="border-slate-800 bg-surface-raised">
           <CardHeader>
             <CardTitle className="text-base text-slate-200">Información de la cuenta</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {authEmail && (
               <div className="flex items-center gap-3">
-                <Mail className="h-5 w-5 text-slate-500" />
+                <Mail className="h-5 w-5 text-slate-400" />
                 <div>
-                  <p className="text-xs text-slate-500">Email</p>
+                  <p className="text-xs text-slate-400">Email</p>
                   <p className="text-sm text-slate-200">{authEmail}</p>
                 </div>
               </div>
             )}
 
             <div className="flex items-center gap-3">
-              <ShieldCheck className="h-5 w-5 text-slate-500" />
+              <ShieldCheck className="h-5 w-5 text-slate-400" />
               <div>
-                <p className="text-xs text-slate-500">Autenticación</p>
+                <p className="text-xs text-slate-400">Autenticación</p>
                 <p className="text-sm text-slate-200">Google OAuth</p>
               </div>
             </div>
 
             {user?.telegram_chat_id && (
               <div className="flex items-center gap-3">
-                <MessageCircle className="h-5 w-5 text-slate-500" />
+                <MessageCircle className="h-5 w-5 text-slate-400" />
                 <div>
-                  <p className="text-xs text-slate-500">Telegram Chat ID</p>
+                  <p className="text-xs text-slate-400">Telegram Chat ID</p>
                   <p className="text-sm text-slate-200">{user.telegram_chat_id}</p>
                 </div>
               </div>
@@ -114,9 +114,9 @@ export default function PerfilPage() {
 
             {createdAt && (
               <div className="flex items-center gap-3">
-                <Calendar className="h-5 w-5 text-slate-500" />
+                <Calendar className="h-5 w-5 text-slate-400" />
                 <div>
-                  <p className="text-xs text-slate-500">Miembro desde</p>
+                  <p className="text-xs text-slate-400">Miembro desde</p>
                   <p className="text-sm text-slate-200">{createdAt}</p>
                 </div>
               </div>

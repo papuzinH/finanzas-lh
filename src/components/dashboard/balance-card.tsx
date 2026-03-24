@@ -146,7 +146,7 @@ export function BalanceCard({
       : "text-emerald-400"
 
   return (
-    <div className="col-span-2 lg:col-span-4">
+    <div>
       <motion.div
         className="card-elevated rounded-2xl bg-[var(--surface-raised)] border border-slate-800 overflow-hidden cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         onClick={() => setExpanded(!expanded)}
@@ -170,7 +170,7 @@ export function BalanceCard({
                   animate={{ rotate: expanded ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                  <ChevronDown className="h-4 w-4 text-slate-400" aria-hidden="true" />
                 </motion.div>
               </div>
 

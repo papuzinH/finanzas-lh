@@ -75,12 +75,11 @@ export function CreatePaymentMethodDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
-          <Plus className="w-4 h-4 mr-2" />
-          Nuevo Medio
+        <Button size="icon" className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
+          <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
         <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
           <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
             Nuevo Medio de Pago
@@ -102,7 +101,7 @@ export function CreatePaymentMethodDialog() {
                   <FormControl>
                     <Input
                       placeholder="Ej: Visa BBVA, Mercado Pago..."
-                      className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                      className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                       {...field}
                     />
                   </FormControl>
@@ -119,11 +118,11 @@ export function CreatePaymentMethodDialog() {
                   <FormLabel className="text-slate-300">Tipo</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
-                      <SelectTrigger className="bg-slate-900 border-slate-800">
+                      <SelectTrigger className="bg-surface-raised border-slate-800">
                         <SelectValue placeholder="Seleccionar tipo" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent className="bg-slate-900 border-slate-800">
+                    <SelectContent className="bg-surface-overlay border-slate-800">
                       {PAYMENT_TYPES.map(t => (
                         <SelectItem key={t.value} value={t.value} className="focus:bg-slate-800">
                           {t.label}
@@ -150,7 +149,7 @@ export function CreatePaymentMethodDialog() {
                           min="1"
                           max="31"
                           placeholder="Ej: 15"
-                          className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                          className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                           {...field}
                           value={field.value ?? ''}
                           onChange={(e) => {
@@ -175,7 +174,7 @@ export function CreatePaymentMethodDialog() {
                           min="1"
                           max="31"
                           placeholder="Ej: 5"
-                          className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                          className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                           {...field}
                           value={field.value ?? ''}
                           onChange={(e) => {
@@ -192,7 +191,7 @@ export function CreatePaymentMethodDialog() {
             )}
 
             {form.watch('type') === 'credit' && (
-              <div className="rounded-lg bg-slate-900/50 px-3 py-2 border border-slate-800">
+              <div className="rounded-lg bg-surface-raised/50 px-3 py-2 border border-slate-800">
                 <FormDescription className="text-[11px] text-slate-400">
                   Día de cierre: cuando tu tarjeta cierra el período (ej: 24).
                   Día de vencimiento: cuando debés pagar (ej: 6 del mes siguiente).
@@ -204,7 +203,7 @@ export function CreatePaymentMethodDialog() {
               control={form.control}
               name="is_personal"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/50 px-4 py-3">
+                <FormItem className="flex items-center justify-between rounded-lg border border-slate-800 bg-surface-raised/50 px-4 py-3">
                   <div>
                     <FormLabel className="text-slate-300">Es personal / informal</FormLabel>
                     <FormDescription className="text-[11px] text-slate-500 mt-0.5">

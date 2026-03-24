@@ -170,7 +170,8 @@ export function CategoryCardActions({ category, allCategories }: Props) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-slate-500 hover:text-slate-200 hover:bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label="Opciones de categoría"
+            className="h-7 w-7 min-h-11 min-w-11 text-slate-400 hover:text-slate-200 hover:bg-slate-800 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
             onClick={(e) => e.preventDefault()}
           >
             {isWorking ? (
@@ -182,7 +183,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"
-          className="bg-slate-900 border-slate-800 text-slate-200"
+          className="bg-surface-raised border-slate-800 text-slate-200"
         >
           <DropdownMenuItem
             className="gap-2 cursor-pointer hover:bg-slate-800 focus:bg-slate-800"
@@ -205,7 +206,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
 
       {/* ── Edit dialog ── */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
           <form onSubmit={handleEditSubmit}>
             <DialogHeader>
               <DialogTitle className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
@@ -222,19 +223,20 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-16 h-16 text-3xl p-0 border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-indigo-500/50 transition-all"
+                      className="w-16 h-16 text-3xl p-0 border-slate-800 bg-surface-raised hover:bg-slate-800 hover:border-indigo-500/50 transition-all"
                     >
                       {editEmoji}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-64 p-2 bg-slate-900 border-slate-800 shadow-2xl">
+                  <PopoverContent className="w-64 p-2 bg-surface-overlay border-slate-800 shadow-2xl">
                     <div className="grid grid-cols-5 gap-1">
                       {COMMON_EMOJIS.map((e) => (
                         <button
                           key={e}
                           type="button"
                           onClick={() => setEditEmoji(e)}
-                          className="w-10 h-10 flex items-center justify-center text-xl hover:bg-slate-800 rounded-md transition-colors"
+                          aria-label={`Seleccionar emoji ${e}`}
+                          className="w-10 h-10 min-h-11 min-w-11 flex items-center justify-center text-xl hover:bg-slate-800 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                         >
                           {e}
                         </button>
@@ -249,7 +251,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                     id="edit-name"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="bg-slate-900 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20"
+                    className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20"
                     required
                   />
                 </div>
@@ -281,7 +283,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
                     placeholder="Explica qué gastos entran acá..."
-                    className="bg-slate-900 border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 min-h-[100px] resize-none"
+                    className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 focus:ring-indigo-500/20 min-h-[100px] resize-none"
                   />
                   <AnimatePresence>
                     {generatingAi && (
@@ -289,7 +291,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center rounded-md"
+                        className="absolute inset-0 bg-surface-raised/50 backdrop-blur-[1px] flex items-center justify-center rounded-md"
                       >
                         <div className="flex items-center gap-2 text-indigo-400 font-medium">
                           <Sparkles className="w-4 h-4 animate-pulse" />
@@ -335,7 +337,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
         open={deleteState.step === 'confirm-simple'}
         onOpenChange={(open) => !open && setDeleteState({ step: 'idle' })}
       >
-        <AlertDialogContent className="bg-slate-950 border-slate-800 text-slate-50">
+        <AlertDialogContent className="bg-surface-overlay border-slate-800 text-slate-50">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar "{category.name}"?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
@@ -361,7 +363,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
         open={deleteState.step === 'resolve-conflict' || deleteState.step === 'working'}
         onOpenChange={(open) => !open && deleteState.step !== 'working' && setDeleteState({ step: 'idle' })}
       >
-        <DialogContent className="sm:max-w-[480px] bg-slate-950 border-slate-800 text-slate-50">
+        <DialogContent className="sm:max-w-[480px] bg-surface-overlay border-slate-800 text-slate-50">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-400" />
@@ -381,14 +383,14 @@ export function CategoryCardActions({ category, allCategories }: Props) {
 
           <div className="space-y-4 py-2">
             {/* Option 1: Reassign */}
-            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 space-y-3">
+            <div className="rounded-xl border border-slate-800 bg-surface-raised/50 p-4 space-y-3">
               <p className="text-sm font-medium text-slate-200">Opción 1 — Reasignar a otra categoría</p>
-              <p className="text-xs text-slate-500">Todos los elementos pasarán a la categoría que elijas.</p>
+              <p className="text-xs text-slate-400">Todos los elementos pasarán a la categoría que elijas.</p>
               <Select value={reassignTo} onValueChange={setReassignTo}>
-                <SelectTrigger className="bg-slate-900 border-slate-700 text-slate-200">
+                <SelectTrigger className="bg-surface-raised border-slate-700 text-slate-200">
                   <SelectValue placeholder="Elegí una categoría..." />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
                   {otherCategories.map((c) => (
                     <SelectItem key={c.id} value={c.id} className="focus:bg-slate-800 focus:text-slate-100">
                       {c.emoji} {c.name}
@@ -410,9 +412,9 @@ export function CategoryCardActions({ category, allCategories }: Props) {
             </div>
 
             {/* Option 2: Unlink */}
-            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 space-y-3">
+            <div className="rounded-xl border border-slate-800 bg-surface-raised/50 p-4 space-y-3">
               <p className="text-sm font-medium text-slate-200">Opción 2 — Quitar la categoría de los elementos</p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-400">
                 Los elementos quedarán sin categoría asignada. Podrás reclasificarlos luego.
               </p>
               <Button

@@ -36,7 +36,7 @@ export function QuickAdd() {
           <button
             key={item.description}
             onClick={() => handleChipTap(item)}
-            className="flex-shrink-0 flex items-center gap-1.5 bg-slate-900/50 border border-slate-800 rounded-full px-3 py-2 text-xs text-slate-300 hover:border-indigo-500/50 hover:text-slate-100 transition-colors active:scale-95"
+            className="flex-shrink-0 flex items-center gap-1.5 bg-surface-raised/50 border border-slate-800 rounded-full px-3 py-2 text-xs text-slate-300 hover:border-indigo-500/50 hover:text-slate-100 transition-colors active:scale-95"
           >
             <span>{item.lastCategoryEmoji ?? '💸'}</span>
             <span className="max-w-[80px] truncate capitalize">{item.description}</span>

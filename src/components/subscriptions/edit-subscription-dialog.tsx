@@ -118,7 +118,7 @@ export function EditSubscriptionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
         <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
           <DialogTitle className="text-xl font-bold bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">
             Editar Suscripción
@@ -140,7 +140,7 @@ export function EditSubscriptionDialog({
                     <Input 
                       placeholder="Ej: Netflix" 
                       {...field} 
-                      className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                      className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                     />
                   </FormControl>
                   <FormMessage />
@@ -168,7 +168,7 @@ export function EditSubscriptionDialog({
                         // Al ser 0, fallará la validación .positive() si es requerido, mostrando el error correcto.
                         field.onChange(isNaN(numberValue) ? 0 : numberValue);
                       }}
-                      className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                      className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                     />
                   </FormControl>
                   <FormMessage />
@@ -187,11 +187,11 @@ export function EditSubscriptionDialog({
                     value={field.value || "none"}
                   >
                     <FormControl>
-                      <SelectTrigger className="bg-slate-900 border-slate-800">
+                      <SelectTrigger className="bg-surface-raised border-slate-800">
                         <SelectValue placeholder="Seleccionar categoría" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                    <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
                       <SelectItem value="none">Sin categoría</SelectItem>
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
@@ -216,11 +216,11 @@ export function EditSubscriptionDialog({
                     value={field.value || "none"}
                   >
                     <FormControl>
-                      <SelectTrigger className="bg-slate-900 border-slate-800">
+                      <SelectTrigger className="bg-surface-raised border-slate-800">
                         <SelectValue placeholder="Selecciona un método de pago" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                    <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
                       <SelectItem value="none">Sin asignar</SelectItem>
                       {paymentMethods.map((method) => (
                         <SelectItem 
@@ -242,7 +242,7 @@ export function EditSubscriptionDialog({
               control={form.control}
               name="is_active"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border border-slate-800 p-4 bg-slate-950/50">
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border border-slate-800 p-4 bg-surface/50">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">Estado Activo</FormLabel>
                     <FormDescription className="text-slate-500 text-xs">

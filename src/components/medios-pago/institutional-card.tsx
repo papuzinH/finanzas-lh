@@ -58,7 +58,7 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
       <div
         onClick={() => setIsDetailOpen(true)}
         className={cn(
-          "rounded-2xl border bg-slate-900/50 p-5 relative overflow-hidden transition-all cursor-pointer active:scale-[0.98]",
+          "rounded-2xl border bg-surface-raised/50 p-5 relative overflow-hidden transition-all cursor-pointer active:scale-[0.98]",
           borderColor
         )}
       >
@@ -72,7 +72,7 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
             <div>
               <h3 className="font-semibold text-slate-100">{data.name}</h3>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
                   {isCredit ? 'Tarjeta de Crédito' : 'Cuenta / Efectivo'}
                 </span>
               </div>
@@ -85,14 +85,14 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
               <button
                 onClick={(e) => e.stopPropagation()}
                 aria-label="Más opciones"
-                className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
                 <MoreVertical className="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="bg-slate-900 border-slate-800 text-slate-200"
+              className="bg-surface-overlay border-slate-800 text-slate-200"
               onClick={(e) => e.stopPropagation()}
             >
               <DropdownMenuItem
@@ -128,13 +128,13 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
           {isCredit && status.nextClosingDate && status.nextPaymentDate && (
             <div className="flex flex-col justify-center gap-2 text-xs border-l border-slate-800 pl-6">
               <div className="flex justify-between items-center">
-                <span className="text-slate-500">Cierra el</span>
+                <span className="text-slate-400">Cierra el</span>
                 <span className="font-medium text-slate-300">
                   {format(status.nextClosingDate, 'd MMM', { locale: es })}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500">Vence el</span>
+                <span className="text-slate-400">Vence el</span>
                 <span className="font-medium text-amber-400">
                   {format(status.nextPaymentDate, 'd MMM', { locale: es })}
                 </span>
@@ -148,7 +148,7 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
 
           {/* Resumen Suscripciones */}
           {subscriptions.length > 0 && (
-            <div className="flex items-center justify-between text-xs bg-slate-950/50 p-2 rounded-lg border border-slate-800/50">
+            <div className="flex items-center justify-between text-xs bg-surface/50 p-2 rounded-lg border border-slate-800/50">
               <div className="flex items-center gap-2 text-slate-400">
                 <CalendarClock className="h-3.5 w-3.5" />
                 <span>{subscriptions.length} servicios adheridos</span>
@@ -161,7 +161,7 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
 
           {/* Últimos movimientos del mes */}
           <div className="space-y-2">
-            <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-2">Movimientos del mes</p>
+            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-2">Movimientos del mes</p>
             {history.length > 0 ? (
               history.map((t, i) => (
                 <div key={i} className="flex items-center justify-between text-xs group">
@@ -174,14 +174,14 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
                   </div>
                   <span className={cn(
                     "font-mono font-medium",
-                    t.type === 'income' ? "text-emerald-400" : "text-slate-500"
+                    t.type === 'income' ? "text-emerald-400" : "text-slate-400"
                   )}>
                     {t.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(t.amount))}
                   </span>
                 </div>
               ))
             ) : (
-              <p className="text-[10px] text-slate-600 italic pl-3">Sin movimientos este mes</p>
+              <p className="text-[10px] text-slate-400 italic pl-3">Sin movimientos este mes</p>
             )}
           </div>
         </div>

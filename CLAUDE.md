@@ -38,7 +38,7 @@ Getters disponibles:
 - **Siempre** usar `parseLocalDate()` de `lib/utils/dates.ts` (evita bugs UTC)
 
 ## UI
-- Dark mode: `bg-slate-950`, `text-slate-50`, acentos Indigo/Violet.
+- Dark mode: `bg-surface`, `text-slate-50`, acentos Indigo/Violet.
 - Shadcn UI siempre (nunca `<div>` crudo si existe `<Card>`).
 - Íconos: `lucide-react` (importar específicos).
 - Mobile-first: `w-full` → `md:w-auto`.

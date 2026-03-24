@@ -27,7 +27,7 @@ import { ConfirmationModal } from "@/components/shared/confirmation-modal";
 import { deleteInstallmentPlan } from "@/app/dashboard/installments/actions";
 import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
-import { FullPageLoader } from '@/components/shared/loader';
+import { InstallmentsSkeleton } from '@/components/ui/skeletons';
 import { InstallmentPlan } from '@/types/database';
 import { CreateInstallmentPlanDialog } from "@/components/installments/create-plan-dialog";
 import { Plus } from 'lucide-react';
@@ -87,14 +87,14 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
         confirmText="Eliminar Plan"
       />
       <div 
-        className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-5 transition-all hover:bg-slate-900 hover:border-slate-700 flex flex-col justify-between"
+        className="group relative overflow-hidden rounded-xl border border-slate-800 bg-surface-raised/50 p-5 transition-all hover:bg-surface-raised hover:border-slate-700 flex flex-col justify-between"
       >
         <div className="flex items-start justify-between mb-4">
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-slate-200 group-hover:text-white transition-colors truncate">
               {plan.description}
             </h3>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-400 mt-1">
               Total del plan: {formatCurrency(Number(plan.total_amount))}
             </p>
             <p className="text-xs text-slate-400 mt-0.5 font-medium">
@@ -126,11 +126,11 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
               </p>
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-slate-200 hover:bg-slate-800/50 -mr-2">
+                  <Button variant="ghost" size="icon" aria-label="Opciones del plan" className="h-6 w-6 min-h-11 min-w-11 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 -mr-2 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
                     <MoreVertical className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-200">
+                <DropdownMenuContent align="end" className="bg-surface-overlay border-slate-800 text-slate-200">
                   <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-slate-800 focus:text-slate-200 cursor-pointer">
                     <Pencil className="mr-2 h-4 w-4" />
                     Editar
@@ -146,7 +146,7 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <p className="text-[10px] uppercase tracking-wider text-slate-500">
+            <p className="text-[10px] uppercase tracking-wider text-slate-400">
                 {plan.remainingInstallments > 0 
                     ? `${plan.remainingInstallments} restantes` 
                     : 'Completado'}
@@ -155,7 +155,14 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
         </div>
 
         {/* Progress Bar */}
-        <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-800 mb-4">
+        <div
+          className="relative h-2 w-full overflow-hidden rounded-full bg-slate-800 mb-4"
+          role="progressbar"
+          aria-valuenow={Math.round(plan.progress)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Progreso del plan ${plan.description}: ${Math.round(plan.progress)}%`}
+        >
           <div 
             className={`h-full rounded-full transition-all duration-500 ease-out ${
                 plan.isFinished ? 'bg-emerald-500' : 'bg-indigo-500'
@@ -178,7 +185,7 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
           </div>
           
           <div className="text-right">
-            <p className="text-xs text-slate-500 mb-0.5">Te faltan (Futuro)</p>
+            <p className="text-xs text-slate-400 mb-0.5">Te faltan (Futuro)</p>
             <p className="text-lg font-bold text-slate-200 font-mono">
                 {formatCurrency(plan.remaining)}
             </p>
@@ -214,7 +221,7 @@ export default function CuotasPage() {
   }, [isInitialized, fetchAllData]);
 
   if (isLoading && !isInitialized) {
-    return <FullPageLoader text="Cargando cuotas..." />;
+    return <InstallmentsSkeleton />;
   }
 
   // Prepare data for rendering
@@ -237,7 +244,7 @@ export default function CuotasPage() {
   const currentMonthDebt = getCurrentMonthInstallmentsTotal();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
+    <div className="min-h-screen bg-surface text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
       {/* Header */}
       <PageHeader
         title="Mis Cuotas"
@@ -246,11 +253,10 @@ export default function CuotasPage() {
       >
         <Button
           onClick={() => setIsCreateOpen(true)}
-          size="sm"
-          className="bg-indigo-600 hover:bg-indigo-700 text-white"
+          size="icon"
+          className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
         >
-          <Plus className="h-4 w-4 mr-1" />
-          Nuevo Plan
+          <Plus className="h-4 w-4" />
         </Button>
       </PageHeader>
 
@@ -264,7 +270,7 @@ export default function CuotasPage() {
             <p className="text-xl md:text-2xl font-bold text-indigo-400 font-mono tracking-tight">
               {formatCurrency(totalDebt)}
             </p>
-            <p className="text-[10px] text-slate-500 mt-2">
+            <p className="text-[10px] text-slate-400 mt-2">
               Pendiente a largo plazo
             </p>
           </div>
@@ -273,7 +279,7 @@ export default function CuotasPage() {
             <p className="text-xl md:text-2xl font-bold text-rose-400 font-mono tracking-tight">
               {formatCurrency(currentMonthDebt)}
             </p>
-            <p className="text-[10px] text-slate-500 mt-2">
+            <p className="text-[10px] text-slate-400 mt-2">
               A pagar en el ciclo actual
             </p>
           </div>
@@ -281,10 +287,10 @@ export default function CuotasPage() {
 
         {/* Plans List */}
         {plansWithProgress.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 text-center">
+          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 text-center">
             <CreditCard className="h-16 w-16 text-slate-700 mb-4" />
             <h3 className="text-lg font-semibold text-slate-200 mb-2">Organizá tus pagos en cuotas</h3>
-            <p className="text-sm text-slate-500 max-w-xs mb-6">
+            <p className="text-sm text-slate-400 max-w-xs mb-6">
               Registrá tus planes de cuotas para saber exactamente cuánto pagás cada mes y cuándo terminás de pagar.
             </p>
             <Button

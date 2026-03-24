@@ -54,7 +54,7 @@ export function EditBudgetDialog({ budget, categoryName, categoryEmoji }: Props)
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[420px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="sm:max-w-[420px] bg-surface-overlay border-slate-800 text-slate-50">
         <form onSubmit={handleSubmit}>
           <input type="hidden" name="category_id" value={budget.category_id} />
           <DialogHeader>
@@ -77,17 +77,17 @@ export function EditBudgetDialog({ budget, categoryName, categoryEmoji }: Props)
                   min="1"
                   step="0.01"
                   defaultValue={budget.amount}
-                  className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-300">Moneda</Label>
                 <Select name="currency" value={currency} onValueChange={(v) => setCurrency(v as 'ARS' | 'USD')}>
-                  <SelectTrigger className="bg-slate-900 border-slate-800">
+                  <SelectTrigger className="bg-surface-raised border-slate-800">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800">
+                  <SelectContent className="bg-surface-overlay border-slate-800">
                     <SelectItem value="ARS">🇦🇷 ARS</SelectItem>
                     <SelectItem value="USD">🇺🇸 USD</SelectItem>
                   </SelectContent>

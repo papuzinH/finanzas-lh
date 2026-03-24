@@ -103,12 +103,11 @@ export function CreateInvestmentDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva Inversion
+        <Button size="icon" className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
+          <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">
@@ -127,7 +126,7 @@ export function CreateInvestmentDialog() {
                   value={ticker}
                   onChange={e => handleTickerChange(e.target.value)}
                   placeholder="AL30D"
-                  className="bg-slate-900 border-slate-800 focus:border-indigo-500/50 uppercase"
+                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 uppercase"
                   required
                 />
               </div>
@@ -137,7 +136,7 @@ export function CreateInvestmentDialog() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="Grupo Financiero Galicia"
-                  className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                   required
                 />
               </div>
@@ -147,10 +146,10 @@ export function CreateInvestmentDialog() {
               <div className="space-y-2">
                 <Label className="text-slate-300">Tipo</Label>
                 <Select value={type} onValueChange={handleTypeChange}>
-                  <SelectTrigger className="bg-slate-900 border-slate-800">
+                  <SelectTrigger className="bg-surface-raised border-slate-800">
                     <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800">
+                  <SelectContent className="bg-surface-overlay border-slate-800">
                     {INVESTMENT_TYPES.map(t => (
                       <SelectItem key={t.value} value={t.value} className="focus:bg-slate-800">
                         {t.label}
@@ -162,10 +161,10 @@ export function CreateInvestmentDialog() {
               <div className="space-y-2">
                 <Label className="text-slate-300">Moneda</Label>
                 <Select value={currency} onValueChange={setCurrency}>
-                  <SelectTrigger className="bg-slate-900 border-slate-800">
+                  <SelectTrigger className="bg-surface-raised border-slate-800">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800">
+                  <SelectContent className="bg-surface-overlay border-slate-800">
                     <SelectItem value="ARS" className="focus:bg-slate-800">ARS</SelectItem>
                     <SelectItem value="USD" className="focus:bg-slate-800">USD</SelectItem>
                   </SelectContent>
@@ -182,7 +181,7 @@ export function CreateInvestmentDialog() {
                   value={quantity}
                   onChange={e => setQuantity(e.target.value)}
                   placeholder="100"
-                  className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                   required
                 />
               </div>
@@ -194,7 +193,7 @@ export function CreateInvestmentDialog() {
                   value={avgBuyPrice}
                   onChange={e => setAvgBuyPrice(e.target.value)}
                   placeholder="Opcional"
-                  className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                 />
               </div>
             </div>

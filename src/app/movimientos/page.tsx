@@ -10,7 +10,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
 import { ChevronDown, ChevronRight, Plus, Search, X, CreditCard, Wallet, Receipt } from 'lucide-react';
-import { FullPageLoader } from '@/components/shared/loader';
+import { TransactionListSkeleton } from '@/components/ui/skeletons';
 import { Button } from '@/components/ui/button';
 import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
 import { QuickAdd } from '@/components/transactions/quick-add';
@@ -170,7 +170,7 @@ export default function MovimientosPage() {
             </span>
           </h3>
           {collapsible && (
-             isOpen ? <ChevronDown className="h-3 w-3 text-slate-500" /> : <ChevronRight className="h-3 w-3 text-slate-500" />
+             isOpen ? <ChevronDown className="h-3 w-3 text-slate-400" aria-hidden="true" /> : <ChevronRight className="h-3 w-3 text-slate-400" aria-hidden="true" />
           )}
         </div>
         
@@ -195,7 +195,7 @@ export default function MovimientosPage() {
   };
 
   if (isLoading && !isInitialized) {
-    return <FullPageLoader text="Cargando movimientos..." />;
+    return <TransactionListSkeleton />;
   }
 
   return (
@@ -203,9 +203,9 @@ export default function MovimientosPage() {
       {/* Header Sticky */}
       <header className="sticky top-0 z-20 border-b border-slate-800 bg-[var(--surface)]/80 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-4 py-2 flex flex-col md:flex-row justify-between items-center gap-2 md:gap-0">
-          <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
           
-          <div className="flex items-center justify-between w-full md:w-auto md:flex md:items-center md:gap-4 border-t border-slate-800/50 pt-2 md:border-0 md:pt-0">
+          
+          <div className="flex items-center justify-between w-full md:w-auto md:flex md:items-center md:gap-4 border-b border-slate-800/50 py-2 pb-4 md:border-0 md:pt-0">
             <span className="text-xs text-slate-400 font-medium uppercase tracking-wider md:hidden">Balance Total</span>
             <div className="text-right">
               <p className="hidden md:block text-[10px] text-slate-400 uppercase tracking-wider font-medium">Balance Mensual</p>
@@ -218,13 +218,13 @@ export default function MovimientosPage() {
             </div>
             <Button
               onClick={() => setIsCreateOpen(true)}
-              size="sm"
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              size="icon"
+              className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
             >
-              <Plus className="h-4 w-4 mr-1" />
-              Nuevo
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
+          <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
         </div>
 
         {/* Chips de Medios de Pago */}
@@ -336,14 +336,15 @@ export default function MovimientosPage() {
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                aria-label="Limpiar búsqueda"
+                className="absolute right-3 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-slate-300 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
                 <X className="h-4 w-4" />
               </button>
             )}
           </div>
           {debouncedQuery && (
-            <p className="text-xs text-slate-500 mt-1.5 px-1">
+            <p className="text-xs text-slate-400 mt-1.5 px-1">
               {searchFilteredTransactions.length}{' '}
               movimiento{searchFilteredTransactions.length !== 1 ? 's' : ''} encontrado{searchFilteredTransactions.length !== 1 ? 's' : ''}
             </p>
@@ -361,7 +362,7 @@ export default function MovimientosPage() {
           <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-[var(--surface-raised)]/20 text-center">
             <Receipt className="h-16 w-16 text-slate-700 mb-4" />
             <h3 className="text-lg font-semibold text-slate-200 mb-2">Registrá tus movimientos</h3>
-            <p className="text-sm text-slate-500 max-w-xs mb-6">
+            <p className="text-sm text-slate-400 max-w-xs mb-6">
               Llevá un registro de tus ingresos y gastos para saber exactamente a dónde va tu plata cada mes.
             </p>
             <Button
@@ -376,7 +377,7 @@ export default function MovimientosPage() {
           <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-[var(--surface-raised)]/20 text-center">
             <Search className="h-16 w-16 text-slate-700 mb-4" />
             <h3 className="text-base font-semibold text-slate-200 mb-1">Sin resultados para &ldquo;{debouncedQuery}&rdquo;</h3>
-            <p className="text-sm text-slate-500">Probá con otra descripción, categoría o monto.</p>
+            <p className="text-sm text-slate-400">Probá con otra descripción, categoría o monto.</p>
           </div>
         ) : (
           <>

@@ -85,7 +85,7 @@ export function EditInstallmentPlanDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
         <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
           <DialogTitle className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
             Editar Plan de Cuotas
@@ -107,7 +107,7 @@ export function EditInstallmentPlanDialog({
                       <Input
                         placeholder="Ej: Compra TV"
                         {...field}
-                        className="bg-slate-900 border-slate-800 focus:border-indigo-500/50"
+                        className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
                       />
                     </FormControl>
                     <FormMessage />
@@ -126,11 +126,11 @@ export function EditInstallmentPlanDialog({
                       defaultValue={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger className="bg-slate-900 border-slate-800">
+                        <SelectTrigger className="bg-surface-raised border-slate-800">
                           <SelectValue placeholder="Seleccionar categoría" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                      <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
                         {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.emoji} {category.name}
@@ -149,7 +149,7 @@ export function EditInstallmentPlanDialog({
                   <Input
                     disabled
                     value={formatCurrency(plan.total_amount)}
-                    className="bg-slate-900/50 border-slate-800 text-slate-500 cursor-not-allowed"
+                    className="bg-surface-raised/50 border-slate-800 text-slate-500 cursor-not-allowed"
                   />
                 </div>
                 <div className="space-y-2">
@@ -157,7 +157,7 @@ export function EditInstallmentPlanDialog({
                   <Input
                     disabled
                     value={plan.installments_count.toString()}
-                    className="bg-slate-900/50 border-slate-800 text-slate-500 cursor-not-allowed"
+                    className="bg-surface-raised/50 border-slate-800 text-slate-500 cursor-not-allowed"
                   />
                 </div>
               </div>

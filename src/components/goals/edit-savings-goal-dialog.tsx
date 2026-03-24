@@ -52,7 +52,7 @@ export function EditSavingsGoalDialog({ goal }: Props) {
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[480px] bg-slate-950 border-slate-800 text-slate-50">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[480px] bg-surface-overlay border-slate-800 text-slate-50">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
@@ -70,7 +70,7 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                 id="name"
                 name="name"
                 defaultValue={goal.name}
-                className="bg-slate-900 border-slate-800 focus:border-emerald-500/50"
+                className="bg-surface-raised border-slate-800 focus:border-emerald-500/50"
                 required
               />
             </div>
@@ -78,10 +78,10 @@ export function EditSavingsGoalDialog({ goal }: Props) {
             <div className="space-y-2">
               <Label className="text-slate-300">Tipo de meta</Label>
               <Select name="type" value={type} onValueChange={(v) => setType(v as 'one_time' | 'monthly')}>
-                <SelectTrigger className="bg-slate-900 border-slate-800">
+                <SelectTrigger className="bg-surface-raised border-slate-800">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800">
+                <SelectContent className="bg-surface-overlay border-slate-800">
                   <SelectItem value="one_time">Meta con fecha límite</SelectItem>
                   <SelectItem value="monthly">Ahorro mensual recurrente</SelectItem>
                 </SelectContent>
@@ -98,17 +98,17 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                   min="1"
                   step="0.01"
                   defaultValue={goal.target_amount}
-                  className="bg-slate-900 border-slate-800 focus:border-emerald-500/50"
+                  className="bg-surface-raised border-slate-800 focus:border-emerald-500/50"
                   required
                 />
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-300">Moneda</Label>
                 <Select name="currency" value={currency} onValueChange={(v) => setCurrency(v as 'ARS' | 'USD')}>
-                  <SelectTrigger className="bg-slate-900 border-slate-800">
+                  <SelectTrigger className="bg-surface-raised border-slate-800">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800">
+                  <SelectContent className="bg-surface-overlay border-slate-800">
                     <SelectItem value="ARS">🇦🇷 ARS</SelectItem>
                     <SelectItem value="USD">🇺🇸 USD</SelectItem>
                   </SelectContent>
@@ -124,7 +124,7 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                   name="target_date"
                   type="date"
                   defaultValue={goal.target_date ?? ''}
-                  className="bg-slate-900 border-slate-800 focus:border-emerald-500/50"
+                  className="bg-surface-raised border-slate-800 focus:border-emerald-500/50"
                   required={type === 'one_time'}
                 />
               </div>
