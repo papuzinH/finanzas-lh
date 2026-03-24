@@ -6,6 +6,7 @@ import { formatCurrency } from '@/lib/utils'
 import { Tag, TrendingDown, Calendar, History } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { Category } from '@/types/database'
+import { CreateCategoryDialog } from '@/components/categories/create-category-dialog'
 
 interface Props {
   categories: Category[]
@@ -122,10 +123,13 @@ export function CategoriesWithStats({ categories }: Props) {
         })}
 
         {categories.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
-            <Tag className="h-8 w-8 mb-3 opacity-50" />
-            <p>No tienes categorías creadas.</p>
-            <p className="text-xs mt-1">Crea la primera para empezar a organizar tus gastos.</p>
+          <div className="col-span-full flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 text-center">
+            <Tag className="h-16 w-16 text-slate-700 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-200 mb-2">Organizá tus gastos por categoría</h3>
+            <p className="text-sm text-slate-500 max-w-xs mb-6">
+              Creá categorías con emojis y descripción para que la IA clasifique tus movimientos automáticamente.
+            </p>
+            <CreateCategoryDialog />
           </div>
         )}
       </div>

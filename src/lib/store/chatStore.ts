@@ -7,6 +7,9 @@ export interface ChatMessage {
   role: 'user' | 'chanchito'
   content: string
   timestamp: Date
+  isVoice?: boolean              // Mensaje enviado por grabación de voz
+  needsConfirmation?: boolean    // Respuesta del bot que requiere confirmación del usuario
+  confirmationHandled?: boolean  // El usuario ya confirmó o canceló
   // Para mensajes de Chanchito que confirman una acción:
   actionResult?: {
     type: 'transaction' | 'installment' | 'subscription' | 'error'
@@ -30,7 +33,8 @@ interface ChatState {
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void
   setLoading: (loading: boolean) => void
   setListening: (listening: boolean) => void
-  sendMessage: (text: string) => Promise<void>
+  sendMessage: (text: string, options?: { isVoice?: boolean }) => Promise<void>
+  setConfirmationHandled: (messageId: string) => void
   clearMessages: () => void
 }
 
@@ -55,11 +59,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
   setListening: (listening) => set({ isListening: listening }),
 
-  sendMessage: async (text: string) => {
+  setConfirmationHandled: (messageId: string) => set(s => ({
+    messages: s.messages.map(m =>
+      m.id === messageId ? { ...m, confirmationHandled: true } : m
+    ),
+  })),
+
+  sendMessage: async (text: string, options?: { isVoice?: boolean }) => {
     const { addMessage, setLoading, messages } = get()
 
     // Agregar mensaje del usuario
-    addMessage({ role: 'user', content: text })
+    addMessage({ role: 'user', content: text, isVoice: options?.isVoice })
     setLoading(true)
 
     // Construir historial para contexto conversacional (últimos 10 mensajes previos)
@@ -77,9 +87,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const data = await response.json()
 
       if (data.success) {
+        const hasAction = !!data.data && data.data.type !== 'error'
         addMessage({
           role: 'chanchito',
           content: data.message,
+          needsConfirmation: options?.isVoice && hasAction,
           actionResult: data.data ? {
             type: data.data.type || 'transaction',
             description: data.data.description,

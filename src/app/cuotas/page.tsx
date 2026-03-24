@@ -31,6 +31,7 @@ import { FullPageLoader } from '@/components/shared/loader';
 import { InstallmentPlan } from '@/types/database';
 import { CreateInstallmentPlanDialog } from "@/components/installments/create-plan-dialog";
 import { Plus } from 'lucide-react';
+import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 
 interface PlanWithStatus extends InstallmentPlan {
   paid: number;
@@ -279,18 +280,30 @@ export default function CuotasPage() {
         </div>
 
         {/* Plans List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {plansWithProgress.length === 0 ? (
-            <div className="col-span-full flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
-                <CreditCard className="h-8 w-8 mb-3 opacity-50" />
-                <p>No tienes planes de cuotas activos.</p>
-            </div>
-          ) : (
-            plansWithProgress.map((plan) => (
-              <InstallmentPlanCard key={plan.id} plan={plan} />
-            ))
-          )}
-        </div>
+        {plansWithProgress.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 text-center">
+            <CreditCard className="h-16 w-16 text-slate-700 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-200 mb-2">Organizá tus pagos en cuotas</h3>
+            <p className="text-sm text-slate-500 max-w-xs mb-6">
+              Registrá tus planes de cuotas para saber exactamente cuánto pagás cada mes y cuándo terminás de pagar.
+            </p>
+            <Button
+              onClick={() => setIsCreateOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Plan de Cuotas
+            </Button>
+          </div>
+        ) : (
+          <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {plansWithProgress.map((plan) => (
+              <StaggeredItem key={plan.id}>
+                <InstallmentPlanCard plan={plan} />
+              </StaggeredItem>
+            ))}
+          </StaggeredList>
+        )}
       </main>
     </div>
   );

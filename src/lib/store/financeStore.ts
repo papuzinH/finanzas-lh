@@ -27,6 +27,9 @@ import {
   parseISO,
   format,
   subMonths,
+  subWeeks,
+  startOfWeek,
+  endOfWeek,
   isAfter,
   startOfDay,
   isSameDay,
@@ -164,6 +167,56 @@ interface FinanceState {
     percent: number;
     status: 'ok' | 'warning' | 'exceeded';
   }>;
+
+  getMonthlyComparison: () => {
+    currentMonthExpenses: number;
+    previousMonthExpenses: number;
+    percentageChange: number;
+  };
+
+  getWeeklySnapshot: (type: 'income' | 'variable' | 'installments' | 'fixed') => number[];
+
+  getMonthlyTrend: (months?: number) => Array<{
+    month: string;
+    income: number;
+    expenses: number;
+    net: number;
+  }>;
+
+  getCategoryComparison: () => Array<{
+    category: string;
+    emoji: string;
+    current: number;
+    previous: number;
+    change: number;
+  }>;
+
+  getBudgetProjection: (budgetId: string) => {
+    spent: number;
+    projected: number;
+    limit: number;
+    isOverBudget: boolean;
+  } | null;
+
+  getFrequentTransactions: (n?: number) => Array<{
+    description: string;
+    count: number;
+    lastCategoryId: string | null;
+    lastCategoryEmoji: string | null;
+    avgAmount: number;
+    type: 'expense' | 'income';
+  }>;
+
+  getInsights: () => Array<{
+    type: 'positive' | 'warning' | 'info';
+    message: string;
+    icon: string;
+  }>;
+
+  getRegistrationStreak: () => {
+    days: number;
+    isActiveToday: boolean;
+  };
 }
 
 /**
@@ -957,6 +1010,42 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     };
   },
 
+  getMonthlyComparison: () => {
+    const { transactions, paymentMethods, recurringPlans } = get();
+    const now = new Date();
+    const prev = subMonths(now, 1);
+
+    const calcTotalExpenses = (ref: Date) => {
+      const variable = transactions
+        .filter((t) =>
+          t.type === 'expense' &&
+          !t.installment_plan_id &&
+          !t.recurring_plan_id &&
+          isExpenseInCurrentMonthScope(t, paymentMethods, ref)
+        )
+        .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+      const installmentsTotal = transactions
+        .filter((t) => t.installment_plan_id && isExpenseInCurrentMonthScope(t, paymentMethods, ref))
+        .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+      const subscriptions = recurringPlans
+        .filter((p) => p.is_active)
+        .reduce((acc, p) => acc + Number(p.amount), 0);
+
+      return variable + installmentsTotal + subscriptions;
+    };
+
+    const currentMonthExpenses = calcTotalExpenses(now);
+    const previousMonthExpenses = calcTotalExpenses(prev);
+    const percentageChange =
+      previousMonthExpenses === 0
+        ? 0
+        : ((currentMonthExpenses - previousMonthExpenses) / previousMonthExpenses) * 100;
+
+    return { currentMonthExpenses, previousMonthExpenses, percentageChange };
+  },
+
   /**
    * Recarga solo los datos de objetivos (metas + aportes + presupuestos).
    * Útil después de CRUD de objetivos sin necesidad de recargar todo.
@@ -1083,5 +1172,298 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .map((b) => getCategoryBudgetStatus(b.category_id))
       .filter((s): s is NonNullable<typeof s> => s !== null)
       .sort((a, b) => b.percent - a.percent);
+  },
+
+
+  /**
+   * Retorna un snapshot de 7 semanas para sparklines en el dashboard.
+   *
+   * Cada valor representa el total de la semana (lunes a domingo) para las
+   * últimas 7 semanas, de más antigua (índice 0) a más reciente (índice 6).
+   *
+   * Tipos:
+   * - 'income': Ingresos por semana
+   * - 'variable': Gastos variables (sin cuotas ni suscripciones) por semana
+   * - 'installments': Cuotas por semana
+   * - 'fixed': Costo mensual de planes recurrentes dividido en 7 semanas iguales
+   */
+  getWeeklySnapshot: (type) => {
+    const { transactions, recurringPlans } = get();
+    const now = new Date();
+    const WEEK_OPTIONS = { weekStartsOn: 1 as const };
+
+    return Array.from({ length: 7 }, (_, i) => {
+      const weekRef = subWeeks(now, 6 - i);
+      const weekStart = startOfWeek(weekRef, WEEK_OPTIONS);
+      const weekEnd = endOfWeek(weekRef, WEEK_OPTIONS);
+
+      if (type === 'fixed') {
+        const monthlyFixed = recurringPlans
+          .filter((p) => p.is_active)
+          .reduce((acc, p) => acc + Number(p.amount), 0);
+        return monthlyFixed / 4.33;
+      }
+
+      return transactions
+        .filter((t) => {
+          const d = parseLocalDate(t.date);
+          if (d < weekStart || d > weekEnd) return false;
+          if (type === 'income') return t.type === 'income';
+          if (type === 'variable') return t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id;
+          if (type === 'installments') return t.type === 'expense' && !!t.installment_plan_id;
+          return false;
+        })
+        .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+    });
+  },
+
+  getMonthlyTrend: (months = 6) => {
+    const { transactions } = get();
+    const now = new Date();
+    const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    return Array.from({ length: months }, (_, i) => {
+      const ref = subMonths(now, months - 1 - i);
+      const monthTxs = transactions.filter((t) => {
+        const dateStr = t.periodDate || t.date;
+        return isSameMonth(parseLocalDate(dateStr), ref);
+      });
+      const income = monthTxs
+        .filter((t) => t.type === 'income')
+        .reduce((acc, t) => acc + Number(t.amount), 0);
+      const expenses = monthTxs
+        .filter((t) => t.type === 'expense')
+        .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+      return {
+        month: MONTH_NAMES[ref.getMonth()],
+        income,
+        expenses,
+        net: income - expenses,
+      };
+    });
+  },
+
+  getCategoryComparison: () => {
+    const { transactions, paymentMethods, categories } = get();
+    const now = new Date();
+    const prev = subMonths(now, 1);
+
+    const calcExpensesByCategory = (ref: Date): Record<string, number> =>
+      transactions
+        .filter((t) => t.type === 'expense' && isExpenseInCurrentMonthScope(t, paymentMethods, ref))
+        .reduce((acc, t) => {
+          const cat = categories.find((c) => c.id === t.category_id)?.name ?? 'Otros';
+          acc[cat] = (acc[cat] || 0) + Math.abs(Number(t.amount));
+          return acc;
+        }, {} as Record<string, number>);
+
+    const currentExpenses = calcExpensesByCategory(now);
+    const previousExpenses = calcExpensesByCategory(prev);
+    const allCategories = new Set([...Object.keys(currentExpenses), ...Object.keys(previousExpenses)]);
+
+    return Array.from(allCategories)
+      .map((name) => {
+        const current = currentExpenses[name] ?? 0;
+        const previous = previousExpenses[name] ?? 0;
+        const categoryObj = categories.find((c) => c.name === name);
+        return {
+          category: name,
+          emoji: categoryObj?.emoji ?? '',
+          current,
+          previous,
+          change: current - previous,
+        };
+      })
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+  },
+
+  /**
+   * Proyecta el gasto de un presupuesto activo al final del mes
+   * basándose en el ritmo diario actual: (gasto actual / días transcurridos) * días totales del mes.
+   *
+   * Retorna null si el presupuesto no existe o no está activo.
+   */
+  getBudgetProjection: (budgetId: string) => {
+    const { categoryBudgets, categories, getExpensesByCategory } = get();
+    const budget = categoryBudgets.find((b) => b.id === budgetId && b.is_active);
+    if (!budget) return null;
+
+    const category = categories.find((c) => c.id === budget.category_id);
+    const categoryName = category?.name ?? 'Sin categoría';
+
+    const expensesByCategory = getExpensesByCategory('current_month');
+    const spent = expensesByCategory[categoryName] ?? 0;
+    const limit = Number(budget.amount);
+
+    const now = new Date();
+    const dayOfMonth = getDate(now);
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const projected = dayOfMonth > 0 ? (spent / dayOfMonth) * daysInMonth : 0;
+
+    return {
+      spent,
+      projected,
+      limit,
+      isOverBudget: projected > limit,
+    };
+  },
+
+  getFrequentTransactions: (n = 5) => {
+    const { transactions, categories } = get();
+
+    const map: Record<string, {
+      count: number;
+      totalAmount: number;
+      lastCategoryId: string | null;
+      lastDate: string;
+      type: 'expense' | 'income';
+    }> = {};
+
+    for (const t of transactions) {
+      const key = t.description.trim().toLowerCase();
+      if (!key) continue;
+      const existing = map[key];
+      if (!existing || t.date > existing.lastDate) {
+        map[key] = {
+          count: (existing?.count ?? 0) + 1,
+          totalAmount: (existing?.totalAmount ?? 0) + t.amount,
+          lastCategoryId: t.category_id ?? null,
+          lastDate: t.date,
+          type: t.type as 'expense' | 'income',
+        };
+      } else {
+        existing.count += 1;
+        existing.totalAmount += t.amount;
+      }
+    }
+
+    return Object.entries(map)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, n)
+      .map(([description, data]) => {
+        const category = categories.find((c) => c.id === data.lastCategoryId);
+        return {
+          description,
+          count: data.count,
+          lastCategoryId: data.lastCategoryId,
+          lastCategoryEmoji: category?.emoji ?? null,
+          avgAmount: data.count > 0 ? data.totalAmount / data.count : 0,
+          type: data.type,
+        };
+      });
+  },
+
+  /**
+   * Genera un array de insights financieros basados en el estado actual.
+   *
+   * Insights generados:
+   * 1. Ahorro vs mes anterior: Si el gasto bajó, muestra el porcentaje ahorrado.
+   * 2. Categoría con mayor subida: Si alguna categoría subió >20%, avisa.
+   * 3. Cuotas del mes: Cantidad y total de cuotas que vencen este mes.
+   * 4. Alerta de presupuesto: Categoría más cerca del límite con días restantes.
+   *
+   * Cada insight tiene:
+   * - type: 'positive' | 'warning' | 'info'
+   * - message: Texto del insight listo para mostrar
+   * - icon: Nombre del ícono de lucide-react
+   */
+  getInsights: () => {
+    const {
+      getMonthlyComparison,
+      getCategoryComparison,
+      getCurrentMonthInstallments,
+      getCurrentMonthInstallmentsTotal,
+      getAllBudgetStatuses,
+    } = get();
+
+    const insights: Array<{ type: 'positive' | 'warning' | 'info'; message: string; icon: string }> = [];
+
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysRemaining = daysInMonth - now.getDate();
+
+    // 1. Comparación de gasto vs mes anterior
+    const { currentMonthExpenses, previousMonthExpenses, percentageChange } = getMonthlyComparison();
+    if (previousMonthExpenses > 0) {
+      if (percentageChange < 0) {
+        const saved = Math.abs(percentageChange).toFixed(0);
+        insights.push({
+          type: 'positive',
+          message: `Gastaste un ${saved}% menos que el mes pasado 🎉`,
+          icon: 'TrendingDown',
+        });
+      } else if (percentageChange > 15) {
+        const increase = percentageChange.toFixed(0);
+        insights.push({
+          type: 'warning',
+          message: `Tu gasto subió un ${increase}% respecto al mes pasado`,
+          icon: 'TrendingUp',
+        });
+      }
+    }
+
+    // 2. Categoría con mayor suba (>20%)
+    const categoryComparison = getCategoryComparison();
+    const biggestRise = categoryComparison.find(
+      (c) => c.previous > 0 && ((c.current - c.previous) / c.previous) * 100 > 20
+    );
+    if (biggestRise) {
+      const pct = (((biggestRise.current - biggestRise.previous) / biggestRise.previous) * 100).toFixed(0);
+      const emoji = biggestRise.emoji ? `${biggestRise.emoji} ` : '';
+      insights.push({
+        type: 'warning',
+        message: `Tu gasto en ${emoji}${biggestRise.category} subió un ${pct}% este mes`,
+        icon: 'AlertTriangle',
+      });
+    }
+
+    // 3. Cuotas que vencen este mes
+    const installments = getCurrentMonthInstallments();
+    const installmentsTotal = getCurrentMonthInstallmentsTotal();
+    if (installments.length > 0) {
+      const totalFormatted = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(installmentsTotal);
+      insights.push({
+        type: 'info',
+        message: `Tenés ${installments.length} cuota${installments.length > 1 ? 's' : ''} este mes por ${totalFormatted}`,
+        icon: 'CreditCard',
+      });
+    }
+
+    // 4. Presupuesto más cercano al límite
+    const budgetStatuses = getAllBudgetStatuses();
+    const criticalBudget = budgetStatuses.find((b) => b.percent >= 75);
+    if (criticalBudget) {
+      const emoji = criticalBudget.categoryEmoji ? `${criticalBudget.categoryEmoji} ` : '';
+      const pct = criticalBudget.percent.toFixed(0);
+      insights.push({
+        type: criticalBudget.percent >= 100 ? 'warning' : 'info',
+        message: `Vas al ${pct}% del presupuesto de ${emoji}${criticalBudget.categoryName} con ${daysRemaining} días restantes`,
+        icon: criticalBudget.percent >= 100 ? 'AlertCircle' : 'Target',
+      });
+    }
+
+    return insights;
+  },
+
+  getRegistrationStreak: () => {
+    const { transactions } = get();
+    const now = new Date();
+    const today = startOfDay(now);
+
+    const datesWithTransactions = new Set(
+      transactions.map((t) => startOfDay(parseLocalDate(t.date)).getTime())
+    );
+
+    const isActiveToday = datesWithTransactions.has(today.getTime());
+
+    let days = 0;
+    let current = isActiveToday ? today : new Date(today.getTime() - 86400000);
+
+    while (datesWithTransactions.has(current.getTime())) {
+      days++;
+      current = new Date(current.getTime() - 86400000);
+    }
+
+    return { days, isActiveToday };
   },
 }));

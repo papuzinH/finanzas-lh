@@ -7,6 +7,7 @@ import { AlertTriangle, XCircle, CheckCircle2, ArrowRight } from 'lucide-react'
 
 export function BudgetOverviewStrip() {
   const getAllBudgetStatuses = useFinanceStore((s) => s.getAllBudgetStatuses)
+  const getBudgetProjection = useFinanceStore((s) => s.getBudgetProjection)
   const statuses = getAllBudgetStatuses()
 
   if (statuses.length === 0) return null
@@ -15,7 +16,7 @@ export function BudgetOverviewStrip() {
   const warning = statuses.filter((s) => s.status === 'warning').length
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4 space-y-3">
+    <div className="rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-4 space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -56,12 +57,21 @@ export function BudgetOverviewStrip() {
             status === 'warning' ? 'bg-amber-500' :
             'bg-emerald-500'
 
+          const projection = getBudgetProjection(budget.id)
+          const willExceed = projection?.isOverBudget ?? false
+
           return (
             <div key={budget.id} className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-300 flex items-center gap-1 truncate">
                   {categoryEmoji && <span>{categoryEmoji}</span>}
                   <span className="truncate">{categoryName}</span>
+                  {willExceed && (
+                    <span className="relative flex h-1.5 w-1.5 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500" />
+                    </span>
+                  )}
                 </span>
                 <span className={`font-mono shrink-0 ml-2 ${
                   status === 'exceeded' ? 'text-rose-400' :
@@ -71,13 +81,20 @@ export function BudgetOverviewStrip() {
                   {Math.min(percent, 100).toFixed(0)}%
                 </span>
               </div>
-              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden"
+                role="progressbar"
+                aria-valuenow={Math.round(Math.min(percent, 100))}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${categoryName}: ${Math.round(Math.min(percent, 100))}% del presupuesto`}
+              >
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${barColor}`}
                   style={{ width: `${Math.min(percent, 100)}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[10px] text-slate-500">
+              <div className="flex justify-between text-[10px] text-slate-400">
                 <span>{formatCurrency(spent)}</span>
                 <span>{formatCurrency(limit)}</span>
               </div>

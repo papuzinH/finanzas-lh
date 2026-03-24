@@ -1,7 +1,8 @@
 "use client"
 
-import { ChatMessage } from '@/lib/store/chatStore'
+import { ChatMessage, useChatStore } from '@/lib/store/chatStore'
 import { motion } from 'framer-motion'
+import { Mic } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ChatBubbleProps {
@@ -10,6 +11,7 @@ interface ChatBubbleProps {
 
 export function ChatBubble({ message }: ChatBubbleProps) {
   const isUser = message.role === 'user'
+  const { sendMessage, setConfirmationHandled } = useChatStore()
 
   const containerVariants = {
     hidden: { opacity: 0, y: 10 },
@@ -54,17 +56,27 @@ export function ChatBubble({ message }: ChatBubbleProps) {
 
       {/* Contenedor del mensaje */}
       <div className="flex flex-col gap-2 flex-1">
-        {/* Burbuja de texto */}
-        <div
-          className={cn(
-            'rounded-2xl px-4 py-2.5 max-w-[80%] break-words text-sm whitespace-pre-line',
-            isUser
-              ? 'bg-indigo-600 text-white rounded-br-sm ml-auto'
-              : 'bg-zinc-800 text-slate-100 rounded-bl-sm mr-auto'
-          )}
-        >
-          {formatMessage(message.content)}
-        </div>
+        {/* Burbuja de texto o de voz */}
+        {isUser && message.isVoice ? (
+          <div className="bg-indigo-600 text-white rounded-2xl rounded-br-sm ml-auto max-w-[80%] px-4 py-2.5 flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Mic className="w-3.5 h-3.5 flex-shrink-0 opacity-80" />
+              <span className="text-xs opacity-80">Mensaje de voz</span>
+            </div>
+            <p className="text-sm break-words">{message.content}</p>
+          </div>
+        ) : (
+          <div
+            className={cn(
+              'rounded-2xl px-4 py-2.5 max-w-[80%] break-words text-sm whitespace-pre-line',
+              isUser
+                ? 'bg-indigo-600 text-white rounded-br-sm ml-auto'
+                : 'bg-zinc-800 text-slate-100 rounded-bl-sm mr-auto'
+            )}
+          >
+            {formatMessage(message.content)}
+          </div>
+        )}
 
         {/* Card de resultado de acción (solo para Chanchito) */}
         {!isUser && message.actionResult && (
@@ -98,6 +110,38 @@ export function ChatBubble({ message }: ChatBubbleProps) {
                 )}
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {/* Botones de confirmación para mensajes de voz */}
+        {!isUser && message.needsConfirmation && !message.confirmationHandled && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, delay: 0.15 }}
+            className="flex items-center gap-2 mr-auto"
+          >
+            <p className="text-xs text-slate-400">¿Es correcto?</p>
+            <button
+              onClick={() => {
+                setConfirmationHandled(message.id)
+                sendMessage('confirmar')
+              }}
+              aria-label="Confirmar"
+              className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 rounded-lg px-4 py-2.5 min-h-[44px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            >
+              ✅ Sí
+            </button>
+            <button
+              onClick={() => {
+                setConfirmationHandled(message.id)
+                sendMessage('cancelar')
+              }}
+              aria-label="Cancelar"
+              className="text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-400 rounded-lg px-4 py-2.5 min-h-[44px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            >
+              ❌ No
+            </button>
           </motion.div>
         )}
       </div>

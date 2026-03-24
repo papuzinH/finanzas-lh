@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
@@ -39,11 +39,18 @@ import { useFinanceStore } from '@/lib/store/financeStore';
 interface CreateTransactionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultValues?: {
+    description?: string;
+    category_id?: string;
+    amount?: number;
+    type?: 'expense' | 'income';
+  };
 }
 
 export function CreateTransactionDialog({
   open,
   onOpenChange,
+  defaultValues,
 }: CreateTransactionDialogProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
@@ -52,14 +59,29 @@ export function CreateTransactionDialog({
   const form = useForm<CreateTransactionSchema>({
     resolver: zodResolver(createTransactionSchema),
     defaultValues: {
-      description: '',
-      amount: 0,
+      description: defaultValues?.description ?? '',
+      amount: defaultValues?.amount ?? 0,
       date: new Date(),
-      category_id: '',
-      type: 'expense',
+      category_id: defaultValues?.category_id ?? '',
+      type: defaultValues?.type ?? 'expense',
       payment_method_id: 'none',
     },
   });
+
+  // Reset form with new defaultValues each time the dialog opens
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        description: defaultValues?.description ?? '',
+        amount: defaultValues?.amount ?? 0,
+        date: new Date(),
+        category_id: defaultValues?.category_id ?? '',
+        type: defaultValues?.type ?? 'expense',
+        payment_method_id: 'none',
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   async function onSubmit(data: CreateTransactionSchema) {
     setIsPending(true);

@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
 import { CreateSubscriptionDialog } from "@/components/subscriptions/create-subscription-dialog";
 import { Plus } from 'lucide-react';
+import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 
 const getServiceIcon = (description: string, category: string | null) => {
   const text = (description + ' ' + (category || '')).toLowerCase();
@@ -247,18 +248,30 @@ export default function MensualidadesPage() {
         </div>
 
         {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {plansWithPayment.length === 0 ? (
-             <div className="col-span-full flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
-                <RefreshCw className="h-8 w-8 mb-3 opacity-50" />
-                <p>No tienes gastos fijos registrados.</p>
-            </div>
-          ) : (
-            plansWithPayment.map((plan) => (
-              <SubscriptionCard key={plan.id} plan={plan} />
-            ))
-          )}
-        </div>
+        {plansWithPayment.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 text-center">
+            <CalendarClock className="h-16 w-16 text-slate-700 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-200 mb-2">Registrá tus gastos fijos y suscripciones</h3>
+            <p className="text-sm text-slate-500 max-w-xs mb-6">
+              Netflix, alquiler, gimnasio... sumá tus gastos recurrentes y sabé de antemano cuánto se te va cada mes.
+            </p>
+            <Button
+              onClick={() => setIsCreateOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Gasto Fijo
+            </Button>
+          </div>
+        ) : (
+          <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {plansWithPayment.map((plan) => (
+              <StaggeredItem key={plan.id}>
+                <SubscriptionCard plan={plan} />
+              </StaggeredItem>
+            ))}
+          </StaggeredList>
+        )}
       </main>
     </div>
   );

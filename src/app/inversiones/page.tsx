@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { updateMarketPrices } from "@/app/inversiones/actions";
 import { toast } from "sonner";
 import { formatTickerCurrency } from "@/lib/utils";
+import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 
 const fmtCurrency = (amount: number, currency: 'ARS' | 'USD' = 'ARS') => {
   return new Intl.NumberFormat('es-AR', {
@@ -203,45 +204,49 @@ export default function InversionesPage() {
                     {portfolio.assets.length}
                   </span>
                 </h3>
-                <div className="space-y-2 md:space-y-3">
+                <StaggeredList className="space-y-2 md:space-y-3">
                   {portfolio.assets.map((asset) => {
                     const assetCurrency = (asset.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD';
                     return (
-                      <div key={asset.id} className="flex items-center justify-between p-2.5 md:p-3 rounded-lg bg-slate-900 border border-slate-800/60 hover:border-slate-700 transition-colors">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-slate-200">{asset.ticker}</span>
-                            <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${
-                              assetCurrency === 'USD' 
-                                ? 'bg-sky-500/10 text-sky-400' 
-                                : 'bg-emerald-500/10 text-emerald-400'
-                            }`}>
-                              {assetCurrency}
-                            </span>
+                      <StaggeredItem key={asset.id}>
+                        <div className="flex items-center justify-between p-2.5 md:p-3 rounded-lg bg-slate-900 border border-slate-800/60 hover:border-slate-700 transition-colors">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-slate-200">{asset.ticker}</span>
+                              <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${
+                                assetCurrency === 'USD'
+                                  ? 'bg-sky-500/10 text-sky-400'
+                                  : 'bg-emerald-500/10 text-emerald-400'
+                              }`}>
+                                {assetCurrency}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 truncate">{asset.quantity} × {formatTickerCurrency(asset.lastPrice, asset.ticker, asset.currency)}</div>
                           </div>
-                          <div className="text-[10px] text-slate-500 truncate">{asset.quantity} × {formatTickerCurrency(asset.lastPrice, asset.ticker, asset.currency)}</div>
+                          <div className="text-right shrink-0 ml-2">
+                            <div className="font-mono text-sm font-medium text-slate-200">
+                              {formatTickerCurrency(asset.currentValue, asset.ticker, asset.currency)}
+                            </div>
+                            <div className={`text-[10px] font-mono ${asset.profitPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {asset.profitPercent >= 0 ? '+' : ''}{asset.profitPercent.toFixed(2)}%
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <div className="font-mono text-sm font-medium text-slate-200">
-                            {formatTickerCurrency(asset.currentValue, asset.ticker, asset.currency)}
-                          </div>
-                          <div className={`text-[10px] font-mono ${asset.profitPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {asset.profitPercent >= 0 ? '+' : ''}{asset.profitPercent.toFixed(2)}%
-                          </div>
-                        </div>
-                      </div>
+                      </StaggeredItem>
                     );
                   })}
-                </div>
+                </StaggeredList>
               </div>
             </div>
           </>
         ) : (
           /* Empty State */
-          <div className="flex flex-col items-center justify-center py-12 md:py-16 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-slate-500">
-            <TrendingUp className="h-8 w-8 mb-3 opacity-50" />
-            <p className="text-sm">No tienes inversiones registradas.</p>
-            <p className="text-xs mt-1 mb-4">Agrega tu primer activo para trackear tu portafolio.</p>
+          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 text-center">
+            <TrendingUp className="h-16 w-16 text-slate-700 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-200 mb-2">Empezá a hacer crecer tu plata</h3>
+            <p className="text-sm text-slate-500 max-w-xs mb-6">
+              Registrá tus activos — acciones, CEDEARs, crypto — y seguí el valor de tu portafolio en tiempo real.
+            </p>
             <CreateInvestmentDialog />
           </div>
         )}

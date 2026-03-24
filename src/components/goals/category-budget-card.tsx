@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,7 @@ import { EditBudgetDialog } from './edit-budget-dialog'
 import { deleteCategoryBudget } from '@/app/dashboard/goals/actions'
 import { Trash2, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { useConfetti } from '@/components/shared/confetti'
 import type { CategoryBudget } from '@/types/database'
 
 interface Props {
@@ -17,8 +19,27 @@ interface Props {
 
 export function CategoryBudgetCard({ budget }: Props) {
   const [deleting, setDeleting] = useState(false)
-  const { getCategoryBudgetStatus, fetchGoalsData } = useFinanceStore()
+  const [showEndOfMonthBadge, setShowEndOfMonthBadge] = useState(false)
+  const { getCategoryBudgetStatus, getBudgetProjection, fetchGoalsData } = useFinanceStore()
   const statusData = getCategoryBudgetStatus(budget.category_id)
+  const projection = getBudgetProjection(budget.id)
+  const { celebrate } = useConfetti()
+
+  useEffect(() => {
+    if (!statusData || statusData.status !== 'ok') return
+    const now = new Date()
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    if (now.getDate() < lastDayOfMonth - 3) return
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const key = `confetti_budget_${budget.id}_${monthKey}`
+    if (typeof window !== 'undefined') {
+      setShowEndOfMonthBadge(true)
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, '1')
+        celebrate(true)
+      }
+    }
+  }, [statusData?.status, budget.id, celebrate])
 
   if (!statusData) return null
 
@@ -65,21 +86,33 @@ export function CategoryBudgetCard({ budget }: Props) {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             {statusBadge}
+            {showEndOfMonthBadge && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Badge className="bg-teal-500/20 text-teal-300 border-0 text-[10px] px-2 py-0">
+                  ¡Dentro del presupuesto!
+                </Badge>
+              </motion.div>
+            )}
           </div>
           <h3 className="font-semibold text-slate-100">
             {categoryEmoji && <span className="mr-1">{categoryEmoji}</span>}
             {categoryName}
           </h3>
-          <p className="text-xs text-slate-500 mt-0.5">Presupuesto mensual</p>
+          <p className="text-xs text-slate-400 mt-0.5">Presupuesto mensual</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <EditBudgetDialog budget={budget} categoryName={categoryName} categoryEmoji={categoryEmoji} />
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10"
+            aria-label={`Eliminar presupuesto de ${categoryName}`}
+            className="h-11 w-11 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
             onClick={handleDelete}
             disabled={deleting}
           >
@@ -90,11 +123,29 @@ export function CategoryBudgetCard({ budget }: Props) {
 
       {/* Progress bar */}
       <div className="space-y-1.5">
-        <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden">
+        <div className="relative">
           <div
-            className={`h-full rounded-full transition-all duration-700 ${barColor}`}
-            style={{ width: `${Math.min(percent, 100)}%` }}
-          />
+            className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden"
+            role="progressbar"
+            aria-valuenow={Math.round(Math.min(percent, 100))}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${categoryName}: ${Math.round(Math.min(percent, 100))}% del presupuesto`}
+          >
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+              style={{ width: `${Math.min(percent, 100)}%` }}
+            />
+          </div>
+          {projection && (
+            <div
+              className="absolute top-0 h-2.5 pointer-events-none"
+              style={{
+                left: `${Math.min(projection.limit > 0 ? (projection.projected / projection.limit) * 100 : 0, 100)}%`,
+                borderLeft: `2px dashed ${projection.isOverBudget ? '#fb7185' : '#34d399'}`,
+              }}
+            />
+          )}
         </div>
         <div className="flex justify-between text-xs">
           <span className={
@@ -105,11 +156,19 @@ export function CategoryBudgetCard({ budget }: Props) {
             {budget.currency === 'USD' ? 'USD ' : ''}
             {formatCurrency(spent)} gastados
           </span>
-          <span className="text-slate-500">
+          <span className="text-slate-400">
             límite: {budget.currency === 'USD' ? 'USD ' : ''}
             {formatCurrency(limit)}
           </span>
         </div>
+        {projection && (
+          <div className={`text-[11px] font-medium ${projection.isOverBudget ? 'text-rose-400' : 'text-emerald-400'}`}>
+            {projection.isOverBudget
+              ? `Proyección: ${budget.currency === 'USD' ? 'USD ' : ''}${formatCurrency(projection.projected)} (excede por ${budget.currency === 'USD' ? 'USD ' : ''}${formatCurrency(projection.projected - projection.limit)})`
+              : `Proyección: ${budget.currency === 'USD' ? 'USD ' : ''}${formatCurrency(projection.projected)}`
+            }
+          </div>
+        )}
       </div>
 
       {/* Context message */}
@@ -126,7 +185,7 @@ export function CategoryBudgetCard({ budget }: Props) {
         </p>
       )}
       {status === 'ok' && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-400">
           {(100 - percent).toFixed(0)}% disponible este mes
         </p>
       )}

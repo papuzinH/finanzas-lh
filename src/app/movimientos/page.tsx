@@ -3,23 +3,19 @@
 import { useEffect, useState } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { MonthSelector } from '@/components/dashboard/month-selector';
-import { parseISO, isSameDay, isSameMonth, parse, format } from 'date-fns';
+import { isSameDay, isSameMonth, parse, format } from 'date-fns';
 import { cn, formatCurrency } from '@/lib/utils';
 import { parseLocalDate } from '@/lib/utils/dates';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
-import { Filter, CreditCard, ChevronDown, ChevronRight, Tag, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Search, X, CreditCard, Wallet, Receipt } from 'lucide-react';
 import { FullPageLoader } from '@/components/shared/loader';
 import { Button } from '@/components/ui/button';
 import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { QuickAdd } from '@/components/transactions/quick-add';
+import { motion } from 'framer-motion';
+import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 
 interface TransactionWithPeriod extends Transaction {
   periodDate?: string;
@@ -28,6 +24,8 @@ interface TransactionWithPeriod extends Transaction {
 export default function MovimientosPage() {
   const [isFutureOpen, setIsFutureOpen] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const {
     transactions,
     paymentMethods,
@@ -52,6 +50,11 @@ export default function MovimientosPage() {
       fetchAllData();
     }
   }, [isInitialized, fetchAllData]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // --- FILTRADO Y AGRUPACIÓN ---
 
@@ -82,6 +85,19 @@ export default function MovimientosPage() {
     return isMonthMatch && isMethodMatch && isCategoryMatch;
   });
 
+  // Búsqueda sobre los ya filtrados
+  const searchFilteredTransactions = debouncedQuery
+    ? filteredTransactions.filter(t => {
+        const q = debouncedQuery.toLowerCase();
+        const cat = categories.find(c => c.id === t.category_id);
+        return (
+          t.description?.toLowerCase().includes(q) ||
+          cat?.name.toLowerCase().includes(q) ||
+          t.amount.toString().includes(q)
+        );
+      })
+    : filteredTransactions;
+
   // Agrupación por días/estado
   const groups: Record<string, Transaction[]> = {
     futuro: [],
@@ -91,7 +107,7 @@ export default function MovimientosPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  filteredTransactions.forEach(t => {
+  searchFilteredTransactions.forEach(t => {
     // Parsear como fecha LOCAL y luego usar para comparación de días
     const tDateOnly = parseLocalDate(t.date);
     tDateOnly.setHours(0, 0, 0, 0);
@@ -159,19 +175,20 @@ export default function MovimientosPage() {
         </div>
         
         {(!collapsible || isOpen) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {items.map(t => {
               const paymentMethod = paymentMethods.find(pm => pm.id === t.payment_method_id);
               return (
-                <TransactionItem 
-                  key={t.id} 
-                  transaction={t} 
-                  paymentMethodName={paymentMethod?.name}
-                  paymentMethodType={paymentMethod?.type}
-                />
+                <StaggeredItem key={t.id}>
+                  <TransactionItem
+                    transaction={t}
+                    paymentMethodName={paymentMethod?.name}
+                    paymentMethodType={paymentMethod?.type}
+                  />
+                </StaggeredItem>
               );
             })}
-          </div>
+          </StaggeredList>
         )}
       </div>
     );
@@ -182,9 +199,9 @@ export default function MovimientosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
+    <div className="min-h-screen bg-[var(--surface)] text-slate-50 font-sans pb-24">
       {/* Header Sticky */}
-      <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
+      <header className="sticky top-0 z-20 border-b border-slate-800 bg-[var(--surface)]/80 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-4 py-2 flex flex-col md:flex-row justify-between items-center gap-2 md:gap-0">
           <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
           
@@ -210,70 +227,126 @@ export default function MovimientosPage() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-[1440px] px-4 py-3 flex flex-wrap gap-3 items-center overflow-x-auto">
-          <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-800 rounded-lg px-2 py-1 min-w-0 flex-wrap sm:flex-nowrap">
-            <Filter className="h-3.5 w-3.5 text-slate-500" />
-            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mr-1">Filtros</span>
-            
-            {/* Medio de Pago */}
-            <Select 
-              value={selectedPaymentMethodId} 
-              onValueChange={(val) => handleFilterChange('paymentMethod', val)}
+        {/* Chips de Medios de Pago */}
+        <div className="mx-auto max-w-[1440px] px-4 pt-2 pb-1">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {/* Chip "Todos" */}
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              onClick={() => handleFilterChange('paymentMethod', 'all')}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border whitespace-nowrap shrink-0 transition-colors",
+                selectedPaymentMethodId === 'all'
+                  ? "bg-indigo-500/20 border-indigo-500/30 text-indigo-300"
+                  : "bg-[var(--surface-overlay)]/50 border-slate-800 text-slate-400 hover:text-slate-200"
+              )}
             >
-              <SelectTrigger className="h-8 w-[120px] sm:w-[140px] bg-transparent border-none focus:ring-0 text-xs text-slate-300 hover:text-white transition-colors">
-                <div className="flex items-center gap-2 truncate">
-                  <CreditCard className="h-3 w-3 shrink-0" />
-                  <SelectValue placeholder="Medio de Pago" />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
-                <SelectItem value="all">Todos los medios</SelectItem>
-                {paymentMethods.map((pm) => (
-                  <SelectItem key={pm.id} value={pm.id.toString()}>
-                    {pm.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Wallet className="h-3 w-3" />
+              Todos
+            </motion.button>
+            {paymentMethods.map((pm) => {
+              const isActive = selectedPaymentMethodId === pm.id.toString();
+              const Icon = pm.type === 'credit' ? CreditCard : Wallet;
+              return (
+                <motion.button
+                  key={pm.id}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => handleFilterChange('paymentMethod', pm.id.toString())}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border whitespace-nowrap shrink-0 transition-colors",
+                    isActive
+                      ? "bg-indigo-500/20 border-indigo-500/30 text-indigo-300"
+                      : "bg-[var(--surface-overlay)]/50 border-slate-800 text-slate-400 hover:text-slate-200"
+                  )}
+                >
+                  <Icon className="h-3 w-3" />
+                  {pm.name}
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
 
-            <div className="w-px h-4 bg-slate-800 mx-1" />
-
-            {/* Categoría */}
-            <Select 
-              value={selectedCategoryId} 
-              onValueChange={(val) => handleFilterChange('category', val)}
+        {/* Chips de Categorías */}
+        <div className="mx-auto max-w-[1440px] px-4 pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {/* Chip "Todos" */}
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              onClick={() => handleFilterChange('category', 'all')}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border whitespace-nowrap shrink-0 transition-colors",
+                selectedCategoryId === 'all'
+                  ? "bg-indigo-500/20 border-indigo-500/30 text-indigo-300"
+                  : "bg-[var(--surface-overlay)]/50 border-slate-800 text-slate-400 hover:text-slate-200"
+              )}
             >
-              <SelectTrigger className="h-8 w-[120px] sm:w-[140px] bg-transparent border-none focus:ring-0 text-xs text-slate-300 hover:text-white transition-colors">
-                <div className="flex items-center gap-2 truncate">
-                  <Tag className="h-3 w-3 shrink-0" />
-                  <SelectValue placeholder="Categoría" />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
-                <SelectItem value="all">Todas las categorías</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.emoji} {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <span>🏷️</span>
+              Todas
+            </motion.button>
+            {categories.map((cat) => {
+              const isActive = selectedCategoryId === cat.id;
+              return (
+                <motion.button
+                  key={cat.id}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => handleFilterChange('category', cat.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border whitespace-nowrap shrink-0 transition-colors",
+                    isActive
+                      ? "bg-indigo-500/20 border-indigo-500/30 text-indigo-300"
+                      : "bg-[var(--surface-overlay)]/50 border-slate-800 text-slate-400 hover:text-slate-200"
+                  )}
+                >
+                  <span>{cat.emoji}</span>
+                  {cat.name}
+                </motion.button>
+              );
+            })}
           </div>
 
           {(selectedPaymentMethodId !== 'all' || selectedCategoryId !== 'all') && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 const params = new URLSearchParams(searchParams);
                 params.delete('paymentMethod');
                 params.delete('category');
                 router.replace(`${pathname}?${params.toString()}`);
               }}
-              className="h-8 text-[10px] uppercase font-bold text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
+              className="h-7 text-[10px] uppercase font-bold text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 px-2 mt-0.5"
             >
               Limpiar Filtros
             </Button>
+          )}
+        </div>
+
+        {/* Búsqueda */}
+        <div className="mx-auto max-w-[1440px] px-4 pb-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por descripción, categoría o monto..."
+              className="w-full bg-[var(--surface-overlay)]/50 border border-slate-800 rounded-xl pl-9 pr-9 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {debouncedQuery && (
+            <p className="text-xs text-slate-500 mt-1.5 px-1">
+              {searchFilteredTransactions.length}{' '}
+              movimiento{searchFilteredTransactions.length !== 1 ? 's' : ''} encontrado{searchFilteredTransactions.length !== 1 ? 's' : ''}
+            </p>
           )}
         </div>
       </header>
@@ -281,12 +354,29 @@ export default function MovimientosPage() {
       <CreateTransactionDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
       <main className="mx-auto max-w-[1440px] px-4 py-6">
+        <div className="mb-4">
+          <QuickAdd />
+        </div>
         {filteredTransactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-500 opacity-60">
-            <div className="h-20 w-20 rounded-full bg-slate-900 flex items-center justify-center mb-4 border border-slate-800">
-              <Filter className="h-10 w-10 opacity-40" />
-            </div>
-            <p>No hay movimientos en este filtro</p>
+          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-[var(--surface-raised)]/20 text-center">
+            <Receipt className="h-16 w-16 text-slate-700 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-200 mb-2">Registrá tus movimientos</h3>
+            <p className="text-sm text-slate-500 max-w-xs mb-6">
+              Llevá un registro de tus ingresos y gastos para saber exactamente a dónde va tu plata cada mes.
+            </p>
+            <Button
+              onClick={() => setIsCreateOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Agregar movimiento
+            </Button>
+          </div>
+        ) : searchFilteredTransactions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-[var(--surface-raised)]/20 text-center">
+            <Search className="h-16 w-16 text-slate-700 mb-4" />
+            <h3 className="text-base font-semibold text-slate-200 mb-1">Sin resultados para &ldquo;{debouncedQuery}&rdquo;</h3>
+            <p className="text-sm text-slate-500">Probá con otra descripción, categoría o monto.</p>
           </div>
         ) : (
           <>

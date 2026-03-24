@@ -22,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className="antialiased bg-slate-950 text-slate-50"
+        className="antialiased bg-[var(--surface)] text-slate-50"
       >
         <AppShell>
           {children}

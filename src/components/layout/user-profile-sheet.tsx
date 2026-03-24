@@ -64,7 +64,7 @@ export function UserProfileSheet() {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="right"
-          className="w-80 border-slate-800 bg-slate-950 text-slate-50 p-0 overflow-y-auto"
+          className="w-80 border-slate-800 bg-[var(--surface)] text-slate-50 p-0 overflow-y-auto"
         >
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-slate-800">
             <SheetTitle className="text-slate-50">Mi perfil</SheetTitle>
@@ -95,7 +95,7 @@ export function UserProfileSheet() {
             </div>
 
             {/* Info de la cuenta */}
-            <Card className="border-slate-800 bg-slate-900">
+            <Card className="border-slate-800 bg-[var(--surface-raised)]">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm text-slate-200">Información de la cuenta</CardTitle>
               </CardHeader>

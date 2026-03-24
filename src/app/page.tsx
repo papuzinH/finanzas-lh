@@ -13,11 +13,13 @@ import {
   PieChart as PieChartIcon,
   Info,
   ShoppingBag,
-  DollarSign
+  DollarSign,
+  Flame
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
 import { TransactionItem } from '@/components/shared/transaction-item';
+import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { Modal } from '@/components/shared/modal';
 import { FullPageLoader } from '@/components/shared/loader';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
@@ -25,6 +27,9 @@ import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { BalanceCard } from '@/components/dashboard/balance-card';
 import { MetricRow } from '@/components/dashboard/metric-row';
 import { BudgetOverviewStrip } from '@/components/goals/budget-overview-strip';
+import { TrendChart } from '@/components/dashboard/trend-chart';
+import { CategoryComparison } from '@/components/dashboard/category-comparison';
+import { InsightsCarousel } from '@/components/dashboard/insights-carousel';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
 
@@ -51,6 +56,7 @@ export default function DashboardPage() {
     getCategoryBreakdown,
     getMonthlyIncome,
     getMonthlyVariableExpenses,
+    getRegistrationStreak,
     user
   } = useFinanceStore();
 
@@ -77,6 +83,7 @@ export default function DashboardPage() {
   const totalExpense = getGlobalEffectiveExpenses();
   const monthlyIncome = getMonthlyIncome();
   const monthlyVariableExpenses = getMonthlyVariableExpenses();
+  const streak = getRegistrationStreak();
 
   // Datos para los Gráficos y Modales
   const globalBreakdown = getCategoryBreakdown('global');
@@ -92,13 +99,29 @@ export default function DashboardPage() {
 
   // Componente del dashboard principal
   const dashboardContent = (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans pb-24">
+    <div className="min-h-screen bg-[var(--surface)] text-slate-50 font-sans pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-slate-800 bg-[var(--surface)]/80 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-4 flex justify-between items-center">
-          <div>
+          <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold tracking-tight text-white">Hola, {user?.first_name || 'Usuario'} 👋</h1>
-       
+            {streak.days > 0 && (
+              <div
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20"
+                title={!streak.isActiveToday ? 'Registrá un gasto para mantener tu racha' : undefined}
+              >
+                <Flame
+                  className={[
+                    'w-3.5 h-3.5 text-amber-400',
+                    streak.isActiveToday ? '' : 'opacity-50',
+                    streak.days > 7 ? 'animate-pulse' : '',
+                  ].join(' ')}
+                />
+                <span className="text-[11px] font-semibold text-amber-400 leading-none">
+                  {streak.days}d
+                </span>
+              </div>
+            )}
           </div>
           <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700" />
         </div>
@@ -106,10 +129,12 @@ export default function DashboardPage() {
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 space-y-6">
 
+        {/* ── ABOVE THE FOLD ── */}
+
         {/* SECCIÓN A: ESTADO PATRIMONIAL (Bento Grid) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
-          {/* New: Expandible Balance Card */}
+          {/* Expandible Balance Card */}
           <BalanceCard
             globalBalance={globalBalance}
             monthlyIncome={monthlyIncome}
@@ -117,6 +142,11 @@ export default function DashboardPage() {
             installments={currentMonthInstallments}
             burnRate={monthlyBurnRate}
           />
+
+          {/* Insights Carousel */}
+          <div className="col-span-2 lg:col-span-4">
+            <InsightsCarousel />
+          </div>
 
           {/* Metric Row 1: Ingresos y Gastos Variables */}
           <MetricRow
@@ -127,6 +157,7 @@ export default function DashboardPage() {
                 sublabel: "Total percibido",
                 color: "emerald",
                 icon: DollarSign,
+                sparklineType: "income",
               },
               {
                 label: "Variables mes",
@@ -134,6 +165,7 @@ export default function DashboardPage() {
                 sublabel: "Gastos del día a día",
                 color: "rose",
                 icon: ShoppingBag,
+                sparklineType: "variable",
               },
             ]}
           />
@@ -148,6 +180,7 @@ export default function DashboardPage() {
                 color: "indigo",
                 icon: CreditCard,
                 onClick: () => setIsInstallmentsModalOpen(true),
+                sparklineType: "installments",
               },
               {
                 label: "Fijos mes",
@@ -156,18 +189,45 @@ export default function DashboardPage() {
                 color: "amber",
                 icon: CalendarClock,
                 onClick: () => setIsFixedCostsModalOpen(true),
+                sparklineType: "fixed",
               },
             ]}
           />
         </div>
 
+        {/* PRESUPUESTOS DEL MES */}
+        <BudgetOverviewStrip />
+
+        {/* ── BELOW THE FOLD ── */}
+
+        {/* Separador: Análisis */}
+        <div className="flex items-center gap-2 mt-8 mb-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Análisis</h2>
+          <div className="flex-1 h-px bg-slate-800" />
+        </div>
+
         {/* SECCIÓN B: ANÁLISIS VISUAL (Charts) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          
+
+          {/* Gráfico 0: Tendencia Ingreso vs Gasto (6 meses) */}
+          <div className="col-span-full rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-slate-500" />
+                Tendencia Ingreso vs Gasto
+              </h3>
+              <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Ingresos</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />Gastos</span>
+              </div>
+            </div>
+            <TrendChart />
+          </div>
+
           {/* Gráfico 1: Gastos Globales */}
-          <div 
+          <div
             onClick={() => setIsGlobalExpensesModalOpen(true)}
-            className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/30 p-5 cursor-pointer hover:bg-slate-800/30 transition-colors"
+            className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-5 cursor-pointer hover:bg-slate-800/30 transition-colors"
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
@@ -191,7 +251,7 @@ export default function DashboardPage() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px', fontSize: '12px' }}
                       itemStyle={{ color: '#e2e8f0' }}
                       formatter={(value: number) => formatCurrency(value)}
@@ -214,9 +274,9 @@ export default function DashboardPage() {
           </div>
 
           {/* Gráfico 2: Gastos del Mes */}
-          <div 
+          <div
             onClick={() => setIsMonthlyExpensesModalOpen(true)}
-            className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/30 p-5 cursor-pointer hover:bg-slate-800/30 transition-colors"
+            className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-5 cursor-pointer hover:bg-slate-800/30 transition-colors"
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
@@ -241,7 +301,7 @@ export default function DashboardPage() {
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px', fontSize: '12px' }}
                         itemStyle={{ color: '#e2e8f0' }}
                         formatter={(value: number) => formatCurrency(value)}
@@ -268,35 +328,39 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Gráfico 3: Variación por Categoría */}
+          <div className="col-span-1 md:col-span-2 lg:col-span-2">
+            <CategoryComparison />
+          </div>
+
         </div>
 
-        {/* SECCIÓN B.5: PRESUPUESTOS DEL MES */}
-        <BudgetOverviewStrip />
+        {/* Separador: Últimos movimientos */}
+        <div className="flex items-center gap-2 mt-8 mb-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Últimos movimientos</h2>
+          <div className="flex-1 h-px bg-slate-800" />
+          <Link href="/movimientos" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">Ver todos</Link>
+        </div>
 
         {/* SECCIÓN C: ÚLTIMOS MOVIMIENTOS */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-200">Últimos movimientos</h3>
-            <Link href="/movimientos" className="text-xs text-indigo-400 cursor-pointer hover:text-indigo-300 transition-colors">Ver todos</Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {transactions
-              .filter(t => !t.installment_plan_id)
-              .slice(0, 6)
-              .map((t) => {
-              const paymentMethod = paymentMethods.find(pm => pm.id === t.payment_method_id);
-              return (
-                <TransactionItem 
-                  key={t.id} 
-                  transaction={t} 
+        <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {transactions
+            .filter(t => !t.installment_plan_id)
+            .slice(0, 6)
+            .map((t) => {
+            const paymentMethod = paymentMethods.find(pm => pm.id === t.payment_method_id);
+            return (
+              <StaggeredItem key={t.id}>
+                <TransactionItem
+                  transaction={t}
                   paymentMethodName={paymentMethod?.name}
                   paymentMethodType={paymentMethod?.type}
                   showDate={true}
                 />
-              );
-            })}
-          </div>
-        </div>
+              </StaggeredItem>
+            );
+          })}
+        </StaggeredList>
 
       </main>
 

@@ -87,7 +87,7 @@ export function MainNav() {
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="absolute bottom-full left-0 right-0 z-50 mb-0"
             >
-              <div className="mx-3 mb-2 rounded-2xl border border-slate-800 bg-slate-900/95 backdrop-blur-xl shadow-2xl shadow-black/40 overflow-hidden">
+              <div className="mx-3 mb-2 rounded-2xl border border-slate-800 bg-[var(--surface-overlay)]/95 backdrop-blur-xl shadow-2xl shadow-black/40 overflow-hidden">
                 <div className="px-4 pt-4 pb-2 border-b border-slate-800/50">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Más opciones</p>
                 </div>
@@ -121,7 +121,7 @@ export function MainNav() {
         </AnimatePresence>
 
         {/* Bottom Bar Principal */}
-        <div className="relative z-50 border-t border-slate-800/80 bg-slate-950/95 backdrop-blur-xl">
+        <div className="relative z-50 border-t border-slate-800/80 bg-[var(--surface)]/95 backdrop-blur-xl">
           <div className="mx-auto flex h-16 items-center justify-around px-1 pb-[env(safe-area-inset-bottom)]">
             {PRIMARY_NAV_ITEMS.map((item) => {
               const Icon = item.icon;
@@ -205,7 +205,7 @@ export function MainNav() {
       </nav>
 
       {/* ========== DESKTOP SIDEBAR ========== */}
-      <nav className="hidden fixed left-0 top-0 z-40 h-full w-64 border-r border-slate-800 bg-slate-950 p-6 md:flex md:flex-col">
+      <nav className="hidden fixed left-0 top-0 z-40 h-full w-64 border-r border-slate-800 bg-[var(--surface)] p-6 md:flex md:flex-col">
         <div className="flex items-center gap-3 mb-10 px-2">
           <div className="relative h-10 w-10 aspect-square overflow-hidden rounded-full shadow-[0_0_15px_rgba(16,185,129,0.2)]">
             <Image src="/icon.png" alt="Chanchito Logo" fill className="object-cover" />

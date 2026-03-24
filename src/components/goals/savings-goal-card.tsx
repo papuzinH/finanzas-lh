@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -10,6 +11,7 @@ import { EditSavingsGoalDialog } from './edit-savings-goal-dialog'
 import { deleteSavingsGoal } from '@/app/dashboard/goals/actions'
 import { Trash2, Calendar, RefreshCw, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
+import { useConfetti } from '@/components/shared/confetti'
 import type { SavingsGoal } from '@/types/database'
 
 interface Props {
@@ -19,8 +21,23 @@ interface Props {
 export function SavingsGoalCard({ goal }: Props) {
   const [deleting, setDeleting] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [showCelebration, setShowCelebration] = useState(false)
   const { getSavingsGoalProgress, savingsGoalContributions, fetchGoalsData } = useFinanceStore()
   const progress = getSavingsGoalProgress(goal.id)
+  const { celebrate } = useConfetti()
+
+  useEffect(() => {
+    if (!progress) return
+    if (progress.percent < 100) return
+    const key = `confetti_goal_${goal.id}`
+    if (typeof window !== 'undefined' && !localStorage.getItem(key)) {
+      localStorage.setItem(key, '1')
+      celebrate()
+      setShowCelebration(true)
+    } else if (typeof window !== 'undefined' && localStorage.getItem(key)) {
+      setShowCelebration(true)
+    }
+  }, [progress?.percent, goal.id, celebrate])
 
   if (!progress) return null
 
@@ -67,7 +84,18 @@ export function SavingsGoalCard({ goal }: Props) {
                 Mensual
               </Badge>
             )}
-            {status === 'completed' && (
+            {status === 'completed' && showCelebration && (
+              <motion.div
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 2 }}
+              >
+                <Badge className="bg-emerald-500/20 text-emerald-300 border-0 text-[10px] px-2 py-0">
+                  <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
+                  ¡Meta cumplida! 🎉
+                </Badge>
+              </motion.div>
+            )}
+            {status === 'completed' && !showCelebration && (
               <Badge className="bg-emerald-500/20 text-emerald-300 border-0 text-[10px] px-2 py-0">
                 <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
                 ¡Lograda!
