@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { installmentPlanSchema, type InstallmentPlanSchema, createInstallmentPlanSchema, type CreateInstallmentPlanSchema } from '@/lib/schemas/installment-plan';
 import { revalidatePath } from 'next/cache';
 import { addMonths } from 'date-fns';
+import { getInstallmentPaymentDate, formatLocalDate } from '@/lib/utils/dates';
 
 type ActionResponse = {
   error?: string;
@@ -31,6 +32,31 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
     const { description, total_amount, installments_count, purchase_date, category_id, payment_method_id } = validatedFields.data;
     const finalPaymentMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
+    // La fecha de compra del input viene como Date UTC midnight; extraer la porción YYYY-MM-DD
+    const purchaseDateStr = purchase_date.toISOString().split('T')[0];
+
+    // Calcular la fecha de la primera cuota aplicando ciclo de tarjeta si corresponde
+    let firstInstallmentDate: Date;
+    if (finalPaymentMethodId) {
+      const { data: pm } = await supabase
+        .from('payment_methods')
+        .select('type, default_closing_day, default_payment_day')
+        .eq('id', finalPaymentMethodId)
+        .single();
+
+      if (pm && pm.type === 'credit' && pm.default_closing_day && pm.default_payment_day) {
+        firstInstallmentDate = getInstallmentPaymentDate(
+          purchaseDateStr,
+          pm.default_closing_day,
+          pm.default_payment_day
+        );
+      } else {
+        firstInstallmentDate = new Date(purchaseDateStr + 'T00:00:00');
+      }
+    } else {
+      firstInstallmentDate = new Date(purchaseDateStr + 'T00:00:00');
+    }
+
     // 1. Crear el plan de cuotas
     const { data: plan, error: planError } = await supabase
       .from('installment_plans')
@@ -39,7 +65,7 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
         description,
         total_amount,
         installments_count,
-        purchase_date: purchase_date.toISOString(),
+        purchase_date: purchaseDateStr,
         category_id,
         payment_method_id: finalPaymentMethodId,
       })
@@ -57,7 +83,7 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
       user_id: user.id,
       description: `${description} (${i + 1}/${installments_count})`,
       amount: installmentAmount,
-      date: addMonths(purchase_date, i).toISOString(),
+      date: formatLocalDate(addMonths(firstInstallmentDate, i)),
       type: 'expense' as const,
       category_id,
       installment_plan_id: plan.id,

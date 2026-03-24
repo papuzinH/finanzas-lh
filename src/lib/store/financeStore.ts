@@ -546,8 +546,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const now = new Date();
 
     const paidTransactions = relatedTransactions.filter((t) => {
-      const transactionDate = new Date(t.date);
-      return transactionDate <= now;
+      const transactionDate = parseLocalDate(t.date);
+      return transactionDate <= startOfDay(now);
     });
 
     const paidAmount = paidTransactions.reduce(
