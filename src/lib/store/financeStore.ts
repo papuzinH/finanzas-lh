@@ -614,27 +614,27 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       const closingDay = method.default_closing_day;
       const paymentDay = method.default_payment_day;
 
-      // Aproximación del cierre de este mes
-      const closingDateThisMonth = setDate(now, closingDay);
-      
-      // Si hoy es antes del cierre, estamos en el ciclo que cierra este mes.
-      // Si hoy es después del cierre, estamos en el ciclo que cierra el mes que viene.
-      if (isAfter(now, closingDateThisMonth)) {
-         nextClosingDate = setDate(addMonths(now, 1), closingDay);
+      // Encontrar la próxima fecha de pago/vencimiento.
+      // El ciclo termina cuando se PAGA, no cuando se cierra.
+      // Ej: cierra 19/3 y vence 1/4 → mientras no llegue el 1/4 seguimos en ese ciclo.
+      let nextPaymentCandidate = setDate(now, paymentDay);
+      if (!isAfter(startOfDay(nextPaymentCandidate), startOfDay(now))) {
+        nextPaymentCandidate = addMonths(nextPaymentCandidate, 1);
+      }
+      nextPaymentDate = nextPaymentCandidate;
+
+      // Derivar el cierre a partir del vencimiento.
+      // Si paymentDay > closingDay: cierran en el mismo mes (ej: cierra 10, vence 25).
+      // Si paymentDay <= closingDay: el pago es el mes siguiente al cierre (ej: cierra 19, vence 1).
+      if (paymentDay > closingDay) {
+        nextClosingDate = setDate(nextPaymentDate, closingDay);
       } else {
-         nextClosingDate = closingDateThisMonth;
+        nextClosingDate = setDate(subMonths(nextPaymentDate, 1), closingDay);
       }
 
       // Fecha de inicio del ciclo (aprox 1 mes antes del cierre)
       startDate = subMonths(nextClosingDate, 1);
       endDate = nextClosingDate;
-
-      // Calcular vencimiento asociado a este cierre
-      let paymentDate = setDate(nextClosingDate, paymentDay);
-      if (paymentDay <= closingDay) {
-        paymentDate = addMonths(paymentDate, 1);
-      }
-      nextPaymentDate = paymentDate;
 
     } else {
       // Lógica de Mes Calendario (Débito / Efectivo)
