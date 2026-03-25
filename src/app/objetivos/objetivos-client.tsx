@@ -42,6 +42,7 @@ export function ObjetivosClient({ initialTab }: { initialTab: ActiveTab }) {
     categoryBudgets,
     categories,
     getAllBudgetStatuses,
+    getSavingsGoalProgress,
     getPortfolioStatus,
     savings,
     dolarBlue,
@@ -77,7 +78,10 @@ export function ObjetivosClient({ initialTab }: { initialTab: ActiveTab }) {
   const hasInvestments = portfolio.assets.length > 0;
 
   // ── Hero: patrimonio total ─────────────────────────────────────────────────
-  const totalMetasARS = activeGoals.reduce((sum, g) => sum + Number(g.current_amount ?? 0), 0);
+  const totalMetasARS = activeGoals.reduce((sum, g) => {
+    const progress = getSavingsGoalProgress(g.id);
+    return sum + (progress?.totalContributed ?? 0);
+  }, 0);
   const totalHeroARS = totalPatrimonioARS + totalMetasARS;
 
   const handleRefreshPrices = () => {

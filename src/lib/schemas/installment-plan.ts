@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const installmentPlanSchema = z.object({
   description: z.string().min(3, 'La descripción debe tener al menos 3 caracteres'),
-  category_id: z.string().optional(),
+  category_id: z.string(),
 });
 
 export type InstallmentPlanSchema = z.infer<typeof installmentPlanSchema>;

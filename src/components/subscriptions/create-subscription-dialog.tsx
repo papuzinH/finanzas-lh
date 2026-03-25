@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -11,29 +11,21 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Form } from '@/components/ui/form';
 import { createSubscriptionSchema, type CreateSubscriptionSchema } from '@/lib/schemas/subscription';
 import { createSubscription } from '@/app/dashboard/subscriptions/actions';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import {
+  AmountField,
+  DescriptionField,
+  CategoryPicker,
+  DateField,
+  FrequencySelector,
+  PaymentMethodField,
+} from '@/components/transactions/transaction-form-fields';
 
 interface CreateSubscriptionDialogProps {
   open: boolean;
@@ -46,7 +38,9 @@ export function CreateSubscriptionDialog({
 }: CreateSubscriptionDialogProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
-  const { fetchAllData, categories, paymentMethods } = useFinanceStore();
+  const { fetchAllData, categories, paymentMethods, getFrequentCategories } = useFinanceStore();
+
+  const frequentCategories = getFrequentCategories(4);
 
   const form = useForm<CreateSubscriptionSchema>({
     resolver: zodResolver(createSubscriptionSchema),
@@ -55,8 +49,16 @@ export function CreateSubscriptionDialog({
       amount: 0,
       category_id: '',
       payment_method_id: 'none',
+      start_date: new Date(),
+      frequency: 'monthly',
     },
   });
+
+  const watchedAmount = form.watch('amount');
+  const watchedStartDate = form.watch('start_date');
+  const watchedPaymentMethodId = form.watch('payment_method_id');
+  const watchedDebitDay = form.watch('debit_payment_day');
+  const watchedFrequency = form.watch('frequency');
 
   async function onSubmit(data: CreateSubscriptionSchema) {
     setIsPending(true);
@@ -73,7 +75,14 @@ export function CreateSubscriptionDialog({
       } else {
         toast.success('Gasto fijo creado correctamente');
         await fetchAllData();
-        form.reset();
+        form.reset({
+          description: '',
+          amount: 0,
+          category_id: '',
+          payment_method_id: 'none',
+          start_date: new Date(),
+          frequency: 'monthly',
+        });
         onOpenChange(false);
         router.refresh();
       }
@@ -84,144 +93,97 @@ export function CreateSubscriptionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
-        <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
-          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">
+      <DialogContent
+        showCloseButton
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+      >
+        {/* Header */}
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+          <DialogTitle className="text-xl font-bold text-violet-300">
             Nuevo Gasto Fijo
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
-            Agrega un servicio o gasto que se repite cada mes.
-          </DialogDescription>
+          <p className="text-sm text-slate-400 mt-1">
+            {watchedFrequency === 'monthly' ? 'Mensual' : 'Anual'} · {' '}
+            Inicia {watchedStartDate?.toLocaleDateString('es-AR', { 
+              day: '2-digit', 
+              month: 'short' 
+            }) || 'hoy'}
+          </p>
         </DialogHeader>
+
         <Form {...form}>
           <form id="subscription-form" onSubmit={form.handleSubmit(onSubmit)} className="contents">
-            <div className="overflow-y-auto flex-1 px-6 space-y-4">
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombre del servicio</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Ej: Netflix, Alquiler, Luz"
-                      {...field}
-                      className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="overflow-y-auto flex-1 px-6 pb-4 space-y-5">
 
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Monto mensual</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      {...field}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        field.onChange(isNaN(value) ? 0 : value);
-                      }}
-                      className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* ── Amount ── */}
+              <AmountField<CreateSubscriptionSchema>
+                control={form.control}
+                setValue={form.setValue}
+                watchedAmount={watchedAmount}
+                fieldName="amount"
+              />
 
-            <FormField
-              control={form.control}
-              name="category_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoría</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="bg-surface-raised border-slate-800">
-                        <SelectValue placeholder="Seleccionar categoría" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.emoji} {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* ── Description ── */}
+              <DescriptionField<CreateSubscriptionSchema>
+                control={form.control}
+              />
 
-            <FormField
-              control={form.control}
-              name="payment_method_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Método de pago</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value || 'none'}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="bg-surface-raised border-slate-800">
-                        <SelectValue placeholder="Selecciona un método de pago" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
-                      <SelectItem value="none">Sin asignar</SelectItem>
-                      {paymentMethods.map((method) => (
-                        <SelectItem
-                          key={method.id}
-                          value={method.id.toString()}
-                        >
-                          {method.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* ── Category ── */}
+              <CategoryPicker<CreateSubscriptionSchema>
+                control={form.control}
+                categories={categories}
+                frequentCategories={frequentCategories}
+              />
 
+              {/* ── Start Date ── */}
+              <DateField<CreateSubscriptionSchema>
+                control={form.control}
+                fieldName="start_date"
+                label="Fecha de inicio"
+              />
+
+              {/* ── Frequency ── */}
+              <FrequencySelector<CreateSubscriptionSchema>
+                control={form.control}
+              />
+
+              {/* ── Payment Method ── */}
+              <PaymentMethodField<CreateSubscriptionSchema>
+                control={form.control}
+                setValue={form.setValue}
+                paymentMethods={paymentMethods}
+                fieldName="payment_method_id"
+                debitFieldName="debit_payment_day"
+                dateFieldName="start_date"
+                watchedDate={watchedStartDate}
+                watchedDebitDay={watchedDebitDay}
+              />
+
+            </div>
+
+            {/* ── Submit Button ── */}
+            <div className="px-6 pb-6 pt-3 shrink-0">
+              <Button
+                type="submit"
+                form="subscription-form"
+                disabled={isPending}
+                className="w-full min-h-[52px] rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(139,92,246,0.25)] transition-all active:scale-[0.98]"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 h-5 w-5" />
+                    Crear {watchedFrequency === 'monthly' ? 'Gasto Mensual' : 'Gasto Anual'}
+                  </>
+                )}
+              </Button>
             </div>
           </form>
         </Form>
-
-        <div className="px-4 sm:px-6 py-4 border-t border-slate-800 flex-shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            form="subscription-form"
-            disabled={isPending}
-            className="w-full sm:w-auto h-11 sm:h-9 bg-indigo-600 hover:bg-indigo-700 text-white"
-          >
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Crear Gasto Fijo
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   );

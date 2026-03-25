@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -13,28 +13,16 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Form } from '@/components/ui/form';
 import { installmentPlanSchema, type InstallmentPlanSchema } from '@/lib/schemas/installment-plan';
 import { updateInstallmentPlan } from '@/app/dashboard/installments/actions';
 import { formatCurrency } from '@/lib/utils';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import {
+  DescriptionField,
+  CategoryPicker,
+} from '@/components/transactions/transaction-form-fields';
 
 interface EditInstallmentPlanDialogProps {
   open: boolean;
@@ -55,7 +43,10 @@ export function EditInstallmentPlanDialog({
 }: EditInstallmentPlanDialogProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
-  const { fetchAllData, categories } = useFinanceStore();
+  const { fetchAllData, categories, getFrequentCategories } = useFinanceStore();
+
+  const frequentCategories = getFrequentCategories(4);
+  const installmentValue = plan.total_amount / plan.installments_count;
 
   const form = useForm<InstallmentPlanSchema>({
     resolver: zodResolver(installmentPlanSchema),
@@ -64,6 +55,17 @@ export function EditInstallmentPlanDialog({
       category_id: plan.category_id || '',
     },
   });
+
+  // Reset form when plan changes
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        description: plan.description,
+        category_id: plan.category_id || '',
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, plan.id]);
 
   async function onSubmit(data: InstallmentPlanSchema) {
     setIsPending(true);
@@ -85,105 +87,78 @@ export function EditInstallmentPlanDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
-        <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
-          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
+      <DialogContent
+        showCloseButton
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+      >
+        {/* Header */}
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+          <DialogTitle className="text-xl font-bold text-indigo-300">
             Editar Plan de Cuotas
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
-            Solo puedes editar el nombre y la categoría. El monto y la cantidad de cuotas no se pueden modificar para mantener la integridad del historial.
-          </DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
           <form id="edit-plan-form" onSubmit={form.handleSubmit(onSubmit)} className="contents">
-            <div className="overflow-y-auto flex-1 px-6 space-y-4">
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-slate-300">Descripción</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Ej: Compra TV"
-                        {...field}
-                        className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="overflow-y-auto flex-1 px-6 pb-4 space-y-5">
 
-              <FormField
-                control={form.control}
-                name="category_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-slate-300">Categoría</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="bg-surface-raised border-slate-800">
-                          <SelectValue placeholder="Seleccionar categoría" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.emoji} {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* ── Readonly Amount Display ── */}
+              <div className="flex flex-col items-center gap-1 pt-2">
+                <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                  Monto Total
+                </span>
+                <span className="text-4xl sm:text-5xl font-semibold text-slate-50/60 tabular-nums">
+                  {formatCurrency(plan.total_amount)}
+                </span>
+              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <FormLabel className="text-slate-500">Monto Total</FormLabel>
-                  <Input
-                    disabled
-                    value={formatCurrency(plan.total_amount)}
-                    className="bg-surface-raised/50 border-slate-800 text-slate-500 cursor-not-allowed"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <FormLabel className="text-slate-500">Cuotas</FormLabel>
-                  <Input
-                    disabled
-                    value={plan.installments_count.toString()}
-                    className="bg-surface-raised/50 border-slate-800 text-slate-500 cursor-not-allowed"
-                  />
+              {/* ── Readonly Installments Info ── */}
+              <div className="flex justify-center">
+                <div className="rounded-full bg-slate-800/60 border border-slate-700/50 px-4 py-2 text-center">
+                  <span className="text-sm text-slate-400">
+                    {plan.installments_count} cuotas de{' '}
+                    <span className="font-semibold text-slate-300">
+                      {formatCurrency(installmentValue)}
+                    </span>
+                  </span>
                 </div>
               </div>
+
+              {/* ── Description ── */}
+              <DescriptionField control={form.control} />
+
+              {/* ── Categories ── */}
+              <CategoryPicker
+                control={form.control}
+                categories={categories}
+                frequentCategories={frequentCategories}
+              />
+
+            </div>
+
+            {/* ── Submit Button ── */}
+            <div className="px-6 pb-6 pt-3 shrink-0">
+              <Button
+                type="submit"
+                form="edit-plan-form"
+                disabled={isPending}
+                className="w-full min-h-[52px] rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(129,140,248,0.25)] transition-all active:scale-[0.98]"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-5 w-5" />
+                    Guardar Cambios
+                  </>
+                )}
+              </Button>
             </div>
           </form>
         </Form>
-
-        <div className="px-4 sm:px-6 py-4 border-t border-slate-800 flex-shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            form="edit-plan-form"
-            disabled={isPending}
-            className="w-full sm:w-auto h-11 sm:h-9 bg-indigo-600 hover:bg-indigo-700 text-white"
-          >
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Guardar Cambios
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   );

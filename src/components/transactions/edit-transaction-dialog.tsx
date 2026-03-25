@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { format } from 'date-fns';
-import { CalendarIcon, Loader2 } from 'lucide-react';
+import { Loader2, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -12,36 +11,26 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Form } from '@/components/ui/form';
 import { transactionSchema, type TransactionSchema } from '@/lib/schemas/transaction';
 import { updateTransaction } from '@/app/dashboard/transactions/actions';
-import { cn } from '@/lib/utils';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import {
+  AmountField,
+  TypeToggle,
+  DescriptionField,
+  CategoryPicker,
+  DateField,
+} from '@/components/transactions/transaction-form-fields';
 
 interface EditTransactionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction: {
-    id: number; // The DB uses number for id based on types/database.ts
+    id: number;
     description: string;
     amount: number;
     date: string;
@@ -57,7 +46,9 @@ export function EditTransactionDialog({
 }: EditTransactionDialogProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
-  const { fetchAllData, categories } = useFinanceStore();
+  const { fetchAllData, categories, getFrequentCategories } = useFinanceStore();
+
+  const frequentCategories = getFrequentCategories(4);
 
   const form = useForm<TransactionSchema>({
     resolver: zodResolver(transactionSchema),
@@ -69,6 +60,22 @@ export function EditTransactionDialog({
       type: transaction.type || 'expense',
     },
   });
+
+  const watchedAmount = form.watch('amount');
+
+  // Reset form when dialog opens with fresh transaction data
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        description: transaction.description,
+        amount: Math.abs(transaction.amount),
+        date: new Date(transaction.date),
+        category_id: transaction.category_id || '',
+        type: transaction.type || 'expense',
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   async function onSubmit(data: TransactionSchema) {
     setIsPending(true);
@@ -90,154 +97,69 @@ export function EditTransactionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
-        <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
-          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent">
-            Editar Transacción
+      <DialogContent
+        showCloseButton
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+      >
+        {/* Header */}
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+          <DialogTitle className="text-xl font-bold text-indigo-300">
+            Editar Movimiento
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
-            Modificá los datos del movimiento registrado.
-          </DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
           <form id="edit-transaction-form" onSubmit={form.handleSubmit(onSubmit)} className="contents">
-            <div className="overflow-y-auto flex-1 px-6 space-y-4">
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descripción</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Ej: Compra supermercado" 
-                      {...field} 
-                      className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="overflow-y-auto flex-1 px-6 pb-4 space-y-5">
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
+              {/* ── Amount ── */}
+              <AmountField
                 control={form.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monto</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                setValue={form.setValue}
+                watchedAmount={watchedAmount}
               />
 
-              <FormField
+              {/* ── Type Toggle ── */}
+              <TypeToggle control={form.control} />
+
+              {/* ── Description ── */}
+              <DescriptionField control={form.control} />
+
+              {/* ── Categories ── */}
+              <CategoryPicker
                 control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipo</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="bg-surface-raised border-slate-800">
-                          <SelectValue placeholder="Seleccionar tipo" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
-                        <SelectItem value="expense">Gasto</SelectItem>
-                        <SelectItem value="income">Ingreso</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                categories={categories}
+                frequentCategories={frequentCategories}
               />
+
+              {/* ── Date ── */}
+              <DateField control={form.control} />
+
             </div>
 
-            <FormField
-              control={form.control}
-              name="category_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoría</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="bg-surface-raised border-slate-800">
-                        <SelectValue placeholder="Seleccionar categoría" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.emoji} {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Fecha</FormLabel>
-                  <FormControl>
-                     <Input
-                        type="date"
-                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => field.onChange(new Date(e.target.value))}
-                        className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 block w-full"
-                      />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+            {/* ── Submit Button ── */}
+            <div className="px-6 pb-6 pt-3 shrink-0">
+              <Button
+                type="submit"
+                form="edit-transaction-form"
+                disabled={isPending}
+                className="w-full min-h-[52px] rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(129,140,248,0.25)] transition-all active:scale-[0.98]"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-5 w-5" />
+                    Guardar Cambios
+                  </>
+                )}
+              </Button>
             </div>
           </form>
         </Form>
-
-        <div className="px-4 sm:px-6 py-4 border-t border-slate-800 flex-shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            form="edit-transaction-form"
-            disabled={isPending}
-            className="w-full sm:w-auto h-11 sm:h-9 bg-indigo-600 hover:bg-indigo-700 text-white"
-          >
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Guardar Cambios
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   );
