@@ -20,13 +20,23 @@ import type { Category } from '@/types/database';
 
 interface Props {
   categories: Category[];
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function CreateBudgetDialog({ categories }: Props) {
-  const [open, setOpen] = useState(false);
+export function CreateBudgetDialog({ 
+  categories, 
+  open: controlledOpen, 
+  onOpenChange: controlledOnOpenChange 
+}: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const fetchGoalsData = useFinanceStore((s) => s.fetchGoalsData);
   const { categoryBudgets } = useFinanceStore();
+
+  // Use controlled props if provided, otherwise use internal state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
 
   const availableCategories = useMemo(() => {
     const existingIds = new Set(

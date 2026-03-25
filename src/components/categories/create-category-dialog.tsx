@@ -14,7 +14,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   Form, FormControl, FormField, FormItem, FormMessage,
 } from '@/components/ui/form'
-import { Loader2, Plus, Sparkles, CheckCircle2, Tag } from 'lucide-react'
+import { Loader2, Sparkles, CheckCircle2, Tag } from 'lucide-react'
+import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { toast } from 'sonner'
 import { generateCategoryDescription } from '@/app/actions/ai'
 import { createCategory } from '@/app/dashboard/categories/actions'
@@ -82,9 +83,11 @@ export function CreateCategoryDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="icon" className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
-          <Plus className="h-4 w-4" />
-        </Button>
+        <AnimatedPlusButton
+          label="Crear categoría"
+          onClick={() => {}}
+          ariaLabel="Nueva categoría"
+        />
       </DialogTrigger>
       <DialogContent
         showCloseButton

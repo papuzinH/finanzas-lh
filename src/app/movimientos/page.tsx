@@ -9,10 +9,11 @@ import { parseLocalDate } from '@/lib/utils/dates';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
-import { ChevronDown, ChevronRight, Plus, Search, X, CreditCard, Wallet, Receipt } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, X, CreditCard, Wallet, Receipt } from 'lucide-react';
 import { TransactionListSkeleton } from '@/components/ui/skeletons';
 import { Button } from '@/components/ui/button';
 import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
+import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { QuickAdd } from '@/components/transactions/quick-add';
 import { AnimatePresence, motion } from 'framer-motion';
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
@@ -228,13 +229,11 @@ export default function MovimientosPage() {
                 {formatCurrency(monthlyBalance)}
               </p>
             </div>
-            <Button
+            <AnimatedPlusButton
+              label="Crear transacción"
               onClick={() => setIsCreateOpen(true)}
-              size="icon"
-              className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+              ariaLabel="Nueva transacción"
+            />
           </div>
           <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
         </div>
@@ -416,13 +415,11 @@ export default function MovimientosPage() {
             <p className="text-sm text-slate-400 max-w-xs mb-6">
               Llevá un registro de tus ingresos y gastos para saber exactamente a dónde va tu plata cada mes.
             </p>
-            <Button
+            <AnimatedPlusButton
+              label="Agregar movimiento"
               onClick={() => setIsCreateOpen(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar movimiento
-            </Button>
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 h-auto"
+            />
           </div>
         ) : searchFilteredTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-[var(--surface-raised)]/20 text-center">

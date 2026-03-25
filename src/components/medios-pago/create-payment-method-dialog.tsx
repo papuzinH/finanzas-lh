@@ -19,6 +19,7 @@ import {
   FormDescription,
 } from '@/components/ui/form'
 import { Loader2, Plus, CheckCircle2, CreditCard, Wallet, Banknote } from 'lucide-react'
+import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { createPaymentMethod } from '@/app/medios-pago/actions'
@@ -71,9 +72,11 @@ export function CreatePaymentMethodDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="icon" className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
-          <Plus className="h-4 w-4" />
-        </Button>
+        <AnimatedPlusButton
+          label="Crear método de pago"
+          onClick={() => {}}
+          ariaLabel="Nuevo método de pago"
+        />
       </DialogTrigger>
       <DialogContent
         showCloseButton

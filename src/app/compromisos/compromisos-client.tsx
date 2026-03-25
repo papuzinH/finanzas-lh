@@ -42,6 +42,7 @@ import { CreateInstallmentPlanDialog } from '@/components/installments/create-pl
 import { EditSubscriptionDialog } from '@/components/subscriptions/edit-subscription-dialog';
 import { CreateSubscriptionDialog } from '@/components/subscriptions/create-subscription-dialog';
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
+import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface PlanWithStatus extends InstallmentPlan {
@@ -406,23 +407,15 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
         icon={<CalendarClock className="h-5 w-5" />}
         containerClassName="max-w-[1440px]"
       >
-        {activeTab === 'cuotas' ? (
-          <Button
-            onClick={() => setIsCreateCuotaOpen(true)}
-            size="icon"
-            className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        ) : (
-          <Button
-            onClick={() => setIsCreateSuscripcionOpen(true)}
-            size="icon"
-            className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        )}
+        <AnimatedPlusButton
+          label={activeTab === 'cuotas' ? 'Crear cuota' : 'Crear suscripción'}
+          onClick={activeTab === 'cuotas' 
+            ? () => setIsCreateCuotaOpen(true) 
+            : () => setIsCreateSuscripcionOpen(true)
+          }
+          triggerKey={activeTab}
+          ariaLabel={activeTab === 'cuotas' ? 'Nueva cuota' : 'Nueva suscripción'}
+        />
       </PageHeader>
 
       <CreateInstallmentPlanDialog open={isCreateCuotaOpen} onOpenChange={setIsCreateCuotaOpen} />
@@ -454,11 +447,11 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
         </div>
 
         {/* Segmented Control */}
-        <div className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800 mb-6 w-fit">
+        <div className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800 mb-6 w-full justify-between">
           <button
             onClick={() => setActiveTab('cuotas')}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all w-full justify-center',
               activeTab === 'cuotas'
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
@@ -473,7 +466,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
           <button
             onClick={() => setActiveTab('suscripciones')}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all w-full justify-center',
               activeTab === 'suscripciones'
                 ? 'bg-purple-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'

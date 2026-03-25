@@ -4,21 +4,17 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import {
-  ArrowUpRight,
-  ArrowDownRight,
-  Wallet,
   CreditCard,
   CalendarClock,
   TrendingUp,
   PieChart as PieChartIcon,
-  Info,
   ShoppingBag,
   DollarSign,
-  Flame,
-  Plus
+  Flame
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
+import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { TransactionItem } from '@/components/shared/transaction-item';
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { Modal } from '@/components/shared/modal';
@@ -82,8 +78,6 @@ export default function DashboardPage() {
   const currentMonthInstallments = getCurrentMonthInstallmentsTotal();
   const currentMonthInstallmentsList = getCurrentMonthInstallments();
   const activeRecurringPlans = getActiveRecurringPlans();
-  const totalIncome = getGlobalIncome();
-  const totalExpense = getGlobalEffectiveExpenses();
   const monthlyIncome = getMonthlyIncome();
   const monthlyVariableExpenses = getMonthlyVariableExpenses();
   const streak = getRegistrationStreak();
@@ -126,13 +120,11 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-          <button
+          <AnimatedPlusButton
+            label="Crear transacción"
             onClick={() => setIsCreateTxOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-            aria-label="Nueva transacción"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+            ariaLabel="Nueva transacción"
+          />
         </div>
       </header>
 

@@ -6,7 +6,7 @@ export default async function ObjetivosPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const { tab } = await searchParams;
-  const validTabs = ['metas', 'presupuestos', 'inversiones'];
-  const initialTab = validTabs.includes(tab ?? '') ? (tab as 'metas' | 'presupuestos' | 'inversiones') : 'metas';
+  const validTabs = ['metas', 'presupuestos'];
+  const initialTab = validTabs.includes(tab ?? '') ? (tab as 'metas' | 'presupuestos') : 'metas';
   return <ObjetivosClient initialTab={initialTab} />;
 }

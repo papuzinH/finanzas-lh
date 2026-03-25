@@ -19,10 +19,22 @@ import { createSavingsGoal } from '@/app/dashboard/goals/actions';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { AmountField } from '@/components/transactions/transaction-form-fields';
 
-export function CreateSavingsGoalDialog() {
-  const [open, setOpen] = useState(false);
+interface CreateSavingsGoalDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function CreateSavingsGoalDialog({ 
+  open: controlledOpen, 
+  onOpenChange: controlledOnOpenChange 
+}: CreateSavingsGoalDialogProps = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const fetchGoalsData = useFinanceStore((s) => s.fetchGoalsData);
+
+  // Use controlled props if provided, otherwise use internal state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
 
   const form = useForm<CreateSavingsGoalFormSchema>({
     resolver: zodResolver(createSavingsGoalFormSchema),

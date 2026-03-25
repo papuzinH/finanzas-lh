@@ -84,7 +84,7 @@ export function AddContributionDialog({ goal }: Props) {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="min-h-[44px] border-emerald-700 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+          className="min-h-[44px] border-emerald-700 text-emerald-400 bg-emerald-500/10 hover:text-emerald-300 w-full hover:bg-emerald-500/20 focus-visible:ring-emerald-500/50"
         >
           <PiggyBank className="w-4 h-4 mr-1.5" />
           Aportar

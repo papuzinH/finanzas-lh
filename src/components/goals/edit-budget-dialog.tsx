@@ -34,8 +34,13 @@ export function EditBudgetDialog({ budget, categoryName, categoryEmoji }: Props)
     setLoading(true)
 
     const formData = new FormData(e.currentTarget)
-    formData.set('category_id', budget.category_id)
-    const res = await updateCategoryBudget(budget.id, formData)
+    const data = {
+      category_id: budget.category_id,
+      amount: Number(formData.get('amount')),
+      currency: formData.get('currency') as string,
+    }
+    
+    const res = await updateCategoryBudget(budget.id, data)
     setLoading(false)
 
     if (res?.error) {
