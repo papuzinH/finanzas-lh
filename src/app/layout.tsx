@@ -13,6 +13,14 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Chanchito",
   description: "Dashboard financiero personal",
+  appleWebApp: {
+    capable: true,
+    title: "Chanchito",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export default function RootLayout({
