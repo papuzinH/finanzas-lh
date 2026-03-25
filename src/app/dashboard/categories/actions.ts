@@ -2,22 +2,15 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { categorySchema } from '@/lib/schemas/category'
+import { categorySchema, type CategoryFormValues } from '@/lib/schemas/category'
 
-export async function createCategory(formData: FormData) {
+export async function createCategory(data: CategoryFormValues) {
   const supabase = await createClient()
   
-  // Obtenemos usuario
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const rawData = {
-    name: formData.get('name'),
-    emoji: formData.get('emoji'),
-    description: formData.get('description'),
-  }
-
-  const validated = categorySchema.safeParse(rawData)
+  const validated = categorySchema.safeParse(data)
 
   if (!validated.success) {
     return { error: validated.error.issues[0].message }
@@ -28,7 +21,7 @@ export async function createCategory(formData: FormData) {
     .insert({
       user_id: user.id,
       ...validated.data,
-      is_system: false // Es creada por usuario
+      is_system: false
     })
 
   if (error) return { error: error.message }

@@ -1,156 +1,254 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { format } from 'date-fns';
+import { Loader2, Pencil, Target } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { Button } from '@/components/ui/button';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import { Loader2, Pencil } from 'lucide-react'
-import { toast } from 'sonner'
-import { updateSavingsGoal } from '@/app/dashboard/goals/actions'
-import { useFinanceStore } from '@/lib/store/financeStore'
-import type { SavingsGoal } from '@/types/database'
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+} from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { createSavingsGoalFormSchema, type CreateSavingsGoalFormSchema } from '@/lib/schemas/savings-goal';
+import { updateSavingsGoal } from '@/app/dashboard/goals/actions';
+import { useFinanceStore } from '@/lib/store/financeStore';
+import { AmountField } from '@/components/transactions/transaction-form-fields';
+import type { SavingsGoal } from '@/types/database';
 
 interface Props {
-  goal: SavingsGoal
+  goal: SavingsGoal;
 }
 
 export function EditSavingsGoalDialog({ goal }: Props) {
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [type, setType] = useState<'one_time' | 'monthly'>(goal.type)
-  const [currency, setCurrency] = useState<'ARS' | 'USD'>(goal.currency)
-  const fetchGoalsData = useFinanceStore((s) => s.fetchGoalsData)
+  const [open, setOpen] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const fetchGoalsData = useFinanceStore((s) => s.fetchGoalsData);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setLoading(true)
+  const form = useForm<CreateSavingsGoalFormSchema>({
+    resolver: zodResolver(createSavingsGoalFormSchema),
+    defaultValues: {
+      name: goal.name,
+      type: goal.type,
+      target_amount: goal.target_amount,
+      currency: goal.currency,
+      target_date: goal.target_date ? new Date(goal.target_date + 'T00:00:00') : null,
+    },
+  });
 
-    const formData = new FormData(e.currentTarget)
-    const res = await updateSavingsGoal(goal.id, formData)
-    setLoading(false)
+  const watchedAmount = form.watch('target_amount');
+  const watchedType = form.watch('type');
 
-    if (res?.error) {
-      toast.error(res.error)
-    } else {
-      toast.success('¡Meta actualizada!')
-      setOpen(false)
-      await fetchGoalsData()
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    if (v) {
+      form.reset({
+        name: goal.name,
+        type: goal.type,
+        target_amount: goal.target_amount,
+        currency: goal.currency,
+        target_date: goal.target_date ? new Date(goal.target_date + 'T00:00:00') : null,
+      });
+    }
+  };
+
+  async function onSubmit(data: CreateSavingsGoalFormSchema) {
+    setIsPending(true);
+    try {
+      const result = await updateSavingsGoal(goal.id, {
+        name: data.name,
+        type: data.type,
+        target_amount: data.target_amount,
+        currency: data.currency,
+        target_date: data.target_date ? format(data.target_date, 'yyyy-MM-dd') : null,
+      });
+
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('¡Meta actualizada!');
+        setOpen(false);
+        await fetchGoalsData();
+      }
+    } finally {
+      setIsPending(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Editar meta" className="h-11 w-11 text-slate-400 hover:text-slate-100 hover:bg-slate-800">
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[480px] bg-surface-overlay border-slate-800 text-slate-50">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
-              Editar Meta
-            </DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Modificá los datos de tu meta de ahorro.
-            </DialogDescription>
-          </DialogHeader>
+      <DialogContent
+        showCloseButton
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+      >
+        {/* Header */}
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+          <DialogTitle className="text-xl font-bold text-emerald-300">
+            Editar Meta
+          </DialogTitle>
+        </DialogHeader>
 
-          <div className="grid gap-5 py-6">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-slate-300">Nombre de la meta</Label>
-              <Input
-                id="name"
-                name="name"
-                defaultValue={goal.name}
-                className="bg-surface-raised border-slate-800 focus:border-emerald-500/50"
-                required
+        <Form {...form}>
+          <form id="edit-savings-goal-form" onSubmit={form.handleSubmit(onSubmit)} className="contents">
+            <div className="overflow-y-auto flex-1 px-6 pb-4 space-y-5">
+
+              {/* ── Amount ── */}
+              <AmountField<CreateSavingsGoalFormSchema>
+                control={form.control}
+                setValue={form.setValue}
+                watchedAmount={watchedAmount}
+                fieldName="target_amount"
               />
-            </div>
 
-            <div className="space-y-2">
-              <Label className="text-slate-300">Tipo de meta</Label>
-              <Select name="type" value={type} onValueChange={(v) => setType(v as 'one_time' | 'monthly')}>
-                <SelectTrigger className="bg-surface-raised border-slate-800">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-surface-overlay border-slate-800">
-                  <SelectItem value="one_time">Meta con fecha límite</SelectItem>
-                  <SelectItem value="monthly">Ahorro mensual recurrente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              {/* ── Name ── */}
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                      Nombre de la meta
+                    </span>
+                    <FormControl>
+                      <div className="relative">
+                        <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
+                        <Input
+                          placeholder="Ej: Vacaciones en Brasil..."
+                          {...field}
+                          className="pl-10 bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-emerald-500"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="target_amount" className="text-slate-300">Monto objetivo</Label>
-                <Input
-                  id="target_amount"
-                  name="target_amount"
-                  type="number"
-                  min="1"
-                  step="0.01"
-                  defaultValue={goal.target_amount}
-                  className="bg-surface-raised border-slate-800 focus:border-emerald-500/50"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-slate-300">Moneda</Label>
-                <Select name="currency" value={currency} onValueChange={(v) => setCurrency(v as 'ARS' | 'USD')}>
-                  <SelectTrigger className="bg-surface-raised border-slate-800">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-surface-overlay border-slate-800">
-                    <SelectItem value="ARS">🇦🇷 ARS</SelectItem>
-                    <SelectItem value="USD">🇺🇸 USD</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+              {/* ── Type Toggle ── */}
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                      Tipo de meta
+                    </span>
+                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-900/80 p-1">
+                      {([
+                        { value: 'one_time' as const, label: 'Con fecha' },
+                        { value: 'monthly' as const, label: 'Mensual' },
+                      ]).map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => field.onChange(opt.value)}
+                          className={cn(
+                            'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
+                            'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none',
+                            field.value === opt.value
+                              ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]'
+                              : 'text-slate-500 hover:text-slate-300'
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {type === 'one_time' && (
-              <div className="space-y-2">
-                <Label htmlFor="target_date" className="text-slate-300">Fecha objetivo</Label>
-                <Input
-                  id="target_date"
+              {/* ── Currency Toggle ── */}
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                      Moneda
+                    </span>
+                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-900/80 p-1">
+                      {([
+                        { value: 'ARS' as const, label: '🇦🇷 ARS' },
+                        { value: 'USD' as const, label: '🇺🇸 USD' },
+                      ]).map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => field.onChange(opt.value)}
+                          className={cn(
+                            'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
+                            'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none',
+                            field.value === opt.value
+                              ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50'
+                              : 'text-slate-500 hover:text-slate-300'
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* ── Target Date (only for one_time) ── */}
+              {watchedType === 'one_time' && (
+                <FormField
+                  control={form.control}
                   name="target_date"
-                  type="date"
-                  defaultValue={goal.target_date ?? ''}
-                  className="bg-surface-raised border-slate-800 focus:border-emerald-500/50"
-                  required={type === 'one_time'}
+                  render={({ field }) => (
+                    <FormItem>
+                      <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                        Fecha objetivo
+                      </span>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                          onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : null)}
+                          className="bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 block w-full"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          <DialogFooter className="gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-              className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full sm:w-auto h-11 sm:h-9 bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              {loading ? 'Guardando...' : 'Guardar cambios'}
-            </Button>
-          </DialogFooter>
-        </form>
+            {/* ── Submit Button ── */}
+            <div className="px-6 pb-6 pt-3 shrink-0">
+              <Button
+                type="submit"
+                form="edit-savings-goal-form"
+                disabled={isPending}
+                className="w-full min-h-[52px] rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(16,185,129,0.25)] transition-all active:scale-[0.98]"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  'Guardar cambios'
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

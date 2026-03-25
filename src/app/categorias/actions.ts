@@ -2,26 +2,20 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { categorySchema } from '@/lib/schemas/category'
+import { categorySchema, type CategoryFormValues } from '@/lib/schemas/category'
 
 function revalidateAll() {
   revalidatePath('/categorias')
   revalidatePath('/dashboard/categories')
 }
 
-export async function createCategory(formData: FormData) {
+export async function createCategory(data: CategoryFormValues) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const rawData = {
-    name: formData.get('name'),
-    emoji: formData.get('emoji'),
-    description: formData.get('description'),
-  }
-
-  const validated = categorySchema.safeParse(rawData)
+  const validated = categorySchema.safeParse(data)
 
   if (!validated.success) {
     return { error: validated.error.issues[0].message }
@@ -41,19 +35,13 @@ export async function createCategory(formData: FormData) {
   return { success: true }
 }
 
-export async function updateCategory(id: string, formData: FormData) {
+export async function updateCategory(id: string, data: CategoryFormValues) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const rawData = {
-    name: formData.get('name'),
-    emoji: formData.get('emoji'),
-    description: formData.get('description'),
-  }
-
-  const validated = categorySchema.safeParse(rawData)
+  const validated = categorySchema.safeParse(data)
   if (!validated.success) return { error: validated.error.issues[0].message }
 
   const { error } = await supabase

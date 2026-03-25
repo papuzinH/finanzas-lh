@@ -1,146 +1,212 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { useState, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, Plus, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { Button } from '@/components/ui/button';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import { Loader2, Plus, Wallet } from 'lucide-react'
-import { toast } from 'sonner'
-import { createCategoryBudget } from '@/app/dashboard/goals/actions'
-import { useFinanceStore } from '@/lib/store/financeStore'
-import type { Category } from '@/types/database'
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+} from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { cn } from '@/lib/utils';
+import { categoryBudgetSchema, type CategoryBudgetSchema } from '@/lib/schemas/category-budget';
+import { createCategoryBudget } from '@/app/dashboard/goals/actions';
+import { useFinanceStore } from '@/lib/store/financeStore';
+import { AmountField } from '@/components/transactions/transaction-form-fields';
+import type { Category } from '@/types/database';
 
 interface Props {
-  categories: Category[]
+  categories: Category[];
 }
 
 export function CreateBudgetDialog({ categories }: Props) {
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS')
-  const [categoryId, setCategoryId] = useState<string>('')
-  const fetchGoalsData = useFinanceStore((s) => s.fetchGoalsData)
-  const { categoryBudgets } = useFinanceStore()
+  const [open, setOpen] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const fetchGoalsData = useFinanceStore((s) => s.fetchGoalsData);
+  const { categoryBudgets } = useFinanceStore();
 
-  // Filter out categories that already have an active budget
-  const existingBudgetCategoryIds = new Set(
-    categoryBudgets.filter((b) => b.is_active).map((b) => b.category_id)
-  )
-  const availableCategories = categories.filter((c) => !existingBudgetCategoryIds.has(c.id))
+  const availableCategories = useMemo(() => {
+    const existingIds = new Set(
+      categoryBudgets.filter((b) => b.is_active).map((b) => b.category_id)
+    );
+    return categories.filter((c) => !existingIds.has(c.id));
+  }, [categories, categoryBudgets]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setLoading(true)
+  const form = useForm<CategoryBudgetSchema>({
+    resolver: zodResolver(categoryBudgetSchema),
+    defaultValues: {
+      category_id: '',
+      amount: 0,
+      currency: 'ARS',
+    },
+  });
 
-    const formData = new FormData(e.currentTarget)
-    const res = await createCategoryBudget(formData)
-    setLoading(false)
+  const watchedAmount = form.watch('amount');
+  const watchedCategoryId = form.watch('category_id');
 
-    if (res?.error) {
-      toast.error(res.error)
-    } else {
-      toast.success('¡Presupuesto creado!')
-      setOpen(false)
-      setCategoryId('')
-      await fetchGoalsData()
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    if (v) {
+      form.reset({ category_id: '', amount: 0, currency: 'ARS' });
+    }
+  };
+
+  async function onSubmit(data: CategoryBudgetSchema) {
+    setIsPending(true);
+    try {
+      const result = await createCategoryBudget(data);
+
+      if (result?.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('¡Presupuesto creado!');
+        setOpen(false);
+        await fetchGoalsData();
+      }
+    } finally {
+      setIsPending(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button size="icon" className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
           <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[440px] bg-surface-overlay border-slate-800 text-slate-50">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
-              Nuevo Presupuesto
-            </DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Establecé un límite mensual de gasto por categoría.
-            </DialogDescription>
-          </DialogHeader>
+      <DialogContent
+        showCloseButton
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+      >
+        {/* Header */}
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+          <DialogTitle className="text-xl font-bold text-indigo-300">
+            Nuevo Presupuesto
+          </DialogTitle>
+          <p className="text-sm text-slate-400 mt-1">
+            Establecé un límite mensual de gasto por categoría.
+          </p>
+        </DialogHeader>
 
-          <div className="grid gap-5 py-6">
-            <div className="space-y-2">
-              <Label className="text-slate-300">Categoría</Label>
-              {availableCategories.length === 0 ? (
-                <p className="text-sm text-slate-500 italic">Todas las categorías ya tienen presupuesto asignado.</p>
-              ) : (
-                <Select name="category_id" value={categoryId} onValueChange={setCategoryId} required>
-                  <SelectTrigger className="bg-surface-raised border-slate-800">
-                    <SelectValue placeholder="Elegí una categoría..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-surface-overlay border-slate-800 max-h-60">
-                    {availableCategories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.emoji} {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+        <Form {...form}>
+          <form id="budget-form" onSubmit={form.handleSubmit(onSubmit)} className="contents">
+            <div className="overflow-y-auto flex-1 px-6 pb-4 space-y-5">
+
+              {/* ── Amount ── */}
+              <AmountField<CategoryBudgetSchema>
+                control={form.control}
+                setValue={form.setValue}
+                watchedAmount={watchedAmount}
+                fieldName="amount"
+              />
+
+              {/* ── Category Picker ── */}
+              <FormField
+                control={form.control}
+                name="category_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                      Categoría
+                    </span>
+
+                    {availableCategories.length === 0 ? (
+                      <p className="text-sm text-slate-500 italic py-2">
+                        Todas las categorías ya tienen presupuesto asignado.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-4 gap-2 pt-1">
+                        {availableCategories.map((cat) => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => field.onChange(cat.id)}
+                            className={cn(
+                              'flex flex-col items-center gap-1 p-2 rounded-xl transition-all min-h-11',
+                              'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none',
+                              field.value === cat.id
+                                ? 'bg-indigo-500/20 ring-1 ring-indigo-400'
+                                : 'bg-slate-800/40 hover:bg-slate-700/40'
+                            )}
+                          >
+                            <span className="text-lg">{cat.emoji ?? '📦'}</span>
+                            <span className="text-[9px] text-slate-400 truncate w-full text-center">
+                              {cat.name}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* ── Currency Toggle ── */}
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                      Moneda
+                    </span>
+                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-900/80 p-1">
+                      {([
+                        { value: 'ARS' as const, label: '🇦🇷 ARS' },
+                        { value: 'USD' as const, label: '🇺🇸 USD' },
+                      ]).map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => field.onChange(opt.value)}
+                          className={cn(
+                            'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
+                            'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none',
+                            field.value === opt.value
+                              ? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/50'
+                              : 'text-slate-500 hover:text-slate-300'
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="amount" className="text-slate-300">Límite mensual</Label>
-                <Input
-                  id="amount"
-                  name="amount"
-                  type="number"
-                  min="1"
-                  step="0.01"
-                  placeholder="80000"
-                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-slate-300">Moneda</Label>
-                <Select name="currency" value={currency} onValueChange={(v) => setCurrency(v as 'ARS' | 'USD')}>
-                  <SelectTrigger className="bg-surface-raised border-slate-800">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-surface-overlay border-slate-800">
-                    <SelectItem value="ARS">🇦🇷 ARS</SelectItem>
-                    <SelectItem value="USD">🇺🇸 USD</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* ── Submit Button ── */}
+            <div className="px-6 pb-6 pt-3 shrink-0">
+              <Button
+                type="submit"
+                form="budget-form"
+                disabled={isPending || availableCategories.length === 0}
+                className="w-full min-h-[52px] rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(129,140,248,0.25)] transition-all active:scale-[0.98]"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-5 w-5" />
+                    Crear Presupuesto
+                  </>
+                )}
+              </Button>
             </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-              className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading || availableCategories.length === 0}
-              className="w-full sm:w-auto h-11 sm:h-9 bg-indigo-600 hover:bg-indigo-700 text-white"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              {loading ? 'Guardando...' : 'Crear Presupuesto'}
-            </Button>
-          </DialogFooter>
-        </form>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -9,20 +9,12 @@ import { categoryBudgetSchema } from '@/lib/schemas/category-budget'
 // METAS DE AHORRO
 // ============================================================
 
-export async function createSavingsGoal(formData: FormData) {
+export async function createSavingsGoal(data: { name: string; type: string; target_amount: number; currency: string; target_date: string | null }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const rawData = {
-    name: formData.get('name') as string,
-    type: formData.get('type') as string,
-    target_amount: Number(formData.get('target_amount')),
-    currency: formData.get('currency') as string,
-    target_date: (formData.get('target_date') as string) || null,
-  }
-
-  const validated = savingsGoalSchema.safeParse(rawData)
+  const validated = savingsGoalSchema.safeParse(data)
   if (!validated.success) return { error: validated.error.issues[0].message }
 
   const { error } = await supabase.from('savings_goals').insert({
@@ -36,20 +28,12 @@ export async function createSavingsGoal(formData: FormData) {
   return { success: true }
 }
 
-export async function updateSavingsGoal(id: string, formData: FormData) {
+export async function updateSavingsGoal(id: string, data: { name: string; type: string; target_amount: number; currency: string; target_date: string | null }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const rawData = {
-    name: formData.get('name') as string,
-    type: formData.get('type') as string,
-    target_amount: Number(formData.get('target_amount')),
-    currency: formData.get('currency') as string,
-    target_date: (formData.get('target_date') as string) || null,
-  }
-
-  const validated = savingsGoalSchema.safeParse(rawData)
+  const validated = savingsGoalSchema.safeParse(data)
   if (!validated.success) return { error: validated.error.issues[0].message }
 
   const { error } = await supabase
@@ -150,18 +134,12 @@ export async function deleteGoalContribution(id: string) {
 // PRESUPUESTOS POR CATEGORÍA
 // ============================================================
 
-export async function createCategoryBudget(formData: FormData) {
+export async function createCategoryBudget(data: { category_id: string; amount: number; currency: string }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const rawData = {
-    category_id: formData.get('category_id') as string,
-    amount: Number(formData.get('amount')),
-    currency: formData.get('currency') as string,
-  }
-
-  const validated = categoryBudgetSchema.safeParse(rawData)
+  const validated = categoryBudgetSchema.safeParse(data)
   if (!validated.success) return { error: validated.error.issues[0].message }
 
   const { error } = await supabase.from('category_budgets').upsert(
@@ -179,18 +157,12 @@ export async function createCategoryBudget(formData: FormData) {
   return { success: true }
 }
 
-export async function updateCategoryBudget(id: string, formData: FormData) {
+export async function updateCategoryBudget(id: string, data: { category_id: string; amount: number; currency: string }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  const rawData = {
-    category_id: formData.get('category_id') as string,
-    amount: Number(formData.get('amount')),
-    currency: formData.get('currency') as string,
-  }
-
-  const validated = categoryBudgetSchema.safeParse(rawData)
+  const validated = categoryBudgetSchema.safeParse(data)
   if (!validated.success) return { error: validated.error.issues[0].message }
 
   const { error } = await supabase

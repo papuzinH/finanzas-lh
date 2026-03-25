@@ -5,25 +5,21 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
+  Dialog, DialogContent,
   DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
   FormDescription,
 } from '@/components/ui/form'
-import { Loader2, Plus } from 'lucide-react'
+import { Loader2, Plus, CheckCircle2, CreditCard, Wallet, Banknote } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { createPaymentMethod } from '@/app/medios-pago/actions'
 import { createPaymentMethodSchema, type CreatePaymentMethodSchema } from '@/lib/schemas/payment-method'
@@ -31,10 +27,10 @@ import { useFinanceStore } from '@/lib/store/financeStore'
 import { useRouter } from 'next/navigation'
 
 const PAYMENT_TYPES = [
-  { value: 'credit', label: 'Tarjeta de Crédito' },
-  { value: 'debit', label: 'Tarjeta de Débito' },
-  { value: 'cash', label: 'Efectivo' },
-]
+  { value: 'credit', label: 'Crédito', icon: CreditCard },
+  { value: 'debit', label: 'Débito', icon: Wallet },
+  { value: 'cash', label: 'Efectivo', icon: Banknote },
+] as const
 
 export function CreatePaymentMethodDialog() {
   const [open, setOpen] = useState(false)
@@ -79,133 +75,158 @@ export function CreatePaymentMethodDialog() {
           <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
-        <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
-          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+      <DialogContent
+        showCloseButton
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+      >
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
+          <DialogTitle className="text-xl font-bold text-purple-300">
             Nuevo Medio de Pago
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
-            Agrega una tarjeta, cuenta o billetera para organizar tus finanzas.
-          </DialogDescription>
+          <p className="text-sm text-slate-400 mt-1">
+            Agrega una tarjeta, cuenta o billetera.
+          </p>
         </DialogHeader>
 
         <Form {...form}>
           <form id="payment-method-form" onSubmit={form.handleSubmit(onSubmit)} className="contents">
-            <div className="overflow-y-auto flex-1 px-6 space-y-5">
+            <div className="overflow-y-auto flex-1 px-6 pb-4 space-y-5">
+
+            {/* ── Name ── */}
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-slate-300">Nombre</FormLabel>
+                  <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                    Nombre
+                  </span>
                   <FormControl>
-                    <Input
-                      placeholder="Ej: Visa BBVA, Mercado Pago..."
-                      className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
-                      {...field}
-                    />
+                    <div className="relative">
+                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
+                      <Input
+                        placeholder="Ej: Visa BBVA, Mercado Pago..."
+                        className="pl-10 bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-purple-500"
+                        {...field}
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* ── Type Toggle ── */}
             <FormField
               control={form.control}
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-slate-300">Tipo</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="bg-surface-raised border-slate-800">
-                        <SelectValue placeholder="Seleccionar tipo" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="bg-surface-overlay border-slate-800">
-                      {PAYMENT_TYPES.map(t => (
-                        <SelectItem key={t.value} value={t.value} className="focus:bg-slate-800">
+                  <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                    Tipo
+                  </span>
+                  <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-900/80 p-1">
+                    {PAYMENT_TYPES.map((t) => {
+                      const Icon = t.icon
+                      return (
+                        <button
+                          key={t.value}
+                          type="button"
+                          onClick={() => field.onChange(t.value)}
+                          className={cn(
+                            'min-h-11 rounded-lg py-2.5 text-sm font-semibold transition-all flex items-center justify-center gap-1.5',
+                            'focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:outline-none',
+                            field.value === t.value
+                              ? 'bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.3)]'
+                              : 'text-slate-500 hover:text-slate-300'
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
                           {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        </button>
+                      )
+                    })}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* ── Credit card days ── */}
             {form.watch('type') === 'credit' && (
-              <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  control={form.control}
-                  name="default_closing_day"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-slate-300">Día de cierre</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="31"
-                          placeholder="Ej: 15"
-                          className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
-                          {...field}
-                          value={field.value ?? ''}
-                          onChange={(e) => {
-                            const value = e.target.value ? Number(e.target.value) : null
-                            field.onChange(value)
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="default_payment_day"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-slate-300">Día de vencimiento</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="31"
-                          placeholder="Ej: 5"
-                          className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
-                          {...field}
-                          value={field.value ?? ''}
-                          onChange={(e) => {
-                            const value = e.target.value ? Number(e.target.value) : null
-                            field.onChange(value)
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="space-y-3 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="default_closing_day"
+                    render={({ field }) => (
+                      <FormItem>
+                        <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                          Día de cierre
+                        </span>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="31"
+                            placeholder="Ej: 15"
+                            className="bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-purple-500"
+                            {...field}
+                            value={field.value ?? ''}
+                            onChange={(e) => {
+                              const value = e.target.value ? Number(e.target.value) : null
+                              field.onChange(value)
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="default_payment_day"
+                    render={({ field }) => (
+                      <FormItem>
+                        <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                          Día de vencimiento
+                        </span>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="31"
+                            placeholder="Ej: 5"
+                            className="bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-purple-500"
+                            {...field}
+                            value={field.value ?? ''}
+                            onChange={(e) => {
+                              const value = e.target.value ? Number(e.target.value) : null
+                              field.onChange(value)
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 italic pl-1">
+                  Cierre: cuando tu tarjeta cierra el período · Vencimiento: cuando debés pagar.
+                </p>
               </div>
             )}
 
-            {form.watch('type') === 'credit' && (
-              <div className="rounded-lg bg-surface-raised/50 px-3 py-2 border border-slate-800">
-                <FormDescription className="text-[11px] text-slate-400">
-                  Día de cierre: cuando tu tarjeta cierra el período (ej: 24).
-                  Día de vencimiento: cuando debés pagar (ej: 6 del mes siguiente).
-                </FormDescription>
-              </div>
-            )}
-
+            {/* ── Is personal switch ── */}
             <FormField
               control={form.control}
               name="is_personal"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border border-slate-800 bg-surface-raised/50 px-4 py-3">
+                <FormItem className="flex items-center justify-between rounded-xl bg-surface-raised px-4 py-3 min-h-[52px]">
                   <div>
-                    <FormLabel className="text-slate-300">Es personal / informal</FormLabel>
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                      Personal / informal
+                    </span>
                     <FormDescription className="text-[11px] text-slate-500 mt-0.5">
                       Prestamos o deudas entre personas
                     </FormDescription>
@@ -221,28 +242,23 @@ export function CreatePaymentMethodDialog() {
           </form>
         </Form>
 
-        <div className="px-4 sm:px-6 py-4 border-t border-slate-800 flex-shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setOpen(false)}
-            className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
-          >
-            Cancelar
-          </Button>
+        <div className="px-6 pb-6 pt-3 shrink-0">
           <Button
             type="submit"
             form="payment-method-form"
             disabled={isPending}
-            className="w-full sm:w-auto h-11 sm:h-9 bg-indigo-600 hover:bg-indigo-700 text-white"
+            className="w-full min-h-[52px] rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(168,85,247,0.25)] transition-all active:scale-[0.98]"
           >
             {isPending ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2"/>
-                Guardando...
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Creando...
               </>
             ) : (
-              'Crear'
+              <>
+                <CheckCircle2 className="mr-2 h-5 w-5" />
+                Crear Medio de Pago
+              </>
             )}
           </Button>
         </div>
