@@ -219,6 +219,7 @@ export default function MovimientosPage() {
           
           
           <div className="flex items-center justify-between w-full md:w-auto md:flex md:items-center md:gap-4 border-b border-slate-800/50 py-2 pb-4 md:border-0 md:pt-0">
+            <div className="flex flex-col items-start gap-2">
             <span className="text-xs text-slate-400 font-medium uppercase tracking-wider md:hidden">Balance Total</span>
             <div className="text-right">
               <p className="hidden md:block text-[10px] text-slate-400 uppercase tracking-wider font-medium">Balance Mensual</p>
@@ -228,6 +229,7 @@ export default function MovimientosPage() {
               )}>
                 {formatCurrency(monthlyBalance)}
               </p>
+            </div>
             </div>
             <AnimatedPlusButton
               label="Crear transacción"
@@ -405,9 +407,7 @@ export default function MovimientosPage() {
       <CreateTransactionDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
       <main className="mx-auto max-w-[1440px] px-4 py-6">
-        <div className="mb-4">
-          <QuickAdd />
-        </div>
+       
         {filteredTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-[var(--surface-raised)]/20 text-center">
             <Receipt className="h-16 w-16 text-slate-700 mb-4" />

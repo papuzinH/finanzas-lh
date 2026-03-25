@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
+import { Toaster } from "@/components/ui/sonner";
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -27,6 +28,7 @@ export default function RootLayout({
         <AppShell>
           {children}
         </AppShell>
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );

@@ -221,8 +221,16 @@ export async function POST(req: NextRequest) {
     // 7. Ejecutar acción según la intención
     const response = await handleIntent(intent, userId)
 
-    // 8. Retornar respuesta
-    return NextResponse.json(response)
+    // 8. Determinar si el intent mutó datos (para que el cliente refresque el store)
+    const mutatingIntents = new Set([
+      'transaction', 'installment', 'subscription', 'card_config',
+      'edit', 'delete', 'confirm_action',
+      'create_goal', 'create_budget', 'edit_goal', 'delete_goal', 'goal_contribution',
+    ])
+    const mutated = response.success && mutatingIntents.has(intent.type)
+
+    // 9. Retornar respuesta
+    return NextResponse.json({ ...response, mutated })
   } catch (error) {
     console.error('Unexpected error in chat API:', error)
     return NextResponse.json(

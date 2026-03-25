@@ -1,6 +1,7 @@
 "use client"
 
 import { create } from 'zustand'
+import { useFinanceStore } from './financeStore'
 
 export interface ChatMessage {
   id: string
@@ -100,6 +101,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
             emoji: data.data.emoji,
           } : undefined,
         })
+
+        // Si el chatbot mutó datos, refrescar el store de finanzas
+        if (data.mutated) {
+          useFinanceStore.getState().fetchAllData()
+        }
       } else {
         addMessage({
           role: 'chanchito',
