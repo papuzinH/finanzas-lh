@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { MainNav } from '@/components/layout/main-nav';
@@ -13,15 +14,24 @@ const OnboardingTour = dynamic(
   { ssr: false }
 );
 
+const PUBLIC_ROUTES = ['/login', '/auth'];
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isInitialized, fetchAllData } = useFinanceStore();
   const [profileOpen, setProfileOpen] = useState(false);
+  const pathname = usePathname();
+
+  const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
 
   useEffect(() => {
-    if (!isInitialized) {
+    if (!isInitialized && !isPublicRoute) {
       fetchAllData();
     }
-  }, [isInitialized, fetchAllData]);
+  }, [isInitialized, fetchAllData, isPublicRoute]);
+
+  if (isPublicRoute) {
+    return <>{children}</>;
+  }
 
   if (!isInitialized) {
     return <FullPageLoader text="Iniciando Chanchito..." />;
@@ -29,7 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <MainNav onOpenProfile={() => setProfileOpen(true)} />
+      <MainNav />
       <UserProfileSheet open={profileOpen} onOpenChange={setProfileOpen} />
       <main className="min-h-screen pb-20 md:pb-0 md:pl-64">
         {children}

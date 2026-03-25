@@ -207,6 +207,8 @@ interface FinanceState {
     type: 'expense' | 'income';
   }>;
 
+  getFrequentCategories: (n?: number) => Category[];
+
   getInsights: () => Array<{
     type: 'positive' | 'warning' | 'info';
     message: string;
@@ -1351,6 +1353,33 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           type: data.type,
         };
       });
+  },
+
+  getFrequentCategories: (n = 4) => {
+    const { transactions, categories } = get();
+
+    const countMap: Record<string, number> = {};
+    for (const t of transactions) {
+      if (!t.category_id) continue;
+      countMap[t.category_id] = (countMap[t.category_id] ?? 0) + 1;
+    }
+
+    const sorted = Object.entries(countMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, n)
+      .map(([id]) => categories.find((c) => c.id === id))
+      .filter((c): c is Category => c != null);
+
+    // Fallback for new users with no transaction history
+    if (sorted.length < n) {
+      const usedIds = new Set(sorted.map((c) => c.id));
+      for (const c of categories) {
+        if (sorted.length >= n) break;
+        if (!usedIds.has(c.id)) sorted.push(c);
+      }
+    }
+
+    return sorted;
   },
 
   /**
