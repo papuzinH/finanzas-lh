@@ -469,7 +469,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       });
     } catch (error) {
       console.error('Failed to fetch financial data:', error);
-      set({ error: 'Unable to load financial data. Please try again later.' });
+      set({ error: 'Unable to load financial data. Please try again later.', isInitialized: true });
     } finally {
       set({ isLoading: false });
     }

@@ -14,7 +14,10 @@ const OnboardingTour = dynamic(
   { ssr: false }
 );
 
+// Rutas sin autenticación (sin shell)
 const PUBLIC_ROUTES = ['/login', '/auth'];
+// Rutas autenticadas pero sin nav/chat (onboarding en progreso)
+const ONBOARDING_ROUTES = ['/onboarding'];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isInitialized, fetchAllData } = useFinanceStore();
@@ -22,14 +25,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+  const isOnboardingRoute = ONBOARDING_ROUTES.some(route => pathname.startsWith(route));
 
   useEffect(() => {
-    if (!isInitialized && !isPublicRoute) {
+    if (!isInitialized && !isPublicRoute && !isOnboardingRoute) {
       fetchAllData();
     }
-  }, [isInitialized, fetchAllData, isPublicRoute]);
+  }, [isInitialized, fetchAllData, isPublicRoute, isOnboardingRoute]);
 
-  if (isPublicRoute) {
+  if (isPublicRoute || isOnboardingRoute) {
     return <>{children}</>;
   }
 
