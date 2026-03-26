@@ -537,46 +537,36 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   /**
    * FÓRMULA DEL BALANCE GLOBAL DE CHANCHITO
    * ==========================================
-   * Balance = ingresos - gastos globales (no cuotas) - gastos en cuotas ACTIVOS - mensualidades
+   * Balance = ingresos - gastos regulares - cuotas ya pagadas - mensualidades
    *
    * Componentes:
    * - ingresos: todas las transacciones de tipo 'income'
-   * - gastos globales (no cuotas): expense transactions sin installment_plan_id
-   *   (incluye mensualidades/suscripciones que registran con recurring_plan_id)
-   * - gastos en cuotas ACTIVOS: expense transactions de planes de cuotas que NO
-   *   están terminados (remainingAmount > 100)
+   * - gastos regulares: expense transactions sin installment_plan_id (incluye
+   *   mensualidades/suscripciones con recurring_plan_id)
+   * - cuotas ya pagadas: expense transactions con installment_plan_id cuya
+   *   fecha <= hoy (las cuotas futuras pre-generadas NO se cuentan)
    *
    * NO incluye:
-   * - Transacciones de planes de cuotas YA TERMINADOS (fully paid off)
+   * - Cuotas con fecha futura (aún no cobradas)
    * - Ahorros (tabla separada, no son transacciones)
    */
   getGlobalBalance: () => {
-    const { transactions, installmentPlans } = get();
-
-    // Determinar qué planes de cuotas están terminados
-    const now = new Date();
-    const finishedPlanIds = new Set<number>();
-    for (const plan of installmentPlans) {
-      const planTransactions = transactions.filter((t) => t.installment_plan_id === plan.id);
-      const paidAmount = planTransactions
-        .filter((t) => parseLocalDate(t.date) <= startOfDay(now))
-        .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-      const remainingAmount = Math.max(Number(plan.total_amount) - paidAmount, 0);
-      if (remainingAmount <= 100) {
-        finishedPlanIds.add(plan.id);
-      }
-    }
+    const { transactions } = get();
+    const now = startOfDay(new Date());
 
     // 1. Suma de TODOS los ingresos históricos
     const totalIncome = transactions
       .filter((t) => t.type === 'income')
       .reduce((acc, t) => acc + Number(t.amount), 0);
 
-    // 2. Gastos: regulares + cuotas de planes ACTIVOS (excluye planes terminados)
+    // 2. Gastos regulares (sin cuotas) + cuotas ya pagadas (fecha <= hoy)
+    // Las transacciones de cuotas futuras se excluyen hasta que llegue su fecha
     const totalExpenses = transactions
       .filter((t) => {
         if (t.type !== 'expense') return false;
-        if (t.installment_plan_id !== null && finishedPlanIds.has(t.installment_plan_id)) return false;
+        if (t.installment_plan_id !== null) {
+          return parseLocalDate(t.date) <= now;
+        }
         return true;
       })
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);

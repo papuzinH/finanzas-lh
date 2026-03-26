@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { Transaction, RecurringPlan, PaymentMethod, InstallmentPlan } from '@/types/database'
+import type { Transaction, RecurringPlan, PaymentMethod } from '@/types/database'
 
 /**
  * FUNCIONES PURAS EXTRAÍDAS DEL STORE PARA TESTING
@@ -7,25 +7,8 @@ import type { Transaction, RecurringPlan, PaymentMethod, InstallmentPlan } from 
  */
 
 // Calcular balance global
-function calculateGlobalBalance(transactions: Transaction[], installmentPlans: InstallmentPlan[] = []): number {
-  const now = new Date()
-
-  // Determinar planes de cuotas terminados
-  const finishedPlanIds = new Set<number>()
-  for (const plan of installmentPlans) {
-    const planTransactions = transactions.filter((t) => t.installment_plan_id === plan.id)
-    const paidAmount = planTransactions
-      .filter((t) => {
-        const [year, month, day] = t.date.split('-').map(Number)
-        const localDate = new Date(year, month - 1, day)
-        return localDate <= now
-      })
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
-    const remainingAmount = Math.max(Number(plan.total_amount) - paidAmount, 0)
-    if (remainingAmount <= 100) {
-      finishedPlanIds.add(plan.id)
-    }
-  }
+function calculateGlobalBalance(transactions: Transaction[], now: Date = new Date()): number {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
   const totalIncome = transactions
     .filter((t) => t.type === 'income')
@@ -34,7 +17,11 @@ function calculateGlobalBalance(transactions: Transaction[], installmentPlans: I
   const totalExpenses = transactions
     .filter((t) => {
       if (t.type !== 'expense') return false
-      if (t.installment_plan_id !== null && finishedPlanIds.has(t.installment_plan_id)) return false
+      if (t.installment_plan_id !== null) {
+        const [year, month, day] = t.date.split('-').map(Number)
+        const txDate = new Date(year, month - 1, day)
+        return txDate <= today
+      }
       return true
     })
     .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
@@ -230,124 +217,125 @@ describe('financeStore - Pure Functions', () => {
       expect(balance).toBe(-500)
     })
 
-    it('incluye cuotas de planes ACTIVOS en el balance', () => {
+    it('solo cuenta cuotas ya pagadas (fecha <= hoy), no las futuras', () => {
+      // Simula: plan de 9000 en 3 cuotas de 3000. Solo pagó 1 cuota hasta "now".
+      const now = new Date(2024, 2, 25) // 25 Marzo 2024
       const transactions: Transaction[] = [
         {
           id: 1,
           user_id: 'user1',
           type: 'income',
-          amount: 1000,
-          date: '2024-03-15',
+          amount: 10000,
+          date: '2024-03-01',
           description: 'Salary',
           payment_method_id: 1,
           category_id: 1,
           installment_plan_id: null,
           recurring_plan_id: null,
-          created_at: '2024-03-15',
+          created_at: '2024-03-01',
         },
         {
           id: 2,
           user_id: 'user1',
           type: 'expense',
-          amount: -100,
-          date: '2024-03-20',
-          description: 'Installment payment 1/3',
+          amount: -3000,
+          date: '2024-03-20', // pasado ✓
+          description: 'TV cuota 1/3',
           payment_method_id: 1,
           category_id: 2,
           installment_plan_id: 1,
           recurring_plan_id: null,
-          created_at: '2024-03-20',
-        },
-      ]
-      // Plan activo (solo pagó 1 de 3, remainingAmount > 100)
-      const plans: InstallmentPlan[] = [
-        {
-          id: 1,
-          user_id: 'user1',
-          description: 'TV',
-          total_amount: 300,
-          installments_count: 3,
-          purchase_date: '2024-03-15',
-          category_id: null,
-          payment_method_id: null,
-          created_at: '2024-03-15',
-        },
-      ]
-      const balance = calculateGlobalBalance(transactions, plans)
-      expect(balance).toBe(900) // 1000 - 100
-    })
-
-    it('excluye cuotas de planes TERMINADOS del balance', () => {
-      const transactions: Transaction[] = [
-        {
-          id: 1,
-          user_id: 'user1',
-          type: 'income',
-          amount: 1000,
-          date: '2024-03-15',
-          description: 'Salary',
-          payment_method_id: 1,
-          category_id: 1,
-          installment_plan_id: null,
-          recurring_plan_id: null,
-          created_at: '2024-03-15',
-        },
-        {
-          id: 2,
-          user_id: 'user1',
-          type: 'expense',
-          amount: -100,
-          date: '2024-01-20',
-          description: 'Installment payment 1/3',
-          payment_method_id: 1,
-          category_id: 2,
-          installment_plan_id: 1,
-          recurring_plan_id: null,
-          created_at: '2024-01-20',
+          created_at: '2024-03-01',
         },
         {
           id: 3,
           user_id: 'user1',
           type: 'expense',
-          amount: -100,
-          date: '2024-02-20',
-          description: 'Installment payment 2/3',
+          amount: -3000,
+          date: '2024-04-20', // futuro → NO contar
+          description: 'TV cuota 2/3',
           payment_method_id: 1,
           category_id: 2,
           installment_plan_id: 1,
           recurring_plan_id: null,
-          created_at: '2024-02-20',
+          created_at: '2024-03-01',
         },
         {
           id: 4,
           user_id: 'user1',
           type: 'expense',
-          amount: -100,
-          date: '2024-03-20',
-          description: 'Installment payment 3/3',
+          amount: -3000,
+          date: '2024-05-20', // futuro → NO contar
+          description: 'TV cuota 3/3',
           payment_method_id: 1,
           category_id: 2,
           installment_plan_id: 1,
           recurring_plan_id: null,
-          created_at: '2024-03-20',
+          created_at: '2024-03-01',
         },
       ]
-      // Plan terminado: pagó las 3 cuotas (300 pagado, total_amount=300, remaining=0)
-      const plans: InstallmentPlan[] = [
+      const balance = calculateGlobalBalance(transactions, now)
+      expect(balance).toBe(7000) // 10000 - 3000 (solo la cuota de marzo)
+    })
+
+    it('incluye todas las cuotas de un plan ya terminado (todas pasadas)', () => {
+      const now = new Date(2024, 5, 1) // 1 Junio 2024 (después de todas las cuotas)
+      const transactions: Transaction[] = [
         {
           id: 1,
           user_id: 'user1',
-          description: 'TV',
-          total_amount: 300,
-          installments_count: 3,
-          purchase_date: '2024-01-15',
-          category_id: null,
-          payment_method_id: null,
-          created_at: '2024-01-15',
+          type: 'income',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Salary',
+          payment_method_id: 1,
+          category_id: 1,
+          installment_plan_id: null,
+          recurring_plan_id: null,
+          created_at: '2024-01-01',
+        },
+        {
+          id: 2,
+          user_id: 'user1',
+          type: 'expense',
+          amount: -3000,
+          date: '2024-03-20',
+          description: 'TV cuota 1/3',
+          payment_method_id: 1,
+          category_id: 2,
+          installment_plan_id: 1,
+          recurring_plan_id: null,
+          created_at: '2024-01-01',
+        },
+        {
+          id: 3,
+          user_id: 'user1',
+          type: 'expense',
+          amount: -3000,
+          date: '2024-04-20',
+          description: 'TV cuota 2/3',
+          payment_method_id: 1,
+          category_id: 2,
+          installment_plan_id: 1,
+          recurring_plan_id: null,
+          created_at: '2024-01-01',
+        },
+        {
+          id: 4,
+          user_id: 'user1',
+          type: 'expense',
+          amount: -3000,
+          date: '2024-05-20',
+          description: 'TV cuota 3/3',
+          payment_method_id: 1,
+          category_id: 2,
+          installment_plan_id: 1,
+          recurring_plan_id: null,
+          created_at: '2024-01-01',
         },
       ]
-      const balance = calculateGlobalBalance(transactions, plans)
-      expect(balance).toBe(1000) // Plan terminado → sus gastos no cuentan
+      const balance = calculateGlobalBalance(transactions, now)
+      expect(balance).toBe(1000) // 10000 - 9000 (las 3 cuotas ya son pasadas)
     })
   })
 
