@@ -7,26 +7,31 @@ import type { Transaction, RecurringPlan, PaymentMethod } from '@/types/database
  */
 
 // Calcular balance global
-function calculateGlobalBalance(transactions: Transaction[], now: Date = new Date()): number {
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+// currentMonth: 'YYYY-MM' del mes a considerar para cuotas (default: mes actual)
+function calculateGlobalBalance(transactions: Transaction[], currentMonthStr?: string): number {
+  const now = new Date()
+  const yearMonth = currentMonthStr ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const [y, m] = yearMonth.split('-').map(Number)
 
   const totalIncome = transactions
     .filter((t) => t.type === 'income')
     .reduce((acc, t) => acc + Number(t.amount), 0)
 
-  const totalExpenses = transactions
+  // Gastos regulares (sin cuotas): todos históricos
+  const regularExpenses = transactions
+    .filter((t) => t.type === 'expense' && !t.installment_plan_id)
+    .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
+
+  // Solo cuotas del mes actual
+  const currentMonthInstallments = transactions
     .filter((t) => {
-      if (t.type !== 'expense') return false
-      if (t.installment_plan_id !== null) {
-        const [year, month, day] = t.date.split('-').map(Number)
-        const txDate = new Date(year, month - 1, day)
-        return txDate <= today
-      }
-      return true
+      if (t.type !== 'expense' || !t.installment_plan_id) return false
+      const [ty, tm] = t.date.split('-').map(Number)
+      return ty === y && tm === m
     })
     .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
 
-  return totalIncome - totalExpenses
+  return totalIncome - regularExpenses - currentMonthInstallments
 }
 
 // Calcular monthly burn rate
@@ -217,9 +222,9 @@ describe('financeStore - Pure Functions', () => {
       expect(balance).toBe(-500)
     })
 
-    it('solo cuenta cuotas ya pagadas (fecha <= hoy), no las futuras', () => {
-      // Simula: plan de 9000 en 3 cuotas de 3000. Solo pagó 1 cuota hasta "now".
-      const now = new Date(2024, 2, 25) // 25 Marzo 2024
+    it('solo resta las cuotas del mes actual, no las de otros meses', () => {
+      // Plan de 9000 en 3 cuotas de 3000 (marzo, abril, mayo)
+      // Evaluado en marzo: solo resta la cuota de marzo
       const transactions: Transaction[] = [
         {
           id: 1,
@@ -239,7 +244,7 @@ describe('financeStore - Pure Functions', () => {
           user_id: 'user1',
           type: 'expense',
           amount: -3000,
-          date: '2024-03-20', // pasado ✓
+          date: '2024-03-20', // mes actual ✓
           description: 'TV cuota 1/3',
           payment_method_id: 1,
           category_id: 2,
@@ -252,7 +257,7 @@ describe('financeStore - Pure Functions', () => {
           user_id: 'user1',
           type: 'expense',
           amount: -3000,
-          date: '2024-04-20', // futuro → NO contar
+          date: '2024-04-20', // otro mes → NO contar
           description: 'TV cuota 2/3',
           payment_method_id: 1,
           category_id: 2,
@@ -265,7 +270,7 @@ describe('financeStore - Pure Functions', () => {
           user_id: 'user1',
           type: 'expense',
           amount: -3000,
-          date: '2024-05-20', // futuro → NO contar
+          date: '2024-05-20', // otro mes → NO contar
           description: 'TV cuota 3/3',
           payment_method_id: 1,
           category_id: 2,
@@ -274,25 +279,25 @@ describe('financeStore - Pure Functions', () => {
           created_at: '2024-03-01',
         },
       ]
-      const balance = calculateGlobalBalance(transactions, now)
+      const balance = calculateGlobalBalance(transactions, '2024-03')
       expect(balance).toBe(7000) // 10000 - 3000 (solo la cuota de marzo)
     })
 
-    it('incluye todas las cuotas de un plan ya terminado (todas pasadas)', () => {
-      const now = new Date(2024, 5, 1) // 1 Junio 2024 (después de todas las cuotas)
+    it('no resta cuotas de meses anteriores ni futuros', () => {
+      // En mayo: solo resta la cuota de mayo aunque haya cuotas pasadas (mar, abr)
       const transactions: Transaction[] = [
         {
           id: 1,
           user_id: 'user1',
           type: 'income',
           amount: 10000,
-          date: '2024-01-01',
+          date: '2024-03-01',
           description: 'Salary',
           payment_method_id: 1,
           category_id: 1,
           installment_plan_id: null,
           recurring_plan_id: null,
-          created_at: '2024-01-01',
+          created_at: '2024-03-01',
         },
         {
           id: 2,
@@ -305,7 +310,7 @@ describe('financeStore - Pure Functions', () => {
           category_id: 2,
           installment_plan_id: 1,
           recurring_plan_id: null,
-          created_at: '2024-01-01',
+          created_at: '2024-03-01',
         },
         {
           id: 3,
@@ -318,7 +323,7 @@ describe('financeStore - Pure Functions', () => {
           category_id: 2,
           installment_plan_id: 1,
           recurring_plan_id: null,
-          created_at: '2024-01-01',
+          created_at: '2024-03-01',
         },
         {
           id: 4,
@@ -331,11 +336,11 @@ describe('financeStore - Pure Functions', () => {
           category_id: 2,
           installment_plan_id: 1,
           recurring_plan_id: null,
-          created_at: '2024-01-01',
+          created_at: '2024-03-01',
         },
       ]
-      const balance = calculateGlobalBalance(transactions, now)
-      expect(balance).toBe(1000) // 10000 - 9000 (las 3 cuotas ya son pasadas)
+      const balance = calculateGlobalBalance(transactions, '2024-05')
+      expect(balance).toBe(7000) // 10000 - 3000 (solo la cuota de mayo)
     })
   })
 

@@ -537,41 +537,33 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   /**
    * FÓRMULA DEL BALANCE GLOBAL DE CHANCHITO
    * ==========================================
-   * Balance = ingresos - gastos regulares - cuotas ya pagadas - mensualidades
+   * Balance = ingresos globales
+   *         - gastos globales (sin cuotas: variables + mensualidades históricas)
+   *         - cuotas del mes actual solamente
    *
-   * Componentes:
-   * - ingresos: todas las transacciones de tipo 'income'
-   * - gastos regulares: expense transactions sin installment_plan_id (incluye
-   *   mensualidades/suscripciones con recurring_plan_id)
-   * - cuotas ya pagadas: expense transactions con installment_plan_id cuya
-   *   fecha <= hoy (las cuotas futuras pre-generadas NO se cuentan)
+   * Las cuotas pre-generadas de meses pasados y futuros NO se restan.
+   * Solo impactan cuando llega su mes (via getCurrentMonthInstallmentsTotal).
    *
    * NO incluye:
-   * - Cuotas con fecha futura (aún no cobradas)
+   * - Cuotas de otros meses (ni pasadas ni futuras)
    * - Ahorros (tabla separada, no son transacciones)
    */
   getGlobalBalance: () => {
-    const { transactions } = get();
-    const now = startOfDay(new Date());
+    const { transactions, getCurrentMonthInstallmentsTotal } = get();
 
-    // 1. Suma de TODOS los ingresos históricos
     const totalIncome = transactions
       .filter((t) => t.type === 'income')
       .reduce((acc, t) => acc + Number(t.amount), 0);
 
-    // 2. Gastos regulares (sin cuotas) + cuotas ya pagadas (fecha <= hoy)
-    // Las transacciones de cuotas futuras se excluyen hasta que llegue su fecha
-    const totalExpenses = transactions
-      .filter((t) => {
-        if (t.type !== 'expense') return false;
-        if (t.installment_plan_id !== null) {
-          return parseLocalDate(t.date) <= now;
-        }
-        return true;
-      })
+    // Todos los gastos excepto cuotas (variables + suscripciones históricas)
+    const regularExpenses = transactions
+      .filter((t) => t.type === 'expense' && !t.installment_plan_id)
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
-    return totalIncome - totalExpenses;
+    // Solo las cuotas del mes actual
+    const currentInstallments = getCurrentMonthInstallmentsTotal();
+
+    return totalIncome - regularExpenses - currentInstallments;
   },
 
   /**
