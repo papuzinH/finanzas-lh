@@ -83,7 +83,6 @@ export function MainNav() {
                 key={item.href}
                 href={item.href}
                 className="block"
-                data-tour={item.href === '/objetivos' ? 'nav-objetivos' : undefined}
               >
                 <motion.div
                   whileHover={{ x: 4 }}

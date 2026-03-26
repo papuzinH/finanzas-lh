@@ -8,6 +8,7 @@ import { CreateSavingsGoalDialog } from '@/components/goals/create-savings-goal-
 import { CreateBudgetDialog } from '@/components/goals/create-budget-dialog';
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
+import { PageHeader } from '@/components/shared/page-header';
 import { cn } from '@/lib/utils';
 import {
   Target,
@@ -55,28 +56,23 @@ export function ObjetivosClient({ initialTab }: { initialTab: ActiveTab }) {
 
   return (
     <div className="min-h-screen bg-surface text-slate-50 pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-surface/80 backdrop-blur-md">
-        <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">Objetivos</h1>
-            <p className="text-sm text-slate-400 mt-0.5">Metas y presupuestos</p>
-          </div>
-          {/* Header actions by tab */}
-          <div className="flex items-center gap-2">
-            <AnimatedPlusButton
-              label={activeTab === 'metas' ? 'Crear nueva meta' : 'Crear presupuesto'}
-              onClick={activeTab === 'metas' 
-                ? () => setIsCreateMetaOpen(true) 
-                : () => setIsCreateBudgetOpen(true)
-              }
-              triggerKey={activeTab}
-              ariaLabel={activeTab === 'metas' ? 'Nueva meta de ahorro' : 'Nuevo presupuesto'}
-              className={activeTab === 'metas' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20' : ''}
-            />
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        title="Objetivos"
+        subtitle="Metas y presupuestos"
+        icon={<Target className="h-5 w-5" />}
+        containerClassName="max-w-[1440px]"
+      >
+        <AnimatedPlusButton
+          label={activeTab === 'metas' ? 'Crear nueva meta' : 'Crear presupuesto'}
+          onClick={activeTab === 'metas' 
+            ? () => setIsCreateMetaOpen(true) 
+            : () => setIsCreateBudgetOpen(true)
+          }
+          triggerKey={activeTab}
+          ariaLabel={activeTab === 'metas' ? 'Nueva meta de ahorro' : 'Nuevo presupuesto'}
+          className={activeTab === 'metas' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20' : ''}
+        />
+      </PageHeader>
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 space-y-6">
 
@@ -94,7 +90,7 @@ export function ObjetivosClient({ initialTab }: { initialTab: ActiveTab }) {
         </div>
 
         {/* Segmented Control */}
-        <div className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800 w-full justify-between">
+        <div data-tour="tabs-list" className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800 w-full justify-between">
           <button
             onClick={() => setActiveTab('metas')}
             className={cn(
@@ -145,13 +141,18 @@ export function ObjetivosClient({ initialTab }: { initialTab: ActiveTab }) {
             </div>
 
             {activeGoals.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 py-16 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 py-16 text-center flex flex-col items-center">
                 <PiggyBank className="h-16 w-16 text-slate-700 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-slate-200 mb-2">Ponele un objetivo a tu ahorro</h3>
                 <p className="text-slate-500 text-sm max-w-xs mx-auto mb-6">
                   Definí metas concretas — un viaje, un fondo de emergencia, lo que sea — y seguí tu progreso mes a mes.
                 </p>
-                <CreateSavingsGoalDialog />
+                <AnimatedPlusButton
+                  label="Crear meta"
+                  onClick={() => setIsCreateMetaOpen(true)}
+                  ariaLabel="Nueva meta de ahorro"
+                  className="bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20"
+                />
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -200,7 +201,7 @@ export function ObjetivosClient({ initialTab }: { initialTab: ActiveTab }) {
             </div>
 
             {activeBudgets.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 py-16 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 py-16 text-center flex flex-col items-center">
                 <Wallet className="h-16 w-16 text-slate-700 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-slate-200 mb-2">Controlá en qué gastás tu plata</h3>
                 <p className="text-slate-500 text-sm max-w-xs mx-auto mb-6">

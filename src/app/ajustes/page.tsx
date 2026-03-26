@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Wallet, Tag, User, ChevronRight, Settings } from 'lucide-react';
+import { PageHeader } from '@/components/shared/page-header';
 
 const sections = [
   {
@@ -31,18 +32,12 @@ const sections = [
 export default function AjustesPage() {
   return (
     <div className="min-h-screen bg-surface text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-surface/80 backdrop-blur-md">
-        <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-4 flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-slate-800">
-            <Settings className="h-5 w-5 text-slate-300" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">Ajustes</h1>
-            <p className="text-xs text-slate-400 mt-0.5">Configuración de la app</p>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        title="Ajustes"
+        subtitle="Configuración de la app"
+        icon={<Settings className="h-5 w-5" />}
+        containerClassName="max-w-[1440px]"
+      />
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8">
         <div className="flex flex-col gap-3 max-w-xl">
@@ -50,6 +45,7 @@ export default function AjustesPage() {
             <Link
               key={href}
               href={href}
+              data-tour={href === '/ajustes/medios' ? 'section-medios' : undefined}
               className="group flex items-center gap-4 rounded-2xl border border-slate-800 bg-surface-raised/50 p-5 transition-all hover:bg-surface-raised hover:border-slate-700"
             >
               <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>

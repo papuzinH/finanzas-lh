@@ -241,7 +241,7 @@ export default function MovimientosPage() {
         </div>
 
         {/* Buscador + Chips integrados */}
-        <div className="mx-auto max-w-[1440px] px-4 pb-3 pt-2" ref={searchContainerRef}>
+        <div className="mx-auto max-w-[1440px] px-4 pb-3 pt-2" ref={searchContainerRef} data-tour="search-input">
           {/* Input de búsqueda */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />

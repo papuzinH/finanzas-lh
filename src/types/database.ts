@@ -52,6 +52,7 @@ export interface Database {
           telegram_chat_id: string | null
           first_name: string | null
           onboarding_completed: boolean
+          tour_completed: boolean
           created_at: string
         }
         Insert: {
@@ -59,6 +60,7 @@ export interface Database {
           telegram_chat_id?: string | null
           first_name?: string | null
           onboarding_completed?: boolean
+          tour_completed?: boolean
           created_at?: string
         }
         Update: {
@@ -66,6 +68,7 @@ export interface Database {
           telegram_chat_id?: string | null
           first_name?: string | null
           onboarding_completed?: boolean
+          tour_completed?: boolean
           created_at?: string
         }
         Relationships: []

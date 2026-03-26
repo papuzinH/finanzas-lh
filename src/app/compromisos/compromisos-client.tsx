@@ -404,6 +404,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     <div className="min-h-screen bg-surface text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
       <PageHeader
         title="Compromisos"
+        subtitle="Cuotas y suscripciones"
         icon={<CalendarClock className="h-5 w-5" />}
         containerClassName="max-w-[1440px]"
       >
@@ -447,7 +448,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
         </div>
 
         {/* Segmented Control */}
-        <div className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800 mb-6 w-full justify-between">
+        <div data-tour="compromisos-tabs" className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800 mb-6 w-full justify-between">
           <button
             onClick={() => setActiveTab('cuotas')}
             className={cn(

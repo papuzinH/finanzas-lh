@@ -10,11 +10,13 @@ import {
   PieChart as PieChartIcon,
   ShoppingBag,
   DollarSign,
-  Flame
+  Flame,
+  LayoutDashboard
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
+import { PageHeader } from '@/components/shared/page-header';
 import { TransactionItem } from '@/components/shared/transaction-item';
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { Modal } from '@/components/shared/modal';
@@ -97,36 +99,39 @@ export default function DashboardPage() {
   // Componente del dashboard principal
   const dashboardContent = (
     <div className="min-h-screen bg-[var(--surface)] text-slate-50 font-sans pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-[var(--surface)]/80 backdrop-blur-md">
-        <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight text-white">Hola, {user?.first_name || 'Usuario'} 👋</h1>
-            {streak.days > 0 && (
-              <div
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20"
-                title={!streak.isActiveToday ? 'Registrá un gasto para mantener tu racha' : undefined}
-              >
-                <Flame
-                  className={[
-                    'w-3.5 h-3.5 text-amber-400',
-                    streak.isActiveToday ? '' : 'opacity-50',
-                    streak.days > 7 ? 'animate-pulse' : '',
-                  ].join(' ')}
-                />
-                <span className="text-[11px] font-semibold text-amber-400 leading-none">
-                  {streak.days}d
-                </span>
-              </div>
-            )}
+      <PageHeader
+        title={`Hola, ${user?.first_name || 'Usuario'} 👋`}
+        subtitle="Tu resumen financiero"
+        icon={<LayoutDashboard className="h-5 w-5" />}
+        containerClassName="max-w-[1440px]"
+      >
+        {streak.days > 0 && (
+          <div
+            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20"
+            title={!streak.isActiveToday ? 'Registrá un gasto para mantener tu racha' : undefined}
+          >
+            <Flame
+              className={[
+                'w-3.5 h-3.5 text-amber-400',
+                streak.isActiveToday ? '' : 'opacity-50',
+                streak.days > 7 ? 'animate-pulse' : '',
+              ].join(' ')}
+            />
+            <span className="text-[11px] font-semibold text-amber-400 leading-none">
+              {streak.days}d
+            </span>
           </div>
+        )}
+        <div data-tour="add-transaction-button">
+        <div data-tour="add-transaction-button">
           <AnimatedPlusButton
             label="Crear transacción"
             onClick={() => setIsCreateTxOpen(true)}
             ariaLabel="Nueva transacción"
           />
         </div>
-      </header>
+        </div>
+      </PageHeader>
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 space-y-6">
 

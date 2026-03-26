@@ -1,38 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useFinanceStore } from '@/lib/store/financeStore'
-import { useOnboardingStore } from '@/lib/store/onboardingStore'
-
-interface TourStep {
-  target: string
-  text: string
-  position: 'top' | 'bottom'
-}
-
-const TOUR_STEPS: TourStep[] = [
-  {
-    target: 'fab',
-    text: 'Empezá registrando tu primer gasto tocando el botón +',
-    position: 'top',
-  },
-  {
-    target: 'balance-card',
-    text: 'Acá vas a ver tu balance general y el resumen del mes',
-    position: 'bottom',
-  },
-  {
-    target: 'nav-billetera',
-    text: 'Configurá tus medios de pago: tarjetas, cuentas, efectivo',
-    position: 'top',
-  },
-  {
-    target: 'nav-objetivos',
-    text: 'Ponele metas a tu ahorro y presupuestos por categoría',
-    position: 'top',
-  },
-]
+import {
+  useOnboardingStore,
+  TOUR_ROUTE_ORDER,
+  TOUR_STEPS_BY_ROUTE,
+  TOUR_TOTAL_STEPS,
+} from '@/lib/store/onboardingStore'
 
 const SPOTLIGHT_PADDING = 8
 const TOOLTIP_GAP = 12
@@ -133,18 +110,52 @@ function computeTooltipPosition(
   return { top, left, arrowSide }
 }
 
+/** Calcula el número de paso global (1-indexed) para mostrar "X de N" */
+function getGlobalStepNumber(routeIndex: number, stepInRoute: number): number {
+  let count = 0
+  for (let i = 0; i < routeIndex; i++) {
+    count += TOUR_STEPS_BY_ROUTE[TOUR_ROUTE_ORDER[i]].length
+  }
+  return count + stepInRoute + 1
+}
+
 export function OnboardingTour() {
+  const router = useRouter()
+  const pathname = usePathname()
+
   const transactions = useFinanceStore((s) => s.transactions)
   const isInitialized = useFinanceStore((s) => s.isInitialized)
-  const { tourCompleted, tourSkipped, tourStep, nextTourStep, skipTour } = useOnboardingStore()
+
+  const {
+    tourCompleted,
+    tourSkipped,
+    tourRouteIndex,
+    tourStepInRoute,
+    advanceTour,
+    skipTour,
+  } = useOnboardingStore()
 
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [tooltipSize, setTooltipSize] = useState({ width: 288, height: 160 })
+  const [isNavigating, setIsNavigating] = useState(false)
 
   const isNewUser = isInitialized && transactions.length === 0
-  const isActive = isNewUser && !tourCompleted && !tourSkipped
+  const isActive = isNewUser && !tourCompleted && !tourSkipped && !isNavigating
 
-  const currentStepData = TOUR_STEPS[tourStep]
+  // Ruta actual del tour
+  const currentRoute = TOUR_ROUTE_ORDER[tourRouteIndex]
+  const stepsForRoute = TOUR_STEPS_BY_ROUTE[currentRoute] ?? []
+  const currentStepData = stepsForRoute[tourStepInRoute] ?? null
+
+  // Sincronizar cuando el pathname cambia (después de navegación)
+  useEffect(() => {
+    if (!isNewUser || tourCompleted || tourSkipped) return
+    const expectedRoute = TOUR_ROUTE_ORDER[tourRouteIndex]
+    if (pathname === expectedRoute && isNavigating) {
+      setIsNavigating(false)
+    }
+  }, [pathname, tourRouteIndex, isNewUser, tourCompleted, tourSkipped, isNavigating])
+
   const targetRect = useTargetRect(currentStepData?.target ?? '', isActive)
 
   useEffect(() => {
@@ -152,7 +163,7 @@ export function OnboardingTour() {
       const { offsetWidth, offsetHeight } = tooltipRef.current
       setTooltipSize({ width: offsetWidth, height: offsetHeight })
     }
-  }, [tourStep, targetRect])
+  }, [tourStepInRoute, tourRouteIndex, targetRect])
 
   useEffect(() => {
     if (isActive) {
@@ -161,28 +172,7 @@ export function OnboardingTour() {
     }
   }, [isActive])
 
-  const moreMenuOpenedRef = useRef(false)
-
-  useEffect(() => {
-    if (!isActive || tourStep !== 3) {
-      if (moreMenuOpenedRef.current) {
-        const masBtn = document.querySelector<HTMLElement>('[data-tour="nav-mas"]')
-        if (masBtn) masBtn.click()
-        moreMenuOpenedRef.current = false
-      }
-      return
-    }
-
-    const isMobile = window.innerWidth < 768
-    if (!isMobile) return
-
-    const masBtn = document.querySelector<HTMLElement>('[data-tour="nav-mas"]')
-    if (masBtn) {
-      masBtn.click()
-      moreMenuOpenedRef.current = true
-    }
-  }, [isActive, tourStep])
-
+  // Auto-scroll al elemento target
   useEffect(() => {
     if (!isActive || !currentStepData) return
 
@@ -194,30 +184,26 @@ export function OnboardingTour() {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
     }
-  }, [isActive, tourStep, currentStepData])
+  }, [isActive, tourStepInRoute, tourRouteIndex, currentStepData])
 
   const handleNext = useCallback(() => {
-    if (tourStep === 3 && moreMenuOpenedRef.current) {
-      const masBtn = document.querySelector<HTMLElement>('[data-tour="nav-mas"]')
-      if (masBtn) masBtn.click()
-      moreMenuOpenedRef.current = false
+    const nextRoute = advanceTour()
+    if (nextRoute) {
+      // Necesitamos navegar a otra ruta
+      setIsNavigating(true)
+      router.push(nextRoute)
     }
-    nextTourStep()
-  }, [tourStep, nextTourStep])
+  }, [advanceTour, router])
 
   const handleSkip = useCallback(() => {
-    if (moreMenuOpenedRef.current) {
-      const masBtn = document.querySelector<HTMLElement>('[data-tour="nav-mas"]')
-      if (masBtn) masBtn.click()
-      moreMenuOpenedRef.current = false
-    }
     skipTour()
   }, [skipTour])
 
   if (!isActive || !currentStepData) return null
 
   const clipPath = buildClipPath(targetRect)
-  const isLastStep = tourStep === TOUR_STEPS.length - 1
+  const globalStep = getGlobalStepNumber(tourRouteIndex, tourStepInRoute)
+  const isLastStep = globalStep === TOUR_TOTAL_STEPS
 
   const tooltipPos = targetRect
     ? computeTooltipPosition(targetRect, currentStepData.position, tooltipSize.width, tooltipSize.height)
@@ -236,7 +222,7 @@ export function OnboardingTour() {
       <AnimatePresence mode="wait">
         {targetRect && tooltipPos && (
           <motion.div
-            key={tourStep}
+            key={`${tourRouteIndex}-${tourStepInRoute}`}
             ref={tooltipRef}
             initial={{ opacity: 0, y: tooltipPos.arrowSide === 'top' ? -10 : 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -272,7 +258,7 @@ export function OnboardingTour() {
 
             <div className="flex items-center justify-between">
               <span className="text-xs text-indigo-200">
-                {tourStep + 1} de {TOUR_STEPS.length}
+                {globalStep} de {TOUR_TOTAL_STEPS}
               </span>
 
               <div className="flex items-center gap-3">

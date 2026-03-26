@@ -56,7 +56,7 @@ export function MonthSelector({ currentMonth, baseUrl = '/' }: MonthSelectorProp
   };
 
   return (
-    <div className="flex items-center justify-between gap-3 md:gap-6 py-2 md:py-4 w-full">
+    <div data-tour="month-selector" className="flex items-center justify-between gap-3 md:gap-6 py-2 md:py-4 w-full">
       <button
         onClick={() => navigate(-1)}
         className="group flex h-11 w-11 items-center justify-center rounded-full border border-slate-800 bg-[var(--surface-raised)]/50 text-slate-400 transition-all hover:border-indigo-500/50 hover:bg-indigo-500/10 hover:text-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
