@@ -8,7 +8,11 @@ import type { Transaction, RecurringPlan, PaymentMethod } from '@/types/database
 
 // Calcular balance global
 // currentMonth: 'YYYY-MM' del mes a considerar para cuotas (default: mes actual)
-function calculateGlobalBalance(transactions: Transaction[], currentMonthStr?: string): number {
+function calculateGlobalBalance(
+  transactions: Transaction[],
+  recurringPlans: RecurringPlan[] = [],
+  currentMonthStr?: string,
+): number {
   const now = new Date()
   const yearMonth = currentMonthStr ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const [y, m] = yearMonth.split('-').map(Number)
@@ -17,9 +21,9 @@ function calculateGlobalBalance(transactions: Transaction[], currentMonthStr?: s
     .filter((t) => t.type === 'income')
     .reduce((acc, t) => acc + Number(t.amount), 0)
 
-  // Gastos regulares (sin cuotas): todos históricos
-  const regularExpenses = transactions
-    .filter((t) => t.type === 'expense' && !t.installment_plan_id)
+  // Gastos variables históricos (sin cuotas ni suscripciones recurrentes)
+  const variableExpenses = transactions
+    .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id)
     .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
 
   // Solo cuotas del mes actual
@@ -31,7 +35,12 @@ function calculateGlobalBalance(transactions: Transaction[], currentMonthStr?: s
     })
     .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
 
-  return totalIncome - regularExpenses - currentMonthInstallments
+  // Mensualidades/fijos activos (burn rate)
+  const burnRate = recurringPlans
+    .filter((p) => p.is_active)
+    .reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0)
+
+  return totalIncome - variableExpenses - currentMonthInstallments - burnRate
 }
 
 // Calcular monthly burn rate
@@ -279,7 +288,7 @@ describe('financeStore - Pure Functions', () => {
           created_at: '2024-03-01',
         },
       ]
-      const balance = calculateGlobalBalance(transactions, '2024-03')
+      const balance = calculateGlobalBalance(transactions, [], '2024-03')
       expect(balance).toBe(7000) // 10000 - 3000 (solo la cuota de marzo)
     })
 
@@ -339,7 +348,7 @@ describe('financeStore - Pure Functions', () => {
           created_at: '2024-03-01',
         },
       ]
-      const balance = calculateGlobalBalance(transactions, '2024-05')
+      const balance = calculateGlobalBalance(transactions, [], '2024-05')
       expect(balance).toBe(7000) // 10000 - 3000 (solo la cuota de mayo)
     })
   })
