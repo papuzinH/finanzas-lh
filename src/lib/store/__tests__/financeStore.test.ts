@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { Transaction, RecurringPlan, PaymentMethod } from '@/types/database'
+import type { Transaction, RecurringPlan, PaymentMethod, InstallmentPlan } from '@/types/database'
 
 /**
  * FUNCIONES PURAS EXTRAÍDAS DEL STORE PARA TESTING
@@ -7,13 +7,36 @@ import type { Transaction, RecurringPlan, PaymentMethod } from '@/types/database
  */
 
 // Calcular balance global
-function calculateGlobalBalance(transactions: Transaction[]): number {
+function calculateGlobalBalance(transactions: Transaction[], installmentPlans: InstallmentPlan[] = []): number {
+  const now = new Date()
+
+  // Determinar planes de cuotas terminados
+  const finishedPlanIds = new Set<number>()
+  for (const plan of installmentPlans) {
+    const planTransactions = transactions.filter((t) => t.installment_plan_id === plan.id)
+    const paidAmount = planTransactions
+      .filter((t) => {
+        const [year, month, day] = t.date.split('-').map(Number)
+        const localDate = new Date(year, month - 1, day)
+        return localDate <= now
+      })
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
+    const remainingAmount = Math.max(Number(plan.total_amount) - paidAmount, 0)
+    if (remainingAmount <= 100) {
+      finishedPlanIds.add(plan.id)
+    }
+  }
+
   const totalIncome = transactions
     .filter((t) => t.type === 'income')
     .reduce((acc, t) => acc + Number(t.amount), 0)
 
   const totalExpenses = transactions
-    .filter((t) => t.type === 'expense')
+    .filter((t) => {
+      if (t.type !== 'expense') return false
+      if (t.installment_plan_id !== null && finishedPlanIds.has(t.installment_plan_id)) return false
+      return true
+    })
     .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
 
   return totalIncome - totalExpenses
@@ -207,7 +230,7 @@ describe('financeStore - Pure Functions', () => {
       expect(balance).toBe(-500)
     })
 
-    it('NO incluye cuotas en el cálculo del balance (son transacciones separadas)', () => {
+    it('incluye cuotas de planes ACTIVOS en el balance', () => {
       const transactions: Transaction[] = [
         {
           id: 1,
@@ -228,18 +251,103 @@ describe('financeStore - Pure Functions', () => {
           type: 'expense',
           amount: -100,
           date: '2024-03-20',
-          description: 'Installment payment',
+          description: 'Installment payment 1/3',
           payment_method_id: 1,
           category_id: 2,
-          installment_plan_id: 1, // Esta es una cuota
+          installment_plan_id: 1,
           recurring_plan_id: null,
           created_at: '2024-03-20',
         },
       ]
+      // Plan activo (solo pagó 1 de 3, remainingAmount > 100)
+      const plans: InstallmentPlan[] = [
+        {
+          id: 1,
+          user_id: 'user1',
+          description: 'TV',
+          total_amount: 300,
+          installments_count: 3,
+          purchase_date: '2024-03-15',
+          category_id: null,
+          payment_method_id: null,
+          created_at: '2024-03-15',
+        },
+      ]
+      const balance = calculateGlobalBalance(transactions, plans)
+      expect(balance).toBe(900) // 1000 - 100
+    })
 
-      // Las cuotas SÍ se restan como transacciones (no hay double counting)
-      const balance = calculateGlobalBalance(transactions)
-      expect(balance).toBe(900)
+    it('excluye cuotas de planes TERMINADOS del balance', () => {
+      const transactions: Transaction[] = [
+        {
+          id: 1,
+          user_id: 'user1',
+          type: 'income',
+          amount: 1000,
+          date: '2024-03-15',
+          description: 'Salary',
+          payment_method_id: 1,
+          category_id: 1,
+          installment_plan_id: null,
+          recurring_plan_id: null,
+          created_at: '2024-03-15',
+        },
+        {
+          id: 2,
+          user_id: 'user1',
+          type: 'expense',
+          amount: -100,
+          date: '2024-01-20',
+          description: 'Installment payment 1/3',
+          payment_method_id: 1,
+          category_id: 2,
+          installment_plan_id: 1,
+          recurring_plan_id: null,
+          created_at: '2024-01-20',
+        },
+        {
+          id: 3,
+          user_id: 'user1',
+          type: 'expense',
+          amount: -100,
+          date: '2024-02-20',
+          description: 'Installment payment 2/3',
+          payment_method_id: 1,
+          category_id: 2,
+          installment_plan_id: 1,
+          recurring_plan_id: null,
+          created_at: '2024-02-20',
+        },
+        {
+          id: 4,
+          user_id: 'user1',
+          type: 'expense',
+          amount: -100,
+          date: '2024-03-20',
+          description: 'Installment payment 3/3',
+          payment_method_id: 1,
+          category_id: 2,
+          installment_plan_id: 1,
+          recurring_plan_id: null,
+          created_at: '2024-03-20',
+        },
+      ]
+      // Plan terminado: pagó las 3 cuotas (300 pagado, total_amount=300, remaining=0)
+      const plans: InstallmentPlan[] = [
+        {
+          id: 1,
+          user_id: 'user1',
+          description: 'TV',
+          total_amount: 300,
+          installments_count: 3,
+          purchase_date: '2024-01-15',
+          category_id: null,
+          payment_method_id: null,
+          created_at: '2024-01-15',
+        },
+      ]
+      const balance = calculateGlobalBalance(transactions, plans)
+      expect(balance).toBe(1000) // Plan terminado → sus gastos no cuentan
     })
   })
 
