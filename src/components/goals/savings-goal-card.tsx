@@ -161,7 +161,7 @@ export function SavingsGoalCard({ goal }: Props) {
       )}
 
       {/* Actions */}
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex items-center justify-between pt-1 flex-col gap-2">
         <AddContributionDialog goal={goal} />
         {goalContributions.length > 0 && (
           <button
