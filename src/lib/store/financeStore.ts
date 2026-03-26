@@ -538,8 +538,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * FÓRMULA DEL BALANCE GLOBAL DE CHANCHITO
    * ==========================================
    * Balance = ingresos globales
-   *         - gastos globales (sin cuotas: variables + mensualidades históricas)
+   *         - gastos variables históricos (sin cuotas ni suscripciones)
    *         - cuotas del mes actual solamente
+   *         - mensualidades activas (fijos del mes, burn rate)
    *
    * Las cuotas pre-generadas de meses pasados y futuros NO se restan.
    * Solo impactan cuando llega su mes (via getCurrentMonthInstallmentsTotal).
@@ -549,21 +550,24 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * - Ahorros (tabla separada, no son transacciones)
    */
   getGlobalBalance: () => {
-    const { transactions, getCurrentMonthInstallmentsTotal } = get();
+    const { transactions, getCurrentMonthInstallmentsTotal, getMonthlyBurnRate } = get();
 
     const totalIncome = transactions
       .filter((t) => t.type === 'income')
       .reduce((acc, t) => acc + Number(t.amount), 0);
 
-    // Todos los gastos excepto cuotas (variables + suscripciones históricas)
-    const regularExpenses = transactions
-      .filter((t) => t.type === 'expense' && !t.installment_plan_id)
+    // Gastos variables históricos (sin cuotas ni suscripciones recurrentes)
+    const variableExpenses = transactions
+      .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id)
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
     // Solo las cuotas del mes actual
     const currentInstallments = getCurrentMonthInstallmentsTotal();
 
-    return totalIncome - regularExpenses - currentInstallments;
+    // Mensualidades/fijos activos (recurring_plans, no transacciones)
+    const burnRate = getMonthlyBurnRate();
+
+    return totalIncome - variableExpenses - currentInstallments - burnRate;
   },
 
   /**
