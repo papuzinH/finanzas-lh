@@ -15,7 +15,8 @@
       "Bash(node fix-runner.mjs)",
       "Bash(rm fix-runner.mjs)",
       "Bash(xargs grep:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(grep:*)"
     ]
   }
 }

@@ -1,3 +1,7 @@
+/**
+ * @deprecated Usar investment-asset.ts (InvestmentAsset) e investment-transaction.ts (InvestmentTransaction).
+ * Este schema se mantiene para backward compatibility mientras se migra la UI.
+ */
 import { z } from 'zod'
 
 export const investmentSchema = z.object({
@@ -11,3 +15,9 @@ export const investmentSchema = z.object({
 })
 
 export type InvestmentSchema = z.infer<typeof investmentSchema>
+
+// Re-exports desde los nuevos schemas
+export { investmentAssetSchema, ASSET_TYPES } from './investment-asset'
+export type { InvestmentAssetSchema } from './investment-asset'
+export { investmentTransactionSchema, TRANSACTION_TYPES } from './investment-transaction'
+export type { InvestmentTransactionSchema } from './investment-transaction'

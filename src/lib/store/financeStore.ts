@@ -244,13 +244,11 @@ interface FinanceState {
  * @param now - Fecha de referencia (típicamente today)
  * @returns true si el gasto pertenece al mes actual según su contexto
  */
-const isExpenseInCurrentMonthScope = (t: Transaction, methods: PaymentMethod[], now: Date) => {
+const isExpenseInCurrentMonthScope = (t: ProcessedTransaction, methods: PaymentMethod[], now: Date) => {
   if (t.type !== 'expense') return false;
 
-  // Parsear la fecha correctamente como LOCAL (no UTC)
-  const localTDate = parseLocalDate(t.date);
-
   // 1. Si es Cuota (Installment) -> Usar lógica de Ciclo de Tarjeta
+  // t.date para cuotas siempre es la fecha de pago calculada
   if (t.installment_plan_id) {
     const method = methods.find((m) => m.id === t.payment_method_id);
     if (
@@ -271,6 +269,7 @@ const isExpenseInCurrentMonthScope = (t: Transaction, methods: PaymentMethod[], 
         paymentDateForThisCycle = addMonths(paymentDateForThisCycle, 1);
       }
 
+      const localTDate = parseLocalDate(t.date);
       return (
         localTDate.getMonth() === paymentDateForThisCycle.getMonth() &&
         localTDate.getFullYear() === paymentDateForThisCycle.getFullYear()
@@ -278,10 +277,13 @@ const isExpenseInCurrentMonthScope = (t: Transaction, methods: PaymentMethod[], 
     }
   }
 
-  // 2. Si NO es cuota (o no es tarjeta con ciclo definido) -> Usar Mes Calendario
+  // 2. Para todo lo demás: usar periodDate (ya tiene la lógica de ciclo de tarjeta aplicada).
+  // periodDate refleja el mes visual correcto tanto para gastos directos de crédito
+  // (donde t.date = fecha de pago) como para débito/efectivo (donde t.date = fecha de compra).
+  const localPeriodDate = parseLocalDate(t.periodDate);
   return (
-    localTDate.getMonth() === now.getMonth() &&
-    localTDate.getFullYear() === now.getFullYear()
+    localPeriodDate.getMonth() === now.getMonth() &&
+    localPeriodDate.getFullYear() === now.getFullYear()
   );
 };
 
@@ -431,10 +433,15 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           const localTDate = parseLocalDate(t.date);
           const dayOfMonth = getDate(localTDate);
 
-          // Si la fecha de pago es a principio de mes (ej: día 6) y la tarjeta vence cerca (ej: día 6)
-          // Significa que corresponde al consumo del mes ANTERIOR.
+          // t.date = fecha de pago calculada al crear la transacción.
+          // Si paymentDay < closingDay: el pago vence el mes SIGUIENTE al cierre,
+          // por lo que el período visual corresponde al mes anterior al pago.
+          // Si paymentDay >= closingDay: el pago vence el mismo mes del cierre,
+          // el período visual ES el mes del pago (sin ajuste).
           if (
             method.default_payment_day &&
+            method.default_closing_day &&
+            method.default_payment_day < method.default_closing_day &&
             dayOfMonth <= method.default_payment_day + 2
           ) {
             const visualDate = subMonths(localTDate, 1);
@@ -1404,6 +1411,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       getCurrentMonthInstallments,
       getCurrentMonthInstallmentsTotal,
       getAllBudgetStatuses,
+      paymentMethods,
     } = get();
 
     const insights: Array<{ type: 'positive' | 'warning' | 'info'; message: string; icon: string }> = [];
@@ -1469,6 +1477,26 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         type: criticalBudget.percent >= 100 ? 'warning' : 'info',
         message: `Vas al ${pct}% del presupuesto de ${emoji}${criticalBudget.categoryName} con ${daysRemaining} días restantes`,
         icon: criticalBudget.percent >= 100 ? 'AlertCircle' : 'Target',
+      });
+    }
+
+    // 5. Tarjetas que necesitan actualización de fechas (día después del vencimiento)
+    const todayDay = now.getDate();
+    const creditCardsNeedingUpdate = paymentMethods.filter((m) => {
+      if (m.type !== 'credit' || !m.default_payment_day) return false;
+      const paymentDay = m.default_payment_day;
+      if (todayDay === paymentDay + 1) return true;
+      if (todayDay === 1) {
+        const lastDayOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+        return paymentDay >= lastDayOfPrevMonth;
+      }
+      return false;
+    });
+    for (const card of creditCardsNeedingUpdate) {
+      insights.push({
+        type: 'warning',
+        message: `Actualizá el cierre y vencimiento de ${card.name} para el nuevo ciclo 📅`,
+        icon: 'CreditCard',
       });
     }
 

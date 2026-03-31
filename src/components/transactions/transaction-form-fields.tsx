@@ -584,26 +584,23 @@ export function PaymentMethodField<T extends FieldValues>({
 }: PaymentMethodFieldProps<T>) {
   
   // Function to calculate credit card payment date
+  // Lógica: si compra DESPUÉS del cierre → siguiente ciclo; si paymentDay < closingDay → pago el mes siguiente al cierre
   const calculateCreditPaymentDate = (method: PaymentMethod, currentDate: Date): Date => {
     if (method.type !== 'credit' || !method.default_closing_day || !method.default_payment_day) {
       return currentDate;
     }
 
-    const today = new Date(currentDate);
-    const currentDay = today.getDate();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    
-    let paymentDate: Date;
-    
-    if (currentDay < method.default_closing_day) {
-      // Si estamos antes del cierre, el vencimiento es en el mismo mes
-      paymentDate = new Date(currentYear, currentMonth, method.default_payment_day);
-    } else {
-      // Si estamos después del cierre, el vencimiento es el próximo mes
-      paymentDate = new Date(currentYear, currentMonth + 1, method.default_payment_day);
+    const dayOfPurchase = currentDate.getDate();
+    const paymentDate = new Date(currentDate);
+
+    if (dayOfPurchase > method.default_closing_day) {
+      paymentDate.setMonth(paymentDate.getMonth() + 1);
     }
-    
+    if (method.default_payment_day < method.default_closing_day) {
+      paymentDate.setMonth(paymentDate.getMonth() + 1);
+    }
+    paymentDate.setDate(method.default_payment_day);
+
     return paymentDate;
   };
 
@@ -620,14 +617,21 @@ export function PaymentMethodField<T extends FieldValues>({
         const creditHint = (() => {
           if (!selectedMethod || selectedMethod.type !== 'credit' || !watchedDate) return null;
           const closingDay = selectedMethod.default_closing_day;
-          const dueDay = selectedMethod.default_payment_day;
-          if (!closingDay || !dueDay) return null;
+          const paymentDay = selectedMethod.default_payment_day;
+          if (!closingDay || !paymentDay) return null;
 
+          const MONTHS_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                              'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
           const purchaseDay = watchedDate.getDate();
-          if (purchaseDay < closingDay) {
-            return `Cierra el ${closingDay} de este mes · Vence el ${dueDay}`;
-          }
-          return `Cierra el ${closingDay} del próximo mes · Vence el ${dueDay} (fecha incierta)`;
+          const purchaseMonth = watchedDate.getMonth();
+
+          // Mes de cierre
+          const closingMonthIdx = (purchaseDay > closingDay ? purchaseMonth + 1 : purchaseMonth) % 12;
+          // Mes de pago
+          let paymentMonthIdx = closingMonthIdx;
+          if (paymentDay < closingDay) paymentMonthIdx = (paymentMonthIdx + 1) % 12;
+
+          return `Cierra el ${closingDay} de ${MONTHS_ES[closingMonthIdx]} · Vence el ${paymentDay} de ${MONTHS_ES[paymentMonthIdx]}`;
         })();
 
         return (

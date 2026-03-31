@@ -40,7 +40,7 @@ export interface GoalContext {
   }>
 }
 
-export function buildChatPrompt(categories: Category[], conversationHistory?: ConversationMessage[], goalContext?: GoalContext): string {
+export function buildChatPrompt(categories: Category[], conversationHistory?: ConversationMessage[], goalContext?: GoalContext, cardAlerts?: string[]): string {
   // Construir la lista de categorías en formato de referencia
   const categoriesPrompt = categories
     .map((cat) => `- ${cat.emoji || '📁'} ${cat.name}: para ${cat.name.toLowerCase()}`)
@@ -84,9 +84,13 @@ Usá este historial para resolver referencias implícitas (ej: "esa categoría",
 Si el asistente pidió confirmación en su último mensaje, priorizá detectar la intención "confirmar_accion".\n`
     : ''
 
+  const cardAlertsSection = cardAlerts && cardAlerts.length > 0
+    ? `\nALERTAS ACTIVAS DE TARJETAS:\n${cardAlerts.map(a => `- ${a}`).join('\n')}\nSi el usuario abre la conversación con un saludo o mensaje genérico, mencioná estas alertas de manera amigable.\n`
+    : ''
+
   return `Actúa como un asistente financiero experto en el contexto económico argentino.
 Tu objetivo es extraer datos estructurados de un mensaje natural y categorizarlos con precisión usando los IDs provistos.
-${goalsSection}${historySection}
+${cardAlertsSection}${goalsSection}${historySection}
 INPUTS:
 1. Mensaje del Usuario: el usuario escribirá un mensaje sobre un gasto, ingreso, suscripción o configuración de tarjeta.
 

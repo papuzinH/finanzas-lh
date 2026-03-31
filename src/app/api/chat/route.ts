@@ -182,6 +182,36 @@ export async function POST(req: NextRequest) {
       // Goals context is optional, don't fail the chat
     }
 
+    // 5c. Detectar tarjetas que necesitan actualización de fechas
+    let cardAlerts: string[] = []
+    try {
+      const { data: creditCards } = await supabase
+        .from('payment_methods')
+        .select('name, default_payment_day')
+        .eq('user_id', userId)
+        .eq('type', 'credit')
+
+      const now = new Date()
+      const todayDay = now.getDate()
+
+      const cardsNeedingUpdate = (creditCards || []).filter((m: { name: string; default_payment_day: number | null }) => {
+        if (!m.default_payment_day) return false
+        const paymentDay = m.default_payment_day
+        if (todayDay === paymentDay + 1) return true
+        if (todayDay === 1) {
+          const lastDayOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0).getDate()
+          return paymentDay >= lastDayOfPrevMonth
+        }
+        return false
+      })
+
+      cardAlerts = cardsNeedingUpdate.map((m: { name: string; default_payment_day: number }) =>
+        `La tarjeta "${m.name}" venció ayer (día ${m.default_payment_day}). Recordale al usuario que debe actualizar las fechas de cierre y vencimiento para el próximo ciclo.`
+      )
+    } catch {
+      // Non-blocking
+    }
+
     // 5. Construir prompt con historial conversacional y llamar a Gemini
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '')
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
@@ -189,7 +219,7 @@ export async function POST(req: NextRequest) {
     // Truncar historial a últimos 10 mensajes y ~2000 chars para no exceder contexto
     const truncatedHistory = truncateHistory(history || [], 10, 2000)
 
-    const systemPrompt = buildChatPrompt(userCategories, truncatedHistory, goalContext)
+    const systemPrompt = buildChatPrompt(userCategories, truncatedHistory, goalContext, cardAlerts)
 
     let geminiText: string
     try {

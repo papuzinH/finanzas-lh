@@ -338,21 +338,176 @@ export interface Database {
         }
         Relationships: []
       }
+      investment_assets: {
+        Row: {
+          id: string
+          user_id: string
+          ticker: string
+          name: string
+          asset_type: 'stock' | 'cedear' | 'bond' | 'on' | 'bopreal' | 'lecap' | 'boncap' | 'plazo_fijo' | 'money_market' | 'crypto' | 'stablecoin' | 'fci' | 'etf'
+          currency: string | null
+          data_source_url: string | null
+          metadata: Record<string, unknown>
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          ticker: string
+          name: string
+          asset_type: 'stock' | 'cedear' | 'bond' | 'on' | 'bopreal' | 'lecap' | 'boncap' | 'plazo_fijo' | 'money_market' | 'crypto' | 'stablecoin' | 'fci' | 'etf'
+          currency?: string | null
+          data_source_url?: string | null
+          metadata?: Record<string, unknown>
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          ticker?: string
+          name?: string
+          asset_type?: 'stock' | 'cedear' | 'bond' | 'on' | 'bopreal' | 'lecap' | 'boncap' | 'plazo_fijo' | 'money_market' | 'crypto' | 'stablecoin' | 'fci' | 'etf'
+          currency?: string | null
+          data_source_url?: string | null
+          metadata?: Record<string, unknown>
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investment_assets_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      investment_transactions: {
+        Row: {
+          id: string
+          asset_id: string
+          user_id: string
+          type: 'buy' | 'sell' | 'dividend' | 'coupon' | 'interest'
+          quantity: number
+          price_per_unit: number
+          total_amount: number
+          fees: number
+          currency: string
+          date: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          asset_id: string
+          user_id: string
+          type: 'buy' | 'sell' | 'dividend' | 'coupon' | 'interest'
+          quantity: number
+          price_per_unit: number
+          total_amount: number
+          fees?: number
+          currency: string
+          date: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          asset_id?: string
+          user_id?: string
+          type?: 'buy' | 'sell' | 'dividend' | 'coupon' | 'interest'
+          quantity?: number
+          price_per_unit?: number
+          total_amount?: number
+          fees?: number
+          currency?: string
+          date?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investment_transactions_asset_id_fkey"
+            columns: ["asset_id"]
+            referencedRelation: "investment_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investment_transactions_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      exchange_rates: {
+        Row: {
+          id: string
+          pair: string
+          rate: number
+          source: string | null
+          last_update: string
+        }
+        Insert: {
+          id?: string
+          pair: string
+          rate: number
+          source?: string | null
+          last_update?: string
+        }
+        Update: {
+          id?: string
+          pair?: string
+          rate?: number
+          source?: string | null
+          last_update?: string
+        }
+        Relationships: []
+      }
       market_prices: {
         Row: {
           ticker: string
           last_price: number
           last_update: string | null
+          currency: string | null
+          price_usd: number | null
+          ccl_implicit: number | null
+          tir: number | null
+          next_coupon_date: string | null
+          next_coupon_amount: number | null
+          tna: number | null
+          source: string | null
         }
         Insert: {
           ticker: string
           last_price: number
           last_update?: string | null
+          currency?: string | null
+          price_usd?: number | null
+          ccl_implicit?: number | null
+          tir?: number | null
+          next_coupon_date?: string | null
+          next_coupon_amount?: number | null
+          tna?: number | null
+          source?: string | null
         }
         Update: {
           ticker?: string
           last_price?: number
           last_update?: string | null
+          currency?: string | null
+          price_usd?: number | null
+          ccl_implicit?: number | null
+          tir?: number | null
+          next_coupon_date?: string | null
+          next_coupon_amount?: number | null
+          tna?: number | null
+          source?: string | null
         }
         Relationships: []
       }
@@ -529,6 +684,9 @@ export type RecurringPlan = Tables<'recurring_plans'>
 export type Transaction = Tables<'transactions'>
 export type PaymentMethod = Tables<'payment_methods'>
 export type Investment = Tables<'investments'>
+export type InvestmentAsset = Tables<'investment_assets'>
+export type InvestmentTransaction = Tables<'investment_transactions'>
+export type ExchangeRate = Tables<'exchange_rates'>
 export type MarketPrice = Tables<'market_prices'>
 export type Saving = Tables<'savings'>
 export type SavingsGoal = Tables<'savings_goals'>
