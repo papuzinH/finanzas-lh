@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { installmentPlanSchema, type InstallmentPlanSchema, createInstallmentPlanSchema, type CreateInstallmentPlanSchema } from '@/lib/schemas/installment-plan';
 import { revalidatePath } from 'next/cache';
 import { addMonths } from 'date-fns';
-import { getInstallmentPaymentDate, formatLocalDate } from '@/lib/utils/dates';
+import { calculateCreditPaymentDate, dateToLocalString, parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
 
 type ActionResponse = {
   error?: string;
@@ -32,11 +32,13 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
     const { description, total_amount, installments_count, purchase_date, category_id, payment_method_id } = validatedFields.data;
     const finalPaymentMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
-    // La fecha de compra del input viene como Date UTC midnight; extraer la porción YYYY-MM-DD
-    const purchaseDateStr = purchase_date.toISOString().split('T')[0];
+    // Convertir la fecha de compra a string local (evita bug UTC de toISOString())
+    const purchaseDateStr = dateToLocalString(purchase_date);
 
-    // Calcular la fecha de la primera cuota aplicando ciclo de tarjeta si corresponde
-    let firstInstallmentDate: Date;
+    // Calcular la fecha de la primera cuota:
+    // - Crédito: aplica lógica de ciclo de tarjeta (fecha de vencimiento del ciclo correspondiente)
+    // - Débito/efectivo: se usa la fecha de compra directamente
+    let firstInstallmentDateStr: string;
     if (finalPaymentMethodId) {
       const { data: pm } = await supabase
         .from('payment_methods')
@@ -44,17 +46,17 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
         .eq('id', finalPaymentMethodId)
         .single();
 
-      if (pm && pm.type === 'credit' && pm.default_closing_day && pm.default_payment_day) {
-        firstInstallmentDate = getInstallmentPaymentDate(
+      if (pm?.type === 'credit' && pm.default_closing_day && pm.default_payment_day) {
+        firstInstallmentDateStr = calculateCreditPaymentDate(
           purchaseDateStr,
           pm.default_closing_day,
           pm.default_payment_day
         );
       } else {
-        firstInstallmentDate = new Date(purchaseDateStr + 'T00:00:00');
+        firstInstallmentDateStr = purchaseDateStr;
       }
     } else {
-      firstInstallmentDate = new Date(purchaseDateStr + 'T00:00:00');
+      firstInstallmentDateStr = purchaseDateStr;
     }
 
     // 1. Crear el plan de cuotas
@@ -78,12 +80,13 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
     }
 
     // 2. Crear las transacciones asociadas (una por cuota)
+    // La primera cuota cae en firstInstallmentDateStr; las siguientes son +1 mes cada una.
     const installmentAmount = total_amount / installments_count;
     const transactions = Array.from({ length: installments_count }, (_, i) => ({
       user_id: user.id,
       description: `${description} (${i + 1}/${installments_count})`,
       amount: installmentAmount,
-      date: formatLocalDate(addMonths(firstInstallmentDate, i)),
+      date: formatLocalDate(addMonths(parseLocalDate(firstInstallmentDateStr), i)),
       type: 'expense' as const,
       category_id,
       installment_plan_id: plan.id,
@@ -160,7 +163,7 @@ export async function updateInstallmentPlan(id: string, data: InstallmentPlanSch
       // Actualizamos cada transacción para mantener su sufijo individual
       const updatePromises = transactions.map(tx => {
         let newTxDescription = description;
-        
+
         // Intentar extraer el sufijo (X/Y) o similar al final
         const suffixMatch = tx.description.match(/\s\(\d+\/\d+\)$/);
         if (suffixMatch) {
@@ -217,14 +220,14 @@ export async function deleteInstallmentPlan(id: string): Promise<ActionResponse>
     if (error) {
       console.error('Error deleting installment plan:', error);
       // Check for foreign key violation if cascade isn't set
-      if (error.code === '23503') { 
+      if (error.code === '23503') {
          // Fallback: Delete transactions first manually if cascade is missing
          const { error: transError } = await supabase
             .from('transactions')
             .delete()
             .eq('installment_plan_id', id)
             .eq('user_id', user.id);
-         
+
          if (transError) {
              console.error('Error deleting associated transactions:', transError);
              return { error: 'Error al eliminar las cuotas asociadas' };
@@ -236,7 +239,7 @@ export async function deleteInstallmentPlan(id: string): Promise<ActionResponse>
             .delete()
             .eq('id', id)
             .eq('user_id', user.id);
-            
+
          if (retryError) {
              return { error: 'Error al eliminar el plan tras borrar cuotas' };
          }

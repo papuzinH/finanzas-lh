@@ -3,8 +3,12 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { investmentSchema, type InvestmentSchema } from '@/lib/schemas/investment'
+import { investmentAssetSchema } from '@/lib/schemas/investment-asset'
+import { investmentTransactionSchema } from '@/lib/schemas/investment-transaction'
 import { detectCurrencyFromTicker } from '@/lib/utils'
-import * as cheerio from 'cheerio'
+import { fetchPriceForAsset } from '@/lib/investments/prices/dispatcher'
+import { runUpdatePrices } from '@/lib/investments/update-prices-core'
+import type { ASSET_TYPES } from '@/lib/schemas/investment-asset'
 
 type ActionResponse = {
   error?: string
@@ -13,37 +17,28 @@ type ActionResponse = {
 
 // --- INVESTMENTS ---
 
-/**
- * Construye la URL de fuente de datos para cotización.
- * Para bonos en dólares (suffix D/C), se usa el ticker base sin suffix.
- */
-function buildDataSourceUrl(ticker: string, type: string): string {
-  const t = ticker.toUpperCase()
-  if (type === 'crypto') {
-    return `https://iol.invertironline.com/titulo/cotizacion/CRIPTO/${t}/1`
-  }
-  // Para bonos, usar ticker base (sin D/C) en IOL
-  const baseTicker = (type === 'bond') ? t.replace(/[DC]$/, '') : t
-  return `https://iol.invertironline.com/titulo/cotizacion/BCBA/${baseTicker}/1`
-}
-
 export async function createInvestment(data: InvestmentSchema): Promise<ActionResponse> {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
     const validated = investmentSchema.safeParse(data)
     if (!validated.success) {
-      return { error: `Datos invalidos: ${validated.error.issues.map(i => i.message).join(', ')}` }
+      return { error: `Datos invalidos: ${validated.error.issues.map((i) => i.message).join(', ')}` }
     }
 
-    const dataSourceUrl = validated.data.data_source_url || buildDataSourceUrl(validated.data.ticker, validated.data.type)
-
-    // Auto-detect currency from ticker suffix if not explicitly set
+    // Detectar moneda automáticamente si no fue especificada
     const detectedCurrency = detectCurrencyFromTicker(validated.data.ticker)
-    const finalCurrency = validated.data.currency || detectedCurrency || 
-      (validated.data.type === 'crypto' ? 'USD' : 'ARS')
+    const finalCurrency =
+      validated.data.currency || detectedCurrency || (validated.data.type === 'crypto' ? 'USD' : 'ARS')
+
+    // Construir URL de fuente de datos
+    const dataSourceUrl =
+      validated.data.data_source_url ||
+      buildDataSourceUrl(validated.data.ticker, validated.data.type)
 
     const insertData = {
       user_id: user.id,
@@ -56,16 +51,14 @@ export async function createInvestment(data: InvestmentSchema): Promise<ActionRe
       data_source_url: dataSourceUrl,
     }
 
-    const { error } = await supabase
-      .from('investments')
-      .insert(insertData as any)
+    const { error } = await supabase.from('investments').insert(insertData as any)
 
     if (error) {
       console.error('Error creating investment:', error)
       return { error: `Error al crear la inversion: ${error.message}` }
     }
 
-    // Fetch initial market price only if no existing entry for this ticker
+    // Fetch precio inicial si no hay entrada existente para este ticker
     try {
       const { data: existing, error: lookupError } = await supabase
         .from('market_prices')
@@ -74,16 +67,25 @@ export async function createInvestment(data: InvestmentSchema): Promise<ActionRe
         .maybeSingle()
 
       if (!lookupError && !existing) {
-        const price = await fetchPriceForInvestment(
-          validated.data.ticker,
-          validated.data.type,
-          dataSourceUrl,
-        )
-        if (price !== null) {
-          const ok = await upsertMarketPrice(supabase, validated.data.ticker, price)
-          console.log(`Market price for ${validated.data.ticker}: ${price} (upserted: ${ok})`)
-        } else {
-          console.log(`Could not fetch price for ${validated.data.ticker} (type: ${validated.data.type})`)
+        const assetType = validated.data.type as (typeof ASSET_TYPES)[number]
+        const priceResult = await fetchPriceForAsset({
+          ticker: validated.data.ticker,
+          asset_type: assetType,
+          data_source_url: dataSourceUrl,
+        })
+        if (priceResult !== null) {
+          await supabase.from('market_prices').upsert(
+            {
+              ticker: validated.data.ticker,
+              last_price: priceResult.price_ars,
+              price_usd: priceResult.price_usd ?? null,
+              ccl_implicit: priceResult.ccl_implicit ?? null,
+              currency: finalCurrency,
+              source: priceResult.source,
+              last_update: new Date().toISOString(),
+            },
+            { onConflict: 'ticker' },
+          )
         }
       }
     } catch (e) {
@@ -106,20 +108,20 @@ export async function createSaving(data: {
 }): Promise<ActionResponse> {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
     if (!data.amount || data.amount <= 0) {
       return { error: 'El monto debe ser positivo' }
     }
 
-    const { error } = await supabase
-      .from('savings')
-      .insert({
-        user_id: user.id,
-        amount: data.amount,
-        currency: data.currency,
-      } as any)
+    const { error } = await supabase.from('savings').insert({
+      user_id: user.id,
+      amount: data.amount,
+      currency: data.currency,
+    } as any)
 
     if (error) {
       console.error('Error creating saving:', error)
@@ -137,14 +139,12 @@ export async function createSaving(data: {
 export async function deleteSaving(id: string): Promise<ActionResponse> {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
-    const { error } = await supabase
-      .from('savings')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id)
+    const { error } = await supabase.from('savings').delete().eq('id', id).eq('user_id', user.id)
 
     if (error) {
       console.error('Error deleting saving:', error)
@@ -161,165 +161,237 @@ export async function deleteSaving(id: string): Promise<ActionResponse> {
 
 // --- MARKET PRICES ---
 
-// Strategy 1: Scrape IOL for ON, bonds, FCI
-async function fetchIOLPrice(dataSourceUrl: string): Promise<number | null> {
-  try {
-    const response = await fetch(dataSourceUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-      signal: AbortSignal.timeout(10000),
-    })
-
-    if (!response.ok) return null
-
-    const html = await response.text()
-    const $ = cheerio.load(html)
-
-    const priceText = $('span[data-field="UltimoPrecio"]').text().trim()
-      || $('#IdPrecio').text().trim()
-
-    if (!priceText) return null
-
-    const cleaned = priceText
-      .replace(/[$ \t]/g, '')
-      .replace(/\./g, '')
-      .replace(',', '.')
-
-    const price = parseFloat(cleaned)
-    return isNaN(price) ? null : price
-  } catch (error) {
-    console.error(`Error scraping IOL ${dataSourceUrl}:`, error)
-    return null
-  }
-}
-
-// Strategy 2: Yahoo Finance for stocks and CEDEARs
-async function fetchYahooPrice(ticker: string): Promise<number | null> {
-  try {
-    const yahooTicker = `${ticker.toUpperCase()}.BA`
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooTicker}`
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-      },
-      signal: AbortSignal.timeout(10000),
-    })
-
-    if (!response.ok) return null
-
-    const data = await response.json()
-    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice
-    return typeof price === 'number' && !isNaN(price) ? price : null
-  } catch (error) {
-    console.error(`Error fetching Yahoo price for ${ticker}:`, error)
-    return null
-  }
-}
-
-// Strategy 3: CoinGecko for crypto
-async function fetchCoinGeckoPrice(ticker: string): Promise<number | null> {
-  try {
-    const coinId = ticker.toLowerCase()
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(10000),
-    })
-
-    if (!response.ok) return null
-
-    const data = await response.json()
-    const price = data?.[coinId]?.usd
-    return typeof price === 'number' && !isNaN(price) ? price : null
-  } catch (error) {
-    console.error(`Error fetching CoinGecko price for ${ticker}:`, error)
-    return null
-  }
-}
-
-// Dispatcher: picks the right strategy based on investment type
-async function fetchPriceForInvestment(
-  ticker: string,
-  type: string,
-  dataSourceUrl?: string | null,
-): Promise<number | null> {
-  switch (type) {
-    case 'stock':
-    case 'cedear':
-      return fetchYahooPrice(ticker)
-    case 'crypto':
-      return fetchCoinGeckoPrice(ticker)
-    case 'on':
-    case 'bond':
-    case 'fci': {
-      const url = dataSourceUrl || buildDataSourceUrl(ticker, type)
-      return fetchIOLPrice(url)
-    }
-    default:
-      return null
-  }
-}
-
-// Upsert a single market price
-async function upsertMarketPrice(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  ticker: string,
-  price: number,
-): Promise<boolean> {
-  const { error } = await supabase
-    .from('market_prices')
-    .upsert({
-      ticker,
-      last_price: price,
-      last_update: new Date().toISOString(),
-    }, { onConflict: 'ticker' })
-  return !error
-}
-
 export async function updateMarketPrices(): Promise<ActionResponse & { updated?: number }> {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { updated } = await runUpdatePrices(supabase, user.id)
+
+    revalidatePath('/inversiones')
+    return { success: true, updated }
+  } catch (error) {
+    console.error('Error updating market prices:', error)
+    return { error: 'Ocurrio un error inesperado' }
+  }
+}
+
+// --- INVESTMENT ASSETS (v2) ---
+
+export async function createAsset(data: {
+  ticker: string
+  name: string
+  asset_type: string
+  currency?: string
+  data_source_url?: string
+  metadata?: Record<string, unknown>
+}): Promise<ActionResponse & { id?: string }> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
-    const { data: investments, error: invError } = await supabase
-      .from('investments')
-      .select('ticker, type, data_source_url')
-      .eq('user_id', user.id)
-
-    if (invError || !investments) {
-      return { error: 'Error al obtener inversiones' }
+    const validated = investmentAssetSchema.safeParse(data)
+    if (!validated.success) {
+      return { error: `Datos invalidos: ${validated.error.issues.map((i) => i.message).join(', ')}` }
     }
 
-    let updatedCount = 0
-    const batchSize = 5
+    const { data: inserted, error } = await supabase
+      .from('investment_assets')
+      .insert({
+        user_id: user.id,
+        ticker: validated.data.ticker,
+        name: validated.data.name,
+        asset_type: validated.data.asset_type,
+        currency: validated.data.currency ?? null,
+        data_source_url: validated.data.data_source_url || null,
+        metadata: validated.data.metadata ?? {},
+      } as any)
+      .select('id')
+      .single()
 
-    for (let i = 0; i < investments.length; i += batchSize) {
-      const batch = investments.slice(i, i + batchSize)
-
-      const results = await Promise.allSettled(
-        batch.map(async (inv) => {
-          const price = await fetchPriceForInvestment(inv.ticker, inv.type, inv.data_source_url)
-          if (price !== null) {
-            return { ticker: inv.ticker, price }
-          }
-          return null
-        })
-      )
-
-      for (const result of results) {
-        if (result.status === 'fulfilled' && result.value) {
-          const ok = await upsertMarketPrice(supabase, result.value.ticker, result.value.price)
-          if (ok) updatedCount++
-        }
-      }
-    }
+    if (error) return { error: `Error al crear activo: ${error.message}` }
 
     revalidatePath('/inversiones')
-    return { success: true, updated: updatedCount }
-  } catch (error) {
-    console.error('Error updating market prices:', error)
+    return { success: true, id: inserted.id }
+  } catch {
     return { error: 'Ocurrio un error inesperado' }
   }
+}
+
+export async function createTransaction(data: {
+  asset_id: string
+  type: string
+  quantity: number
+  price_per_unit: number
+  fees?: number
+  currency: string
+  date: string
+  notes?: string
+}): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const validated = investmentTransactionSchema.safeParse(data)
+    if (!validated.success) {
+      return { error: `Datos invalidos: ${validated.error.issues.map((i) => i.message).join(', ')}` }
+    }
+
+    const total_amount = validated.data.quantity * validated.data.price_per_unit
+
+    const { error } = await supabase.from('investment_transactions').insert({
+      user_id: user.id,
+      asset_id: validated.data.asset_id,
+      type: validated.data.type,
+      quantity: validated.data.quantity,
+      price_per_unit: validated.data.price_per_unit,
+      total_amount,
+      fees: validated.data.fees ?? 0,
+      currency: validated.data.currency,
+      date: validated.data.date,
+      notes: validated.data.notes ?? null,
+    } as any)
+
+    if (error) return { error: `Error al crear transaccion: ${error.message}` }
+
+    revalidatePath('/inversiones')
+    return { success: true }
+  } catch {
+    return { error: 'Ocurrio un error inesperado' }
+  }
+}
+
+export async function quickAdd(data: {
+  ticker: string
+  name: string
+  asset_type: string
+  quantity: number
+  price_per_unit: number
+  date: string
+  currency?: string
+  fees?: number
+  notes?: string
+  data_source_url?: string
+  tna?: number
+  end_date?: string
+  entity?: string
+}): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    // Buscar o crear el activo
+    const { data: existing } = await supabase
+      .from('investment_assets')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('ticker', data.ticker.toUpperCase())
+      .eq('is_active', true)
+      .maybeSingle()
+
+    let assetId: string
+
+    if (existing) {
+      assetId = existing.id
+    } else {
+      // Construir metadata para tipos especiales
+      const metadata: Record<string, unknown> = {}
+      if (data.tna) metadata.tna = data.tna / 100 // guardar como decimal
+      if (data.end_date) metadata.end_date = data.end_date
+      if (data.entity) metadata.entity = data.entity
+      // start_date de la inversión en plazo_fijo
+      if (data.asset_type === 'plazo_fijo' || data.asset_type === 'money_market') {
+        metadata.start_date = data.date
+      }
+
+      const assetResult = await createAsset({
+        ticker: data.ticker.toUpperCase(),
+        name: data.name,
+        asset_type: data.asset_type,
+        currency: data.currency ?? 'ARS',
+        data_source_url: data.data_source_url || undefined,
+        metadata,
+      })
+
+      if (assetResult.error || !assetResult.id) {
+        return { error: assetResult.error ?? 'Error al crear activo' }
+      }
+      assetId = assetResult.id
+    }
+
+    // Crear la transacción
+    const txResult = await createTransaction({
+      asset_id: assetId,
+      type: 'buy',
+      quantity: data.quantity,
+      price_per_unit: data.price_per_unit,
+      fees: data.fees,
+      currency: data.currency ?? 'ARS',
+      date: data.date,
+      notes: data.notes,
+    })
+
+    return txResult
+  } catch {
+    return { error: 'Ocurrio un error inesperado' }
+  }
+}
+
+export async function deleteAsset(assetId: string): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { error } = await supabase
+      .from('investment_assets')
+      .update({ is_active: false } as any)
+      .eq('id', assetId)
+      .eq('user_id', user.id)
+
+    if (error) return { error: `Error al dar de baja: ${error.message}` }
+
+    revalidatePath('/inversiones')
+    return { success: true }
+  } catch {
+    return { error: 'Ocurrio un error inesperado' }
+  }
+}
+
+export async function deleteTransaction(txId: string): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { error } = await supabase
+      .from('investment_transactions')
+      .delete()
+      .eq('id', txId)
+      .eq('user_id', user.id)
+
+    if (error) return { error: `Error al eliminar transaccion: ${error.message}` }
+
+    revalidatePath('/inversiones')
+    return { success: true }
+  } catch {
+    return { error: 'Ocurrio un error inesperado' }
+  }
+}
+
+// --- HELPERS ---
+
+function buildDataSourceUrl(ticker: string, type: string): string {
+  const t = ticker.toUpperCase()
+  if (type === 'crypto') {
+    return `https://iol.invertironline.com/titulo/cotizacion/CRIPTO/${t}/1`
+  }
+  const baseTicker = type === 'bond' ? t.replace(/[DC]$/, '') : t
+  return `https://iol.invertironline.com/titulo/cotizacion/BCBA/${baseTicker}/1`
 }

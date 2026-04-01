@@ -8,6 +8,7 @@ import {
   ListOrdered,
   CalendarClock,
   Target,
+  TrendingUp,
   Settings,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -17,6 +18,7 @@ const navItems = [
   { label: 'Movimientos', href: '/movimientos', icon: ListOrdered },
   { label: 'Compromisos', href: '/compromisos', icon: CalendarClock },
   { label: 'Objetivos',   href: '/objetivos',   icon: Target },
+  { label: 'Inversiones', href: '/inversiones', icon: TrendingUp },
   { label: 'Ajustes',     href: '/ajustes',     icon: Settings },
 ];
 

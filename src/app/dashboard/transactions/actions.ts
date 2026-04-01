@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { transactionSchema, type TransactionSchema, createTransactionSchema, type CreateTransactionSchema } from '@/lib/schemas/transaction';
 import { revalidatePath } from 'next/cache';
+import { calculateCreditPaymentDate, dateToLocalString } from '@/lib/utils/dates';
 
 type ActionResponse = {
   error?: string;
@@ -29,9 +30,9 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
 
     const { description, amount, date, category_id, type, payment_method_id } = validatedFields.data;
 
-    // Para gastos con tarjeta de crédito, calcular la fecha real de pago
-    // (igual que el handler del AI, para consistencia)
-    let storedDate = date;
+    // Para gastos con tarjeta de crédito, calcular la fecha real de pago según el ciclo de la tarjeta.
+    // Para débito/efectivo, se guarda la fecha de compra sin modificar.
+    let storedDate = dateToLocalString(date);
     const resolvedMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
     if (resolvedMethodId && type === 'expense') {
@@ -42,19 +43,7 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
         .single();
 
       if (method?.type === 'credit' && method.default_closing_day && method.default_payment_day) {
-        const dayOfPurchase = date.getDate();
-        const paymentDate = new Date(date);
-
-        // Si la compra es después del día de cierre → salta al próximo ciclo
-        if (dayOfPurchase > method.default_closing_day) {
-          paymentDate.setMonth(paymentDate.getMonth() + 1);
-        }
-        // Si el día de vencimiento es menor al día de cierre → el pago cae el mes siguiente al cierre
-        if (method.default_payment_day < method.default_closing_day) {
-          paymentDate.setMonth(paymentDate.getMonth() + 1);
-        }
-        paymentDate.setDate(method.default_payment_day);
-        storedDate = paymentDate;
+        storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
       }
     }
 
@@ -64,7 +53,7 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
         user_id: user.id,
         description,
         amount,
-        date: storedDate.toISOString(),
+        date: storedDate,
         category_id,
         type,
         payment_method_id: resolvedMethodId,
@@ -109,7 +98,7 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
       .update({
         description,
         amount,
-        date: date.toISOString(),
+        date: dateToLocalString(date),
         category_id,
         type,
       })

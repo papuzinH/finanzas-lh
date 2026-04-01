@@ -6,7 +6,10 @@ import {
   RecurringPlan,
   PaymentMethod,
   Investment,
+  InvestmentAsset,
+  InvestmentTransaction,
   MarketPrice,
+  ExchangeRate,
   User,
   Category,
   Saving,
@@ -52,6 +55,8 @@ interface FinanceState {
   paymentMethods: PaymentMethod[];
   recurringPlans: RecurringPlan[];
   investments: Investment[];
+  investmentAssets: InvestmentAsset[];
+  investmentTransactions: InvestmentTransaction[];
   marketPrices: MarketPrice[];
   categories: Category[];
   savings: Saving[];
@@ -59,6 +64,7 @@ interface FinanceState {
   savingsGoalContributions: SavingsGoalContribution[];
   categoryBudgets: CategoryBudget[];
   dolarBlue: DolarBlue | null;
+  exchangeRates: ExchangeRate[];
   user: User | null;
   authEmail: string | null;
   authAvatarUrl: string | null;
@@ -73,20 +79,74 @@ interface FinanceState {
   fetchGoalsData: () => Promise<void>;
 
   // Computed Getters (Logic)
-  getPortfolioStatus: () => {
-    assets: Array<Investment & {
+  getPortfolioStatus: (displayCurrency?: 'ARS' | 'USD_MEP' | 'USD_CCL' | 'USDT') => {
+    assets: Array<{
+      id: string;
+      ticker: string;
+      name: string;
+      asset_type: string;
+      currency: string | null;
+      position: number;
+      ppc: number;
+      currentPrice: number;
       currentValue: number;
       investedValue: number;
+      unrealizedPL: number;
+      realizedPL: number;
+      totalPL: number;
+      plPercent: number;
+      lastUpdate: string | null;
       profitAmount: number;
       profitPercent: number;
       lastPrice: number;
-      lastUpdate: string | null;
     }>;
+    totalValue: number;
+    totalInvested: number;
+    totalUnrealizedPL: number;
+    totalRealizedPL: number;
+    totalPLPercent: number;
+    displayCurrency: string;
+    lastUpdate: string | null;
     totalBalanceARS: number;
     totalBalanceUSD: number;
     totalProfitARS: number;
     totalProfitUSD: number;
-    lastUpdate: string | null;
+  };
+  getPortfolioDistribution: () => Array<{
+    assetType: string;
+    value: number;
+    percentage: number;
+    color: string;
+  }>;
+  getUpcomingPayments: (days?: number) => Array<{
+    assetName: string;
+    ticker: string;
+    type: string;
+    date: string;
+    estimatedAmount: number;
+    currency: string;
+  }>;
+  getAssetDetail: (assetId: string) => {
+    asset: InvestmentAsset;
+    transactions: InvestmentTransaction[];
+    position: number;
+    ppc: number;
+    unrealizedPL: number;
+    realizedPL: number;
+    currentPrice: number;
+    currentValue: number;
+    investedValue: number;
+    plPercent: number;
+    marketData: MarketPrice | null;
+    projectedValue: number | null;
+  } | null;
+  getBenchmarkComparison: (period: '1M' | '3M' | '6M' | 'YTD' | '1Y') => {
+    portfolioReturn: number | null;
+    inflationReturn: number | null;
+    sp500Return: number | null;
+    blueReturn: number | null;
+    realReturn: number | null;
+    period: string;
   };
   getGlobalBalance: () => number;
   getMonthlyBurnRate: () => number;
@@ -293,6 +353,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   paymentMethods: [],
   recurringPlans: [],
   investments: [],
+  investmentAssets: [],
+  investmentTransactions: [],
   categories: [],
   marketPrices: [],
   savings: [],
@@ -300,6 +362,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   savingsGoalContributions: [],
   categoryBudgets: [],
   dolarBlue: null,
+  exchangeRates: [],
   user: null,
   authEmail: null,
   authAvatarUrl: null,
@@ -334,6 +397,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         { data: savingsGoalsData, error: goalsError },
         { data: contributionsData, error: contribError },
         { data: budgetsData, error: budgetsError },
+        { data: exchangeRatesData, error: exchangeRatesError },
+        { data: investmentAssetsData, error: investmentAssetsError },
+        { data: investmentTransactionsData, error: investmentTransactionsError },
       ] = await Promise.all([
         supabase
           .from('transactions')
@@ -388,6 +454,19 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           .from('category_budgets')
           .select('*')
           .eq('user_id', authUser.id),
+        supabase
+          .from('exchange_rates')
+          .select('*'),
+        supabase
+          .from('investment_assets')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .eq('is_active', true),
+        supabase
+          .from('investment_transactions')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .order('date', { ascending: true }),
       ]);
 
       // Fetch dolar blue rate (non-blocking)
@@ -419,6 +498,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       if (goalsError) console.warn('Goals fetch error (may be missing migration):', goalsError.message);
       if (contribError) console.warn('Contributions fetch error:', contribError.message);
       if (budgetsError) console.warn('Budgets fetch error:', budgetsError.message);
+      if (exchangeRatesError) console.warn('Exchange rates fetch error (may be missing migration):', exchangeRatesError.message);
+      if (investmentAssetsError) console.warn('Investment assets fetch error (may be missing migration):', investmentAssetsError.message);
+      if (investmentTransactionsError) console.warn('Investment transactions fetch error (may be missing migration):', investmentTransactionsError.message);
 
       const methods = (paymentMethodsData as PaymentMethod[]) || [];
       const rawTransactions = (transactionsData as Transaction[]) || [];
@@ -462,6 +544,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         paymentMethods: methods,
         recurringPlans: (recurring as RecurringPlan[]) || [],
         investments: (investments as Investment[]) || [],
+        investmentAssets: (investmentAssetsData as InvestmentAsset[]) || [],
+        investmentTransactions: (investmentTransactionsData as InvestmentTransaction[]) || [],
         marketPrices: (marketPrices as MarketPrice[]) || [],
         categories: (categories as Category[]) || [],
         savings: (savingsData as Saving[]) || [],
@@ -469,6 +553,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         savingsGoalContributions: (contributionsData as SavingsGoalContribution[]) || [],
         categoryBudgets: (budgetsData as CategoryBudget[]) || [],
         dolarBlue,
+        exchangeRates: (exchangeRatesData as ExchangeRate[]) || [],
         user: (userData as User) || null,
         authEmail: authUser.email ?? null,
         authAvatarUrl: (authUser.user_metadata?.avatar_url as string) ?? null,
@@ -482,62 +567,283 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
   },
 
-  getPortfolioStatus: () => {
-    const { investments, marketPrices } = get();
-    
-    let totalBalanceARS = 0;
-    let totalBalanceUSD = 0;
-    let totalProfitARS = 0;
-    let totalProfitUSD = 0;
+  getPortfolioStatus: (displayCurrency = 'ARS') => {
+    const { investmentAssets, investmentTransactions, marketPrices, investments, exchangeRates } = get();
+
+    const getExchangeRate = (pair: string): number | null => {
+      const r = exchangeRates.find(e => e.pair === pair);
+      return r ? r.rate : null;
+    };
+
+    const convertARS = (arsValue: number): number => {
+      if (displayCurrency === 'ARS') return arsValue;
+      let rate: number | null = null;
+      if (displayCurrency === 'USD_MEP') rate = getExchangeRate('USD_ARS_MEP');
+      else if (displayCurrency === 'USD_CCL') rate = getExchangeRate('USD_ARS_CCL');
+      else if (displayCurrency === 'USDT') rate = getExchangeRate('USDT_ARS');
+      return rate && rate > 0 ? arsValue / rate : arsValue;
+    };
+
+    // Legacy fallback: use old investments table if new tables are empty
+    if (investmentAssets.length === 0 && investments.length > 0) {
+      let totalBalanceARS = 0, totalBalanceUSD = 0, totalProfitARS = 0, totalProfitUSD = 0;
+      let lastUpdate: string | null = null;
+
+      const assets = investments.map((inv) => {
+        const mp = marketPrices.find(mp => mp.ticker === inv.ticker);
+        const lastPrice = mp?.last_price ?? inv.avg_buy_price ?? 0;
+        const upd = mp?.last_update ?? null;
+        if (upd && (!lastUpdate || new Date(upd) > new Date(lastUpdate))) lastUpdate = upd;
+
+        const qty = Number(inv.quantity);
+        const avgBuy = Number(inv.avg_buy_price || 0);
+        const currentValue = qty * lastPrice;
+        const investedValue = qty * avgBuy;
+        const unrealizedPL = currentValue - investedValue;
+        const plPercent = investedValue !== 0 ? (unrealizedPL / investedValue) * 100 : 0;
+
+        if (inv.currency === 'USD') { totalBalanceUSD += currentValue; totalProfitUSD += unrealizedPL; }
+        else { totalBalanceARS += currentValue; totalProfitARS += unrealizedPL; }
+
+        return {
+          id: inv.id, ticker: inv.ticker, name: inv.name, asset_type: inv.type,
+          currency: inv.currency, position: qty, ppc: avgBuy, currentPrice: lastPrice,
+          currentValue, investedValue, unrealizedPL, realizedPL: 0, totalPL: unrealizedPL,
+          plPercent, lastUpdate: upd, profitAmount: unrealizedPL, profitPercent: plPercent, lastPrice,
+        };
+      });
+
+      const totalValue = totalBalanceARS + totalBalanceUSD;
+      const totalInvested = assets.reduce((s, a) => s + a.investedValue, 0);
+      const totalUnrealizedPL = totalProfitARS + totalProfitUSD;
+
+      return {
+        assets, totalValue, totalInvested, totalUnrealizedPL, totalRealizedPL: 0,
+        totalPLPercent: totalInvested > 0 ? (totalUnrealizedPL / totalInvested) * 100 : 0,
+        displayCurrency, lastUpdate, totalBalanceARS, totalBalanceUSD, totalProfitARS, totalProfitUSD,
+      };
+    }
+
+    // New implementation using investment_assets + investment_transactions
+    let globalUnrealizedPL = 0, globalRealizedPL = 0, globalValue = 0, globalInvested = 0;
     let lastUpdate: string | null = null;
 
-    const assets = investments.map((inv) => {
-      const marketData = marketPrices.find((mp) => mp.ticker === inv.ticker);
-      const lastPrice = marketData?.last_price ?? inv.avg_buy_price ?? 0; // Fallback to buy price or 0
-      const currentUpdate = marketData?.last_update ?? null;
+    const assets = investmentAssets.map((asset) => {
+      const txs = investmentTransactions.filter(t => t.asset_id === asset.id);
+      const buys = txs.filter(t => t.type === 'buy');
+      const sells = txs.filter(t => t.type === 'sell');
 
-      // Update global last update if this one is more recent
-      if (currentUpdate) {
-        if (!lastUpdate || new Date(currentUpdate) > new Date(lastUpdate)) {
-          lastUpdate = currentUpdate;
+      const totalBuyQty = buys.reduce((s, t) => s + Number(t.quantity), 0);
+      const totalSellQty = sells.reduce((s, t) => s + Number(t.quantity), 0);
+      const position = Math.max(totalBuyQty - totalSellQty, 0);
+
+      const totalBuyCost = buys.reduce((s, t) => s + Number(t.quantity) * Number(t.price_per_unit), 0);
+      const ppc = totalBuyQty > 0 ? totalBuyCost / totalBuyQty : 0;
+
+      const mp = marketPrices.find(mp => mp.ticker === asset.ticker);
+      const upd = mp?.last_update ?? null;
+      if (upd && (!lastUpdate || new Date(upd) > new Date(lastUpdate))) lastUpdate = upd;
+
+      let currentPrice = mp?.last_price ?? ppc;
+
+      // Plazo fijo / money market: valor proyectado por TNA
+      if (asset.asset_type === 'plazo_fijo' || asset.asset_type === 'money_market') {
+        const meta = asset.metadata as Record<string, unknown>;
+        const tna = typeof meta?.tna === 'number' ? meta.tna : 0;
+        const startStr = typeof meta?.start_date === 'string' ? meta.start_date : null;
+        const endStr = typeof meta?.end_date === 'string' ? meta.end_date : null;
+
+        if (tna > 0 && startStr && totalBuyCost > 0) {
+          const startD = parseLocalDate(startStr);
+          const endD = endStr ? parseLocalDate(endStr) : null;
+          const today = new Date();
+          const msDay = 86400000;
+          const maxDays = endD ? (endD.getTime() - startD.getTime()) / msDay : 365;
+          const elapsed = Math.min((today.getTime() - startD.getTime()) / msDay, maxDays);
+          const projected = totalBuyCost * (1 + tna * (elapsed / 365));
+          currentPrice = position > 0 ? projected / position : ppc;
+        } else {
+          currentPrice = ppc;
         }
       }
 
-      const quantity = Number(inv.quantity);
-      const avgBuyPrice = Number(inv.avg_buy_price || 0);
-      
-      const currentValue = quantity * lastPrice;
-      const investedValue = quantity * avgBuyPrice;
-      const profitAmount = currentValue - investedValue;
-      const profitPercent = investedValue !== 0 ? (profitAmount / investedValue) * 100 : 0;
+      const currentValue = position * currentPrice;
+      const investedValue = position * ppc;
+      const unrealizedPL = (currentPrice - ppc) * position;
+      const realizedPL = sells.reduce((s, t) => s + (Number(t.price_per_unit) - ppc) * Number(t.quantity), 0);
+      const plPercent = investedValue > 0 ? (unrealizedPL / investedValue) * 100 : 0;
 
-      // Accumulate totals
-      if (inv.currency === 'USD') {
-        totalBalanceUSD += currentValue;
-        totalProfitUSD += profitAmount;
-      } else {
-        totalBalanceARS += currentValue;
-        totalProfitARS += profitAmount;
-      }
+      const cvConv = convertARS(currentValue);
+      const ivConv = convertARS(investedValue);
+      const upnlConv = convertARS(unrealizedPL);
+      const rpnlConv = convertARS(realizedPL);
+      const priceConv = convertARS(currentPrice);
+      const ppcConv = convertARS(ppc);
+
+      globalValue += cvConv;
+      globalInvested += ivConv;
+      globalUnrealizedPL += upnlConv;
+      globalRealizedPL += rpnlConv;
 
       return {
-        ...inv,
-        currentValue,
-        investedValue,
-        profitAmount,
-        profitPercent,
-        lastPrice,
-        lastUpdate: currentUpdate,
+        id: asset.id, ticker: asset.ticker, name: asset.name,
+        asset_type: asset.asset_type, currency: asset.currency,
+        position, ppc: ppcConv, currentPrice: priceConv,
+        currentValue: cvConv, investedValue: ivConv,
+        unrealizedPL: upnlConv, realizedPL: rpnlConv,
+        totalPL: upnlConv + rpnlConv, plPercent,
+        lastUpdate: upd,
+        profitAmount: upnlConv, profitPercent: plPercent, lastPrice: priceConv,
       };
     });
 
+    const totalPLPercent = globalInvested > 0
+      ? ((globalUnrealizedPL + globalRealizedPL) / globalInvested) * 100
+      : 0;
+
     return {
       assets,
-      totalBalanceARS,
-      totalBalanceUSD,
-      totalProfitARS,
-      totalProfitUSD,
+      totalValue: globalValue,
+      totalInvested: globalInvested,
+      totalUnrealizedPL: globalUnrealizedPL,
+      totalRealizedPL: globalRealizedPL,
+      totalPLPercent,
+      displayCurrency,
       lastUpdate,
+      totalBalanceARS: displayCurrency === 'ARS' ? globalValue : 0,
+      totalBalanceUSD: displayCurrency !== 'ARS' ? globalValue : 0,
+      totalProfitARS: displayCurrency === 'ARS' ? globalUnrealizedPL : 0,
+      totalProfitUSD: displayCurrency !== 'ARS' ? globalUnrealizedPL : 0,
+    };
+  },
+
+  getPortfolioDistribution: () => {
+    const { assets } = get().getPortfolioStatus();
+
+    const COLOR_MAP: Record<string, string> = {
+      stock: '#6366f1', cedear: '#6366f1', etf: '#6366f1',
+      bond: '#8b5cf6', on: '#8b5cf6', bopreal: '#8b5cf6',
+      lecap: '#a78bfa', boncap: '#a78bfa',
+      crypto: '#f59e0b', stablecoin: '#f59e0b',
+      plazo_fijo: '#10b981', money_market: '#10b981',
+      fci: '#06b6d4',
+    };
+
+    const grouped: Record<string, number> = {};
+    for (const asset of assets) {
+      grouped[asset.asset_type] = (grouped[asset.asset_type] ?? 0) + asset.currentValue;
+    }
+
+    const total = Object.values(grouped).reduce((s, v) => s + v, 0);
+
+    return Object.entries(grouped)
+      .filter(([, value]) => value > 0)
+      .map(([assetType, value]) => ({
+        assetType,
+        value,
+        percentage: total > 0 ? (value / total) * 100 : 0,
+        color: COLOR_MAP[assetType] ?? '#64748b',
+      }))
+      .sort((a, b) => b.value - a.value);
+  },
+
+  getUpcomingPayments: (days = 90) => {
+    const { marketPrices, investmentAssets, investmentTransactions } = get();
+    const now = new Date();
+    const cutoff = new Date(now.getTime() + days * 86400000);
+
+    return marketPrices
+      .filter((mp) => {
+        if (!mp.next_coupon_date) return false;
+        const couponDate = parseLocalDate(mp.next_coupon_date);
+        return couponDate >= now && couponDate <= cutoff;
+      })
+      .map((mp) => {
+        const asset = investmentAssets.find(a => a.ticker === mp.ticker);
+        if (!asset) return null;
+
+        const txs = investmentTransactions.filter(t => t.asset_id === asset.id);
+        const buys = txs.filter(t => t.type === 'buy');
+        const sells = txs.filter(t => t.type === 'sell');
+        const totalBuyQty = buys.reduce((s, t) => s + Number(t.quantity), 0);
+        const totalSellQty = sells.reduce((s, t) => s + Number(t.quantity), 0);
+        const position = Math.max(totalBuyQty - totalSellQty, 0);
+
+        return {
+          assetName: asset.name,
+          ticker: mp.ticker,
+          type: asset.asset_type,
+          date: mp.next_coupon_date!,
+          estimatedAmount: (mp.next_coupon_amount ?? 0) * position,
+          currency: asset.currency ?? 'ARS',
+        };
+      })
+      .filter((p): p is NonNullable<typeof p> => p !== null)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  },
+
+  getAssetDetail: (assetId: string) => {
+    const { investmentAssets, investmentTransactions, marketPrices } = get();
+    const asset = investmentAssets.find(a => a.id === assetId);
+    if (!asset) return null;
+
+    const txs = investmentTransactions.filter(t => t.asset_id === assetId);
+    const buys = txs.filter(t => t.type === 'buy');
+    const sells = txs.filter(t => t.type === 'sell');
+
+    const totalBuyQty = buys.reduce((s, t) => s + Number(t.quantity), 0);
+    const totalSellQty = sells.reduce((s, t) => s + Number(t.quantity), 0);
+    const position = Math.max(totalBuyQty - totalSellQty, 0);
+
+    const totalBuyCost = buys.reduce((s, t) => s + Number(t.quantity) * Number(t.price_per_unit), 0);
+    const ppc = totalBuyQty > 0 ? totalBuyCost / totalBuyQty : 0;
+
+    const mp = marketPrices.find(m => m.ticker === asset.ticker) ?? null;
+    let currentPrice = mp?.last_price ?? ppc;
+    let projectedValue: number | null = null;
+
+    if (asset.asset_type === 'plazo_fijo' || asset.asset_type === 'money_market') {
+      const meta = asset.metadata as Record<string, unknown>;
+      const tna = typeof meta?.tna === 'number' ? meta.tna : 0;
+      const startStr = typeof meta?.start_date === 'string' ? meta.start_date : null;
+      const endStr = typeof meta?.end_date === 'string' ? meta.end_date : null;
+
+      if (tna > 0 && startStr && totalBuyCost > 0) {
+        const startD = parseLocalDate(startStr);
+        const endD = endStr ? parseLocalDate(endStr) : null;
+        const today = new Date();
+        const msDay = 86400000;
+        const maxDays = endD ? (endD.getTime() - startD.getTime()) / msDay : 365;
+        const elapsed = Math.min((today.getTime() - startD.getTime()) / msDay, maxDays);
+        projectedValue = totalBuyCost * (1 + tna * (elapsed / 365));
+        currentPrice = position > 0 ? projectedValue / position : ppc;
+      } else {
+        currentPrice = ppc;
+      }
+    }
+
+    const currentValue = position * currentPrice;
+    const investedValue = position * ppc;
+    const unrealizedPL = (currentPrice - ppc) * position;
+    const realizedPL = sells.reduce((s, t) => s + (Number(t.price_per_unit) - ppc) * Number(t.quantity), 0);
+    const plPercent = investedValue > 0 ? (unrealizedPL / investedValue) * 100 : 0;
+
+    return {
+      asset, transactions: txs, position, ppc, unrealizedPL, realizedPL,
+      currentPrice, currentValue, investedValue, plPercent,
+      marketData: mp, projectedValue,
+    };
+  },
+
+  getBenchmarkComparison: (period) => {
+    // Datos históricos no disponibles aún. Wave 9 completará la integración.
+    return {
+      portfolioReturn: null,
+      inflationReturn: null,
+      sp500Return: null,
+      blueReturn: null,
+      realReturn: null,
+      period,
     };
   },
 

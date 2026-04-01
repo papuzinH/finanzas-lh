@@ -4,7 +4,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { addMonths } from 'date-fns'
-import { formatLocalDate, parseLocalDate, getCreditCardPeriod } from '@/lib/utils/dates'
+import { formatLocalDate, parseLocalDate, getCreditCardPeriod, calculateCreditPaymentDate } from '@/lib/utils/dates'
 import type {
   ChatIntent,
   TransactionData,
@@ -97,44 +97,15 @@ async function resolvePaymentMethod(
 /**
  * Calcula la fecha real de pago para una transacción en tarjeta de crédito.
  * Para débito/efectivo, retorna la misma fecha de compra.
- *
- * Lógica n8n:
- * - Si compra DESPUÉS del día de cierre → salta al próximo resumen
- * - Si vencimiento < cierre → pago cae un mes después
- * - Fijar día exacto de pago
+ * Delega la lógica de cálculo a calculateCreditPaymentDate de dates.ts (función canónica compartida).
  */
 function calculateRealPaymentDate(
   purchaseDate: string,
   paymentMethod: ResolvedPaymentMethod | null
 ): string {
-  // Si no hay payment method o no es crédito, devolver la misma fecha
-  if (!paymentMethod || paymentMethod.type !== 'credit') {
-    return purchaseDate
-  }
-
-  // Si falta cierre o vencimiento, no se puede calcular
-  if (paymentMethod.closingDay === null || paymentMethod.paymentDay === null) {
-    return purchaseDate
-  }
-
-  const fecha = parseLocalDate(purchaseDate)
-  let fechaPago = new Date(fecha)
-  const diaCompra = fecha.getDate()
-
-  // Si compra DESPUÉS del día de cierre → salta al próximo resumen
-  if (diaCompra > paymentMethod.closingDay) {
-    fechaPago.setMonth(fechaPago.getMonth() + 1)
-  }
-
-  // Si vencimiento < cierre → pago cae un mes después
-  if (paymentMethod.paymentDay < paymentMethod.closingDay) {
-    fechaPago.setMonth(fechaPago.getMonth() + 1)
-  }
-
-  // Fijar día exacto de pago
-  fechaPago.setDate(paymentMethod.paymentDay)
-
-  return formatLocalDate(fechaPago)
+  if (!paymentMethod || paymentMethod.type !== 'credit') return purchaseDate
+  if (paymentMethod.closingDay === null || paymentMethod.paymentDay === null) return purchaseDate
+  return calculateCreditPaymentDate(purchaseDate, paymentMethod.closingDay, paymentMethod.paymentDay)
 }
 
 /**
@@ -454,16 +425,16 @@ async function handleCardConfig(data: CardConfigData, userId: number): Promise<C
       }
     }
 
-    // GAP 2: Actualizar transacciones futuras (>20 días desde hoy)
+    // Actualizar transacciones futuras (>20 días desde hoy) al nuevo ciclo de la tarjeta
     try {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 20)
       const futureDateStr = formatLocalDate(futureDate)
 
-      // Obtener transacciones futuras de esta tarjeta
+      // Obtener transacciones futuras de esta tarjeta, incluyendo installment_plan_id para distinguir cuotas
       const { data: futureTxns, error: fetchError } = await supabase
         .from('transactions')
-        .select('id, date')
+        .select('id, date, installment_plan_id, description')
         .eq('payment_method_id', method.id)
         .eq('user_id', userId)
         .eq('type', 'expense')
@@ -472,16 +443,41 @@ async function handleCardConfig(data: CardConfigData, userId: number): Promise<C
       if (fetchError) {
         console.warn('Warning: could not fetch future transactions:', fetchError)
       } else if (futureTxns && futureTxns.length > 0) {
-        // Actualizar cada transacción futura ajustando el día al nuevo día de vencimiento
-        for (const txn of futureTxns) {
+        // Separar cuotas de transacciones simples
+        const installmentTxns = futureTxns.filter((t: { installment_plan_id: number | null }) => t.installment_plan_id !== null)
+        const simpleTxns = futureTxns.filter((t: { installment_plan_id: number | null }) => t.installment_plan_id === null)
+
+        // Para cuotas: recalcular desde purchase_date del plan usando la nueva configuración
+        if (installmentTxns.length > 0) {
+          const planIds = [...new Set(installmentTxns.map((t: { installment_plan_id: number }) => t.installment_plan_id))]
+          const { data: plans } = await supabase
+            .from('installment_plans')
+            .select('id, purchase_date, installments_count')
+            .in('id', planIds)
+            .eq('user_id', userId)
+
+          if (plans) {
+            for (const plan of plans) {
+              const firstDate = calculateCreditPaymentDate(plan.purchase_date, data.closingDay, data.paymentDay)
+              const planTxns = installmentTxns.filter((t: { installment_plan_id: number }) => t.installment_plan_id === plan.id)
+
+              for (const txn of planTxns) {
+                // Extraer el índice de cuota desde la descripción "(X/Y)"
+                const match = txn.description.match(/\((\d+)\/\d+\)$/)
+                const installmentIndex = match ? parseInt(match[1], 10) - 1 : 0
+                const newDate = formatLocalDate(addMonths(parseLocalDate(firstDate), installmentIndex))
+                await supabase.from('transactions').update({ date: newDate }).eq('id', txn.id)
+              }
+            }
+          }
+        }
+
+        // Para transacciones simples: ajustar solo el día de vencimiento dentro del mismo mes.
+        // No es posible recalcular exactamente sin conocer la fecha de compra original.
+        for (const txn of simpleTxns) {
           const oldDate = parseLocalDate(txn.date)
           oldDate.setDate(data.paymentDay)
-          const newDateStr = formatLocalDate(oldDate)
-
-          await supabase
-            .from('transactions')
-            .update({ date: newDateStr })
-            .eq('id', txn.id)
+          await supabase.from('transactions').update({ date: formatLocalDate(oldDate) }).eq('id', txn.id)
         }
       }
     } catch (updateError) {

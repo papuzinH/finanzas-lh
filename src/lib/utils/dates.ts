@@ -1,4 +1,4 @@
-import { parse, format, startOfMonth, endOfMonth, isAfter, isBefore, isSameMonth, addMonths, getDate } from 'date-fns'
+import { parse, format, isSameMonth, getDate } from 'date-fns'
 
 /**
  * Parsea un string de fecha ISO (YYYY-MM-DD) como fecha LOCAL.
@@ -14,6 +14,14 @@ export function parseLocalDate(dateString: string): Date {
  * Formatea una Date a string ISO local (YYYY-MM-DD) sin conversión UTC.
  */
 export function formatLocalDate(date: Date): string {
+  return format(date, 'yyyy-MM-dd')
+}
+
+/**
+ * Convierte un objeto Date a string YYYY-MM-DD usando hora local (no UTC).
+ * Usar en lugar de date.toISOString() para evitar desfase por timezone.
+ */
+export function dateToLocalString(date: Date): string {
   return format(date, 'yyyy-MM-dd')
 }
 
@@ -75,35 +83,29 @@ export function getCreditCardPeriod(closingDay: number, paymentDay: number, refe
 
 /**
  * Calcula la fecha de pago real de una transacción en tarjeta de crédito.
- * Si la fecha de transacción cae en el período actual, el pago es en el próximo vencimiento.
+ *
+ * Reglas:
+ * - Si diaCompra > closingDay → salta al próximo ciclo (+1 mes base)
+ * - Si paymentDay < closingDay → el pago cae el mes siguiente al cierre (+1 mes adicional)
+ * - Se fija el día exacto de vencimiento
+ *
+ * Esto garantiza consistencia entre chatbot e input manual.
  */
-export function getInstallmentPaymentDate(
-  transactionDate: string,
+export function calculateCreditPaymentDate(
+  purchaseDateStr: string,
   closingDay: number,
   paymentDay: number
-): Date {
-  const txDate = parseLocalDate(transactionDate)
-  const txDay = getDate(txDate)
+): string {
+  const fecha = parseLocalDate(purchaseDateStr)
+  const diaCompra = getDate(fecha)
+  const fechaPago = new Date(fecha)
 
-  // Si la transacción es antes o en el día de cierre, cierra este mes
-  // Si es después del cierre, cierra el próximo mes
-  const txMonth = txDate.getMonth()
-  const txYear = txDate.getFullYear()
-
-  let closingMonth = txMonth
-  let closingYear = txYear
-
-  if (txDay > closingDay) {
-    closingMonth += 1
-    if (closingMonth > 11) {
-      closingMonth = 0
-      closingYear += 1
-    }
+  if (diaCompra > closingDay) {
+    fechaPago.setMonth(fechaPago.getMonth() + 1)
   }
-
-  // El vencimiento es el mes siguiente al cierre
-  const paymentMonth = closingMonth + 1 > 11 ? 0 : closingMonth + 1
-  const paymentYear = closingMonth + 1 > 11 ? closingYear + 1 : closingYear
-
-  return new Date(paymentYear, paymentMonth, paymentDay)
+  if (paymentDay < closingDay) {
+    fechaPago.setMonth(fechaPago.getMonth() + 1)
+  }
+  fechaPago.setDate(paymentDay)
+  return formatLocalDate(fechaPago)
 }

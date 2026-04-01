@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import { InversionesClient } from './inversiones-client'
 
 export default function InversionesPage() {
-  redirect('/objetivos?tab=inversiones');
+  return <InversionesClient />
 }
