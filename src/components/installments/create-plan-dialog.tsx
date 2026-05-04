@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Form } from '@/components/ui/form';
 import { createInstallmentPlanSchema, type CreateInstallmentPlanSchema } from '@/lib/schemas/installment-plan';
+import { todayString } from '@/lib/utils/dates';
 import { createInstallmentPlan } from '@/app/dashboard/installments/actions';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import {
@@ -48,7 +49,7 @@ export function CreateInstallmentPlanDialog({
       description: '',
       total_amount: 0,
       installments_count: 2,
-      purchase_date: new Date(),
+      purchase_date: todayString(),
       category_id: '',
       payment_method_id: 'none',
     },
@@ -68,7 +69,7 @@ export function CreateInstallmentPlanDialog({
         description: '',
         total_amount: 0,
         installments_count: 2,
-        purchase_date: new Date(),
+        purchase_date: todayString(),
         category_id: '',
         payment_method_id: 'none',
       });

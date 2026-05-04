@@ -39,6 +39,7 @@ import {
   isSameMonth,
   parse,
   endOfMonth,
+  startOfMonth,
 } from 'date-fns';
 import { parseLocalDate } from '@/lib/utils/dates';
 
@@ -850,37 +851,51 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   /**
    * FÓRMULA DEL BALANCE GLOBAL DE CHANCHITO
    * ==========================================
-   * Balance = ingresos globales
-   *         - gastos variables históricos (sin cuotas ni suscripciones)
-   *         - cuotas del mes actual solamente
-   *         - mensualidades activas (fijos del mes, burn rate)
+   * Muestra cuánto dinero queda disponible al final del mes en curso.
    *
-   * Las cuotas pre-generadas de meses pasados y futuros NO se restan.
-   * Solo impactan cuando llega su mes (via getCurrentMonthInstallmentsTotal).
+   * Balance = ingresos totales
+   *         - gastos de meses anteriores (todos: variables + cuotas + recurring históricas)
+   *         - gastos del mes actual sin recurring (variables + cuotas del mes)
+   *         - burn rate (mensualidades activas, proyección del mes actual)
    *
-   * NO incluye:
-   * - Cuotas de otros meses (ni pasadas ni futuras)
-   * - Ahorros (tabla separada, no son transacciones)
+   * Por qué excluir recurring del mes actual del segundo término:
+   * - burnRate ya cuenta toda la mensualidad activa como compromiso del mes.
+   * - Si una recurring ya se ejecutó este mes (transaction con recurring_plan_id),
+   *   no se vuelve a contar acá para evitar doble conteo.
+   *
+   * Cuotas/transacciones futuras pre-generadas (date > fin del mes actual) NO se restan,
+   * porque aún no son compromiso del mes en curso.
    */
   getGlobalBalance: () => {
-    const { transactions, getCurrentMonthInstallmentsTotal, getMonthlyBurnRate } = get();
+    const { transactions, recurringPlans } = get();
+    const now = new Date();
+    const monthStart = startOfMonth(now);
 
     const totalIncome = transactions
       .filter((t) => t.type === 'income')
       .reduce((acc, t) => acc + Number(t.amount), 0);
 
-    // Gastos variables históricos (sin cuotas ni suscripciones recurrentes)
-    const variableExpenses = transactions
-      .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id)
+    // Gastos de meses anteriores (todos los tipos: variables, cuotas y recurring históricas)
+    const pastExpenses = transactions
+      .filter((t) => t.type === 'expense' && parseLocalDate(t.date) < monthStart)
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
-    // Solo las cuotas del mes actual
-    const currentInstallments = getCurrentMonthInstallmentsTotal();
+    // Gastos del mes actual: variables y cuotas. Excluye recurring para no duplicar con burnRate.
+    const currentMonthVariableExpenses = transactions
+      .filter(
+        (t) =>
+          t.type === 'expense' &&
+          !t.recurring_plan_id &&
+          isSameMonth(parseLocalDate(t.date), now)
+      )
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
-    // Mensualidades/fijos activos (recurring_plans, no transacciones)
-    const burnRate = getMonthlyBurnRate();
+    // Mensualidades activas (proyección del mes actual)
+    const burnRate = recurringPlans
+      .filter((p) => p.is_active)
+      .reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0);
 
-    return totalIncome - variableExpenses - currentInstallments - burnRate;
+    return totalIncome - pastExpenses - currentMonthVariableExpenses - burnRate;
   },
 
   /**

@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Form } from '@/components/ui/form';
 import { createSubscriptionSchema, type CreateSubscriptionSchema } from '@/lib/schemas/subscription';
+import { todayString, parseLocalDate } from '@/lib/utils/dates';
 import { createSubscription } from '@/app/dashboard/subscriptions/actions';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import {
@@ -49,7 +50,7 @@ export function CreateSubscriptionDialog({
       amount: 0,
       category_id: '',
       payment_method_id: 'none',
-      start_date: new Date(),
+      start_date: todayString(),
       frequency: 'monthly',
     },
   });
@@ -80,7 +81,7 @@ export function CreateSubscriptionDialog({
           amount: 0,
           category_id: '',
           payment_method_id: 'none',
-          start_date: new Date(),
+          start_date: todayString(),
           frequency: 'monthly',
         });
         onOpenChange(false);
@@ -104,10 +105,12 @@ export function CreateSubscriptionDialog({
           </DialogTitle>
           <p className="text-sm text-slate-400 mt-1">
             {watchedFrequency === 'monthly' ? 'Mensual' : 'Anual'} · {' '}
-            Inicia {watchedStartDate?.toLocaleDateString('es-AR', { 
-              day: '2-digit', 
-              month: 'short' 
-            }) || 'hoy'}
+            Inicia {watchedStartDate
+              ? parseLocalDate(watchedStartDate).toLocaleDateString('es-AR', {
+                  day: '2-digit',
+                  month: 'short',
+                })
+              : 'hoy'}
           </p>
         </DialogHeader>
 

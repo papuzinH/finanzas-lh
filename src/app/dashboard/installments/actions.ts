@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { installmentPlanSchema, type InstallmentPlanSchema, createInstallmentPlanSchema, type CreateInstallmentPlanSchema } from '@/lib/schemas/installment-plan';
 import { revalidatePath } from 'next/cache';
 import { addMonths } from 'date-fns';
-import { calculateCreditPaymentDate, dateToLocalString, parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
+import { calculateCreditPaymentDate, parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
 
 type ActionResponse = {
   error?: string;
@@ -32,8 +32,8 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
     const { description, total_amount, installments_count, purchase_date, category_id, payment_method_id } = validatedFields.data;
     const finalPaymentMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
-    // Convertir la fecha de compra a string local (evita bug UTC de toISOString())
-    const purchaseDateStr = dateToLocalString(purchase_date);
+    // `purchase_date` ya llega como string YYYY-MM-DD en hora local del cliente.
+    const purchaseDateStr = purchase_date;
 
     // Calcular la fecha de la primera cuota:
     // - Crédito: aplica lógica de ciclo de tarjeta (fecha de vencimiento del ciclo correspondiente)

@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { transactionSchema, type TransactionSchema, createTransactionSchema, type CreateTransactionSchema } from '@/lib/schemas/transaction';
 import { revalidatePath } from 'next/cache';
-import { calculateCreditPaymentDate, dateToLocalString } from '@/lib/utils/dates';
+import { calculateCreditPaymentDate } from '@/lib/utils/dates';
 
 type ActionResponse = {
   error?: string;
@@ -30,9 +30,10 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
 
     const { description, amount, date, category_id, type, payment_method_id } = validatedFields.data;
 
+    // `date` ya llega como string YYYY-MM-DD en hora local del cliente (no UTC).
     // Para gastos con tarjeta de crédito, calcular la fecha real de pago según el ciclo de la tarjeta.
     // Para débito/efectivo, se guarda la fecha de compra sin modificar.
-    let storedDate = dateToLocalString(date);
+    let storedDate = date;
     const resolvedMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
     if (resolvedMethodId && type === 'expense') {
@@ -98,7 +99,7 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
       .update({
         description,
         amount,
-        date: dateToLocalString(date),
+        date,
         category_id,
         type,
       })
