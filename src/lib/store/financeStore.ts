@@ -27,7 +27,6 @@ import {
   addMonths,
   setDate,
   getDate,
-  parseISO,
   format,
   subMonths,
   subWeeks,
@@ -39,7 +38,6 @@ import {
   isSameMonth,
   parse,
   endOfMonth,
-  differenceInCalendarMonths,
 } from 'date-fns';
 import { parseLocalDate } from '@/lib/utils/dates';
 
@@ -849,23 +847,29 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   /**
-   * FÓRMULA DEL BALANCE GLOBAL DE CHANCHITO
-   * ==========================================
-   * Balance = ingresos globales
-   *         - gastos variables históricos (sin cuotas ni suscripciones)
-   *         - cuotas pasadas + cuotas que vencen este mes
-   *           (las cuotas pasadas pasan a contar como gasto normal)
-   *         - mensualidades activas × meses transcurridos desde su creación
-   *           (no acumulativo a futuro: solo cuenta el mes actual y los pasados)
+   * FÓRMULA DEL BALANCE DISPONIBLE (Opción A: "Caja actual")
+   * =========================================================
+   * Refleja el dinero real que tenés disponible HOY, considerando:
    *
-   * Las cuotas FUTURAS NO se restan: solo impactan cuando llega su mes.
+   * Balance = ingresos históricos
+   *         - gastos variables históricos (sin cuotas, sin suscripciones)
+   *         - cuotas YA pagadas (fecha visual <= hoy)
+   *         - cuotas que vencen este mes (según ciclo de tarjeta)
+   *         - suscripciones activas × 1 (solo el mes actual)
+   *
+   * Decisiones de diseño:
+   * - Cuotas FUTURAS: NO se restan. Todavía no salieron de tu bolsillo.
+   *   Solo impactan cuando llega su mes.
+   * - Suscripciones: se restan UNA vez (mes actual) porque no generan
+   *   transacciones reales. No se multiplican por meses pasados para
+   *   evitar inventar datos históricos que no existen en la base.
    *
    * NO incluye:
    * - Cuotas de meses futuros
    * - Ahorros (tabla separada, no son transacciones)
    */
   getGlobalBalance: () => {
-    const { transactions, paymentMethods, recurringPlans } = get();
+    const { transactions, paymentMethods, getMonthlyBurnRate } = get();
     const now = new Date();
     const todayStart = startOfDay(now);
 
@@ -878,10 +882,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id)
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
-    // 2. Cuotas: pasadas + las que vencen este mes
-    //    - Pasadas: cualquier cuota cuya fecha (visual) ya pasó
-    //    - Mes actual: respeta el ciclo de tarjeta (closing/payment day)
-    //    - Futuras: NO se incluyen
+    // 2. Cuotas pagadas + cuotas que vencen este mes.
+    //    - Mes actual: respeta el ciclo de tarjeta (closing/payment day).
+    //    - Pasadas: cualquier cuota cuya fecha visual ya pasó.
+    //    - Futuras: NO se incluyen.
     const installmentsExpense = transactions
       .filter((t) => {
         if (t.type !== 'expense' || !t.installment_plan_id) return false;
@@ -896,22 +900,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       })
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
-    // 3. Mensualidades/suscripciones: fijo por mes, NO acumulativo a futuro.
-    //    Cada plan activo se resta una vez por cada mes transcurrido desde su
-    //    creación (incluido el mes actual). Las suscripciones NO generan
-    //    transacciones reales: son montos fijos mensuales.
-    const recurringExpense = recurringPlans
-      .filter((p) => p.is_active)
-      .reduce((acc, p) => {
-        const createdAt = p.created_at ? parseISO(p.created_at) : now;
-        // Cantidad de meses calendario activos: mes actual + meses anteriores
-        // desde la creación. Mínimo 1 (el mes actual).
-        const monthsActive = Math.max(
-          differenceInCalendarMonths(now, createdAt) + 1,
-          1
-        );
-        return acc + Math.abs(Number(p.amount)) * monthsActive;
-      }, 0);
+    // 3. Suscripciones del mes actual (1×). Como las suscripciones no
+    //    generan transacciones reales, las restamos una sola vez para
+    //    reflejar el compromiso del mes en curso.
+    const recurringExpense = getMonthlyBurnRate();
 
     return totalIncome - variableExpenses - installmentsExpense - recurringExpense;
   },
