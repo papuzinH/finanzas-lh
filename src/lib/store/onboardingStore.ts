@@ -3,19 +3,15 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { createClient } from '@/utils/supabase/client'
-import type {
-  OnboardingStep,
-  ProposedCategory,
-  SavedPaymentMethod,
-  OnboardingResponse,
-} from '@/lib/ai/onboardingTypes'
 
-export interface OnboardingMessage {
-  id: string
-  role: 'user' | 'chanchito'
-  content: string
-  timestamp: Date
-}
+/**
+ * Store del tour post-registro multi-ruta.
+ *
+ * NOTA: La parte de chat conversacional del onboarding fue removida en favor
+ * del flujo manual con slides (ver src/app/onboarding/onboarding-flow.tsx).
+ * Este store solo conserva la lógica del tour interactivo que se ejecuta
+ * después del registro inicial.
+ */
 
 /** Rutas en orden de secuencia del tour */
 export const TOUR_ROUTE_ORDER = [
@@ -55,33 +51,12 @@ export const TOUR_STEPS_BY_ROUTE: Record<TourRoute, { target: string; text: stri
 export const TOUR_TOTAL_STEPS = Object.values(TOUR_STEPS_BY_ROUTE).reduce((sum, steps) => sum + steps.length, 0)
 
 interface OnboardingState {
-  currentStep: OnboardingStep
-  messages: OnboardingMessage[]
-  isLoading: boolean
-  isListening: boolean
-
-  // Datos acumulados durante el onboarding
-  userName: string | null
-  proposedCategories: ProposedCategory[]
-  savedPaymentMethods: SavedPaymentMethod[]
-  pendingCreditCards: string[]
-  isComplete: boolean
-
   // Tour post-registro (multi-ruta)
   tourCompleted: boolean
   tourSkipped: boolean
   tourRouteIndex: number
   tourStepInRoute: number
 
-  // Actions
-  addMessage: (msg: Omit<OnboardingMessage, 'id' | 'timestamp'>) => void
-  setStep: (step: OnboardingStep) => void
-  setLoading: (loading: boolean) => void
-  setListening: (listening: boolean) => void
-  sendMessage: (text: string) => Promise<void>
-  reset: () => void
-
-  // Tour actions
   /** Avanza un paso. Devuelve la nueva ruta si debe navegar, o null si se queda. */
   advanceTour: () => TourRoute | null
   skipTour: () => void
@@ -96,61 +71,33 @@ interface OnboardingState {
 export const useOnboardingStore = create<OnboardingState>()(
   persist(
     (set, get) => ({
-      currentStep: 'name',
-      messages: [],
-      isLoading: false,
-      isListening: false,
-      userName: null,
-      proposedCategories: [],
-      savedPaymentMethods: [],
-      pendingCreditCards: [],
-      isComplete: false,
-
-      // Tour initial state (multi-ruta)
       tourCompleted: false,
       tourSkipped: false,
       tourRouteIndex: 0,
       tourStepInRoute: 0,
 
-      addMessage: (msg) => set(s => ({
-        messages: [...s.messages, {
-          ...msg,
-          id: crypto.randomUUID(),
-          timestamp: new Date(),
-        }]
-      })),
-
-      setStep: (step) => set({ currentStep: step }),
-      setLoading: (loading) => set({ isLoading: loading }),
-      setListening: (listening) => set({ isListening: listening }),
-
-      // Tour actions
       advanceTour: () => {
         const { tourRouteIndex, tourStepInRoute } = get()
         const currentRoute = TOUR_ROUTE_ORDER[tourRouteIndex]
         const stepsForRoute = TOUR_STEPS_BY_ROUTE[currentRoute]
 
-        // ¿Hay más pasos en la ruta actual?
         if (tourStepInRoute < stepsForRoute.length - 1) {
           set({ tourStepInRoute: tourStepInRoute + 1 })
-          return null // se queda en la misma ruta
+          return null
         }
 
-        // ¿Hay más rutas?
         if (tourRouteIndex < TOUR_ROUTE_ORDER.length - 1) {
           const nextIdx = tourRouteIndex + 1
           set({ tourRouteIndex: nextIdx, tourStepInRoute: 0 })
-          return TOUR_ROUTE_ORDER[nextIdx] // navegar a la siguiente ruta
+          return TOUR_ROUTE_ORDER[nextIdx]
         }
 
-        // Tour terminado
         get().completeTour()
         return null
       },
 
       skipTour: () => {
         set({ tourSkipped: true, tourRouteIndex: 0, tourStepInRoute: 0 })
-        // Sync a Supabase: marcar como completado para no molestar
         const supabase = createClient()
         supabase.auth.getUser().then(({ data }) => {
           if (data.user) {
@@ -197,105 +144,6 @@ export const useOnboardingStore = create<OnboardingState>()(
           set({ tourRouteIndex: idx, tourStepInRoute: 0 })
         }
       },
-
-      sendMessage: async (text: string) => {
-        const { addMessage, setLoading, currentStep, proposedCategories, savedPaymentMethods, messages, pendingCreditCards } = get()
-
-        addMessage({ role: 'user', content: text })
-        setLoading(true)
-
-        const history = messages.slice(-10).map(m => ({ role: m.role, content: m.content }))
-
-        try {
-          const response = await fetch('/api/chat/onboarding', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: text,
-              step: currentStep,
-              context: {
-                proposedCategories,
-                savedPaymentMethods,
-                history,
-                pendingCreditCards,
-              },
-            }),
-          })
-
-          const data: OnboardingResponse = await response.json()
-
-          if (data.success) {
-            addMessage({ role: 'chanchito', content: data.message })
-
-            const updates: Partial<OnboardingState> = {}
-
-            if (data.data?.categories) {
-              updates.proposedCategories = data.data.categories
-            }
-
-            if (data.data?.paymentMethod) {
-              const existing = get().savedPaymentMethods
-              const existingIdx = existing.findIndex(m => m.id === data.data!.paymentMethod!.id)
-              if (existingIdx >= 0) {
-                const updated = [...existing]
-                updated[existingIdx] = data.data.paymentMethod
-                updates.savedPaymentMethods = updated
-              } else {
-                updates.savedPaymentMethods = [...existing, data.data.paymentMethod]
-              }
-            }
-
-            if (data.data?.allPaymentMethods) {
-              updates.savedPaymentMethods = data.data.allPaymentMethods
-            }
-
-            if (data.data?.pendingCreditCards) {
-              updates.pendingCreditCards = data.data.pendingCreditCards
-            }
-
-            if (data.data?.onboardingComplete) {
-              updates.isComplete = true
-            }
-
-            if (data.nextStep) {
-              updates.currentStep = data.nextStep
-            }
-
-            if (currentStep === 'name' && data.success && data.nextStep === 'categories') {
-              const nameMatch = data.message.match(/¡Un gusto, (.+?)!/)
-              if (nameMatch) {
-                updates.userName = nameMatch[1]
-              }
-            }
-
-            set(updates as Partial<OnboardingState>)
-          } else {
-            addMessage({
-              role: 'chanchito',
-              content: data.message || 'Hmm, no entendí. ¿Podés reformularlo?',
-            })
-          }
-        } catch {
-          addMessage({
-            role: 'chanchito',
-            content: 'Ups, hubo un error de conexión. Intentá de nuevo.',
-          })
-        } finally {
-          setLoading(false)
-        }
-      },
-
-      reset: () => set({
-        currentStep: 'name',
-        messages: [],
-        isLoading: false,
-        isListening: false,
-        userName: null,
-        proposedCategories: [],
-        savedPaymentMethods: [],
-        pendingCreditCards: [],
-        isComplete: false,
-      }),
     }),
     {
       name: 'chanchito-tour',

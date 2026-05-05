@@ -12,65 +12,77 @@ import {
   ArrowRight,
   CheckCircle2,
   Sparkles,
+  Loader2,
 } from 'lucide-react'
-import { useOnboardingStore } from '@/lib/store/onboardingStore'
-import { OnboardingChat } from './onboarding-chat'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
-type Slide = 'welcome' | 'features' | 'setup' | 'complete'
+import { NameSlide } from './slides/name-slide'
+import { CategoriesSlide } from './slides/categories-slide'
+import { PaymentMethodsSlide } from './slides/payment-methods-slide'
+import { completeOnboarding } from './actions'
+
+type Slide = 'welcome' | 'features' | 'name' | 'categories' | 'payment' | 'complete'
 
 const FEATURES = [
   {
     icon: Mic,
     title: 'Voz o texto',
-    description: 'Registrá gastos hablando o escribiendo naturalmente',
+    description: 'Registra gastos hablando o escribiendo naturalmente',
     color: 'text-blue-400',
     bg: 'bg-blue-500/10',
   },
   {
     icon: BarChart3,
     title: 'Dashboards',
-    description: 'Visualizá tus finanzas con gráficos inteligentes',
+    description: 'Visualiza tus finanzas con graficos inteligentes',
     color: 'text-emerald-400',
     bg: 'bg-emerald-500/10',
   },
   {
     icon: CreditCard,
     title: 'Ciclos de tarjeta',
-    description: 'Cierres y vencimientos calculados automáticamente',
+    description: 'Cierres y vencimientos calculados automaticamente',
     color: 'text-violet-400',
     bg: 'bg-violet-500/10',
   },
   {
     icon: TrendingUp,
     title: 'Inversiones',
-    description: 'Seguí tu portafolio con precios en tiempo real',
+    description: 'Segui tu portafolio con precios en tiempo real',
     color: 'text-amber-400',
     bg: 'bg-amber-500/10',
   },
 ]
 
-const STEP_LABELS = ['Nombre', 'Categorías', 'Confirmar', 'Medios de pago', 'Predeterminado']
+const SETUP_SLIDES: Slide[] = ['name', 'categories', 'payment']
 
 export function OnboardingFlow() {
   const [slide, setSlide] = useState<Slide>('welcome')
-  const { userName, proposedCategories, savedPaymentMethods, currentStep } =
-    useOnboardingStore()
+  const [userName, setUserName] = useState<string | null>(null)
+  const [categoriesCount, setCategoriesCount] = useState(0)
+  const [paymentMethodsCount, setPaymentMethodsCount] = useState(0)
+  const [finishing, setFinishing] = useState(false)
   const router = useRouter()
 
-  const handleComplete = () => {
-    router.push('/')
-    router.refresh()
+  const handleFinish = async () => {
+    setFinishing(true)
+    try {
+      const res = await completeOnboarding()
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      router.push('/')
+      router.refresh()
+    } finally {
+      setFinishing(false)
+    }
   }
 
-  const stepIndex = STEP_LABELS.indexOf(
-    currentStep === 'name' ? 'Nombre'
-      : currentStep === 'categories' ? 'Categorías'
-      : currentStep === 'confirm_categories' ? 'Confirmar'
-      : currentStep === 'payment_methods' ? 'Medios de pago'
-      : 'Predeterminado'
-  )
+  const stepIndex = SETUP_SLIDES.indexOf(slide as Slide)
+  const isInSetup = stepIndex !== -1
 
   return (
     <div className="w-full max-w-lg mx-auto">
@@ -91,7 +103,7 @@ export function OnboardingFlow() {
                   Bienvenido a Chanchito
                 </h1>
                 <p className="text-slate-400 text-lg">
-                  Tu asistente financiero que entiende lo que le decís
+                  Tu asistente financiero que entiende lo que le decis
                 </p>
               </div>
               <Button
@@ -110,8 +122,8 @@ export function OnboardingFlow() {
           <SlideWrapper key="features">
             <div className="space-y-8">
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-white">¿Qué podés hacer?</h2>
-                <p className="text-slate-400">Todo lo que necesitás para tus finanzas</p>
+                <h2 className="text-2xl font-bold text-white">Que podes hacer?</h2>
+                <p className="text-slate-400">Todo lo que necesitas para tus finanzas</p>
               </div>
               <div className="grid gap-3">
                 {FEATURES.map((feat, i) => (
@@ -138,7 +150,7 @@ export function OnboardingFlow() {
               <Button
                 size="lg"
                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-12 text-base font-medium shadow-lg shadow-indigo-600/25"
-                onClick={() => setSlide('setup')}
+                onClick={() => setSlide('name')}
               >
                 <Sparkles className="mr-2 h-5 w-5" />
                 Configurar mi cuenta
@@ -147,19 +159,13 @@ export function OnboardingFlow() {
           </SlideWrapper>
         )}
 
-        {slide === 'setup' && (
-          <SlideWrapper key="setup">
-            <div className="space-y-4">
-              <div className="text-center space-y-1">
-                <h2 className="text-xl font-bold text-white">Configurá tu cuenta</h2>
-                <p className="text-sm text-slate-400">Chanchito te guía paso a paso</p>
-              </div>
-
-              {/* Progress dots */}
+        {isInSetup && (
+          <SlideWrapper key={`setup-${slide}`}>
+            <div className="space-y-5">
               <div className="flex items-center justify-center gap-1.5">
-                {STEP_LABELS.map((label, i) => (
+                {SETUP_SLIDES.map((_, i) => (
                   <div
-                    key={label}
+                    key={i}
                     className={cn(
                       'h-2 rounded-full transition-all duration-300',
                       i === stepIndex
@@ -172,10 +178,33 @@ export function OnboardingFlow() {
                 ))}
               </div>
 
-              {/* Embedded chat */}
-              <OnboardingChat
-                onComplete={() => setSlide('complete')}
-              />
+              {slide === 'name' && (
+                <NameSlide
+                  initialName={userName || ''}
+                  onNext={(name) => {
+                    setUserName(name)
+                    setSlide('categories')
+                  }}
+                />
+              )}
+
+              {slide === 'categories' && (
+                <CategoriesSlide
+                  onNext={(count) => {
+                    setCategoriesCount(count)
+                    setSlide('payment')
+                  }}
+                />
+              )}
+
+              {slide === 'payment' && (
+                <PaymentMethodsSlide
+                  onComplete={(count) => {
+                    setPaymentMethodsCount(count)
+                    setSlide('complete')
+                  }}
+                />
+              )}
             </div>
           </SlideWrapper>
         )}
@@ -194,35 +223,41 @@ export function OnboardingFlow() {
               </motion.div>
               <div className="space-y-3">
                 <h2 className="text-2xl font-bold text-white">
-                  ¡Listo{userName ? `, ${userName}` : ''}! 🎉
+                  Listo{userName ? `, ${userName}` : ''}!
                 </h2>
-                <p className="text-slate-400">Tu cuenta está configurada</p>
+                <p className="text-slate-400">Tu cuenta esta configurada</p>
               </div>
 
-              {/* Summary */}
               <div className="grid gap-3 text-left">
                 {userName && (
                   <SummaryItem emoji="👤" label="Nombre" value={userName} />
                 )}
                 <SummaryItem
                   emoji="📂"
-                  label="Categorías"
-                  value={`${proposedCategories.length} configuradas`}
+                  label="Categorias"
+                  value={`${categoriesCount} configuradas`}
                 />
                 <SummaryItem
                   emoji="💳"
                   label="Medios de pago"
-                  value={`${savedPaymentMethods.length} configurados`}
+                  value={`${paymentMethodsCount} configurados`}
                 />
               </div>
 
               <Button
                 size="lg"
+                disabled={finishing}
                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-12 text-base font-medium shadow-lg shadow-indigo-600/25"
-                onClick={handleComplete}
+                onClick={handleFinish}
               >
-                Ir al Dashboard
-                <ArrowRight className="ml-2 h-5 w-5" />
+                {finishing ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    Ir al Dashboard
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </>
+                )}
               </Button>
             </div>
           </SlideWrapper>

@@ -24,6 +24,7 @@ import { FullPageLoader } from '@/components/shared/loader';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { BalanceCard } from '@/components/dashboard/balance-card';
+import { IncompleteCreditCardsBanner } from '@/components/dashboard/incomplete-credit-cards-banner';
 import { MetricRow } from '@/components/dashboard/metric-row';
 import { BudgetOverviewStrip } from '@/components/goals/budget-overview-strip';
 import { TrendChart } from '@/components/dashboard/trend-chart';
@@ -134,6 +135,9 @@ export default function DashboardPage() {
       </PageHeader>
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 space-y-6">
+
+        {/* Aviso: tarjetas de crédito sin fechas configuradas */}
+        <IncompleteCreditCardsBanner />
 
         {/* ── ABOVE THE FOLD ── */}
 
