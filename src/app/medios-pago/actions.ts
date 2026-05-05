@@ -21,7 +21,7 @@ export async function createPaymentMethod(data: CreatePaymentMethodSchema): Prom
     const { error } = await supabase
       .from('payment_methods')
       .insert({
-        user_id: user.id as any,
+        user_id: user.id,
         name: validated.data.name,
         type: validated.data.type,
         default_closing_day: validated.data.default_closing_day ?? null,
@@ -61,7 +61,7 @@ export async function updatePaymentMethod(id: number, data: CreatePaymentMethodS
         is_personal: validated.data.is_personal ?? false,
       })
       .eq('id', id)
-      .eq('user_id', user.id as any)
+      .eq('user_id', user.id)
 
     if (error) {
       console.error('Error updating payment method:', error)
@@ -87,7 +87,7 @@ export async function deletePaymentMethod(id: number): Promise<ActionResponse> {
       .from('payment_methods')
       .select('id')
       .eq('id', id)
-      .eq('user_id', user.id as any)
+      .eq('user_id', user.id)
       .single()
 
     if (!method) return { error: 'Medio de pago no encontrado' }
@@ -96,7 +96,7 @@ export async function deletePaymentMethod(id: number): Promise<ActionResponse> {
       .from('payment_methods')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id as any)
+      .eq('user_id', user.id)
 
     if (error) {
       console.error('Error deleting payment method:', error)
@@ -125,7 +125,7 @@ export async function reassignAndDeletePaymentMethod(
       .from('payment_methods')
       .select('id')
       .eq('id', id)
-      .eq('user_id', user.id as any)
+      .eq('user_id', user.id)
       .single()
 
     if (!method) return { error: 'Medio de pago no encontrado' }
@@ -168,7 +168,7 @@ export async function reassignAndDeletePaymentMethod(
       .from('payment_methods')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id as any)
+      .eq('user_id', user.id)
 
     if (deleteError) {
       console.error('Error eliminando medio de pago:', deleteError)

@@ -18,6 +18,7 @@ import { Form } from '@/components/ui/form';
 import { createInstallmentPlanSchema, type CreateInstallmentPlanSchema } from '@/lib/schemas/installment-plan';
 import { createInstallmentPlan } from '@/app/dashboard/installments/actions';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import { todayString } from '@/lib/utils/dates';
 import {
   AmountField,
   InstallmentSelector,

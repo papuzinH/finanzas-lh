@@ -32,7 +32,7 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
 
     // Para gastos con tarjeta de crédito, calcular la fecha real de pago según el ciclo de la tarjeta.
     // Para débito/efectivo, se guarda la fecha de compra sin modificar.
-    let storedDate = dateToLocalString(date);
+    let storedDate = dateToLocalString(new Date(date));
     const resolvedMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
     if (resolvedMethodId && type === 'expense') {
@@ -98,7 +98,7 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
       .update({
         description,
         amount,
-        date: dateToLocalString(date),
+        date: dateToLocalString(new Date(date)),
         category_id,
         type,
       })
