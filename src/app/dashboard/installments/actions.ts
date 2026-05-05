@@ -33,7 +33,7 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
     const finalPaymentMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
     // Convertir la fecha de compra a string local (evita bug UTC de toISOString())
-    const purchaseDateStr = dateToLocalString(purchase_date);
+    const purchaseDateStr = dateToLocalString(new Date(purchase_date));
 
     // Calcular la fecha de la primera cuota:
     // - Crédito: aplica lógica de ciclo de tarjeta (fecha de vencimiento del ciclo correspondiente)
