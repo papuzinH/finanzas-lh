@@ -39,6 +39,7 @@ import {
   isSameMonth,
   parse,
   endOfMonth,
+  differenceInCalendarMonths,
 } from 'date-fns';
 import { parseLocalDate } from '@/lib/utils/dates';
 
@@ -852,35 +853,67 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * ==========================================
    * Balance = ingresos globales
    *         - gastos variables históricos (sin cuotas ni suscripciones)
-   *         - cuotas del mes actual solamente
-   *         - mensualidades activas (fijos del mes, burn rate)
+   *         - cuotas pasadas + cuotas que vencen este mes
+   *           (las cuotas pasadas pasan a contar como gasto normal)
+   *         - mensualidades activas × meses transcurridos desde su creación
+   *           (no acumulativo a futuro: solo cuenta el mes actual y los pasados)
    *
-   * Las cuotas pre-generadas de meses pasados y futuros NO se restan.
-   * Solo impactan cuando llega su mes (via getCurrentMonthInstallmentsTotal).
+   * Las cuotas FUTURAS NO se restan: solo impactan cuando llega su mes.
    *
    * NO incluye:
-   * - Cuotas de otros meses (ni pasadas ni futuras)
+   * - Cuotas de meses futuros
    * - Ahorros (tabla separada, no son transacciones)
    */
   getGlobalBalance: () => {
-    const { transactions, getCurrentMonthInstallmentsTotal, getMonthlyBurnRate } = get();
+    const { transactions, paymentMethods, recurringPlans } = get();
+    const now = new Date();
+    const todayStart = startOfDay(now);
 
     const totalIncome = transactions
       .filter((t) => t.type === 'income')
       .reduce((acc, t) => acc + Number(t.amount), 0);
 
-    // Gastos variables históricos (sin cuotas ni suscripciones recurrentes)
+    // 1. Gastos variables históricos (sin cuotas ni suscripciones recurrentes)
     const variableExpenses = transactions
       .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id)
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
-    // Solo las cuotas del mes actual
-    const currentInstallments = getCurrentMonthInstallmentsTotal();
+    // 2. Cuotas: pasadas + las que vencen este mes
+    //    - Pasadas: cualquier cuota cuya fecha (visual) ya pasó
+    //    - Mes actual: respeta el ciclo de tarjeta (closing/payment day)
+    //    - Futuras: NO se incluyen
+    const installmentsExpense = transactions
+      .filter((t) => {
+        if (t.type !== 'expense' || !t.installment_plan_id) return false;
 
-    // Mensualidades/fijos activos (recurring_plans, no transacciones)
-    const burnRate = getMonthlyBurnRate();
+        // ¿Es cuota del mes actual según ciclo de tarjeta?
+        if (isExpenseInCurrentMonthScope(t, paymentMethods, now)) return true;
 
-    return totalIncome - variableExpenses - currentInstallments - burnRate;
+        // ¿O es cuota de un mes anterior (ya pasó)?
+        const visualDateStr = t.periodDate || t.date;
+        const visualDate = parseLocalDate(visualDateStr);
+        return visualDate < todayStart && !isSameMonth(visualDate, now);
+      })
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+    // 3. Mensualidades/suscripciones: fijo por mes, NO acumulativo a futuro.
+    //    Cada plan activo se resta una vez por cada mes transcurrido desde su
+    //    creación (incluido el mes actual). Las suscripciones NO generan
+    //    transacciones reales: son montos fijos mensuales.
+    const recurringExpense = recurringPlans
+      .filter((p) => p.is_active)
+      .reduce((acc, p) => {
+        const createdAt = p.created_at ? parseISO(p.created_at) : now;
+        // Cantidad de meses calendario activos: mes actual + meses anteriores
+        // desde la creación. Mínimo 1 (el mes actual).
+        const monthsActive = Math.max(
+          differenceInCalendarMonths(now, createdAt) + 1,
+          1
+        );
+        return acc + Math.abs(Number(p.amount)) * monthsActive;
+      }, 0);
+
+    return totalIncome - variableExpenses - installmentsExpense - recurringExpense;
   },
 
   /**
