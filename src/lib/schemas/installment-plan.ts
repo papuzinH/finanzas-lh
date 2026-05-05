@@ -14,7 +14,9 @@ export const createInstallmentPlanSchema = z.object({
     .int('La cantidad de cuotas debe ser un número entero')
     .min(2, 'Debe tener al menos 2 cuotas (si es 1 cuota, es un gasto normal)')
     .max(60, 'El máximo permitido es 60 cuotas (5 años)'),
-  purchase_date: z.date({ message: 'La fecha de compra es requerida' }),
+  purchase_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha de compra es requerida'),
   category_id: z.string().min(1, 'La categoría es requerida'),
   payment_method_id: z.string().nullable().optional(),
 });

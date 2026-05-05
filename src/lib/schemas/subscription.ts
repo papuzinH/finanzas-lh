@@ -17,7 +17,7 @@ export const createSubscriptionSchema = z.object({
   amount: z.number().positive('El monto debe ser positivo'),
   category_id: z.string().min(1, 'La categoría es requerida'),
   payment_method_id: z.string().nullable().optional(),
-  start_date: z.date(),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha es requerida'),
   frequency: z.enum(['monthly', 'yearly']),
   debit_payment_day: z.number().min(1).max(28).optional(),
 });

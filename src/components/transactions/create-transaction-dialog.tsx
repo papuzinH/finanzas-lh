@@ -18,6 +18,7 @@ import {
   Form,
 } from '@/components/ui/form';
 import { createTransactionSchema, type CreateTransactionSchema } from '@/lib/schemas/transaction';
+import { todayString } from '@/lib/utils/dates';
 import { createTransaction } from '@/app/dashboard/transactions/actions';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import {
@@ -56,7 +57,7 @@ export function CreateTransactionDialog({
     defaultValues: {
       description: defaultValues?.description ?? '',
       amount: defaultValues?.amount ?? 0,
-      date: new Date(),
+      date: todayString(),
       category_id: defaultValues?.category_id ?? '',
       type: defaultValues?.type ?? 'expense',
       payment_method_id: 'none',
@@ -75,7 +76,7 @@ export function CreateTransactionDialog({
       form.reset({
         description: defaultValues?.description ?? '',
         amount: defaultValues?.amount ?? 0,
-        date: new Date(),
+        date: todayString(),
         category_id: defaultValues?.category_id ?? '',
         type: defaultValues?.type ?? 'expense',
         payment_method_id: 'none',

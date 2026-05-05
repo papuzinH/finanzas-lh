@@ -12,8 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ArrowRight, Loader2, Plus, Sparkles, X, Check, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { DEFAULT_ONBOARDING_CATEGORIES } from '../constants'
 import {
-  DEFAULT_ONBOARDING_CATEGORIES,
   saveOnboardingCategories,
   suggestCategoriesFromDescription,
 } from '../actions'

@@ -55,7 +55,7 @@ export function EditTransactionDialog({
     defaultValues: {
       description: transaction.description,
       amount: Math.abs(transaction.amount),
-      date: new Date(transaction.date),
+      date: transaction.date,
       category_id: transaction.category_id || '',
       type: transaction.type || 'expense',
     },
@@ -69,7 +69,7 @@ export function EditTransactionDialog({
       form.reset({
         description: transaction.description,
         amount: Math.abs(transaction.amount),
-        date: new Date(transaction.date),
+        date: transaction.date,
         category_id: transaction.category_id || '',
         type: transaction.type || 'expense',
       });

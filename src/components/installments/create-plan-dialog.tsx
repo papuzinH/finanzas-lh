@@ -48,7 +48,7 @@ export function CreateInstallmentPlanDialog({
       description: '',
       total_amount: 0,
       installments_count: 2,
-      purchase_date: new Date(),
+      purchase_date: todayString(),
       category_id: '',
       payment_method_id: 'none',
     },
@@ -68,7 +68,7 @@ export function CreateInstallmentPlanDialog({
         description: '',
         total_amount: 0,
         installments_count: 2,
-        purchase_date: new Date(),
+        purchase_date: todayString(),
         category_id: '',
         payment_method_id: 'none',
       });

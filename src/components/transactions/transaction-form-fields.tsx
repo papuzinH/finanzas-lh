@@ -2,8 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { type Control, type FieldValues, type Path, type UseFormSetValue } from 'react-hook-form';
-import { format } from 'date-fns';
 import { AlignLeft, Grid3X3, Minus, Plus, Wallet, ChevronRight, Check } from 'lucide-react';
+import { parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
 
 import {
   FormControl,
@@ -27,7 +27,7 @@ const QUICK_AMOUNTS = [100, 500, 1000] as const;
 type BaseTransactionFields = {
   description: string;
   amount: number;
-  date: Date;
+  date: string;
   category_id: string;
   type: 'income' | 'expense';
 };
@@ -35,7 +35,7 @@ type BaseTransactionFields = {
 type BaseSubscriptionFields = {
   description: string;
   amount: number;
-  start_date?: Date;
+  start_date?: string;
   category_id: string;
   frequency?: 'monthly' | 'yearly';
   payment_method_id?: string;
@@ -364,8 +364,8 @@ export function DateField<T extends FieldValues>({
           <FormControl>
             <Input
               type="date"
-              value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-              onChange={(e) => field.onChange(new Date(e.target.value))}
+              value={typeof field.value === 'string' ? field.value : ''}
+              onChange={(e) => field.onChange(e.target.value)}
               className="bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 focus-visible:ring-2 focus-visible:ring-indigo-500 block w-full"
             />
           </FormControl>
@@ -568,7 +568,7 @@ interface PaymentMethodFieldProps<T extends FieldValues> {
   fieldName?: string;
   debitFieldName?: string;
   dateFieldName?: string;
-  watchedDate?: Date;
+  watchedDate?: string;
   watchedDebitDay?: number;
 }
 
@@ -585,11 +585,12 @@ export function PaymentMethodField<T extends FieldValues>({
   
   // Function to calculate credit card payment date
   // Lógica: si compra DESPUÉS del cierre → siguiente ciclo; si paymentDay < closingDay → pago el mes siguiente al cierre
-  const calculateCreditPaymentDate = (method: PaymentMethod, currentDate: Date): Date => {
+  const calculateCreditPaymentDate = (method: PaymentMethod, currentDateStr: string): string => {
     if (method.type !== 'credit' || !method.default_closing_day || !method.default_payment_day) {
-      return currentDate;
+      return currentDateStr;
     }
 
+    const currentDate = parseLocalDate(currentDateStr);
     const dayOfPurchase = currentDate.getDate();
     const paymentDate = new Date(currentDate);
 
@@ -601,7 +602,7 @@ export function PaymentMethodField<T extends FieldValues>({
     }
     paymentDate.setDate(method.default_payment_day);
 
-    return paymentDate;
+    return formatLocalDate(paymentDate);
   };
 
   return (
@@ -622,8 +623,9 @@ export function PaymentMethodField<T extends FieldValues>({
 
           const MONTHS_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
                               'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-          const purchaseDay = watchedDate.getDate();
-          const purchaseMonth = watchedDate.getMonth();
+          const watchedLocalDate = parseLocalDate(watchedDate);
+          const purchaseDay = watchedLocalDate.getDate();
+          const purchaseMonth = watchedLocalDate.getMonth();
 
           // Mes de cierre
           const closingMonthIdx = (purchaseDay > closingDay ? purchaseMonth + 1 : purchaseMonth) % 12;
@@ -733,7 +735,7 @@ export function PaymentMethodField<T extends FieldValues>({
 
                 <div className="text-center min-w-[80px]">
                   <div className="text-2xl font-bold text-slate-50 tabular-nums">
-                    {watchedDebitDay || (watchedDate?.getDate() || 1)}
+                    {watchedDebitDay || (watchedDate ? parseLocalDate(watchedDate).getDate() : 1)}
                   </div>
                   <div className="text-xs text-slate-400">
                     de cada mes
