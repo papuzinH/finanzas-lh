@@ -28,7 +28,7 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
       return { error: 'Datos inválidos' };
     }
 
-    const { description, amount, date, category_id, type, payment_method_id } = validatedFields.data;
+    const { description, amount, date, category_id, type, payment_method_id, currency, rate_pair, exchange_rate } = validatedFields.data;
 
     // Para gastos con tarjeta de crédito, calcular la fecha real de pago según el ciclo de la tarjeta.
     // Para débito/efectivo, se guarda la fecha de compra sin modificar.
@@ -47,16 +47,28 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
       }
     }
 
+    const isUsd = currency === 'USD';
+    const rate = isUsd ? Number(exchange_rate) : null;
+    if (isUsd && (!rate || rate <= 0)) {
+      return { error: 'Cotización del dólar inválida' };
+    }
+    // amount viene en la moneda elegida; persistimos el equivalente ARS del momento.
+    const amountArs = isUsd ? amount * (rate as number) : amount;
+
     const { error } = await supabase
       .from('transactions')
       .insert({
         user_id: user.id,
         description,
-        amount,
+        amount: amountArs,
         date: storedDate,
         category_id,
         type,
         payment_method_id: resolvedMethodId,
+        original_currency: isUsd ? 'USD' : 'ARS',
+        original_amount: amount,
+        rate_pair: isUsd ? rate_pair : null,
+        exchange_rate: rate,
       });
 
     if (error) {
@@ -90,17 +102,27 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
       return { error: 'Datos inválidos' };
     }
 
-    const { description, amount, date, category_id, type } = validatedFields.data;
+    const { description, amount, date, category_id, type, currency, rate_pair, exchange_rate } = validatedFields.data;
 
+    const isUsd = currency === 'USD';
+    const rate = isUsd ? Number(exchange_rate) : null;
+    if (isUsd && (!rate || rate <= 0)) {
+      return { error: 'Cotización del dólar inválida' };
+    }
+    const amountArs = isUsd ? amount * (rate as number) : amount;
 
     const { error } = await supabase
       .from('transactions')
       .update({
         description,
-        amount,
+        amount: amountArs,
         date: dateToLocalString(new Date(date)),
         category_id,
         type,
+        original_currency: isUsd ? 'USD' : 'ARS',
+        original_amount: amount,
+        rate_pair: isUsd ? rate_pair : null,
+        exchange_rate: rate,
       })
       .eq('id', id)
       .eq('user_id', user.id);
