@@ -32,14 +32,13 @@ export function MonthSelector({ currentMonth, baseUrl = '/' }: MonthSelectorProp
   const router = useRouter();
   const [direction, setDirection] = useState(0);
   const getMonthlyComparison = useFinanceStore((s) => s.getMonthlyComparison);
-  const comparison = getMonthlyComparison();
+  const comparison = getMonthlyComparison(currentMonth);
 
   const date = parse(currentMonth, 'yyyy-MM', new Date());
   const prevMonth = format(subMonths(date, 1), 'yyyy-MM');
   const nextMonth = format(addMonths(date, 1), 'yyyy-MM');
 
-  // El badge siempre referencia el mes anterior real (getMonthlyComparison usa new Date())
-  const realPrevLabel = format(subMonths(new Date(), 1), 'MMM', { locale: es });
+  const realPrevLabel = format(subMonths(date, 1), 'MMM', { locale: es });
   const { percentageChange } = comparison;
   const absChange = Math.abs(percentageChange);
   const isHigher = percentageChange > 0;

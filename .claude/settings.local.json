@@ -26,7 +26,10 @@
       "Bash(python3 -c \"import os; paths = [r'C:\\\\Users\\\\Adriel\\\\.claude\\\\plugins\\\\cache\\\\ui-ux-pro-max-skill', r'C:\\\\Users\\\\Adriel\\\\.claude\\\\plugins']; [print\\(os.path.join\\(root, f\\)\\) for p in paths if os.path.exists\\(p\\) for root, dirs, files in os.walk\\(p\\) for f in files if 'search.py' in f]\")",
       "Bash(python3 \"C:\\\\Users\\\\Adriel\\\\.claude\\\\plugins\\\\cache\\\\ui-ux-pro-max-skill\\\\ui-ux-pro-max\\\\2.5.0\\\\src\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"personal finance dark mode installments active status badge\" --design-system -p \"Chanchito\" -f markdown)",
       "Bash(python3 *)",
-      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('vitest:', \\(p.devDependencies&&p.devDependencies.vitest\\)||'none'\\)\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('vitest:', \\(p.devDependencies&&p.devDependencies.vitest\\)||'none'\\)\")",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "PowerShell(New-Item *)"
     ]
   }
 }
