@@ -28,6 +28,8 @@ import {
   CategoryPicker,
   DateField,
   PaymentMethodField,
+  CurrencyField,
+  DEFAULT_RATE_PAIR,
 } from '@/components/transactions/transaction-form-fields';
 
 interface CreateTransactionDialogProps {
@@ -61,11 +63,17 @@ export function CreateTransactionDialog({
       category_id: defaultValues?.category_id ?? '',
       type: defaultValues?.type ?? 'expense',
       payment_method_id: 'none',
+      currency: 'ARS',
+      rate_pair: null,
+      exchange_rate: null,
     },
   });
 
   const watchedAmount = form.watch('amount');
   const watchedDate = form.watch('date');
+  const watchedCurrency = form.watch('currency');
+  const watchedRatePair = form.watch('rate_pair');
+  const getExchangeRate = useFinanceStore((s) => s.getExchangeRate);
 
   // Reset form with new defaultValues each time the dialog opens
   useEffect(() => {
@@ -80,6 +88,9 @@ export function CreateTransactionDialog({
         category_id: defaultValues?.category_id ?? '',
         type: defaultValues?.type ?? 'expense',
         payment_method_id: 'none',
+        currency: 'ARS',
+        rate_pair: null,
+        exchange_rate: null,
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,9 +99,13 @@ export function CreateTransactionDialog({
   async function onSubmit(data: CreateTransactionSchema) {
     setIsPending(true);
     try {
+      const isUsd = data.currency === 'USD';
+      const ratePair = data.rate_pair || DEFAULT_RATE_PAIR;
       const formattedData = {
         ...data,
         payment_method_id: data.payment_method_id === 'none' ? null : data.payment_method_id,
+        rate_pair: isUsd ? ratePair : null,
+        exchange_rate: isUsd ? getExchangeRate(ratePair) : null,
       };
 
       const result = await createTransaction(formattedData);
@@ -144,6 +159,16 @@ export function CreateTransactionDialog({
               <AmountField
                 control={form.control}
                 setValue={form.setValue}
+                watchedAmount={watchedAmount}
+                currency={watchedCurrency}
+              />
+
+              {/* ── Currency ── */}
+              <CurrencyField
+                control={form.control}
+                setValue={form.setValue}
+                watchedCurrency={watchedCurrency}
+                watchedRatePair={watchedRatePair}
                 watchedAmount={watchedAmount}
               />
 

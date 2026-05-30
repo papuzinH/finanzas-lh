@@ -24,6 +24,8 @@ import {
   DescriptionField,
   CategoryPicker,
   DateField,
+  CurrencyField,
+  DEFAULT_RATE_PAIR,
 } from '@/components/transactions/transaction-form-fields';
 
 interface EditTransactionDialogProps {
@@ -36,6 +38,9 @@ interface EditTransactionDialogProps {
     date: string;
     category_id: string | null;
     type: 'expense' | 'income' | null;
+    original_currency?: string | null;
+    original_amount?: number | null;
+    rate_pair?: string | null;
   };
 }
 
@@ -46,7 +51,7 @@ export function EditTransactionDialog({
 }: EditTransactionDialogProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
-  const { fetchAllData, categories, getFrequentCategories } = useFinanceStore();
+  const { fetchAllData, categories, getFrequentCategories, getExchangeRate } = useFinanceStore();
 
   const frequentCategories = getFrequentCategories(4);
 
@@ -54,14 +59,21 @@ export function EditTransactionDialog({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       description: transaction.description,
-      amount: Math.abs(transaction.amount),
+      amount: transaction.original_currency === 'USD' && transaction.original_amount != null
+        ? Math.abs(transaction.original_amount)
+        : Math.abs(transaction.amount),
       date: transaction.date,
       category_id: transaction.category_id || '',
       type: transaction.type || 'expense',
+      currency: (transaction.original_currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
+      rate_pair: transaction.rate_pair ?? null,
+      exchange_rate: null,
     },
   });
 
   const watchedAmount = form.watch('amount');
+  const watchedCurrency = form.watch('currency');
+  const watchedRatePair = form.watch('rate_pair');
 
   // Reset form when dialog opens with fresh transaction data
   useEffect(() => {
@@ -80,7 +92,14 @@ export function EditTransactionDialog({
   async function onSubmit(data: TransactionSchema) {
     setIsPending(true);
     try {
-      const result = await updateTransaction(transaction.id.toString(), data);
+      const isUsd = data.currency === 'USD';
+      const ratePair = data.rate_pair || DEFAULT_RATE_PAIR;
+      const payload = {
+        ...data,
+        rate_pair: isUsd ? ratePair : null,
+        exchange_rate: isUsd ? getExchangeRate(ratePair) : null,
+      };
+      const result = await updateTransaction(transaction.id.toString(), payload);
 
       if (result.error) {
         toast.error(result.error);
@@ -116,6 +135,16 @@ export function EditTransactionDialog({
               <AmountField
                 control={form.control}
                 setValue={form.setValue}
+                watchedAmount={watchedAmount}
+                currency={watchedCurrency}
+              />
+
+              {/* ── Currency ── */}
+              <CurrencyField
+                control={form.control}
+                setValue={form.setValue}
+                watchedCurrency={watchedCurrency}
+                watchedRatePair={watchedRatePair}
                 watchedAmount={watchedAmount}
               />
 
