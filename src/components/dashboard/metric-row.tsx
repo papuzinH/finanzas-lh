@@ -55,16 +55,16 @@ function MetricCard({ label, value, sublabel, color = "emerald", icon: Icon, onC
   return (
     <Tag
       className={cn(
-        "rounded-xl bg-[var(--surface-raised)]/50 border border-slate-800 p-3.5 space-y-2 text-left w-full",
-        onClick && "cursor-pointer hover:bg-slate-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+        "rounded-xl bg-surface-raised/50 border border-slate-800 p-4 space-y-2 text-left w-full min-h-[88px]",
+        onClick && "cursor-pointer hover:bg-slate-800/50 active:scale-[0.98] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
       )}
       onClick={onClick}
     >
       <div className="flex items-center justify-between">
         <span className="text-xs text-slate-400">{label}</span>
-        {Icon && <Icon className={cn("h-3.5 w-3.5", colorMap[color])} aria-hidden />}
+        {Icon && <Icon className={cn("h-4 w-4", colorMap[color])} aria-hidden />}
       </div>
-      <p className={cn("text-base font-semibold", colorMap[color])}>{value}</p>
+      <p className={cn("text-lg font-bold leading-tight", colorMap[color])}>{value}</p>
       {sparklineType && (
         <div role="img" aria-label={`Gráfico de ${label}`}>
           <AreaChart

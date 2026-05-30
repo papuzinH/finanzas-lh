@@ -280,43 +280,51 @@ export async function quickAdd(data: {
   tna?: number
   end_date?: string
   entity?: string
-}): Promise<ActionResponse> {
+}): Promise<ActionResponse & { priceFetched?: boolean; currentPrice?: number; source?: string }> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
+    // Normalizar especie base para bonos/ONs/BOPREAL (AL30D/AL30C -> AL30)
+    let baseTicker = data.ticker.toUpperCase().trim()
+    if (['bond', 'on', 'bopreal'].includes(data.asset_type)) {
+      baseTicker = baseTicker.replace(/[DC]$/, '')
+    }
+
     // Buscar o crear el activo
     const { data: existing } = await supabase
       .from('investment_assets')
-      .select('id')
+      .select('id, currency')
       .eq('user_id', user.id)
-      .eq('ticker', data.ticker.toUpperCase())
+      .eq('ticker', baseTicker)
       .eq('is_active', true)
       .maybeSingle()
 
     let assetId: string
+    const isNewAsset = !existing
+    const assetCurrency = existing?.currency || data.currency || (data.asset_type === 'crypto' ? 'USD' : 'ARS')
+    const assetMetadata: Record<string, unknown> = {}
 
     if (existing) {
       assetId = existing.id
     } else {
       // Construir metadata para tipos especiales
-      const metadata: Record<string, unknown> = {}
-      if (data.tna) metadata.tna = data.tna / 100 // guardar como decimal
-      if (data.end_date) metadata.end_date = data.end_date
-      if (data.entity) metadata.entity = data.entity
+      if (data.tna) assetMetadata.tna = data.tna / 100 // guardar como decimal
+      if (data.end_date) assetMetadata.end_date = data.end_date
+      if (data.entity) assetMetadata.entity = data.entity
       // start_date de la inversión en plazo_fijo
       if (data.asset_type === 'plazo_fijo' || data.asset_type === 'money_market') {
-        metadata.start_date = data.date
+        assetMetadata.start_date = data.date
       }
 
       const assetResult = await createAsset({
-        ticker: data.ticker.toUpperCase(),
+        ticker: baseTicker,
         name: data.name,
         asset_type: data.asset_type,
-        currency: data.currency ?? 'ARS',
+        currency: assetCurrency,
         data_source_url: data.data_source_url || undefined,
-        metadata,
+        metadata: assetMetadata,
       })
 
       if (assetResult.error || !assetResult.id) {
@@ -331,14 +339,63 @@ export async function quickAdd(data: {
       type: 'buy',
       quantity: data.quantity,
       price_per_unit: data.price_per_unit,
-      fees: data.fees,
+      fees: data.fees ?? 0,
       currency: data.currency ?? 'ARS',
       date: data.date,
       notes: data.notes,
     })
 
-    return txResult
-  } catch {
+    if (txResult.error) {
+      return txResult
+    }
+
+    // Fetch inicial de precio si es un asset nuevo y no es PF/MM
+    const isFixedTerm = data.asset_type === 'plazo_fijo' || data.asset_type === 'money_market'
+    let priceFetched = false
+    let currentPrice: number | undefined
+    let source: string | undefined
+
+    if (isNewAsset && !isFixedTerm) {
+      try {
+        const { data: existingPrice } = await supabase
+          .from('market_prices')
+          .select('ticker')
+          .eq('ticker', baseTicker)
+          .maybeSingle()
+
+        if (!existingPrice) {
+          const priceResult = await fetchPriceForAsset({
+            ticker: baseTicker,
+            asset_type: data.asset_type as (typeof ASSET_TYPES)[number],
+            data_source_url: data.data_source_url || null,
+            metadata: assetMetadata,
+          })
+          if (priceResult !== null) {
+            await supabase.from('market_prices').upsert(
+              {
+                ticker: baseTicker,
+                last_price: priceResult.price_ars,
+                price_usd: priceResult.price_usd ?? null,
+                ccl_implicit: priceResult.ccl_implicit ?? null,
+                currency: assetCurrency,
+                source: priceResult.source,
+                last_update: new Date().toISOString(),
+              },
+              { onConflict: 'ticker' },
+            )
+            priceFetched = true
+            currentPrice = priceResult.price_ars
+            source = priceResult.source
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching initial price in quickAdd:', e)
+      }
+    }
+
+    return { success: true, priceFetched, currentPrice, source }
+  } catch (error) {
+    console.error('Unexpected error in quickAdd:', error)
     return { error: 'Ocurrio un error inesperado' }
   }
 }

@@ -1,65 +1,71 @@
 'use client';
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  Legend,
-} from 'recharts';
+import { useState } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { formatCurrency } from '@/lib/utils';
-import { TrendingUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { TrendingUp, ChevronRight } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
-interface TooltipPayloadItem {
-  name: string;
-  value: number;
-  color: string;
-}
-
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: TooltipPayloadItem[];
-  label?: string;
-}
-
-function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
-  if (!active || !payload || payload.length === 0) return null;
-
-  const prev = payload.find((p) => p.name === 'Mes anterior');
-  const curr = payload.find((p) => p.name === 'Mes actual');
-  const prevVal = prev?.value ?? 0;
-  const currVal = curr?.value ?? 0;
-
-  const change = currVal - prevVal;
-  const percentChange = prevVal === 0 ? 100 : (change / prevVal) * 100;
-  const isUp = change > 0;
+function renderCategoryRow(
+  item: { category: string; emoji: string; current: number; previous: number; change: number },
+  maxVal: number
+) {
+  const isUp = item.change > 0;
+  const changePercent =
+    item.previous === 0 ? 100 : (Math.abs(item.change) / item.previous) * 100;
+  const prevPct = (item.previous / maxVal) * 100;
+  const currPct = (item.current / maxVal) * 100;
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-[var(--surface-overlay)] px-3 py-2.5 text-xs shadow-xl">
-      <p className="mb-2 font-semibold text-slate-200">{label}</p>
-      <div className="space-y-1">
-        {prev && (
-          <div className="flex items-center justify-between gap-6">
-            <span className="text-slate-400">Mes anterior</span>
-            <span className="font-mono text-slate-300">{formatCurrency(prevVal)}</span>
-          </div>
-        )}
-        {curr && (
-          <div className="flex items-center justify-between gap-6">
-            <span className="text-slate-400">Mes actual</span>
-            <span className="font-mono text-slate-300">{formatCurrency(currVal)}</span>
-          </div>
-        )}
-        <div className="mt-2 flex items-center justify-between gap-6 border-t border-slate-700 pt-2">
-          <span className="text-slate-500">Variación</span>
-          <span className={`font-mono font-semibold ${isUp ? 'text-rose-400' : 'text-emerald-400'}`}>
-            {isUp ? '+' : ''}{percentChange.toFixed(1)}%
-          </span>
+    <div key={item.category} className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-1.5 text-sm text-slate-200">
+          <span aria-hidden="true">{item.emoji}</span>
+          <span className="truncate">{item.category}</span>
+        </span>
+        <span
+          className={cn(
+            'shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold',
+            isUp ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'
+          )}
+        >
+          {isUp ? '+' : '-'}{changePercent.toFixed(0)}%
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="w-8 shrink-0 text-right text-[10px] text-slate-500">ant.</span>
+        <div className="flex-1 overflow-hidden rounded-full bg-slate-800" style={{ height: '6px' }}>
+          <div
+            className="h-full rounded-full bg-slate-600 transition-all duration-500"
+            style={{ width: `${prevPct}%` }}
+          />
         </div>
+        <span className="w-20 shrink-0 text-right font-mono text-[10px] text-slate-400 tabular-nums">
+          {formatCurrency(item.previous)}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="w-8 shrink-0 text-right text-[10px] text-slate-500">act.</span>
+        <div className="flex-1 overflow-hidden rounded-full bg-slate-800" style={{ height: '6px' }}>
+          <div
+            className={cn(
+              'h-full rounded-full transition-all duration-500',
+              isUp ? 'bg-rose-500' : 'bg-emerald-500'
+            )}
+            style={{ width: `${currPct}%` }}
+          />
+        </div>
+        <span className="w-20 shrink-0 text-right font-mono text-[10px] text-slate-300 tabular-nums">
+          {formatCurrency(item.current)}
+        </span>
       </div>
     </div>
   );
@@ -68,12 +74,13 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 export function CategoryComparison() {
   const getCategoryComparison = useFinanceStore((s) => s.getCategoryComparison);
   const data = getCategoryComparison();
+  const [isOpen, setIsOpen] = useState(false);
 
   if (data.length === 0) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-5">
+      <div className="rounded-2xl border border-slate-800 bg-surface-raised/30 p-5">
         <div className="mb-4 flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-slate-500" />
+          <TrendingUp className="h-4 w-4 text-slate-500" aria-hidden="true" />
           <h3 className="text-sm font-semibold text-slate-200">Variación por Categoría</h3>
         </div>
         <div className="flex h-40 items-center justify-center">
@@ -85,70 +92,57 @@ export function CategoryComparison() {
     );
   }
 
-  const chartData = data.map((item) => ({
-    name: item.emoji ? `${item.emoji}` : item.category.slice(0, 3),
-    fullName: item.category,
-    'Mes anterior': item.previous,
-    'Mes actual': item.current,
-    isUp: item.change > 0,
-  }));
+  const top5 = data.slice(0, 5);
+  const cardMaxVal = Math.max(...top5.flatMap((d) => [d.current, d.previous]), 1);
+  const dialogMaxVal = Math.max(...data.flatMap((d) => [d.current, d.previous]), 1);
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-5">
-      <div className="mb-4 flex items-center gap-2">
-        <TrendingUp className="h-4 w-4 text-slate-500" />
-        <h3 className="text-sm font-semibold text-slate-200">Variación por Categoría</h3>
-        <span className="ml-auto text-[10px] text-slate-500">Top 5 mayor cambio</span>
-      </div>
-      <div className="h-52 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            layout="vertical"
-            data={chartData}
-            margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
-            barCategoryGap="25%"
-            barGap={3}
-          >
-            <XAxis
-              type="number"
-              tick={{ fill: '#64748b', fontSize: 10 }}
-              tickFormatter={(v: number) => {
-                if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-                if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
-                return `$${v}`;
-              }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              type="category"
-              dataKey="name"
-              tick={{ fill: '#e2e8f0', fontSize: 14 }}
-              width={28}
-              axisLine={false}
-              tickLine={false}
-            />
-            <Tooltip
-              content={<CustomTooltip />}
-              cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-            />
-            <Legend
-              iconType="circle"
-              iconSize={7}
-              wrapperStyle={{ fontSize: '10px', color: '#94a3b8', paddingTop: '8px' }}
-            />
-            <Bar dataKey="Mes anterior" fill="#475569" radius={[0, 3, 3, 0]} maxBarSize={10} />
-            <Bar dataKey="Mes actual" radius={[0, 3, 3, 0]} maxBarSize={10}>
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={entry.isUp ? '#fb7185' : '#34d399'}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+    <>
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        aria-label="Ver detalle de variación por categoría"
+        className={cn(
+          'w-full text-left rounded-2xl border border-slate-800 bg-surface-raised/30 p-5',
+          'cursor-pointer hover:border-slate-700 transition-all duration-200',
+          'active:scale-[0.99]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500',
+          'focus-visible:ring-offset-2 focus-visible:ring-offset-surface'
+        )}
+      >
+        <div className="mb-5 flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-slate-500" aria-hidden="true" />
+          <h3 className="text-sm font-semibold text-slate-200">Variación por Categoría</h3>
+          <span className="ml-auto text-[10px] text-slate-500">Top 5 mayor cambio</span>
+          <ChevronRight className="h-4 w-4 text-slate-600" aria-hidden="true" />
+        </div>
+        <div className="space-y-5">
+          {top5.map((item) => renderCategoryRow(item, cardMaxVal))}
+        </div>
+      </button>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
+          <DialogHeader className="p-6 pb-4 shrink-0 border-b border-slate-800/50">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+                <TrendingUp className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-white">
+                  Variación por Categoría
+                </DialogTitle>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {data.length} {data.length === 1 ? 'categoría' : 'categorías'} · mes actual vs. anterior
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 p-6 space-y-5">
+            {data.map((item) => renderCategoryRow(item, dialogMaxVal))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

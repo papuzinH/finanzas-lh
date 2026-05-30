@@ -1,68 +1,115 @@
 ---
 name: mejorar-ux
-description: Revisa y mejora accesibilidad y UX/UI de un componente o sección de Chanchito (touch targets, contraste, estados hover/focus, loading states)
-argument-hint: "[componente o sección a mejorar]"
+description: Revisa, audita y optimiza exhaustivamente la UX/UI, accesibilidad, performance percibida y transiciones mobile-first de un componente o vista de Chanchito.
+argument-hint: "[ruta del componente, vista o sección a mejorar]"
 ---
 
-# Mejorar UX/UI: $ARGUMENTS
+# Mejorar UX/UI y Accesibilidad Mobile-First: $ARGUMENTS
 
-Revisá y mejorá la experiencia de usuario del componente o sección indicada, siguiendo el design system de Chanchito.
+Actúa como un Diseñador de Interacción y Desarrollador Frontend Senior experto en PWAs Mobile. Tu objetivo es auditar el archivo indicado y refactorizar su capa visual para garantizar una experiencia fluida, accesible (WCAG 2.2) y con rendimiento percibido instantáneo, respetando estrictamente la arquitectura de Chanchito.
 
-## 1. Diagnóstico primero
-Antes de tocar código, listá los problemas encontrados en el archivo objetivo:
-- Botones con área de toque < 44x44px (mínimo WCAG para mobile)
-- Textos con bajo contraste sobre `bg-surface`
-- Elementos interactivos sin estado `hover:`, `focus:`, `active:` o `disabled:`
-- Formularios sin labels visibles o sin mensajes de error accesibles
-- Íconos sin texto alternativo o `aria-label`
-- Elementos que se ven bien en desktop pero se rompen en mobile
+## 1. Protocolo de Diagnóstico Obligatorio
+Antes de modificar el código, analiza el archivo objetivo y genera un reporte breve estructurado en:
+- **Fricción en Mobile:** Áreas de toque, inputs incómodos, modales invasivos en viewports chicos.
+- **Accesibilidad (a11y):** Deficiencias en contraste, jerarquía de fuentes, tags de lectura (`aria-label`) o focus traps.
+- **Rendimiento Percibido:** Layout shifts potenciales, ausencia de Skeletons o micro-animaciones de feedback.
 
-## 2. Reglas de accesibilidad para Chanchito
-- **Touch targets**: mínimo `min-h-[44px] min-w-[44px]` en cualquier elemento clickeable
-- **Íconos solos** (sin texto): siempre agregar `aria-label="descripción"`
-- **Focus visible**: nunca `outline-none` sin reemplazarlo. Usar `focus-visible:ring-2 focus-visible:ring-indigo-500`
-- **Loading states**: botones que disparan async siempre deben tener estado deshabilitado con spinner
+## 2. Estándares UX/UI Mobile-First para Chanchito
 
-## 3. Mejoras por tipo de elemento
+### A. Elementos Interactivos y Touch Targets
+- **Tamaño mínimo:** Todo elemento clickeable (botones, links, tarjetas interactivas) debe garantizar un área de toque mínima de `min-h-[44px] min-w-[44px]` o usar padding compensatorio (`p-3`).
+- **Feedback Activo (Micro-interacciones):** Elementos interactivos principales deben reaccionar al toque. Implementar transiciones suaves y reducción sutil de escala: `transition-all duration-200 active:scale-[0.98]`.
+- **Focus Ring Seguro:** Prohibido usar `outline-none` a secas. Reemplazar siempre por: `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface`.
 
-### Botones de acción principal
+### B. Optimización Extrema de Formularios (Mobile Inputs)
+Las pantallas móviles requieren minimizar la fricción al escribir. Aplica estas propiedades según el caso:
+- **Inputs de Montos/Moneda:** Añadir `inputMode="decimal"`, `pattern="[0-9]*"`, `autoComplete="off"`, `autoCorrect="off"`, `autoCapitalize="none"`.
+- **Inputs de Texto General:** Evitar que el teclado móvil auto-capitalice si son identificadores o etiquetas: `autoCapitalize="none"`.
+- **Mensajes de Error:** Deben estar vinculados al input de forma accesible. Utilizar la estructura de `Form` de shadcn/ui que implementa `aria-describedby` automáticamente.
+
+### C. Navegación y Contenedores (Viewports < 640px)
+- **Bottom Sheets sobre Modals:** Para menús de acción, formularios de carga rápida o selectores en mobile, prioriza el uso de hojas inferiores (`Drawer` / Bottom Sheet de shadcn) en lugar de modales centrados (`Dialog`), los cuales quedan reservados para desktop (`md:crypto-modal`).
+- **Scroll Containers:** Asegura que los listados largos (como el historial de movimientos) usen scroll inercial nativo: `overflow-y-auto scrolling-touch`.
+
+### D. Percepción de Carga y Skeletons (Anti-CLS)
+- **Evitar Layout Shifts:** Los Skeletons deben calzar exactamente con el alto y ancho del componente final para mitigar el Cumulative Layout Shift.
+- **Botones Asíncronos:** Al mutar datos, el botón debe pasar a `disabled`, mantener su ancho exacto mediante layouts estables y mostrar un spinner centrado sutilmente.
+
+## 3. Guía de Refactorización de Código (Ejemplos Patrón)
+
+### Optimización de Inputs para Finanzas
 ```tsx
 // ❌ Antes
-<Button size="sm">Guardar</Button>
+<Input type="number" placeholder="0.00" />
 
 // ✅ Después
-<Button size="sm" className="min-h-[44px] px-6">Guardar</Button>
+<div className="relative rounded-md shadow-sm">
+  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">$</span>
+  <Input
+    type="text"
+    inputMode="decimal"
+    pattern="[0-9]*"
+    placeholder="0.00"
+    className="pl-7 min-h-[44px] focus-visible:ring-indigo-500"
+    autoComplete="off"
+    autoCorrect="off"
+    autoCapitalize="none"
+  />
+</div>
+
 ```
 
-### Botones de ícono
+### Modales adaptativos (Drawer en Mobile, Dialog en Desktop)
+
+```tsx
+// ✅ Estructura recomendada para formularios de transiciones o ajustes
+import { useMediaQuery } from "@/hooks/use-media-query"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Drawer, DrawerContent } from "@/components/ui/drawer"
+
+export function AdaptableModal({ isOpen, setIsOpen, children }) {
+  const isDesktop = useMediaQuery("(min-w: 768px)")
+
+  if (isDesktop) {
+    return (
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-surface-raised">{children}</DialogContent>
+      </Dialog>
+    )
+  }
+
+  return (
+    <Drawer open={isOpen} onOpenChange={setIsOpen}>
+      <DrawerContent className="bg-surface-raised px-4 pb-6">{children}</DrawerContent>
+    </Drawer>
+  )
+}
+
+```
+
+### Micro-interacciones en Botones de Íconos
+
 ```tsx
 // ❌ Antes
-<button onClick={onDelete}><Trash2 className="h-4 w-4" /></button>
+<button onClick={onAction}><Plus className="h-5 w-5" /></button>
 
 // ✅ Después
 <Button
   variant="ghost"
   size="icon"
-  className="h-11 w-11 text-slate-400 hover:text-red-400 hover:bg-red-400/10"
-  aria-label="Eliminar"
-  onClick={onDelete}
+  className="h-11 w-11 rounded-full text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 active:scale-95 transition-all duration-150"
+  aria-label="Agregar nuevo registro"
+  onClick={onAction}
 >
-  <Trash2 className="h-4 w-4" />
+  <Plus className="h-5 w-5 transition-transform duration-200 group-hover:rotate-90" />
 </Button>
-```
 
-### Estados de carga en botones
-```tsx
-<Button disabled={isLoading}>
-  {isLoading
-    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
-    : 'Guardar'}
-</Button>
 ```
 
 ## 4. Paleta dark mode Chanchito
+
 | Uso | Clase |
-|-----|-------|
+| --- | --- |
 | Fondo base | `bg-surface` |
 | Fondo card | `bg-surface-raised` |
 | Hover sutil | `hover:bg-slate-800` |
@@ -73,16 +120,18 @@ Antes de tocar código, listá los problemas encontrados en el archivo objetivo:
 | Destructivo | `text-red-400` / `hover:bg-red-400/10` |
 | Éxito | `text-emerald-400` |
 
-## 5. Mobile-first obligatorio
-- Layout móvil primero, `md:` para desktop
-- Cards: `w-full` → `md:w-auto`
-- Texto en botones con ícono: `hidden md:inline` si el espacio es limitado
+## 5. Recordatorio Arquitectónico: Prohibido Desacoplar Lógica
 
-## 6. Checklist antes de terminar
-- [ ] Todos los botones tienen área mínima 44px
-- [ ] Íconos sin texto tienen `aria-label`
-- [ ] Estados hover/focus/active definidos
-- [ ] Formularios con labels y mensajes de error visibles
-- [ ] Botones async con estado de carga
-- [ ] Se ve bien en mobile (< 375px) y desktop
-- [ ] `npm run lint` sin errores
+* **No inyectar fetching local:** Toda la información reactiva y lógica matemática de balance debe consumirse exclusivamente mediante los getters de `useFinanceStore`.
+* **No romper el Design System:** Chanchito corre en modo oscuro estricto. Mantén las clases semánticas (`bg-surface`, `bg-surface-raised`, `text-slate-50`, `text-slate-400`).
+
+## 6. Checklist de Verificación de Claude Code
+
+El cambio se considerará exitoso si cumple al 100% con los siguientes puntos:
+
+* [ ] Los inputs numéricos tienen `inputMode` y deshabilitan el auto-corrector.
+* [ ] Todo elemento interactivo tiene un área táctil mínima de 44px.
+* [ ] Se incluyeron clases de transición (`transition-*`) y escala al presionar (`active:scale-*`).
+* [ ] El componente fue testeado visualmente o estructurado para no romperse en dispositivos de ancho 320px (iPhone SE).
+* [ ] Todos los iconos decorativos tienen `aria-hidden="true"` y los interactivos tienen `aria-label`.
+* [ ] El linter (`npm run lint`) compila en limpio.

@@ -545,6 +545,42 @@ export interface Database {
           }
         ]
       }
+      internal_transfers: {
+        Row: {
+          id: string
+          user_id: string
+          amount: number
+          currency: 'ARS' | 'USD'
+          period_date: string
+          real_transfer_date: string
+          transfer_type: 'end_of_month_surplus' | 'manual'
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          amount: number
+          currency?: 'ARS' | 'USD'
+          period_date: string
+          real_transfer_date?: string
+          transfer_type?: 'end_of_month_surplus' | 'manual'
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          amount?: number
+          currency?: 'ARS' | 'USD'
+          period_date?: string
+          real_transfer_date?: string
+          transfer_type?: 'end_of_month_surplus' | 'manual'
+          description?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       savings_goals: {
         Row: {
           id: string
@@ -689,6 +725,7 @@ export type InvestmentTransaction = Tables<'investment_transactions'>
 export type ExchangeRate = Tables<'exchange_rates'>
 export type MarketPrice = Tables<'market_prices'>
 export type Saving = Tables<'savings'>
+export type InternalTransfer = Tables<'internal_transfers'>
 export type SavingsGoal = Tables<'savings_goals'>
 export type SavingsGoalContribution = Tables<'savings_goal_contributions'>
 export type CategoryBudget = Tables<'category_budgets'>

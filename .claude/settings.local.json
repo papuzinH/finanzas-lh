@@ -16,7 +16,11 @@
       "Bash(rm fix-runner.mjs)",
       "Bash(xargs grep:*)",
       "Bash(npm install:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(rtk npm *)",
+      "Bash(curl -s -A \"Mozilla/5.0\" \"https://iol.invertironline.com/titulo/cotizacion/BCBA/YMCIO/1\" -o /tmp/ymcio.html)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -A \"Mozilla/5.0\" \"https://iol.invertironline.com/titulo/cotizacion/BCBA/AL30/1\" -o /tmp/al30.html)"
     ]
   }
 }

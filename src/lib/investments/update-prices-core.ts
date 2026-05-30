@@ -34,25 +34,37 @@ export async function runUpdatePrices(
 
     const results = await Promise.allSettled(
       batch.map(async (asset) => {
+        if (asset.asset_type === 'plazo_fijo' || asset.asset_type === 'money_market') {
+          return { asset, priceResult: null, isFixedTerm: true }
+        }
+
         const priceResult = await fetchPriceForAsset({
           ticker: asset.ticker,
           asset_type: asset.asset_type as (typeof ASSET_TYPES)[number],
           data_source_url: asset.data_source_url,
           metadata: asset.metadata as Record<string, unknown> | null,
         })
-        return { asset, priceResult }
+        return { asset, priceResult, isFixedTerm: false }
       }),
     )
 
     for (const result of results) {
-      if (result.status === 'rejected' || !result.value.priceResult) {
-        if (result.status === 'fulfilled') {
-          failed.push(result.value.asset.ticker)
-        }
+      if (result.status === 'rejected') {
         continue
       }
 
-      const { asset, priceResult } = result.value
+      const { asset, priceResult, isFixedTerm } = result.value
+
+      if (isFixedTerm) {
+        updated++
+        continue
+      }
+
+      if (!priceResult) {
+        failed.push(asset.ticker)
+        continue
+      }
+
       const { error: upsertError } = await supabase.from('market_prices').upsert(
         {
           ticker: asset.ticker,

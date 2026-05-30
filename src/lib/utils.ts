@@ -49,6 +49,25 @@ export const detectCurrencyFromTicker = (ticker?: string): 'ARS' | 'USD' | null 
   return null;
 };
 
+export const formatRelativeTime = (iso: string | null | undefined): string => {
+  if (!iso) return '—';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  if (diffMs < 0) return 'recién';
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return 'recién';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `hace ${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `hace ${days}d`;
+};
+
+export const isStale = (iso: string | null | undefined, hours = 24): boolean => {
+  if (!iso) return false;
+  return Date.now() - new Date(iso).getTime() > hours * 3600_000;
+};
+
 export const formatDate = (dateString: string | Date) => {
   let date: Date;
 

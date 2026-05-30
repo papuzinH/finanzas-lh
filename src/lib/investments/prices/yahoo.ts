@@ -18,8 +18,13 @@ async function fetchYahoo(symbol: string): Promise<number | null> {
 }
 
 /** Precio en pesos ARS para stocks/CEDEARs listados en BCBA (agrega .BA) */
-export async function fetchStockPrice(ticker: string): Promise<number | null> {
-  return fetchYahoo(`${ticker.toUpperCase()}.BA`)
+export async function fetchStockPrice(
+  ticker: string,
+  options?: { market?: 'BCBA' | 'US' },
+): Promise<number | null> {
+  const market = options?.market ?? 'BCBA'
+  const symbol = market === 'US' ? ticker.toUpperCase() : `${ticker.toUpperCase()}.BA`
+  return fetchYahoo(symbol)
 }
 
 /** Precio en USD para stocks listados en NYSE/NASDAQ (sin suffix) */

@@ -27,9 +27,21 @@ interface AssetInput {
  */
 export async function fetchPriceForAsset(asset: AssetInput): Promise<PriceResult | null> {
   const { ticker, asset_type, data_source_url, metadata } = asset
+  const market = typeof metadata?.market === 'string' ? metadata.market.toUpperCase() : null
+  const isInternational =
+    metadata?.is_international === true ||
+    market === 'US' ||
+    market === 'NYSE' ||
+    market === 'NASDAQ'
 
   switch (asset_type) {
     case 'stock': {
+      if (isInternational) {
+        const price_usd = await fetchUSPrice(ticker)
+        if (price_usd === null) return null
+        return { price_ars: price_usd, price_usd, source: 'yahoo_us' }
+      }
+
       const price_ars = await fetchStockPrice(ticker)
       if (price_ars === null) return null
       return { price_ars, source: 'yahoo' }
@@ -58,31 +70,44 @@ export async function fetchPriceForAsset(asset: AssetInput): Promise<PriceResult
 
     case 'bond':
     case 'bopreal': {
+      // IOL cotiza renta fija por cada 100 VN. Normalizamos a precio por 1 nominal.
       const url = data_source_url || null
-      const price_ars = url ? await fetchFromUrl(url) : await fetchBondPrice(ticker)
-      if (price_ars === null) return null
-      return { price_ars, source: 'iol' }
+      const raw = url ? await fetchFromUrl(url) : await fetchBondPrice(ticker)
+      if (raw === null) return null
+      return { price_ars: raw / 100, source: 'iol' }
     }
 
     case 'on': {
       const url = data_source_url || null
-      const price_ars = url ? await fetchFromUrl(url) : await fetchONPrice(ticker)
-      if (price_ars === null) return null
-      return { price_ars, source: 'iol' }
+      const raw = url ? await fetchFromUrl(url) : await fetchONPrice(ticker)
+      if (raw === null) return null
+      return { price_ars: raw / 100, source: 'iol' }
     }
 
     case 'lecap':
     case 'boncap': {
       const url = data_source_url || null
-      const price_ars = url ? await fetchFromUrl(url) : await fetchLetrasPrice(ticker)
-      if (price_ars === null) return null
-      return { price_ars, source: 'iol' }
+      const raw = url ? await fetchFromUrl(url) : await fetchLetrasPrice(ticker)
+      if (raw === null) return null
+      return { price_ars: raw / 100, source: 'iol' }
     }
 
     case 'fci':
     case 'etf': {
       const url = data_source_url || null
-      const price_ars = url ? await fetchFromUrl(url) : await fetchFCIPrice(ticker)
+      if (url) {
+        const price_ars = await fetchFromUrl(url)
+        if (price_ars === null) return null
+        return { price_ars, source: 'iol' }
+      }
+
+      // ETFs internacionales (VOO, QQQ, etc.) priorizan precio en USD
+      const etfUsd = await fetchUSPrice(ticker)
+      if (etfUsd !== null) {
+        return { price_ars: etfUsd, price_usd: etfUsd, source: 'yahoo_us' }
+      }
+
+      const price_ars = await fetchFCIPrice(ticker)
       if (price_ars === null) return null
       return { price_ars, source: 'iol' }
     }

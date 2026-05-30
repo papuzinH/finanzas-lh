@@ -13,6 +13,7 @@ import {
   User,
   Category,
   Saving,
+  InternalTransfer,
   SavingsGoal,
   SavingsGoalContribution,
   CategoryBudget,
@@ -59,6 +60,7 @@ interface FinanceState {
   marketPrices: MarketPrice[];
   categories: Category[];
   savings: Saving[];
+  internalTransfers: InternalTransfer[];
   savingsGoals: SavingsGoal[];
   savingsGoalContributions: SavingsGoalContribution[];
   categoryBudgets: CategoryBudget[];
@@ -95,6 +97,8 @@ interface FinanceState {
       totalPL: number;
       plPercent: number;
       lastUpdate: string | null;
+      source: string | null;
+      metadata: Record<string, unknown> | null;
       profitAmount: number;
       profitPercent: number;
       lastPrice: number;
@@ -104,6 +108,8 @@ interface FinanceState {
     totalUnrealizedPL: number;
     totalRealizedPL: number;
     totalPLPercent: number;
+    totalSavings: number;
+    savingsBreakdown: { ARS: number; USD: number };
     displayCurrency: string;
     lastUpdate: string | null;
     totalBalanceARS: number;
@@ -190,9 +196,16 @@ interface FinanceState {
     variableExpenses: number;
     installmentsTotal: number;
     subscriptionsCost: number;
+    savingsTransfers: number;
     totalExpenses: number;
     income: number;
     netBalance: number;
+  };
+  getEndOfMonthSurplusSuggestion: () => {
+    suggestedAmount: number;
+    isEndOfMonth: boolean;
+    alreadyTransferred: boolean;
+    periodMonth: string;
   };
 
   // Goals Getters
@@ -357,6 +370,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   categories: [],
   marketPrices: [],
   savings: [],
+  internalTransfers: [],
   savingsGoals: [],
   savingsGoalContributions: [],
   categoryBudgets: [],
@@ -393,6 +407,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         { data: categories, error: catError },
         { data: userData, error: userError },
         { data: savingsData, error: savError },
+        { data: internalTransfersData, error: internalTransfersError },
         { data: savingsGoalsData, error: goalsError },
         { data: contributionsData, error: contribError },
         { data: budgetsData, error: budgetsError },
@@ -439,6 +454,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           .select('*')
           .eq('user_id', authUser.id)
           .order('date', { ascending: false }),
+        supabase
+          .from('internal_transfers')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .order('period_date', { ascending: false }),
         supabase
           .from('savings_goals')
           .select('*')
@@ -493,6 +513,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       if (catError) throw catError;
       if (savError) throw savError;
       if (userError && userError.code !== 'PGRST116') throw userError; // PGRST116 is "no rows returned"
+      if (internalTransfersError) console.warn('Internal transfers fetch error (may be missing migration):', internalTransfersError.message);
       // Goals errors are non-blocking (tables may not exist yet in DEV)
       if (goalsError) console.warn('Goals fetch error (may be missing migration):', goalsError.message);
       if (contribError) console.warn('Contributions fetch error:', contribError.message);
@@ -548,6 +569,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         marketPrices: (marketPrices as MarketPrice[]) || [],
         categories: (categories as Category[]) || [],
         savings: (savingsData as Saving[]) || [],
+        internalTransfers: (internalTransfersData as InternalTransfer[]) || [],
         savingsGoals: (savingsGoalsData as SavingsGoal[]) || [],
         savingsGoalContributions: (contributionsData as SavingsGoalContribution[]) || [],
         categoryBudgets: (budgetsData as CategoryBudget[]) || [],
@@ -567,152 +589,161 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getPortfolioStatus: (displayCurrency = 'ARS') => {
-    const { investmentAssets, investmentTransactions, marketPrices, investments, exchangeRates } = get();
+    const { investmentAssets, investmentTransactions, marketPrices, exchangeRates, dolarBlue, savings } = get();
 
-    const getExchangeRate = (pair: string): number | null => {
-      const r = exchangeRates.find(e => e.pair === pair);
-      return r ? r.rate : null;
+    // Fallback al dolar blue (dolarapi.com, non-blocking en fetchAllData) cuando
+    // la tabla exchange_rates aún no tiene la pair específica.
+    const blueFallback = dolarBlue?.venta && dolarBlue.venta > 0 ? dolarBlue.venta : null;
+
+    const getRate = (pair: string): number => {
+      const r = exchangeRates.find((e) => e.pair === pair);
+      if (r && r.rate > 0) return r.rate;
+      if (blueFallback) return blueFallback;
+      return 1;
     };
 
-    const convertARS = (arsValue: number): number => {
+    const mepRate = getRate('USD_ARS_MEP');
+    const cclRate = getRate('USD_ARS_CCL');
+    const usdtRate = getRate('USDT_ARS');
+
+    const convertArsToDisplay = (arsValue: number): number => {
       if (displayCurrency === 'ARS') return arsValue;
-      let rate: number | null = null;
-      if (displayCurrency === 'USD_MEP') rate = getExchangeRate('USD_ARS_MEP');
-      else if (displayCurrency === 'USD_CCL') rate = getExchangeRate('USD_ARS_CCL');
-      else if (displayCurrency === 'USDT') rate = getExchangeRate('USDT_ARS');
-      return rate && rate > 0 ? arsValue / rate : arsValue;
+      if (displayCurrency === 'USD_MEP') return arsValue / mepRate;
+      if (displayCurrency === 'USD_CCL') return arsValue / cclRate;
+      if (displayCurrency === 'USDT') return arsValue / usdtRate;
+      return arsValue / mepRate;
     };
 
-    // Legacy fallback: use old investments table if new tables are empty
-    if (investmentAssets.length === 0 && investments.length > 0) {
-      let totalBalanceARS = 0, totalBalanceUSD = 0, totalProfitARS = 0, totalProfitUSD = 0;
-      let lastUpdate: string | null = null;
+    const convertToARS = (amount: number, fromCurrency: string): number => {
+      if (fromCurrency === 'ARS') return amount;
+      return amount * mepRate;
+    };
 
-      const assets = investments.map((inv) => {
-        const mp = marketPrices.find(mp => mp.ticker === inv.ticker);
-        const lastPrice = mp?.last_price ?? inv.avg_buy_price ?? 0;
-        const upd = mp?.last_update ?? null;
-        if (upd && (!lastUpdate || new Date(upd) > new Date(lastUpdate))) lastUpdate = upd;
-
-        const qty = Number(inv.quantity);
-        const avgBuy = Number(inv.avg_buy_price || 0);
-        const currentValue = qty * lastPrice;
-        const investedValue = qty * avgBuy;
-        const unrealizedPL = currentValue - investedValue;
-        const plPercent = investedValue !== 0 ? (unrealizedPL / investedValue) * 100 : 0;
-
-        if (inv.currency === 'USD') { totalBalanceUSD += currentValue; totalProfitUSD += unrealizedPL; }
-        else { totalBalanceARS += currentValue; totalProfitARS += unrealizedPL; }
-
-        return {
-          id: inv.id, ticker: inv.ticker, name: inv.name, asset_type: inv.type,
-          currency: inv.currency, position: qty, ppc: avgBuy, currentPrice: lastPrice,
-          currentValue, investedValue, unrealizedPL, realizedPL: 0, totalPL: unrealizedPL,
-          plPercent, lastUpdate: upd, profitAmount: unrealizedPL, profitPercent: plPercent, lastPrice,
-        };
-      });
-
-      const totalValue = totalBalanceARS + totalBalanceUSD;
-      const totalInvested = assets.reduce((s, a) => s + a.investedValue, 0);
-      const totalUnrealizedPL = totalProfitARS + totalProfitUSD;
-
-      return {
-        assets, totalValue, totalInvested, totalUnrealizedPL, totalRealizedPL: 0,
-        totalPLPercent: totalInvested > 0 ? (totalUnrealizedPL / totalInvested) * 100 : 0,
-        displayCurrency, lastUpdate, totalBalanceARS, totalBalanceUSD, totalProfitARS, totalProfitUSD,
-      };
-    }
-
-    // New implementation using investment_assets + investment_transactions
-    let globalUnrealizedPL = 0, globalRealizedPL = 0, globalValue = 0, globalInvested = 0;
+    let globalValueARS = 0;
+    let globalInvestedARS = 0;
+    let globalRealizedPLARS = 0;
     let lastUpdate: string | null = null;
 
     const assets = investmentAssets.map((asset) => {
-      const txs = investmentTransactions.filter(t => t.asset_id === asset.id);
-      const buys = txs.filter(t => t.type === 'buy');
-      const sells = txs.filter(t => t.type === 'sell');
+      const txs = investmentTransactions.filter((t) => t.asset_id === asset.id);
+      const buys = txs.filter((t) => t.type === 'buy');
+      const sells = txs.filter((t) => t.type === 'sell');
 
       const totalBuyQty = buys.reduce((s, t) => s + Number(t.quantity), 0);
       const totalSellQty = sells.reduce((s, t) => s + Number(t.quantity), 0);
       const position = Math.max(totalBuyQty - totalSellQty, 0);
 
-      const totalBuyCost = buys.reduce((s, t) => s + Number(t.quantity) * Number(t.price_per_unit), 0);
-      const ppc = totalBuyQty > 0 ? totalBuyCost / totalBuyQty : 0;
+      const totalBuyCostARS = buys.reduce((s, t) => {
+        const costRaw = Number(t.quantity) * Number(t.price_per_unit) + Number(t.fees ?? 0);
+        return s + convertToARS(costRaw, t.currency);
+      }, 0);
 
-      const mp = marketPrices.find(mp => mp.ticker === asset.ticker);
-      const upd = mp?.last_update ?? null;
-      if (upd && (!lastUpdate || new Date(upd) > new Date(lastUpdate))) lastUpdate = upd;
+      const ppcARS = totalBuyQty > 0 ? totalBuyCostARS / totalBuyQty : 0;
 
-      let currentPrice = mp?.last_price ?? ppc;
+      const mp = marketPrices.find((m) => m.ticker === asset.ticker);
+      if (mp?.last_update && (!lastUpdate || new Date(mp.last_update) > new Date(lastUpdate))) {
+        lastUpdate = mp.last_update;
+      }
 
-      // Plazo fijo / money market: valor proyectado por TNA
+      let currentPriceARS = mp?.last_price ?? ppcARS;
+
       if (asset.asset_type === 'plazo_fijo' || asset.asset_type === 'money_market') {
         const meta = asset.metadata as Record<string, unknown>;
         const tna = typeof meta?.tna === 'number' ? meta.tna : 0;
         const startStr = typeof meta?.start_date === 'string' ? meta.start_date : null;
         const endStr = typeof meta?.end_date === 'string' ? meta.end_date : null;
 
-        if (tna > 0 && startStr && totalBuyCost > 0) {
+        if (tna > 0 && startStr && totalBuyCostARS > 0) {
           const startD = parseLocalDate(startStr);
           const endD = endStr ? parseLocalDate(endStr) : null;
           const today = new Date();
-          const msDay = 86400000;
-          const maxDays = endD ? (endD.getTime() - startD.getTime()) / msDay : 365;
-          const elapsed = Math.min((today.getTime() - startD.getTime()) / msDay, maxDays);
-          const projected = totalBuyCost * (1 + tna * (elapsed / 365));
-          currentPrice = position > 0 ? projected / position : ppc;
-        } else {
-          currentPrice = ppc;
+          const elapsedDays = Math.min(
+            (today.getTime() - startD.getTime()) / 86400000,
+            endD ? (endD.getTime() - startD.getTime()) / 86400000 : 365,
+          );
+          const dailyAccruedMultiplier = 1 + (tna * (Math.max(elapsedDays, 0) / 365));
+          currentPriceARS = position > 0 ? (totalBuyCostARS * dailyAccruedMultiplier) / position : ppcARS;
         }
+      } else if (asset.currency === 'USD' && mp?.price_usd) {
+        currentPriceARS =
+          Number(mp.price_usd) *
+          (asset.asset_type === 'cedear' ? Number(mp.ccl_implicit || cclRate) : mepRate);
       }
 
-      const currentValue = position * currentPrice;
-      const investedValue = position * ppc;
-      const unrealizedPL = (currentPrice - ppc) * position;
-      const realizedPL = sells.reduce((s, t) => s + (Number(t.price_per_unit) - ppc) * Number(t.quantity), 0);
-      const plPercent = investedValue > 0 ? (unrealizedPL / investedValue) * 100 : 0;
+      const currentValueARS = position * currentPriceARS;
+      const investedValueARS = position * ppcARS;
+      const unrealizedPLARS = currentValueARS - investedValueARS;
 
-      const cvConv = convertARS(currentValue);
-      const ivConv = convertARS(investedValue);
-      const upnlConv = convertARS(unrealizedPL);
-      const rpnlConv = convertARS(realizedPL);
-      const priceConv = convertARS(currentPrice);
-      const ppcConv = convertARS(ppc);
+      const realizedPLARS = sells.reduce((s, t) => {
+        const sellRevenueARS = convertToARS(
+          Number(t.quantity) * Number(t.price_per_unit) - Number(t.fees ?? 0),
+          t.currency,
+        );
+        const originalCostARS = Number(t.quantity) * ppcARS;
+        return s + (sellRevenueARS - originalCostARS);
+      }, 0);
 
-      globalValue += cvConv;
-      globalInvested += ivConv;
-      globalUnrealizedPL += upnlConv;
-      globalRealizedPL += rpnlConv;
+      globalValueARS += currentValueARS;
+      globalInvestedARS += investedValueARS;
+      globalRealizedPLARS += realizedPLARS;
+
+      const plPercent = investedValueARS > 0 ? (unrealizedPLARS / investedValueARS) * 100 : 0;
 
       return {
-        id: asset.id, ticker: asset.ticker, name: asset.name,
-        asset_type: asset.asset_type, currency: asset.currency,
-        position, ppc: ppcConv, currentPrice: priceConv,
-        currentValue: cvConv, investedValue: ivConv,
-        unrealizedPL: upnlConv, realizedPL: rpnlConv,
-        totalPL: upnlConv + rpnlConv, plPercent,
-        lastUpdate: upd,
-        profitAmount: upnlConv, profitPercent: plPercent, lastPrice: priceConv,
+        id: asset.id,
+        ticker: asset.ticker,
+        name: asset.name,
+        asset_type: asset.asset_type,
+        currency: asset.currency,
+        position,
+        ppc: convertArsToDisplay(ppcARS),
+        currentPrice: convertArsToDisplay(currentPriceARS),
+        currentValue: convertArsToDisplay(currentValueARS),
+        investedValue: convertArsToDisplay(investedValueARS),
+        unrealizedPL: convertArsToDisplay(unrealizedPLARS),
+        realizedPL: convertArsToDisplay(realizedPLARS),
+        totalPL: convertArsToDisplay(unrealizedPLARS + realizedPLARS),
+        plPercent,
+        lastUpdate: mp?.last_update ?? null,
+        source: mp?.source ?? null,
+        metadata: (asset.metadata as Record<string, unknown> | null) ?? null,
+        profitAmount: convertArsToDisplay(unrealizedPLARS),
+        profitPercent: plPercent,
+        lastPrice: convertArsToDisplay(currentPriceARS),
       };
     });
 
-    const totalPLPercent = globalInvested > 0
-      ? ((globalUnrealizedPL + globalRealizedPL) / globalInvested) * 100
-      : 0;
+    const totalUnrealizedPLDisplay = convertArsToDisplay(globalValueARS - globalInvestedARS);
+    const totalRealizedPLDisplay = convertArsToDisplay(globalRealizedPLARS);
+    const totalInvestedDisplay = convertArsToDisplay(globalInvestedARS);
+
+    // Savings (tenencia de dólares/pesos sueltos)
+    const arsSavingsRaw = savings
+      .filter((s) => s.currency === 'ARS')
+      .reduce((acc, s) => acc + Number(s.amount), 0);
+    const usdSavingsRaw = savings
+      .filter((s) => s.currency === 'USD')
+      .reduce((acc, s) => acc + Number(s.amount), 0);
+    const savingsInARS = arsSavingsRaw + usdSavingsRaw * mepRate;
 
     return {
       assets,
-      totalValue: globalValue,
-      totalInvested: globalInvested,
-      totalUnrealizedPL: globalUnrealizedPL,
-      totalRealizedPL: globalRealizedPL,
-      totalPLPercent,
+      totalValue: convertArsToDisplay(globalValueARS + savingsInARS),
+      totalInvested: totalInvestedDisplay,
+      totalUnrealizedPL: totalUnrealizedPLDisplay,
+      totalRealizedPL: totalRealizedPLDisplay,
+      totalPLPercent:
+        totalInvestedDisplay > 0
+          ? ((totalUnrealizedPLDisplay + totalRealizedPLDisplay) / totalInvestedDisplay) * 100
+          : 0,
+      totalSavings: convertArsToDisplay(savingsInARS),
+      savingsBreakdown: { ARS: arsSavingsRaw, USD: usdSavingsRaw },
       displayCurrency,
       lastUpdate,
-      totalBalanceARS: displayCurrency === 'ARS' ? globalValue : 0,
-      totalBalanceUSD: displayCurrency !== 'ARS' ? globalValue : 0,
-      totalProfitARS: displayCurrency === 'ARS' ? globalUnrealizedPL : 0,
-      totalProfitUSD: displayCurrency !== 'ARS' ? globalUnrealizedPL : 0,
+      totalBalanceARS: displayCurrency === 'ARS' ? (globalValueARS + savingsInARS) : 0,
+      totalBalanceUSD: displayCurrency !== 'ARS' ? convertArsToDisplay(globalValueARS + savingsInARS) : 0,
+      totalProfitARS: displayCurrency === 'ARS' ? (globalValueARS - globalInvestedARS) : 0,
+      totalProfitUSD: displayCurrency !== 'ARS' ? totalUnrealizedPLDisplay : 0,
     };
   },
 
@@ -869,7 +900,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * - Ahorros (tabla separada, no son transacciones)
    */
   getGlobalBalance: () => {
-    const { transactions, paymentMethods, getMonthlyBurnRate } = get();
+    const { transactions, paymentMethods, getMonthlyBurnRate, internalTransfers } = get();
     const now = new Date();
     const todayStart = startOfDay(now);
 
@@ -905,7 +936,13 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     //    reflejar el compromiso del mes en curso.
     const recurringExpense = getMonthlyBurnRate();
 
-    return totalIncome - variableExpenses - installmentsExpense - recurringExpense;
+    // 4. Ahorros transferidos (tabla separada): dejan de ser saldo gastable.
+    const transferredToSavings = internalTransfers.reduce(
+      (acc, transfer) => acc + Math.abs(Number(transfer.amount)),
+      0
+    );
+
+    return totalIncome - variableExpenses - installmentsExpense - recurringExpense - transferredToSavings;
   },
 
   /**
@@ -1318,7 +1355,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * - variableExpenses: Gastos sin cuotas ni suscripciones
    * - installmentsTotal: Cuotas que vencen este mes
    * - subscriptionsCost: Suscripciones activas (burn rate)
-   * - totalExpenses: Suma de los tres anteriores
+  * - savingsTransfers: Transferencias a ahorro del mes
+  * - totalExpenses: Suma de gastos + transferencias a ahorro
    * - income: Ingresos del mes actual
    * - netBalance: income - totalExpenses (balance DEL MES, no histórico)
    *
@@ -1332,12 +1370,18 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       getCurrentMonthInstallmentsTotal,
       getMonthlyBurnRate,
       getMonthlyIncome,
+      internalTransfers,
     } = get();
+    const now = new Date();
+    const currentMonth = format(now, 'yyyy-MM');
 
     const variableExpenses = getMonthlyVariableExpenses();
     const installmentsTotal = getCurrentMonthInstallmentsTotal();
     const subscriptionsCost = getMonthlyBurnRate();
-    const totalExpenses = variableExpenses + installmentsTotal + subscriptionsCost;
+    const savingsTransfers = internalTransfers
+      .filter((transfer) => transfer.period_date?.slice(0, 7) === currentMonth)
+      .reduce((acc, transfer) => acc + Math.abs(Number(transfer.amount)), 0);
+    const totalExpenses = variableExpenses + installmentsTotal + subscriptionsCost + savingsTransfers;
     const income = getMonthlyIncome();
     const netBalance = income - totalExpenses;
 
@@ -1345,9 +1389,31 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       variableExpenses,
       installmentsTotal,
       subscriptionsCost,
+      savingsTransfers,
       totalExpenses,
       income,
       netBalance,
+    };
+  },
+
+  getEndOfMonthSurplusSuggestion: () => {
+    const { getMonthlyExpensesBreakdown, internalTransfers } = get();
+    const now = new Date();
+    const lastDay = endOfMonth(now).getDate();
+    const isEndOfMonth = now.getDate() >= Math.max(lastDay - 4, 1);
+    const periodMonth = format(now, 'yyyy-MM');
+    const suggestedAmount = Math.max(getMonthlyExpensesBreakdown().netBalance, 0);
+
+    const alreadyTransferred = internalTransfers.some((transfer) => {
+      const transferMonth = transfer.period_date?.slice(0, 7);
+      return transfer.transfer_type === 'end_of_month_surplus' && transferMonth === periodMonth;
+    });
+
+    return {
+      suggestedAmount,
+      isEndOfMonth,
+      alreadyTransferred,
+      periodMonth,
     };
   },
 

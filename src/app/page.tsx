@@ -13,7 +13,6 @@ import {
   Flame,
   LayoutDashboard
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { PageHeader } from '@/components/shared/page-header';
@@ -25,6 +24,7 @@ import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { BalanceCard } from '@/components/dashboard/balance-card';
 import { IncompleteCreditCardsBanner } from '@/components/dashboard/incomplete-credit-cards-banner';
+import { EndOfMonthSavingsBanner } from '@/components/dashboard/end-of-month-savings-banner';
 import { MetricRow } from '@/components/dashboard/metric-row';
 import { BudgetOverviewStrip } from '@/components/goals/budget-overview-strip';
 import { TrendChart } from '@/components/dashboard/trend-chart';
@@ -33,6 +33,81 @@ import { InsightsCarousel } from '@/components/dashboard/insights-carousel';
 import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'];
+
+function CategoryBreakdownCard({
+  title,
+  data,
+  total,
+  icon: Icon,
+  onClick,
+  className,
+}: {
+  title: string;
+  data: Array<{ name: string; value: number; percentage: number }>;
+  total: number;
+  icon: React.ComponentType<{ className?: string }>;
+  onClick?: () => void;
+  className?: string;
+}) {
+  if (data.length === 0) {
+    return (
+      <div className={`rounded-2xl border border-slate-800 bg-surface-raised/30 p-5 ${className ?? ''}`}>
+        <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2 mb-4">
+          <Icon className="w-4 h-4 text-slate-400" aria-hidden="true" />
+          {title}
+        </h3>
+        <div className="h-20 flex items-center justify-center text-xs text-slate-400 italic">
+          Sin datos para mostrar
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-2xl border border-slate-800 bg-surface-raised/30 p-5 w-full text-left cursor-pointer hover:bg-slate-800/30 active:scale-[0.99] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${className ?? ''}`}
+      aria-label={`Ver desglose de ${title}`}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+          <Icon className="w-4 h-4 text-slate-400" aria-hidden="true" />
+          {title}
+        </h3>
+        <span className="text-xs text-slate-400 font-mono">{formatCurrency(total)}</span>
+      </div>
+      <div className="space-y-2.5">
+        {data.map((item, index) => (
+          <div key={item.name}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  aria-hidden="true"
+                />
+                <span className="text-xs text-slate-300 truncate">{item.name}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-3">
+                <span className="text-[10px] text-slate-400 tabular-nums">{item.percentage.toFixed(0)}%</span>
+                <span className="text-xs font-mono text-slate-200 tabular-nums">{formatCurrency(item.value)}</span>
+              </div>
+            </div>
+            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${item.percentage}%`,
+                  backgroundColor: COLORS[index % COLORS.length],
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </button>
+  );
+}
 
 export default function DashboardPage() {
   const [isInstallmentsModalOpen, setIsInstallmentsModalOpen] = useState(false);
@@ -48,7 +123,6 @@ export default function DashboardPage() {
     isLoading, 
     isInitialized, 
     fetchAllData,
-    getGlobalBalance,
     getMonthlyBurnRate,
     getCurrentMonthInstallmentsTotal,
     getCurrentMonthInstallments,
@@ -58,6 +132,7 @@ export default function DashboardPage() {
     getCategoryBreakdown,
     getMonthlyIncome,
     getMonthlyVariableExpenses,
+    getMonthlyExpensesBreakdown,
     getRegistrationStreak,
     user
   } = useFinanceStore();
@@ -76,13 +151,13 @@ export default function DashboardPage() {
 
   // --- CÁLCULOS PARA LA VISTA ---
   
-  const globalBalance = getGlobalBalance();
   const monthlyBurnRate = getMonthlyBurnRate();
   const currentMonthInstallments = getCurrentMonthInstallmentsTotal();
   const currentMonthInstallmentsList = getCurrentMonthInstallments();
   const activeRecurringPlans = getActiveRecurringPlans();
   const monthlyIncome = getMonthlyIncome();
   const monthlyVariableExpenses = getMonthlyVariableExpenses();
+  const monthlyBreakdown = getMonthlyExpensesBreakdown();
   const streak = getRegistrationStreak();
 
   // Datos para los Gráficos y Modales
@@ -147,12 +222,17 @@ export default function DashboardPage() {
           {/* Expandible Balance Card */}
           <div data-tour="balance-card" className="col-span-2 lg:col-span-4">
             <BalanceCard
-              globalBalance={globalBalance}
               monthlyIncome={monthlyIncome}
               monthlyExpenses={monthlyVariableExpenses}
               installments={currentMonthInstallments}
               burnRate={monthlyBurnRate}
+              savingsTransfers={monthlyBreakdown.savingsTransfers}
             />
+          </div>
+
+          {/* CTA ahorro: debajo de la card principal de balance */}
+          <div className="col-span-2 lg:col-span-4">
+            <EndOfMonthSavingsBanner />
           </div>
 
           {/* Insights Carousel */}
@@ -222,123 +302,38 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
           {/* Gráfico 0: Tendencia Ingreso vs Gasto (6 meses) */}
-          <div className="col-span-full rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-5">
+          <div className="col-span-full rounded-2xl border border-slate-800 bg-surface-raised/30 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-slate-400" />
+                <TrendingUp className="w-4 h-4 text-slate-400" aria-hidden="true" />
                 Tendencia Ingreso vs Gasto
               </h3>
               <div className="flex items-center gap-3 text-[10px] text-slate-400">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Ingresos</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />Gastos</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" aria-hidden="true" />Ingresos</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" aria-hidden="true" />Gastos</span>
               </div>
             </div>
             <TrendChart />
           </div>
 
           {/* Gráfico 1: Gastos Globales */}
-          <div
+          <CategoryBreakdownCard
+            title="Gastos Globales"
+            data={globalChartData}
+            total={globalBreakdown.total}
+            icon={TrendingUp}
             onClick={() => setIsGlobalExpensesModalOpen(true)}
-            className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-5 cursor-pointer hover:bg-slate-800/30 transition-colors"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-slate-400" />
-                Gastos Globales
-              </h3>
-            </div>
-            <div className="h-40 w-full flex items-center">
-              <div className="w-1/2 h-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={globalChartData}
-                      innerRadius={30}
-                      outerRadius={50}
-                      paddingAngle={5}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {globalChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px', fontSize: '12px' }}
-                      itemStyle={{ color: '#e2e8f0' }}
-                      formatter={(value: number) => formatCurrency(value)}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="w-1/2 pl-2 space-y-1.5">
-                {globalChartData.map((item, index) => (
-                  <div key={item.name} className="flex items-center justify-between text-[10px]">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                      <span className="text-slate-400 truncate max-w-20 md:max-w-[60px]">{item.name}</span>
-                    </div>
-                    <span className="font-mono text-slate-300">{formatCurrency(item.value)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+            className="col-span-1 lg:col-span-2"
+          />
 
-          {/* Gráfico 2: Gastos del Mes */}
-          <div
+          <CategoryBreakdownCard
+            title="Gastos este Mes"
+            data={currentMonthChartData}
+            total={currentMonthBreakdown.total}
+            icon={PieChartIcon}
             onClick={() => setIsMonthlyExpensesModalOpen(true)}
-            className="col-span-1 lg:col-span-2 rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-5 cursor-pointer hover:bg-slate-800/30 transition-colors"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                <PieChartIcon className="w-4 h-4 text-slate-400" />
-                Gastos este Mes
-              </h3>
-            </div>
-            {currentMonthChartData.length > 0 ? (
-              <div className="h-40 w-full flex items-center">
-                <div className="w-1/2 h-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={currentMonthChartData}
-                        innerRadius={30}
-                        outerRadius={50}
-                        paddingAngle={5}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {currentMonthChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px', fontSize: '12px' }}
-                        itemStyle={{ color: '#e2e8f0' }}
-                        formatter={(value: number) => formatCurrency(value)}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="w-1/2 pl-2 space-y-1.5">
-                  {currentMonthChartData.map((item, index) => (
-                    <div key={item.name} className="flex items-center justify-between text-[10px]">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                        <span className="text-slate-400 truncate max-w-[60px]">{item.name}</span>
-                      </div>
-                      <span className="font-mono text-slate-300">{formatCurrency(item.value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="h-40 flex items-center justify-center text-xs text-slate-400 italic">
-                Sin gastos este mes
-              </div>
-            )}
-          </div>
+            className="col-span-1 lg:col-span-2"
+          />
 
           {/* Gráfico 3: Variación por Categoría */}
           <div className="col-span-1 md:col-span-2 lg:col-span-2">

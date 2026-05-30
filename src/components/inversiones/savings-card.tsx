@@ -15,24 +15,36 @@ import {
 import { toast } from 'sonner'
 import { createSaving, deleteSaving } from '@/app/inversiones/actions'
 import { useFinanceStore } from '@/lib/store/financeStore'
-import { useRouter } from 'next/navigation'
 import type { Saving } from '@/types/database'
+import type { DisplayCurrency } from './currency-toggle'
 
-const formatCurrency = (amount: number, currency: 'ARS' | 'USD' = 'ARS') => {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(amount)
+interface SavingsCardProps {
+  displayCurrency?: DisplayCurrency
 }
 
-export function SavingsCard() {
-  const { savings, dolarBlue, fetchAllData } = useFinanceStore()
-  const router = useRouter()
+const fmtMoney = (amount: number, currency: 'ARS' | 'USD' = 'ARS') =>
+  new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount)
+
+const getRateFor = (
+  exchangeRates: { pair: string; rate: number }[],
+  pair: string,
+  fallback: number,
+): number => {
+  const r = exchangeRates.find((e) => e.pair === pair)
+  return r && r.rate > 0 ? r.rate : fallback
+}
+
+export function SavingsCard({ displayCurrency = 'ARS' }: SavingsCardProps) {
+  const { savings, dolarBlue, exchangeRates, fetchAllData } = useFinanceStore()
   const [open, setOpen] = useState(false)
   const [isPending, setIsPending] = useState(false)
   const [amount, setAmount] = useState('')
-  const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS')
+  const [currency, setCurrency] = useState<'ARS' | 'USD'>('USD')
 
   const totalARS = savings
     .filter(s => s.currency === 'ARS')
@@ -42,7 +54,26 @@ export function SavingsCard() {
     .filter(s => s.currency === 'USD')
     .reduce((acc, s) => acc + Number(s.amount), 0)
 
-  const totalInARS = totalARS + (dolarBlue ? totalUSD * dolarBlue.venta : 0)
+  const blueFallback = dolarBlue?.venta && dolarBlue.venta > 0 ? dolarBlue.venta : 1
+  const mepRate = getRateFor(exchangeRates, 'USD_ARS_MEP', blueFallback)
+  const cclRate = getRateFor(exchangeRates, 'USD_ARS_CCL', blueFallback)
+  const usdtRate = getRateFor(exchangeRates, 'USDT_ARS', blueFallback)
+
+  // Total en ARS — base para conversión a display
+  const totalInARS = totalARS + totalUSD * mepRate
+
+  let totalInDisplay = totalInARS
+  let displayLabel: 'ARS' | 'USD' = 'ARS'
+  if (displayCurrency === 'USD_MEP') {
+    totalInDisplay = totalInARS / mepRate
+    displayLabel = 'USD'
+  } else if (displayCurrency === 'USD_CCL') {
+    totalInDisplay = totalInARS / cclRate
+    displayLabel = 'USD'
+  } else if (displayCurrency === 'USDT') {
+    totalInDisplay = totalInARS / usdtRate
+    displayLabel = 'USD'
+  }
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,12 +89,10 @@ export function SavingsCard() {
       if (result.error) {
         toast.error(result.error)
       } else {
-        toast.success(`Se sumaron ${formatCurrency(numAmount, currency)} a tu ahorro`)
+        toast.success(`Se sumaron ${fmtMoney(numAmount, currency)} a tu ahorro`)
         setAmount('')
-        setCurrency('ARS')
         setOpen(false)
         await fetchAllData()
-        router.refresh()
       }
     } finally {
       setIsPending(false)
@@ -79,7 +108,6 @@ export function SavingsCard() {
       } else {
         toast.success('Registro eliminado')
         await fetchAllData()
-        router.refresh()
       }
     } finally {
       setIsPending(false)
@@ -87,74 +115,45 @@ export function SavingsCard() {
   }
 
   return (
-    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 md:p-6 relative overflow-hidden">
+    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 relative overflow-hidden">
       <div className="absolute top-0 right-0 p-3 opacity-10">
-        <PiggyBank className="w-12 md:w-16 h-12 md:h-16 text-amber-500" />
+        <PiggyBank className="w-12 h-12 text-amber-500" />
       </div>
 
-      <p className="text-[10px] md:text-xs font-medium text-amber-300 uppercase tracking-wider mb-1">Dinero Ahorrado</p>
-      <p className="text-xl md:text-3xl font-bold text-white font-mono tracking-tight">
-        {formatCurrency(totalInARS)}
-      </p>
-
-      {/* Breakdown */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px] text-slate-400">
-        {totalARS > 0 && <span>{formatCurrency(totalARS)} ARS</span>}
-        {totalUSD > 0 && <span>{formatCurrency(totalUSD, 'USD')} USD</span>}
-        {dolarBlue && (
-          <span className="text-amber-400/70">
-            Blue: ${dolarBlue.venta.toLocaleString('es-AR')}
-          </span>
-        )}
-      </div>
-
-      {/* History */}
-      {savings.length > 0 && (
-        <div className="mt-4 max-h-32 overflow-y-auto space-y-1.5 pr-1">
-          {savings.map(s => (
-            <div key={s.id} className="flex items-center justify-between text-xs bg-surface-raised/50 rounded-lg px-3 py-1.5 group">
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-3 h-3 text-amber-500/50" />
-                <span className="text-slate-300 font-mono">
-                  {formatCurrency(Number(s.amount), s.currency)}
-                </span>
-                <span className="text-slate-400">
-                  {new Date(s.date).toLocaleDateString('es-AR')}
-                </span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={isPending}
-                onClick={() => handleDelete(s)}
-                className="h-5 w-5 p-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-opacity"
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </div>
-          ))}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium text-amber-300 uppercase tracking-wider mb-1">
+            Ahorros (sin invertir)
+          </p>
+          <p className="text-lg md:text-xl font-bold text-white font-mono tracking-tight">
+            {fmtMoney(totalInDisplay, displayLabel)}
+          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5 text-[11px] text-slate-400">
+            {totalARS > 0 && <span>{fmtMoney(totalARS, 'ARS')} ARS</span>}
+            {totalUSD > 0 && <span>{fmtMoney(totalUSD, 'USD')} USD</span>}
+            {dolarBlue && (
+              <span className="text-amber-400/70">
+                Blue: ${dolarBlue.venta.toLocaleString('es-AR')}
+              </span>
+            )}
+          </div>
         </div>
-      )}
 
-      {/* Add Button */}
-      <div className="flex items-center gap-2 mt-3">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button
-              className="bg-amber-600 hover:bg-amber-700 text-white text-xs min-h-[44px] px-4"
-            >
-              <Plus className="w-4 h-4 mr-1.5" />
-              Sumar ahorro
+            <Button className="bg-amber-600 hover:bg-amber-700 text-white text-xs shrink-0">
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Sumar
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[400px] bg-surface-overlay border-slate-800 text-slate-50">
             <form onSubmit={handleAdd}>
               <DialogHeader>
                 <DialogTitle className="text-lg font-bold text-amber-300">
-                  Sumar al ahorro
+                  Sumar a tus ahorros
                 </DialogTitle>
                 <DialogDescription className="text-slate-400">
-                  Ingresa el monto que quieres sumar a tu ahorro.
+                  Registrá dólares o pesos sueltos (no invertidos) que querés trackear.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-6 space-y-4">
@@ -165,7 +164,7 @@ export function SavingsCard() {
                     step="any"
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
-                    placeholder="10000"
+                    placeholder="100"
                     className="bg-surface-raised border-slate-800 focus:border-amber-500/50 text-lg font-mono"
                     autoFocus
                     required
@@ -178,8 +177,8 @@ export function SavingsCard() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-surface-overlay border-slate-800">
-                      <SelectItem value="ARS" className="focus:bg-slate-800">ARS</SelectItem>
                       <SelectItem value="USD" className="focus:bg-slate-800">USD</SelectItem>
+                      <SelectItem value="ARS" className="focus:bg-slate-800">ARS</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -205,6 +204,36 @@ export function SavingsCard() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {savings.length > 0 && (
+        <div className="mt-3 max-h-32 overflow-y-auto space-y-1 pr-1">
+          {savings.map(s => (
+            <div
+              key={s.id}
+              className="flex items-center justify-between text-xs bg-surface-raised/50 rounded-md px-2.5 py-1.5 group"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <DollarSign className="w-3 h-3 text-amber-500/50 shrink-0" />
+                <span className="text-slate-300 font-mono shrink-0">
+                  {fmtMoney(Number(s.amount), s.currency as 'ARS' | 'USD')}
+                </span>
+                <span className="text-slate-500 text-[10px] truncate">
+                  {new Date(s.date).toLocaleDateString('es-AR')}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isPending}
+                onClick={() => handleDelete(s)}
+                className="h-5 w-5 p-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-opacity"
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

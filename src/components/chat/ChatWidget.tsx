@@ -2,12 +2,18 @@
 
 import { useEffect, useRef } from 'react'
 import { useChatStore } from '@/lib/store/chatStore'
+import { useFinanceStore } from '@/lib/store/financeStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X } from 'lucide-react'
 import { ChatBubble } from './ChatBubble'
 import { TypingIndicator } from './TypingIndicator'
 import { ChatInput } from './ChatInput'
 import { QuickActions } from './QuickActions'
+import { formatCurrency } from '@/lib/utils'
+
+function getSurplusChatPromptKey(periodMonth: string): string {
+  return `chanchito.surplusPrompt.sent.${periodMonth}`
+}
 
 function WelcomeMessage() {
   return (
@@ -22,7 +28,9 @@ function WelcomeMessage() {
 }
 
 export function ChatWidget() {
-  const { isOpen, toggleChat, messages, isLoading, isListening } = useChatStore()
+  const { isOpen, toggleChat, messages, isLoading, isListening, addMessage } = useChatStore()
+  const getMonthlyExpensesBreakdown = useFinanceStore((s) => s.getMonthlyExpensesBreakdown)
+  const internalTransfers = useFinanceStore((s) => s.internalTransfers)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll al último mensaje (scroll interno, no de la página)
@@ -31,6 +39,42 @@ export function ChatWidget() {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
     }
   }, [messages, isLoading])
+
+  // Prompt proactivo temporal: solo fin de mes con sobrante positivo
+  useEffect(() => {
+    if (!isOpen) return
+
+    const hasAnyChanchitoMessage = messages.some((m) => m.role === 'chanchito')
+    if (hasAnyChanchitoMessage) return
+
+    const now = new Date()
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    const isEndOfMonth = now.getDate() >= Math.max(lastDay - 4, 1)
+    if (!isEndOfMonth) return
+
+    const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const alreadyPrompted = typeof window !== 'undefined' && localStorage.getItem(getSurplusChatPromptKey(periodMonth)) === '1'
+    if (alreadyPrompted) return
+
+    const netBalance = getMonthlyExpensesBreakdown().netBalance
+    const suggestedAmount = Math.max(netBalance, 0)
+    if (suggestedAmount <= 0) return
+
+    const alreadyTransferred = internalTransfers.some((transfer) => {
+      const transferMonth = transfer.period_date?.slice(0, 7)
+      return transfer.transfer_type === 'end_of_month_surplus' && transferMonth === periodMonth
+    })
+    if (alreadyTransferred) return
+
+    addMessage({
+      role: 'chanchito',
+      content: `Estas cerrando el mes con ${formatCurrency(suggestedAmount)} de sobrante. ¿Querés guardarlo en tu chanchito?`,
+    })
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(getSurplusChatPromptKey(periodMonth), '1')
+    }
+  }, [isOpen, messages, addMessage, getMonthlyExpensesBreakdown, internalTransfers])
 
   return (
     <>

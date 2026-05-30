@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { RefreshCw, TrendingUp, BarChart3, Plus, Clock } from 'lucide-react'
+import { TrendingUp, BarChart3, Plus, Clock } from 'lucide-react'
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { PageHeader } from '@/components/shared/page-header'
 import { Card } from '@/components/ui/card'
@@ -12,8 +12,13 @@ import { ProfitBadge } from '@/components/inversiones/profit-badge'
 import { PortfolioList } from '@/components/inversiones/portfolio-list'
 import { QuickAddForm } from '@/components/inversiones/quick-add-form'
 import { PortfolioDistribution } from '@/components/inversiones/portfolio-distribution'
+import { PricesStatusBar } from '@/components/inversiones/prices-status-bar'
+import { FailedPricesDialog } from '@/components/inversiones/failed-prices-dialog'
+import { SavingsCard } from '@/components/inversiones/savings-card'
 import { deleteAsset } from './actions'
 import { cn } from '@/lib/utils'
+
+const STALE_THRESHOLD_MS = 60 * 60 * 1000 // 1 hora
 
 type ActiveTab = 'dashboard' | 'portfolio' | 'cargar'
 
@@ -25,23 +30,32 @@ const fmtCurrency = (n: number, currency = 'ARS') =>
     maximumFractionDigits: 0,
   }).format(n)
 
-const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'
-
 export function InversionesClient() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard')
   const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('ARS')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastRefreshResult, setLastRefreshResult] = useState<{
+    updated: number
+    failed: string[]
+    timestamp: string
+  } | null>(null)
+  const [failedDialogOpen, setFailedDialogOpen] = useState(false)
+  const autoRefreshAttempted = useRef(false)
 
-  const { isInitialized, fetchAllData, getPortfolioStatus, getPortfolioDistribution, investmentTransactions } =
-    useFinanceStore()
+  const {
+    isInitialized,
+    fetchAllData,
+    getPortfolioStatus,
+    investmentAssets,
+    investmentTransactions,
+    exchangeRates,
+  } = useFinanceStore()
 
   useEffect(() => {
     if (!isInitialized) fetchAllData()
   }, [isInitialized, fetchAllData])
 
   const portfolio = getPortfolioStatus(displayCurrency)
-  const distribution = getPortfolioDistribution()
   const currencyLabel = ['ARS'].includes(displayCurrency) ? 'ARS' : 'USD'
 
   const handleRefresh = async () => {
@@ -51,16 +65,46 @@ export function InversionesClient() {
       const json = await res.json()
       if (json.error) {
         toast.error(json.error)
-      } else {
-        toast.success(`Precios actualizados: ${json.updated ?? 0} activos`)
-        await fetchAllData()
+        return
       }
+      const updated: number = json.updated ?? 0
+      const failed: string[] = json.failed ?? []
+      setLastRefreshResult({ updated, failed, timestamp: new Date().toISOString() })
+      if (failed.length > 0) {
+        toast.warning(`Precios actualizados: ${updated} OK · ${failed.length} fallaron`)
+      } else {
+        toast.success(`Precios actualizados: ${updated} ${updated === 1 ? 'activo' : 'activos'}`)
+      }
+      await fetchAllData()
     } catch {
       toast.error('Error al actualizar precios')
     } finally {
       setIsRefreshing(false)
     }
   }
+
+  // Auto-refresh on-mount si los precios son viejos (>1h) o si faltan tipos de cambio
+  useEffect(() => {
+    if (autoRefreshAttempted.current) return
+    if (!isInitialized) return
+    if (isRefreshing) return
+    if (investmentAssets.length === 0) return
+
+    const requiredPairs = ['USD_ARS_MEP', 'USD_ARS_CCL', 'USDT_ARS']
+    const missingRates = requiredPairs.some(
+      (pair) => !exchangeRates.find((r) => r.pair === pair && r.rate > 0),
+    )
+
+    const stale =
+      portfolio.lastUpdate &&
+      Date.now() - new Date(portfolio.lastUpdate).getTime() > STALE_THRESHOLD_MS
+
+    if (stale || missingRates) {
+      autoRefreshAttempted.current = true
+      handleRefresh()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitialized, portfolio.lastUpdate, investmentAssets.length, exchangeRates.length])
 
   const handleDeleteAsset = async (assetId: string) => {
     const result = await deleteAsset(assetId)
@@ -76,11 +120,15 @@ export function InversionesClient() {
   const best = sortedByPL[0] ?? null
   const worst = sortedByPL[sortedByPL.length - 1] ?? null
 
-  // Para el pie chart — adaptar formato de getPortfolioDistribution al PortfolioDistribution component
-  const pieData = distribution.map((d) => ({
-    name: d.assetType,
-    value: d.value,
-  }))
+  // Distribucion consistente con moneda seleccionada
+  const groupedByType = portfolio.assets.reduce<Record<string, number>>((acc, asset) => {
+    acc[asset.asset_type] = (acc[asset.asset_type] ?? 0) + asset.currentValue
+    return acc
+  }, {})
+
+  const pieData = Object.entries(groupedByType)
+    .filter(([, value]) => value > 0)
+    .map(([name, value]) => ({ name, value }))
 
   return (
     <div className="min-h-screen bg-surface text-slate-50 pb-24">
@@ -89,27 +137,20 @@ export function InversionesClient() {
         subtitle="Portfolio bimonetario"
         icon={<TrendingUp className="h-5 w-5" />}
         containerClassName="max-w-[1440px]"
-      >
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-all disabled:opacity-50"
-        >
-          <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
-          Actualizar
-        </button>
-      </PageHeader>
+      />
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 space-y-6">
 
-        {/* Currency Toggle */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        {/* Currency Toggle + Status de precios */}
+        <div className="space-y-3">
           <CurrencyToggle value={displayCurrency} onChange={setDisplayCurrency} />
-          {portfolio.lastUpdate && (
-            <span className="text-[10px] text-slate-600">
-              Actualizado: {fmtDate(portfolio.lastUpdate)}
-            </span>
-          )}
+          <PricesStatusBar
+            lastUpdate={portfolio.lastUpdate}
+            isRefreshing={isRefreshing}
+            lastResult={lastRefreshResult}
+            onRefresh={handleRefresh}
+            onOpenFailed={() => setFailedDialogOpen(true)}
+          />
         </div>
 
         {/* Hero Card */}
@@ -123,10 +164,15 @@ export function InversionesClient() {
           <p className="text-3xl md:text-4xl font-bold text-white font-mono tracking-tight">
             {fmtCurrency(portfolio.totalValue, currencyLabel)}
           </p>
-          <div className="flex items-center gap-3 mt-2">
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
             <span className="text-xs text-slate-400">
               Invertido: {fmtCurrency(portfolio.totalInvested, currencyLabel)}
             </span>
+            {portfolio.totalSavings > 0 && (
+              <span className="text-xs text-amber-300/80">
+                Ahorros: {fmtCurrency(portfolio.totalSavings, currencyLabel)}
+              </span>
+            )}
             {portfolio.totalInvested > 0 && (
               <ProfitBadge
                 percent={portfolio.totalPLPercent}
@@ -259,6 +305,8 @@ export function InversionesClient() {
                 )}
               </div>
             )}
+
+            <SavingsCard displayCurrency={displayCurrency} />
           </section>
         )}
 
@@ -302,6 +350,22 @@ export function InversionesClient() {
         )}
 
       </main>
+
+      <FailedPricesDialog
+        open={failedDialogOpen}
+        onOpenChange={setFailedDialogOpen}
+        failedTickers={lastRefreshResult?.failed ?? []}
+        assets={investmentAssets.map((a) => ({
+          ticker: a.ticker,
+          name: a.name,
+          asset_type: a.asset_type,
+          currency: a.currency,
+          data_source_url: a.data_source_url,
+        }))}
+        onRetried={({ updated, failed }) =>
+          setLastRefreshResult({ updated, failed, timestamp: new Date().toISOString() })
+        }
+      />
     </div>
   )
 }

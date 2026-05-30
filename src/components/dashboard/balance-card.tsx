@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils"
 import { useFinanceStore } from "@/lib/store/financeStore"
 
 interface BalanceCardProps {
-  globalBalance: number
   monthlyIncome: number
   monthlyExpenses: number
   installments: number
   burnRate: number
+  savingsTransfers?: number
   currency?: string
 }
 
@@ -102,17 +102,17 @@ function useCountUp(target: number, duration = 900) {
 }
 
 export function BalanceCard({
-  globalBalance,
   monthlyIncome,
   monthlyExpenses,
   installments,
   burnRate,
+  savingsTransfers = 0,
 }: BalanceCardProps) {
   const [expanded, setExpanded] = useState(false)
   const getMonthlyComparison = useFinanceStore((s) => s.getMonthlyComparison)
   const comparison = getMonthlyComparison()
 
-  const totalMonthlySpend = monthlyExpenses + installments + burnRate
+  const totalMonthlySpend = monthlyExpenses + installments + burnRate + savingsTransfers
   const monthBalance = monthlyIncome - totalMonthlySpend
   const isPositive = monthBalance >= 0
 
@@ -125,7 +125,7 @@ export function BalanceCard({
   const trendDown = percentageChange < -1
   const trendNeutral = !trendUp && !trendDown
 
-  const animatedBalance = useCountUp(globalBalance)
+  const animatedBalance = useCountUp(monthBalance)
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("es-AR", {
@@ -162,10 +162,7 @@ export function BalanceCard({
           <div className="flex items-start justify-between gap-4">
             {/* Left: balance + resumen */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-slate-400 uppercase tracking-wider font-medium">
-                  Balance disponible
-                </span>
+              <div className="flex items-center justify-end mb-1">
                 <motion.div
                   animate={{ rotate: expanded ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
@@ -177,7 +174,7 @@ export function BalanceCard({
               {/* Balance principal con count-up */}
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="text-4xl font-bold text-white tracking-tight">
-                  {globalBalance < 0 ? "-" : ""}
+                  {monthBalance < 0 ? "-" : ""}
                   {formatCurrency(animatedBalance)}
                 </span>
               </div>
@@ -326,6 +323,18 @@ export function BalanceCard({
                     </div>
                     <span className="text-sm font-medium text-amber-400">
                       -{formatCurrency(burnRate)}
+                    </span>
+                  </div>
+                )}
+
+                {savingsTransfers > 0 && (
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <span className="text-sm text-slate-300">Ahorro transferido</span>
+                    </div>
+                    <span className="text-sm font-medium text-emerald-400">
+                      -{formatCurrency(savingsTransfers)}
                     </span>
                   </div>
                 )}
