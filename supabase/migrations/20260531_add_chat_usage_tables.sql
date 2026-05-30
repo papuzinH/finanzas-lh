@@ -9,7 +9,15 @@
 -- 1. Columna chat_tier en users (gancho de monetización)
 -- ============================================================
 ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_tier TEXT NOT NULL DEFAULT 'free';
-ALTER TABLE users ADD CONSTRAINT chat_tier_values CHECK (chat_tier IN ('free', 'pro'));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'chat_tier_values' AND conrelid = 'users'::regclass
+  ) THEN
+    ALTER TABLE users ADD CONSTRAINT chat_tier_values CHECK (chat_tier IN ('free', 'pro'));
+  END IF;
+END$$;
 
 -- ============================================================
 -- 2. Tabla chat_usage — cuota por usuario/día
