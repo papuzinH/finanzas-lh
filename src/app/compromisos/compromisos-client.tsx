@@ -289,7 +289,14 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
           </div>
           <div className="text-right">
             <p className="font-bold text-sm font-mono text-slate-200">
-              {formatCurrency(plan.amount)}
+              {plan.currency === 'USD' && plan.original_amount != null ? (
+                <span className="flex flex-col items-end leading-tight">
+                  <span>US$ {Number(plan.original_amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="text-[10px] text-slate-400 font-normal">≈ {formatCurrency(plan.amount)}</span>
+                </span>
+              ) : (
+                formatCurrency(plan.amount)
+              )}
             </p>
             <div className="flex items-center justify-end gap-1.5 mt-1">
               <div className={cn('h-1.5 w-1.5 rounded-full', plan.is_active ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]' : 'bg-slate-600')} />
