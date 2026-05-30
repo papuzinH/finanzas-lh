@@ -6,6 +6,7 @@ import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import {
   DollarSign,
   CreditCard,
+  Layers,
   MoreVertical,
   Pencil,
   Trash2,
@@ -89,6 +90,13 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
   const isFutureDate = isFuture(localTDate);
   const isIncome = transaction.type === 'income';
   const isCredit = paymentMethodType === 'credit';
+  const isInstallment = !!transaction.installment_plan_id;
+  const installmentMatch = transaction.description.match(/\((\d+)\/(\d+)\)$/);
+  const currentInstallment = installmentMatch ? parseInt(installmentMatch[1]) : null;
+  const totalInstallments = installmentMatch ? parseInt(installmentMatch[2]) : null;
+  const displayDescription = isInstallment
+    ? transaction.description.replace(/\s*\(\d+\/\d+\)$/, '')
+    : transaction.description;
 
   const handleDelete = () => {
     setIsDeleteOpen(true);
@@ -132,33 +140,57 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
 
   const cardInner = (
     <div className={cn(
-      "group relative flex items-center justify-between rounded-xl border border-slate-800/40 bg-surface-raised/20 p-3 transition-all hover:bg-surface-raised/60 hover:border-slate-700 hover:shadow-lg hover:shadow-black/20",
+      "group relative flex items-center justify-between rounded-xl border p-3 transition-all hover:shadow-lg hover:shadow-black/20",
+      isInstallment
+        ? "border-l-2 border-l-violet-500/70 border-violet-700/40 bg-violet-950/10 hover:bg-violet-950/20 hover:border-violet-600/50"
+        : "border-slate-800/40 bg-surface-raised/20 hover:bg-surface-raised/60 hover:border-slate-700",
       !canSwipe && "pr-10"
     )}>
       {/* Left: Icon & Info */}
       <div className="flex items-center gap-3 overflow-hidden">
         <div className={cn(
           "flex h-10 w-10 min-w-10 items-center justify-center rounded-full border transition-colors",
-          isIncome
-            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
-            : "bg-slate-800/50 border-slate-700/50 text-slate-400 group-hover:text-slate-300"
+          isInstallment
+            ? "bg-violet-500/15 border-violet-500/30 text-violet-400"
+            : isIncome
+              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
+              : "bg-slate-800/50 border-slate-700/50 text-slate-400 group-hover:text-slate-300"
         )}>
-          {category?.emoji ? <span className="text-lg">{category.emoji}</span> : <DollarSign className="h-5 w-5" />}
+          {isInstallment
+            ? category?.emoji
+              ? <span className="text-lg">{category.emoji}</span>
+              : <Layers className="h-4 w-4" />
+            : category?.emoji
+              ? <span className="text-lg">{category.emoji}</span>
+              : <DollarSign className="h-5 w-5" />
+          }
         </div>
 
         <div className="flex flex-col min-w-0">
-          <span className="font-medium text-sm text-slate-200 truncate">
-            {transaction.description}
-          </span>
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 truncate">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-medium text-sm text-slate-200 truncate">
+              {displayDescription}
+            </span>
+            {isInstallment && currentInstallment && (
+              <span className="shrink-0 text-[10px] font-semibold bg-violet-500/15 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded-full leading-none">
+                {currentInstallment}/{totalInstallments}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 text-xs truncate">
             {paymentMethodName && (
-              <span className="flex items-center gap-1 text-slate-400">
-                {isCredit && <CreditCard className="h-2.5 w-2.5" />}
+              <span className={cn(
+                "flex items-center gap-1",
+                isInstallment ? "text-violet-400/80" : "text-slate-400"
+              )}>
+                {(isInstallment || isCredit) && <CreditCard className="h-2.5 w-2.5" />}
                 {paymentMethodName}
               </span>
             )}
-            {paymentMethodName && <span className="text-slate-400">•</span>}
-            <span className="capitalize">{category?.name || 'Varios'}</span>
+            {paymentMethodName && <span className="text-slate-500">•</span>}
+            {!isInstallment && (
+              <span className="capitalize text-slate-400">{category?.name || 'Varios'}</span>
+            )}
           </div>
         </div>
       </div>
@@ -172,7 +204,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
           {isIncome ? '+' : ''} {formatCurrency(Math.abs(transaction.amount))}
         </span>
 
-        {showDate && (
+        {showDate && !isInstallment && (
           isFutureDate ? (
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-amber-500/80 font-medium">

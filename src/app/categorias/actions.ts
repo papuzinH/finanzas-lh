@@ -62,11 +62,11 @@ export async function getCategoryDependencies(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { transactions: 0, installmentPlans: 0, recurringPlans: 0, total: 0 }
 
-  // Obtenemos el id numérico interno del usuario (las tablas legacy usan integer user_id)
+  // Restringimos al usuario autenticado para evitar contar/editar datos de otro usuario.
   const { data: dbUser } = await supabase
     .from('users')
     .select('id')
-    .limit(1)
+    .eq('id', user.id)
     .single()
 
   if (!dbUser) return { transactions: 0, installmentPlans: 0, recurringPlans: 0, total: 0 }
@@ -91,11 +91,11 @@ export async function deleteCategoryReassign(id: string, newCategoryId: string) 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  // Obtenemos el id numérico interno del usuario (las tablas legacy usan integer user_id)
+  // Restringimos al usuario autenticado para evitar actualizar datos de otro usuario.
   const { data: dbUser } = await supabase
     .from('users')
     .select('id')
-    .limit(1)
+    .eq('id', user.id)
     .single()
 
   if (!dbUser) return { error: 'Usuario no encontrado' }
@@ -124,11 +124,11 @@ export async function deleteCategoryUnlink(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
-  // Obtenemos el id numérico interno del usuario (las tablas legacy usan integer user_id)
+  // Restringimos al usuario autenticado para evitar actualizar datos de otro usuario.
   const { data: dbUser } = await supabase
     .from('users')
     .select('id')
-    .limit(1)
+    .eq('id', user.id)
     .single()
 
   if (!dbUser) return { error: 'Usuario no encontrado' }
@@ -163,7 +163,12 @@ export async function deleteCategory(id: string) {
     .eq('id', id)
     .eq('user_id', user.id)
 
-  if (error) return { error: error.message }
+  if (error) {
+    if (error.code === '23503') {
+      return { error: 'No se puede eliminar la categoría porque tiene movimientos asociados. Reasigná o desvinculá antes de borrar.' }
+    }
+    return { error: error.message }
+  }
 
   revalidateAll()
   return { success: true }

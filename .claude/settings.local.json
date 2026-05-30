@@ -20,7 +20,13 @@
       "Bash(rtk npm *)",
       "Bash(curl -s -A \"Mozilla/5.0\" \"https://iol.invertironline.com/titulo/cotizacion/BCBA/YMCIO/1\" -o /tmp/ymcio.html)",
       "Read(//tmp/**)",
-      "Bash(curl -s -A \"Mozilla/5.0\" \"https://iol.invertironline.com/titulo/cotizacion/BCBA/AL30/1\" -o /tmp/al30.html)"
+      "Bash(curl -s -A \"Mozilla/5.0\" \"https://iol.invertironline.com/titulo/cotizacion/BCBA/AL30/1\" -o /tmp/al30.html)",
+      "Bash(python3 \"C:\\\\Users\\\\Adriel\\\\.claude\\\\plugins\\\\cache\\\\ui-ux-pro-max-skill\\\\ui-ux-pro-max\\\\2.5.0\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"personal finance app dark mode installments transactions mobile\" --design-system -p \"Chanchito Finance\" -f markdown)",
+      "Bash(python3 \"C:\\\\Users\\\\Adriel\\\\.claude\\\\plugins\\\\cache\\\\ui-ux-pro-max-skill\\\\ui-ux-pro-max\\\\2.5.0\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"personal finance dark mode installments active\" --design-system -p \"Chanchito\" -f markdown)",
+      "Bash(python3 -c \"import os; paths = [r'C:\\\\Users\\\\Adriel\\\\.claude\\\\plugins\\\\cache\\\\ui-ux-pro-max-skill', r'C:\\\\Users\\\\Adriel\\\\.claude\\\\plugins']; [print\\(os.path.join\\(root, f\\)\\) for p in paths if os.path.exists\\(p\\) for root, dirs, files in os.walk\\(p\\) for f in files if 'search.py' in f]\")",
+      "Bash(python3 \"C:\\\\Users\\\\Adriel\\\\.claude\\\\plugins\\\\cache\\\\ui-ux-pro-max-skill\\\\ui-ux-pro-max\\\\2.5.0\\\\src\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"personal finance dark mode installments active status badge\" --design-system -p \"Chanchito\" -f markdown)",
+      "Bash(python3 *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('vitest:', \\(p.devDependencies&&p.devDependencies.vitest\\)||'none'\\)\")"
     ]
   }
 }
