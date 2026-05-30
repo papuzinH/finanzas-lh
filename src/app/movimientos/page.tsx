@@ -9,7 +9,9 @@ import { parseLocalDate } from '@/lib/utils/dates';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
-import { ChevronDown, ChevronRight, Search, X, CreditCard, Wallet, Receipt } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, X, CreditCard, Wallet, Receipt, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { updateExchangeRates } from '@/app/movimientos/actions';
 import { TransactionListSkeleton } from '@/components/ui/skeletons';
 import { Button } from '@/components/ui/button';
 import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
@@ -28,6 +30,7 @@ export default function MovimientosPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [isRefreshingRates, setIsRefreshingRates] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const {
     transactions,
@@ -157,6 +160,21 @@ export default function MovimientosPage() {
   // Cálculo del Balance Mensual (Suma de todos los movimientos filtrados)
   const monthlyBalance = getMonthlyBalance(currentMonthStr, selectedPaymentMethodId);
 
+  const handleRefreshRates = async () => {
+    setIsRefreshingRates(true);
+    try {
+      const result = await updateExchangeRates();
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        await fetchAllData();
+        toast.success('Cotización actualizada');
+      }
+    } finally {
+      setIsRefreshingRates(false);
+    }
+  };
+
   // Helper de renderizado
   const renderSection = (
     title: string, 
@@ -230,6 +248,18 @@ export default function MovimientosPage() {
                 {formatCurrency(monthlyBalance)}
               </p>
             </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleRefreshRates}
+              disabled={isRefreshingRates}
+              className="text-slate-400 hover:text-slate-200 gap-1.5"
+              aria-label="Actualizar cotización del dólar"
+            >
+              <RefreshCw className={cn('h-4 w-4', isRefreshingRates && 'animate-spin')} />
+              <span className="text-xs">Cotización</span>
+            </Button>
             </div>
             <AnimatedPlusButton
               label="Crear transacción"
