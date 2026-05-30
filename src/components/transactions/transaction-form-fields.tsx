@@ -19,6 +19,7 @@ import {
   SelectTrigger,
 } from '@/components/ui/select';
 import { cn, formatCurrency } from '@/lib/utils';
+import { useFinanceStore } from '@/lib/store/financeStore';
 import type { Category, PaymentMethod } from '@/types/database';
 
 const QUICK_AMOUNTS = [100, 500, 1000] as const;
@@ -52,6 +53,7 @@ interface AmountFieldProps<T extends FieldValues> {
   setValue: UseFormSetValue<T>;
   watchedAmount: number;
   fieldName?: string;
+  currency?: 'ARS' | 'USD';
 }
 
 export function AmountField<T extends FieldValues>({
@@ -59,6 +61,7 @@ export function AmountField<T extends FieldValues>({
   setValue,
   watchedAmount,
   fieldName = 'amount',
+  currency = 'ARS',
 }: AmountFieldProps<T>) {
   const amountInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,7 +89,9 @@ export function AmountField<T extends FieldValues>({
               className="flex items-baseline justify-center gap-1 w-full focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg"
               onClick={() => amountInputRef.current?.focus()}
             >
-              <span className="text-3xl font-semibold text-slate-600">$</span>
+              <span className="text-3xl font-semibold text-slate-600">
+                {currency === 'USD' ? 'US$' : '$'}
+              </span>
               <span className="text-5xl sm:text-6xl font-semibold text-slate-50 tabular-nums">
                 {displayAmount}
               </span>
@@ -768,6 +773,109 @@ export function PaymentMethodField<T extends FieldValues>({
         </>
         );
       }}
+    />
+  );
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CurrencyField
+   Toggle ARS/USD + selector de cotización + preview en vivo
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+const RATE_OPTIONS: { pair: string; label: string }[] = [
+  { pair: 'USD_ARS_BLUE', label: 'Blue' },
+  { pair: 'USD_ARS_MEP', label: 'MEP' },
+  { pair: 'USD_ARS_CCL', label: 'CCL' },
+  { pair: 'USDT_ARS', label: 'USDT' },
+];
+
+export const DEFAULT_RATE_PAIR = 'USD_ARS_MEP';
+
+interface CurrencyFieldProps<T extends FieldValues> {
+  control: Control<T>;
+  setValue: UseFormSetValue<T>;
+  watchedCurrency: 'ARS' | 'USD';
+  watchedRatePair?: string | null;
+  watchedAmount: number;
+}
+
+export function CurrencyField<T extends FieldValues>({
+  control,
+  setValue,
+  watchedCurrency,
+  watchedRatePair,
+  watchedAmount,
+}: CurrencyFieldProps<T>) {
+  const getExchangeRate = useFinanceStore((s) => s.getExchangeRate);
+  const activePair = watchedRatePair || DEFAULT_RATE_PAIR;
+  const rate = watchedCurrency === 'USD' ? getExchangeRate(activePair) : 0;
+  const arsPreview = rate > 0 ? watchedAmount * rate : 0;
+  const rateLabel = RATE_OPTIONS.find((o) => o.pair === activePair)?.label ?? 'MEP';
+
+  return (
+    <FormField
+      control={control}
+      name={'currency' as Path<T>}
+      render={({ field }) => (
+        <FormItem>
+          <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+            Moneda
+          </span>
+          {/* ARS / USD */}
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-900/80 p-1">
+            {(['ARS', 'USD'] as const).map((cur) => (
+              <button
+                key={cur}
+                type="button"
+                onClick={() => {
+                  field.onChange(cur);
+                  if (cur === 'USD' && !watchedRatePair) {
+                    setValue('rate_pair' as Path<T>, DEFAULT_RATE_PAIR as T[Path<T>], { shouldValidate: true });
+                  }
+                }}
+                className={cn(
+                  'min-h-11 rounded-lg py-2.5 text-sm font-semibold transition-all',
+                  'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none',
+                  field.value === cur
+                    ? 'bg-indigo-500 text-white shadow-[0_0_20px_rgba(129,140,248,0.3)]'
+                    : 'text-slate-500 hover:text-slate-300'
+                )}
+              >
+                {cur === 'ARS' ? '$ Pesos' : 'US$ Dólares'}
+              </button>
+            ))}
+          </div>
+
+          {/* Selector de cotización + preview, solo en USD */}
+          {field.value === 'USD' && (
+            <div className="mt-3 space-y-2 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+              <div className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800">
+                {RATE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.pair}
+                    type="button"
+                    onClick={() => setValue('rate_pair' as Path<T>, opt.pair as T[Path<T>], { shouldValidate: true })}
+                    className={cn(
+                      'flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all',
+                      activePair === opt.pair
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-center text-xs text-slate-400">
+                {rate > 0
+                  ? <>≈ {formatCurrency(arsPreview)} ARS · a {formatCurrency(rate)} {rateLabel}</>
+                  : 'Cotización no disponible'}
+              </p>
+            </div>
+          )}
+          <FormMessage />
+        </FormItem>
+      )}
     />
   );
 }
