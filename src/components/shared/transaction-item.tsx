@@ -62,6 +62,9 @@ interface TransactionItemProps {
     payment_method_id: number | null;
     installment_plan_id?: number | null;
     recurring_plan_id?: number | null;
+    original_currency?: string | null;
+    original_amount?: number | null;
+    rate_pair?: string | null;
   };
   paymentMethodName?: string;
   paymentMethodType?: string;
@@ -89,6 +92,8 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
   const localTDate = parseLocalDate(transaction.date);
   const isFutureDate = isFuture(localTDate);
   const isIncome = transaction.type === 'income';
+  const isUsd = transaction.original_currency === 'USD' && transaction.original_amount != null;
+  const rateLabel = ({ USD_ARS_BLUE: 'Blue', USD_ARS_MEP: 'MEP', USD_ARS_CCL: 'CCL', USDT_ARS: 'USDT' } as Record<string, string>)[transaction.rate_pair ?? ''] ?? '';
   const isCredit = paymentMethodType === 'credit';
   const isInstallment = !!transaction.installment_plan_id;
   const installmentMatch = transaction.description.match(/\((\d+)\/(\d+)\)$/);
@@ -201,8 +206,16 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
           "font-bold text-sm font-mono tracking-tight whitespace-nowrap",
           isIncome ? "text-emerald-400" : "text-slate-200"
         )}>
-          {isIncome ? '+' : ''} {formatCurrency(Math.abs(transaction.amount))}
+          {isIncome ? '+' : ''} {isUsd
+            ? `US$ ${Math.abs(transaction.original_amount as number).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : formatCurrency(Math.abs(transaction.amount))}
         </span>
+
+        {isUsd && (
+          <span className="text-[10px] text-slate-400 font-mono">
+            ≈ {formatCurrency(Math.abs(transaction.amount))}{rateLabel ? ` · ${rateLabel}` : ''}
+          </span>
+        )}
 
         {showDate && !isInstallment && (
           isFutureDate ? (
