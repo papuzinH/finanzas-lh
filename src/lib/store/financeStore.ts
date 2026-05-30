@@ -48,6 +48,25 @@ interface DolarBlue {
   fechaActualizacion: string;
 }
 
+/**
+ * Resuelve la cotización ARS de un par dado.
+ * Prioridad: rate del par en exchange_rates → dólar blue (venta) → fallback (snapshot) → 1.
+ */
+export function resolveRate(
+  pair: string | null,
+  exchangeRates: ExchangeRate[],
+  dolarBlue: DolarBlue | null,
+  fallback?: number | null,
+): number {
+  if (pair) {
+    const r = exchangeRates.find((e) => e.pair === pair);
+    if (r && r.rate > 0) return r.rate;
+  }
+  if (dolarBlue?.venta && dolarBlue.venta > 0) return dolarBlue.venta;
+  if (fallback && fallback > 0) return fallback;
+  return 1;
+}
+
 interface FinanceState {
   // State Raw
   transactions: ProcessedTransaction[];
