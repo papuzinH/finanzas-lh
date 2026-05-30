@@ -173,6 +173,7 @@ interface FinanceState {
     period: string;
   };
   getGlobalBalance: () => number;
+  getExchangeRate: (pair: string) => number;
   getMonthlyBurnRate: () => number;
   getInstallmentStatus: (planId: number) => {
     paid: number;
@@ -259,7 +260,7 @@ interface FinanceState {
     status: 'ok' | 'warning' | 'exceeded';
   }>;
 
-  getMonthlyComparison: () => {
+  getMonthlyComparison: (monthStr?: string) => {
     currentMonthExpenses: number;
     previousMonthExpenses: number;
     percentageChange: number;
@@ -570,18 +571,32 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           }
         }
 
+        const amountArs =
+          t.original_currency === 'USD' && t.original_amount != null
+            ? t.original_amount * resolveRate(t.rate_pair, (exchangeRatesData as ExchangeRate[]) || [], dolarBlue, t.exchange_rate)
+            : t.amount;
+
         return {
           ...t,
+          amount: amountArs,
           periodDate, // Usar esta para filtros de mes
           realPaymentDate: t.date, // Usar esta para mostrar "Vence el..."
         };
+      });
+
+      const recomputedRecurring = ((recurring as RecurringPlan[]) || []).map((plan) => {
+        if (plan.currency === 'USD' && plan.original_amount != null) {
+          const rate = resolveRate(plan.rate_pair, (exchangeRatesData as ExchangeRate[]) || [], dolarBlue, plan.exchange_rate);
+          return { ...plan, amount: plan.original_amount * rate };
+        }
+        return plan;
       });
 
       set({
         transactions: processedTransactions,
         installmentPlans: (installments as InstallmentPlan[]) || [],
         paymentMethods: methods,
-        recurringPlans: (recurring as RecurringPlan[]) || [],
+        recurringPlans: recomputedRecurring,
         investments: (investments as Investment[]) || [],
         investmentAssets: (investmentAssetsData as InvestmentAsset[]) || [],
         investmentTransactions: (investmentTransactionsData as InvestmentTransaction[]) || [],
@@ -918,6 +933,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * - Cuotas de meses futuros
    * - Ahorros (tabla separada, no son transacciones)
    */
+  getExchangeRate: (pair: string) => {
+    const { exchangeRates, dolarBlue } = get();
+    return resolveRate(pair, exchangeRates, dolarBlue);
+  },
+
   getGlobalBalance: () => {
     const { transactions, paymentMethods, getMonthlyBurnRate, internalTransfers } = get();
     const now = new Date();
@@ -1436,9 +1456,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     };
   },
 
-  getMonthlyComparison: () => {
+  getMonthlyComparison: (monthStr?: string) => {
     const { transactions, paymentMethods, recurringPlans } = get();
-    const now = new Date();
+    const now = monthStr ? parse(monthStr, 'yyyy-MM', new Date()) : new Date();
     const prev = subMonths(now, 1);
 
     const calcTotalExpenses = (ref: Date) => {
