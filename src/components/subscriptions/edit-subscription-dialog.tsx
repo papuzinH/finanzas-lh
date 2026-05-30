@@ -24,6 +24,8 @@ import {
   CategoryPicker,
   FrequencySelector,
   PaymentMethodField,
+  CurrencyField,
+  DEFAULT_RATE_PAIR,
 } from '@/components/transactions/transaction-form-fields';
 
 interface EditSubscriptionDialogProps {
@@ -38,6 +40,9 @@ interface EditSubscriptionDialogProps {
     payment_method_id: number | null;
     frequency?: string | null;
     debit_payment_day?: number | null;
+    currency?: string | null;
+    original_amount?: number | null;
+    rate_pair?: string | null;
   };
 }
 
@@ -48,7 +53,7 @@ export function EditSubscriptionDialog({
 }: EditSubscriptionDialogProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
-  const { fetchAllData, categories, paymentMethods, getFrequentCategories } = useFinanceStore();
+  const { fetchAllData, categories, paymentMethods, getFrequentCategories, getExchangeRate } = useFinanceStore();
 
   const frequentCategories = getFrequentCategories(4);
 
@@ -56,12 +61,17 @@ export function EditSubscriptionDialog({
     resolver: zodResolver(subscriptionSchema),
     defaultValues: {
       description: subscription.description,
-      amount: subscription.amount,
+      amount: subscription.currency === 'USD' && subscription.original_amount != null
+        ? subscription.original_amount
+        : subscription.amount,
       is_active: subscription.is_active ?? true,
       category_id: subscription.category_id || "",
       payment_method_id: subscription.payment_method_id ? String(subscription.payment_method_id) : "none",
       frequency: (subscription.frequency === 'monthly' || subscription.frequency === 'yearly') ? subscription.frequency : 'monthly',
       debit_payment_day: subscription.debit_payment_day || undefined,
+      currency: (subscription.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
+      rate_pair: subscription.rate_pair ?? null,
+      exchange_rate: null,
     },
   });
 
@@ -69,18 +79,25 @@ export function EditSubscriptionDialog({
   const watchedPaymentMethodId = form.watch('payment_method_id');
   const watchedDebitDay = form.watch('debit_payment_day');
   const watchedFrequency = form.watch('frequency');
+  const watchedCurrency = form.watch('currency');
+  const watchedRatePair = form.watch('rate_pair');
 
   // Reset form when subscription changes
   useEffect(() => {
     if (open) {
       form.reset({
         description: subscription.description,
-        amount: subscription.amount,
+        amount: subscription.currency === 'USD' && subscription.original_amount != null
+          ? subscription.original_amount
+          : subscription.amount,
         is_active: subscription.is_active ?? true,
         category_id: subscription.category_id || "",
         payment_method_id: subscription.payment_method_id ? String(subscription.payment_method_id) : "none",
         frequency: (subscription.frequency === 'monthly' || subscription.frequency === 'yearly') ? subscription.frequency : 'monthly',
         debit_payment_day: subscription.debit_payment_day || undefined,
+        currency: (subscription.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
+        rate_pair: subscription.rate_pair ?? null,
+        exchange_rate: null,
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -90,10 +107,14 @@ export function EditSubscriptionDialog({
     setIsPending(true);
     try {
       // Clean "none" values before sending
+      const isUsd = data.currency === 'USD';
+      const ratePair = data.rate_pair || DEFAULT_RATE_PAIR;
       const formattedData = {
         ...data,
         category_id: data.category_id || "",
         payment_method_id: data.payment_method_id === "none" ? null : data.payment_method_id,
+        rate_pair: isUsd ? ratePair : null,
+        exchange_rate: isUsd ? getExchangeRate(ratePair) : null,
       };
 
       const result = await updateSubscription(subscription.id.toString(), formattedData);
@@ -138,6 +159,16 @@ export function EditSubscriptionDialog({
                 setValue={form.setValue}
                 watchedAmount={watchedAmount}
                 fieldName="amount"
+                currency={watchedCurrency}
+              />
+
+              {/* ── Currency ── */}
+              <CurrencyField<SubscriptionSchema>
+                control={form.control}
+                setValue={form.setValue}
+                watchedCurrency={watchedCurrency}
+                watchedRatePair={watchedRatePair}
+                watchedAmount={watchedAmount}
               />
 
               {/* ── Description ── */}

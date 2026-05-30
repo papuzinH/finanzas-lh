@@ -27,17 +27,28 @@ export async function createSubscription(data: CreateSubscriptionSchema): Promis
       return { error: 'Datos inválidos' };
     }
 
-    const { description, amount, category_id, payment_method_id } = validatedFields.data;
+    const { description, amount, category_id, payment_method_id, currency, rate_pair, exchange_rate } = validatedFields.data;
+
+    const isUsd = currency === 'USD';
+    const rate = isUsd ? Number(exchange_rate) : null;
+    if (isUsd && (!rate || rate <= 0)) {
+      return { error: 'Cotización del dólar inválida' };
+    }
+    const amountArs = isUsd ? amount * (rate as number) : amount;
 
     const { error } = await supabase
       .from('recurring_plans')
       .insert({
         user_id: user.id,
         description,
-        amount,
+        amount: amountArs,
         category_id,
         payment_method_id: payment_method_id && payment_method_id !== 'none' ? payment_method_id : null,
         is_active: true,
+        currency: isUsd ? 'USD' : 'ARS',
+        original_amount: amount,
+        rate_pair: isUsd ? rate_pair : null,
+        exchange_rate: rate,
       });
 
     if (error) {
@@ -71,17 +82,27 @@ export async function updateSubscription(id: string, data: SubscriptionSchema): 
       return { error: 'Datos inválidos' };
     }
 
-    const { description, amount, is_active, category_id, payment_method_id } = validatedFields.data;
+    const { description, amount, is_active, category_id, payment_method_id, currency, rate_pair, exchange_rate } = validatedFields.data;
 
+    const isUsd = currency === 'USD';
+    const rate = isUsd ? Number(exchange_rate) : null;
+    if (isUsd && (!rate || rate <= 0)) {
+      return { error: 'Cotización del dólar inválida' };
+    }
+    const amountArs = isUsd ? amount * (rate as number) : amount;
 
     const { error } = await supabase
       .from('recurring_plans')
       .update({
         description,
-        amount,
+        amount: amountArs,
         is_active,
         category_id,
-        payment_method_id
+        payment_method_id,
+        currency: isUsd ? 'USD' : 'ARS',
+        original_amount: amount,
+        rate_pair: isUsd ? rate_pair : null,
+        exchange_rate: rate,
       })
       .eq('id', id)
       .eq('user_id', user.id);

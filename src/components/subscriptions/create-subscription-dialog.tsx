@@ -26,6 +26,8 @@ import {
   DateField,
   FrequencySelector,
   PaymentMethodField,
+  CurrencyField,
+  DEFAULT_RATE_PAIR,
 } from '@/components/transactions/transaction-form-fields';
 
 interface CreateSubscriptionDialogProps {
@@ -52,6 +54,9 @@ export function CreateSubscriptionDialog({
       payment_method_id: 'none',
       start_date: todayString(),
       frequency: 'monthly',
+      currency: 'ARS',
+      rate_pair: null,
+      exchange_rate: null,
     },
   });
 
@@ -60,13 +65,20 @@ export function CreateSubscriptionDialog({
   const watchedPaymentMethodId = form.watch('payment_method_id');
   const watchedDebitDay = form.watch('debit_payment_day');
   const watchedFrequency = form.watch('frequency');
+  const watchedCurrency = form.watch('currency');
+  const watchedRatePair = form.watch('rate_pair');
+  const getExchangeRate = useFinanceStore((s) => s.getExchangeRate);
 
   async function onSubmit(data: CreateSubscriptionSchema) {
     setIsPending(true);
     try {
+      const isUsd = data.currency === 'USD';
+      const ratePair = data.rate_pair || DEFAULT_RATE_PAIR;
       const formattedData = {
         ...data,
         payment_method_id: data.payment_method_id === 'none' ? null : data.payment_method_id,
+        rate_pair: isUsd ? ratePair : null,
+        exchange_rate: isUsd ? getExchangeRate(ratePair) : null,
       };
 
       const result = await createSubscription(formattedData);
@@ -124,6 +136,16 @@ export function CreateSubscriptionDialog({
                 setValue={form.setValue}
                 watchedAmount={watchedAmount}
                 fieldName="amount"
+                currency={watchedCurrency}
+              />
+
+              {/* ── Currency ── */}
+              <CurrencyField<CreateSubscriptionSchema>
+                control={form.control}
+                setValue={form.setValue}
+                watchedCurrency={watchedCurrency}
+                watchedRatePair={watchedRatePair}
+                watchedAmount={watchedAmount}
               />
 
               {/* ── Description ── */}
