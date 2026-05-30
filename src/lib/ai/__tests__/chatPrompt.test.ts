@@ -142,9 +142,9 @@ test('construye diccionario de IDs de categorías', () => {
 // Estructura del prompt
 // ============================================
 
-test('incluye sección INPUTS', () => {
+test('incluye sección CONTEXTO DEL USUARIO', () => {
   const prompt = buildChatPrompt([])
-  expect(prompt.includes('INPUTS')).toBe(true)
+  expect(prompt.includes('CONTEXTO DEL USUARIO')).toBe(true)
 })
 
 test('incluye sección INSTRUCCIONES', () => {
@@ -155,7 +155,7 @@ test('incluye sección INSTRUCCIONES', () => {
 test('incluye CASO A para transacciones', () => {
   const prompt = buildChatPrompt([])
   expect(prompt.includes('CASO A')).toBe(true)
-  expect(prompt.includes('Transacción')).toBe(true)
+  expect(prompt.includes('TRANSACCIÓN')).toBe(true)
 })
 
 test('incluye CASO B para configuración de tarjeta', () => {

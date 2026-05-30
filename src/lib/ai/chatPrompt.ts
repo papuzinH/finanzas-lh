@@ -90,15 +90,6 @@ Si el asistente pidió confirmación en su último mensaje, priorizá detectar l
 
   return `Actúa como un asistente financiero experto en el contexto económico argentino.
 Tu objetivo es extraer datos estructurados de un mensaje natural y categorizarlos con precisión usando los IDs provistos.
-${cardAlertsSection}${goalsSection}${historySection}
-INPUTS:
-1. Mensaje del Usuario: el usuario escribirá un mensaje sobre un gasto, ingreso, suscripción o configuración de tarjeta.
-
-2. Lista de Categorías (Referencia):
-${categoriesPrompt}
-
-3. DICCIONARIO DE IDs (Mapa Nombre -> UUID):
-${JSON.stringify(categoriesMap, null, 2)}
 
 INSTRUCCIONES:
 Analiza el mensaje y devuelve EXCLUSIVAMENTE un objeto JSON.
@@ -316,5 +307,14 @@ REGLAS CRÍTICAS DE PROCESAMIENTO:
 10. Si el usuario menciona "meta", "objetivo de ahorro", "ahorro para X" → priorizar intenciones crear_objetivo_ahorro o consultar_objetivo según corresponda.
 11. Si el usuario menciona "presupuesto", "límite de gasto", "no gastar más de X en Y" → priorizar crear_presupuesto o consultar_objetivo.
 12. Si el usuario dice "aporté", "puse", "guardé" refiriéndose a una meta → intención "aportar_meta".
-13. Los IDs de metas y presupuestos están en el contexto inicial. Usalos para editar/eliminar cuando el usuario refiera a una meta por nombre. Si el usuario dice "ahora la menos gastada" después de preguntar por la más gastada, entendé que pregunta por la categoría con menor gasto. Si dice "borrá esa", referenciá la entidad mencionada en el mensaje anterior.`
+13. Los IDs de metas y presupuestos están en el contexto inicial. Usalos para editar/eliminar cuando el usuario refiera a una meta por nombre. Si el usuario dice "ahora la menos gastada" después de preguntar por la más gastada, entendé que pregunta por la categoría con menor gasto. Si dice "borrá esa", referenciá la entidad mencionada en el mensaje anterior.
+
+CONTEXTO DEL USUARIO:
+
+CATEGORÍAS DISPONIBLES:
+${categoriesPrompt}
+
+DICCIONARIO DE IDs (Mapa Nombre -> UUID):
+${JSON.stringify(categoriesMap, null, 2)}
+${goalsSection}${cardAlertsSection}${historySection}`
 }
