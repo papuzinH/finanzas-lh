@@ -180,6 +180,9 @@ export interface Database {
           category_id: string | null
           created_at: string
           payment_method_id: number | null
+          original_amount: number | null
+          rate_pair: string | null
+          exchange_rate: number | null
         }
         Insert: {
           id?: number
@@ -192,6 +195,9 @@ export interface Database {
           category_id?: string | null
           created_at?: string
           payment_method_id?: number | null
+          original_amount?: number | null
+          rate_pair?: string | null
+          exchange_rate?: number | null
         }
         Update: {
           id?: number
@@ -204,6 +210,9 @@ export interface Database {
           category_id?: string | null
           created_at?: string
           payment_method_id?: number | null
+          original_amount?: number | null
+          rate_pair?: string | null
+          exchange_rate?: number | null
         }
         Relationships: [
           {
@@ -239,6 +248,10 @@ export interface Database {
           recurring_plan_id: number | null
           created_at: string
           payment_method_id: number | null
+          original_currency: string
+          original_amount: number | null
+          rate_pair: string | null
+          exchange_rate: number | null
         }
         Insert: {
           id?: number
@@ -252,6 +265,10 @@ export interface Database {
           recurring_plan_id?: number | null
           created_at?: string
           payment_method_id?: number | null
+          original_currency?: string
+          original_amount?: number | null
+          rate_pair?: string | null
+          exchange_rate?: number | null
         }
         Update: {
           id?: number
@@ -265,6 +282,10 @@ export interface Database {
           recurring_plan_id?: number | null
           created_at?: string
           payment_method_id?: number | null
+          original_currency?: string
+          original_amount?: number | null
+          rate_pair?: string | null
+          exchange_rate?: number | null
         }
         Relationships: [
           {
