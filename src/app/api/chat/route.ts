@@ -24,7 +24,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { buildChatPrompt, type ConversationMessage, type GoalContext } from '@/lib/ai/chatPrompt'
 import { parseGeminiResponse } from '@/lib/ai/intentParser'
 import { handleIntent } from '@/lib/ai/handlers'
-import { checkAndIncrementUsage, accumulateBudget } from '@/lib/chat/usageGuard'
+import { checkAndIncrementUsage, accumulateBudget, type UsageCheckResult } from '@/lib/chat/usageGuard'
 
 /**
  * Trunca el historial de conversación a los últimos N mensajes
@@ -94,13 +94,13 @@ export async function POST(req: NextRequest) {
     const tier = (dbUser.chat_tier === 'pro' ? 'pro' : 'free') as 'free' | 'pro'
 
     // Verificar cuota antes de llamar a Gemini
-    let usageStatus: string
+    let usageStatus: UsageCheckResult
     try {
       usageStatus = await checkAndIncrementUsage(supabase, userId, tier)
     } catch (err) {
       console.error('Error checking chat usage:', err)
       // Si el guard falla, dejamos pasar (fail open) para no romper UX
-      usageStatus = 'ok'
+      usageStatus = 'ok' as UsageCheckResult
     }
 
     if (usageStatus === 'budget_exceeded') {
@@ -264,13 +264,17 @@ export async function POST(req: NextRequest) {
 
       geminiText = result.response.text()
 
-      // Acumular uso real (fire-and-forget — no bloquea la respuesta al usuario)
+      // Acumular uso real antes de retornar
       const usage = result.response.usageMetadata
-      accumulateBudget(
-        supabase,
-        usage?.promptTokenCount ?? 0,
-        usage?.candidatesTokenCount ?? 0
-      ).catch(err => console.error('accumulateBudget failed:', err))
+      try {
+        await accumulateBudget(
+          supabase,
+          usage?.promptTokenCount ?? 0,
+          usage?.candidatesTokenCount ?? 0
+        )
+      } catch (err) {
+        console.error('accumulateBudget failed:', err)
+      }
     } catch (geminiError) {
       console.error('Error calling Gemini:', geminiError)
       return NextResponse.json(
