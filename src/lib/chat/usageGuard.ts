@@ -9,7 +9,7 @@ export function getDailyLimit(tier: 'free' | 'pro'): number {
 
 export async function checkAndIncrementUsage(
   supabase: SupabaseClient,
-  userId: number,
+  userId: string,
   tier: 'free' | 'pro'
 ): Promise<UsageCheckResult> {
   const { data, error } = await supabase.rpc('check_and_increment_chat_usage', {

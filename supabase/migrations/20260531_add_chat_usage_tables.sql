@@ -23,7 +23,7 @@ END$$;
 -- 2. Tabla chat_usage — cuota por usuario/día
 -- ============================================================
 CREATE TABLE IF NOT EXISTS chat_usage (
-  user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   usage_date    DATE NOT NULL DEFAULT CURRENT_DATE,
   request_count INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, usage_date)
@@ -63,7 +63,7 @@ ALTER TABLE chat_budget ENABLE ROW LEVEL SECURITY;
 --    Retorna: 'ok' | 'budget_exceeded' | 'user_limit_exceeded'
 -- ============================================================
 CREATE OR REPLACE FUNCTION check_and_increment_chat_usage(
-  p_user_id             INTEGER,
+  p_user_id             UUID,
   p_daily_limit         INTEGER,
   p_monthly_budget_usd  NUMERIC
 )
