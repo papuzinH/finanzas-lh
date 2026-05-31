@@ -24,6 +24,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { buildChatPrompt, type ConversationMessage, type GoalContext } from '@/lib/ai/chatPrompt'
 import { parseGeminiResponse } from '@/lib/ai/intentParser'
 import { handleIntent } from '@/lib/ai/handlers'
+import { checkAndIncrementUsage, accumulateBudget } from '@/lib/chat/usageGuard'
 
 /**
  * Trunca el historial de conversación a los últimos N mensajes
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
     // IMPORTANTE: Necesitamos el user_id numérico para las inserciones
     const { data: dbUser, error: userFetchError } = await supabase
       .from('users')
-      .select('id')
+      .select('id, chat_tier')
       .limit(1)
       .single()
 
@@ -90,6 +91,31 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = dbUser.id
+    const tier = (dbUser.chat_tier === 'pro' ? 'pro' : 'free') as 'free' | 'pro'
+
+    // Verificar cuota antes de llamar a Gemini
+    let usageStatus: string
+    try {
+      usageStatus = await checkAndIncrementUsage(supabase, userId, tier)
+    } catch (err) {
+      console.error('Error checking chat usage:', err)
+      // Si el guard falla, dejamos pasar (fail open) para no romper UX
+      usageStatus = 'ok'
+    }
+
+    if (usageStatus === 'budget_exceeded') {
+      return NextResponse.json(
+        { success: false, message: 'El asistente está descansando un rato, probá más tarde 🐷' },
+        { status: 429 }
+      )
+    }
+
+    if (usageStatus === 'user_limit_exceeded') {
+      return NextResponse.json(
+        { success: false, message: 'Llegaste a tu límite diario de mensajes. Mañana se renueva, o pasate a Pro para más 🚀' },
+        { status: 429 }
+      )
+    }
 
     // 4. Obtener categorías del usuario para construir el prompt
     const { data: categories, error: categoriesError } = await supabase
@@ -237,6 +263,14 @@ export async function POST(req: NextRequest) {
       })
 
       geminiText = result.response.text()
+
+      // Acumular uso real (fire-and-forget — no bloquea la respuesta al usuario)
+      const usage = result.response.usageMetadata
+      accumulateBudget(
+        supabase,
+        usage?.promptTokenCount ?? 0,
+        usage?.candidatesTokenCount ?? 0
+      ).catch(err => console.error('accumulateBudget failed:', err))
     } catch (geminiError) {
       console.error('Error calling Gemini:', geminiError)
       return NextResponse.json(
