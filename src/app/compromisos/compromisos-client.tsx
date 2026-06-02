@@ -43,6 +43,7 @@ import { EditSubscriptionDialog } from '@/components/subscriptions/edit-subscrip
 import { CreateSubscriptionDialog } from '@/components/subscriptions/create-subscription-dialog';
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
+import { CreditCardCycleCard } from '@/components/compromisos/credit-card-cycle-card';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface PlanWithStatus extends InstallmentPlan {
@@ -370,6 +371,9 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     getMonthlyBurnRate,
   } = useFinanceStore();
 
+  const getPendingCreditCardByCard = useFinanceStore((s) => s.getPendingCreditCardByCard);
+  const creditCards = getPendingCreditCardByCard();
+
   useEffect(() => {
     if (!isInitialized) {
       fetchAllData();
@@ -453,6 +457,23 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
             </div>
           </div>
         </div>
+
+        {/* Tarjetas de crédito */}
+        {creditCards.length > 0 && (
+          <section className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <CreditCard className="h-4 w-4 text-indigo-400" />
+              <h2 className="text-sm font-medium text-slate-300 uppercase tracking-wider">
+                Tarjetas de crédito
+              </h2>
+            </div>
+            <div className="flex flex-col gap-3">
+              {creditCards.map((card) => (
+                <CreditCardCycleCard key={card.methodId} card={card} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Segmented Control */}
         <div data-tour="compromisos-tabs" className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800 mb-6 w-full justify-between">
