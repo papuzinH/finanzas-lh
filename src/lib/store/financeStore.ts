@@ -1197,9 +1197,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .filter((p) => p.payment_method_id === methodId && p.is_active)
       .reduce((acc, p) => acc + Number(p.amount), 0);
 
-    // E) Desglose bimonetario del ciclo (solo crédito con fechas configuradas)
+    // E) Desglose bimonetario del ciclo
     let usdExpenses = 0;
     let arsExpenses = 0;
+
+    // Transacciones del ciclo (solo crédito con fechas configuradas)
     if (method.type === 'credit' && nextPaymentDate && startDate && endDate) {
       for (const t of transactions) {
         if (t.payment_method_id !== methodId || t.type !== 'expense') continue;
@@ -1214,6 +1216,16 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         } else {
           arsExpenses += Math.abs(Number(t.amount));
         }
+      }
+    }
+
+    // Suscripciones activas del método (siempre aplican al ciclo mensual)
+    for (const p of recurringPlans) {
+      if (p.payment_method_id !== methodId || !p.is_active) continue;
+      if (p.currency === 'USD' && p.original_amount) {
+        usdExpenses += Math.abs(Number(p.original_amount));
+      } else {
+        arsExpenses += Math.abs(Number(p.amount));
       }
     }
 
