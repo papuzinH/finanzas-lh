@@ -112,9 +112,8 @@ export function BalanceCard({
 }: BalanceCardProps) {
   const [expanded, setExpanded] = useState(false)
   const getMonthlyComparison = useFinanceStore((s) => s.getMonthlyComparison)
-  const getPendingCreditCardByCard = useFinanceStore((s) => s.getPendingCreditCardByCard)
   const comparison = getMonthlyComparison()
-  const pendingCards = getPendingCreditCardByCard().filter((c) => c.isPending)
+  const pendingCards = useFinanceStore((s) => s.getPendingCreditCardByCard()).filter((c) => c.isPending)
 
   const totalMonthlySpend = monthlyExpenses + installments + burnRate + savingsTransfers
   const monthBalance = monthlyIncome - totalMonthlySpend
