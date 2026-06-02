@@ -1215,7 +1215,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       const status = get().getPaymentMethodStatus(method.id)
       const { projectedTotal, nextPaymentDate } = status
 
-      if (!nextPaymentDate || projectedTotal <= 0) return acc
+      // projectedTotal = income - expenses (negative when user owes money to the card)
+      if (!nextPaymentDate || projectedTotal >= 0) return acc
 
       const stored = paidCycles[method.id]
       const isPaidManually =
@@ -1228,7 +1229,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       acc.push({
         methodId: method.id,
         name: method.name,
-        total: projectedTotal,
+        total: Math.abs(projectedTotal),
         nextPaymentDate,
         isPending,
         isPaidManually,
