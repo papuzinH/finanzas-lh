@@ -1573,17 +1573,22 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   markCreditCardCyclePaid: (methodId: number) => {
-    const status = get().getPaymentMethodStatus(methodId)
+    const { getPaymentMethodStatus, paidCycles } = get()
+    const status = getPaymentMethodStatus(methodId)
     if (!status.nextPaymentDate) return
     const entry = {
       year: status.nextPaymentDate.getFullYear(),
-      month: status.nextPaymentDate.getMonth(),
+      month: status.nextPaymentDate.getMonth(), // 0-indexed (Date.prototype.getMonth)
     }
-    const updated = { ...get().paidCycles, [methodId]: entry }
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('chanchito_paid_cycles', JSON.stringify(updated))
-    }
+    const updated = { ...paidCycles, [methodId]: entry }
     set({ paidCycles: updated })
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('chanchito_paid_cycles', JSON.stringify(updated))
+      } catch {
+        // Storage quota exceeded or private browsing — in-memory state already updated
+      }
+    }
   },
 
   /**
