@@ -19,13 +19,12 @@ import { Card } from '@/components/ui/card';
 import { useFinanceStore, CreditCardCycleSummary } from '@/lib/store/financeStore';
 import { formatCurrency } from '@/lib/utils';
 
-// ── CreditCardCycleChip ────────────────────────────────────────────────────
-
 interface CreditCardCycleChipProps {
   card: CreditCardCycleSummary;
+  formattedDate: string;
 }
 
-export function CreditCardCycleChip({ card }: CreditCardCycleChipProps) {
+export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChipProps) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const { markCreditCardCyclePaid } = useFinanceStore();
@@ -49,21 +48,22 @@ export function CreditCardCycleChip({ card }: CreditCardCycleChipProps) {
     }
   };
 
-  const formattedDate = format(card.nextPaymentDate, "d 'de' MMM", { locale: es });
-
   return (
     <>
       <Badge
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen(true)}
-        className="gap-1 bg-amber-900/40 text-amber-400 border-amber-800 hover:bg-amber-900/50 cursor-pointer select-none"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(true); } }}
+        className="gap-1 bg-amber-900/40 text-amber-400 border-amber-800 hover:bg-amber-900/50 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
       >
         <Clock className="h-3 w-3" />
         Pendiente
         <ChevronRight className="h-3 w-3" />
       </Badge>
 
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent className="sm:max-w-[425px] bg-surface-overlay border-slate-800 text-slate-200">
+      <AlertDialog open={open} onOpenChange={(v) => !confirming && setOpen(v)}>
+        <AlertDialogContent className="bg-surface-overlay border-slate-800 text-slate-200">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">
               ¿Ya pagaste la {card.name}?
@@ -80,7 +80,7 @@ export function CreditCardCycleChip({ card }: CreditCardCycleChipProps) {
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirm}
+              onClick={(e) => { e.preventDefault(); handleConfirm(); }}
               disabled={confirming}
               className="w-full sm:w-auto h-11 sm:h-9 bg-indigo-600 hover:bg-indigo-700 text-white border-0"
             >
@@ -93,8 +93,6 @@ export function CreditCardCycleChip({ card }: CreditCardCycleChipProps) {
     </>
   );
 }
-
-// ── CreditCardCycleCard ────────────────────────────────────────────────────
 
 interface CreditCardCycleCardProps {
   card: CreditCardCycleSummary;
@@ -119,14 +117,8 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
         </div>
 
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-          <CreditCardCycleChip card={card} />
-          <p
-            className={
-              card.isPending
-                ? 'text-lg font-bold text-rose-400'
-                : 'text-lg font-bold text-white'
-            }
-          >
+          <CreditCardCycleChip card={card} formattedDate={formattedDate} />
+          <p className={card.isPending ? 'text-lg font-bold text-rose-400' : 'text-lg font-bold text-white'}>
             {formatCurrency(card.total)}
           </p>
         </div>
