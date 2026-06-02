@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ChevronDown, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Minus } from "lucide-react"
+import { ChevronDown, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Minus, CreditCard } from "lucide-react"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { useFinanceStore } from "@/lib/store/financeStore"
 
@@ -110,7 +112,9 @@ export function BalanceCard({
 }: BalanceCardProps) {
   const [expanded, setExpanded] = useState(false)
   const getMonthlyComparison = useFinanceStore((s) => s.getMonthlyComparison)
+  const getPendingCreditCardByCard = useFinanceStore((s) => s.getPendingCreditCardByCard)
   const comparison = getMonthlyComparison()
+  const pendingCards = getPendingCreditCardByCard().filter((c) => c.isPending)
 
   const totalMonthlySpend = monthlyExpenses + installments + burnRate + savingsTransfers
   const monthBalance = monthlyIncome - totalMonthlySpend
@@ -279,6 +283,30 @@ export function BalanceCard({
               className="overflow-hidden"
             >
               <div className="border-t border-slate-800 px-5 py-4 space-y-3">
+                {pendingCards.length > 0 && (
+                  <>
+                    <p className="text-xs text-slate-400 uppercase tracking-wider font-medium flex items-center gap-1.5">
+                      <CreditCard className="h-3 w-3 text-indigo-400" />
+                      Tarjetas pendientes de pago
+                    </p>
+                    {pendingCards.map((card) => {
+                      const formattedDate = format(card.nextPaymentDate, "d 'de' MMM", { locale: es })
+                      return (
+                        <div key={card.methodId} className="flex justify-between items-center">
+                          <div className="flex flex-col">
+                            <span className="text-sm text-slate-300">{card.name}</span>
+                            <span className="text-xs text-slate-500">vence {formattedDate}</span>
+                          </div>
+                          <span className="text-sm font-medium text-rose-400">
+                            -{formatCurrency(card.total)}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    <div className="h-px bg-slate-800" />
+                  </>
+                )}
+
                 <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">
                   Desglose del mes
                 </p>
