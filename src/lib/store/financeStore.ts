@@ -67,6 +67,15 @@ export function resolveRate(
   return 1;
 }
 
+export type CreditCardCycleSummary = {
+  methodId: number
+  name: string
+  total: number
+  nextPaymentDate: Date
+  isPending: boolean
+  isPaidManually: boolean
+}
+
 interface FinanceState {
   // State Raw
   transactions: ProcessedTransaction[];
@@ -192,7 +201,12 @@ interface FinanceState {
     nextClosingDate?: Date;
     nextPaymentDate?: Date;
   };
-  
+
+  // Credit card cycle tracking (localStorage-backed)
+  paidCycles: Record<number, { year: number; month: number }>;
+  markCreditCardCyclePaid: (methodId: number) => void;
+  getPendingCreditCardByCard: () => CreditCardCycleSummary[];
+
   // Dashboard Helpers
   getCurrentMonthInstallmentsTotal: () => number;
   getCurrentMonthInstallments: () => Transaction[];
@@ -402,6 +416,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   isLoading: true, // Start loading by default to prevent flash of empty content
   error: null,
   isInitialized: false,
+  paidCycles: (() => {
+    if (typeof window === 'undefined') return {}
+    try {
+      return JSON.parse(localStorage.getItem('chanchito_paid_cycles') ?? '{}') as Record<number, { year: number; month: number }>
+    } catch {
+      return {}
+    }
+  })(),
 
   fetchAllData: async () => {
     set({ isLoading: true, error: null });
@@ -1184,6 +1206,37 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     };
   },
 
+  getPendingCreditCardByCard: (): CreditCardCycleSummary[] => {
+    const { paymentMethods, paidCycles } = get()
+    const now = new Date()
+    const creditCards = paymentMethods.filter((m) => m.type === 'credit')
+
+    return creditCards.reduce<CreditCardCycleSummary[]>((acc, method) => {
+      const status = get().getPaymentMethodStatus(method.id)
+      const { projectedTotal, nextPaymentDate } = status
+
+      if (!nextPaymentDate || projectedTotal <= 0) return acc
+
+      const stored = paidCycles[method.id]
+      const isPaidManually =
+        stored !== undefined &&
+        stored.year === nextPaymentDate.getFullYear() &&
+        stored.month === nextPaymentDate.getMonth()
+
+      const isPending = !isPaidManually && now < nextPaymentDate
+
+      acc.push({
+        methodId: method.id,
+        name: method.name,
+        total: projectedTotal,
+        nextPaymentDate,
+        isPending,
+        isPaidManually,
+      })
+      return acc
+    }, [])
+  },
+
   /**
    * Retorna la suma total de cuotas que vencen en el mes actual.
    *
@@ -1516,6 +1569,20 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       savingsGoalContributions: (contributionsData as SavingsGoalContribution[]) || [],
       categoryBudgets: (budgetsData as CategoryBudget[]) || [],
     });
+  },
+
+  markCreditCardCyclePaid: (methodId: number) => {
+    const status = get().getPaymentMethodStatus(methodId)
+    if (!status.nextPaymentDate) return
+    const entry = {
+      year: status.nextPaymentDate.getFullYear(),
+      month: status.nextPaymentDate.getMonth(),
+    }
+    const updated = { ...get().paidCycles, [methodId]: entry }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('chanchito_paid_cycles', JSON.stringify(updated))
+    }
+    set({ paidCycles: updated })
   },
 
   /**
