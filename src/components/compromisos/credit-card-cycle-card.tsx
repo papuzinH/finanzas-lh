@@ -69,7 +69,9 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
               ¿Ya pagaste la {card.name}?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              {formatCurrency(card.total)} · vence {formattedDate}
+              {formatCurrency(card.total)}
+              {card.totalUSD && ` + u$s ${card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              {' · vence '}{formattedDate}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
@@ -121,6 +123,11 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
           <p className={card.isPending ? 'text-lg font-bold text-rose-400' : 'text-lg font-bold text-white'}>
             {formatCurrency(card.total)}
           </p>
+          {card.totalUSD && (
+            <p className="text-xs text-slate-400">
+              u$s {card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} en USD
+            </p>
+          )}
         </div>
       </div>
     </Card>

@@ -71,6 +71,7 @@ export type CreditCardCycleSummary = {
   methodId: number
   name: string
   total: number
+  totalUSD?: number
   nextPaymentDate: Date
   isPending: boolean
   isPaidManually: boolean
@@ -200,6 +201,7 @@ interface FinanceState {
     projectedTotal: number;
     nextClosingDate?: Date;
     nextPaymentDate?: Date;
+    usdExpenses: number;
   };
 
   // Credit card cycle tracking (localStorage-backed)
@@ -1093,7 +1095,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const now = new Date();
 
     if (!method)
-      return { currentConsumption: 0, fixedCosts: 0, projectedTotal: 0 };
+      return { currentConsumption: 0, fixedCosts: 0, projectedTotal: 0, usdExpenses: 0 };
 
     // 1. Definir el rango de fechas (Scope)
     let startDate: Date;
@@ -1193,16 +1195,37 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .filter((p) => p.payment_method_id === methodId && p.is_active)
       .reduce((acc, p) => acc + Number(p.amount), 0);
 
+    // E) Gastos en USD del ciclo (montos originales, para display bimonetario)
+    const usdExpenses = method.type === 'credit' && nextPaymentDate
+      ? transactions
+          .filter(t => {
+            if (t.payment_method_id !== methodId || t.type !== 'expense') return false;
+            if (t.original_currency !== 'USD' || !t.original_amount) return false;
+            const localTDate = parseLocalDate(t.date);
+            if (t.installment_plan_id) {
+              return (
+                localTDate.getMonth() === nextPaymentDate.getMonth() &&
+                localTDate.getFullYear() === nextPaymentDate.getFullYear()
+              );
+            }
+            return startDate && endDate
+              ? localTDate >= startDate && localTDate <= endDate
+              : false;
+          })
+          .reduce((acc, t) => acc + Math.abs(Number(t.original_amount)), 0)
+      : 0;
+
     // 3. Fórmula Final
     // Income - Expenses(Non-Quota) - Quotas - Fixed
     const netResult = income - expensesNonInstallment - installments - fixedCosts;
 
     return {
-      currentConsumption: netResult, // Usamos el resultado neto
+      currentConsumption: netResult,
       fixedCosts,
-      projectedTotal: netResult, // Mismo valor para consistencia
+      projectedTotal: netResult,
       nextClosingDate,
       nextPaymentDate,
+      usdExpenses,
     };
   },
 
@@ -1213,7 +1236,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     return creditCards.reduce<CreditCardCycleSummary[]>((acc, method) => {
       const status = get().getPaymentMethodStatus(method.id)
-      const { projectedTotal, nextPaymentDate } = status
+      const { projectedTotal, nextPaymentDate, usdExpenses } = status
 
       // projectedTotal = income - expenses (negative when user owes money to the card)
       if (!nextPaymentDate || projectedTotal >= 0) return acc
@@ -1230,6 +1253,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         methodId: method.id,
         name: method.name,
         total: Math.abs(projectedTotal),
+        totalUSD: usdExpenses > 0 ? usdExpenses : undefined,
         nextPaymentDate,
         isPending,
         isPaidManually,
