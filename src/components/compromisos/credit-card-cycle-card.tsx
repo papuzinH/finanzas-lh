@@ -69,8 +69,10 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
               ¿Ya pagaste la {card.name}?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              {formatCurrency(card.total)}
-              {card.totalUSD && ` + u$s ${card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              {card.totalARS > 0 && formatCurrency(card.totalARS)}
+              {card.totalARS > 0 && card.totalUSD > 0 && ' + '}
+              {card.totalUSD > 0 && `u$s ${card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              {card.totalARS === 0 && card.totalUSD === 0 && formatCurrency(card.total)}
               {' · vence '}{formattedDate}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -120,14 +122,23 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
 
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
           <CreditCardCycleChip card={card} formattedDate={formattedDate} />
-          <p className={card.isPending ? 'text-lg font-bold text-rose-400' : 'text-lg font-bold text-white'}>
-            {formatCurrency(card.total)}
-          </p>
-          {card.totalUSD && (
-            <p className="text-xs text-slate-400">
-              u$s {card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} en USD
-            </p>
-          )}
+          <div className="flex flex-col items-end gap-0.5">
+            {card.totalARS > 0 && (
+              <p className={card.isPending ? 'text-lg font-bold text-rose-400' : 'text-lg font-bold text-white'}>
+                {formatCurrency(card.totalARS)}
+              </p>
+            )}
+            {card.totalUSD > 0 && (
+              <p className={card.isPending ? 'text-lg font-bold text-rose-400' : 'text-lg font-bold text-white'}>
+                u$s {card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            )}
+            {card.totalARS === 0 && card.totalUSD === 0 && (
+              <p className={card.isPending ? 'text-lg font-bold text-rose-400' : 'text-lg font-bold text-white'}>
+                {formatCurrency(card.total)}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </Card>

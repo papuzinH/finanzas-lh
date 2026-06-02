@@ -70,8 +70,9 @@ export function resolveRate(
 export type CreditCardCycleSummary = {
   methodId: number
   name: string
-  total: number
-  totalUSD?: number
+  total: number     // full ARS equivalent (for balance calculations)
+  totalARS: number  // ARS-only expenses in the cycle
+  totalUSD: number  // USD-only expenses (original amount, for display)
   nextPaymentDate: Date
   isPending: boolean
   isPaidManually: boolean
@@ -202,6 +203,7 @@ interface FinanceState {
     nextClosingDate?: Date;
     nextPaymentDate?: Date;
     usdExpenses: number;
+    arsExpenses: number;
   };
 
   // Credit card cycle tracking (localStorage-backed)
@@ -1095,7 +1097,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const now = new Date();
 
     if (!method)
-      return { currentConsumption: 0, fixedCosts: 0, projectedTotal: 0, usdExpenses: 0 };
+      return { currentConsumption: 0, fixedCosts: 0, projectedTotal: 0, usdExpenses: 0, arsExpenses: 0 };
 
     // 1. Definir el rango de fechas (Scope)
     let startDate: Date;
@@ -1195,25 +1197,25 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .filter((p) => p.payment_method_id === methodId && p.is_active)
       .reduce((acc, p) => acc + Number(p.amount), 0);
 
-    // E) Gastos en USD del ciclo (montos originales, para display bimonetario)
-    const usdExpenses = method.type === 'credit' && nextPaymentDate
-      ? transactions
-          .filter(t => {
-            if (t.payment_method_id !== methodId || t.type !== 'expense') return false;
-            if (t.original_currency !== 'USD' || !t.original_amount) return false;
-            const localTDate = parseLocalDate(t.date);
-            if (t.installment_plan_id) {
-              return (
-                localTDate.getMonth() === nextPaymentDate.getMonth() &&
-                localTDate.getFullYear() === nextPaymentDate.getFullYear()
-              );
-            }
-            return startDate && endDate
-              ? localTDate >= startDate && localTDate <= endDate
-              : false;
-          })
-          .reduce((acc, t) => acc + Math.abs(Number(t.original_amount)), 0)
-      : 0;
+    // E) Desglose bimonetario del ciclo (solo crédito con fechas configuradas)
+    let usdExpenses = 0;
+    let arsExpenses = 0;
+    if (method.type === 'credit' && nextPaymentDate && startDate && endDate) {
+      for (const t of transactions) {
+        if (t.payment_method_id !== methodId || t.type !== 'expense') continue;
+        const localTDate = parseLocalDate(t.date);
+        const inCycle = t.installment_plan_id
+          ? localTDate.getMonth() === nextPaymentDate.getMonth() &&
+            localTDate.getFullYear() === nextPaymentDate.getFullYear()
+          : localTDate >= startDate && localTDate <= endDate;
+        if (!inCycle) continue;
+        if (t.original_currency === 'USD' && t.original_amount) {
+          usdExpenses += Math.abs(Number(t.original_amount));
+        } else {
+          arsExpenses += Math.abs(Number(t.amount));
+        }
+      }
+    }
 
     // 3. Fórmula Final
     // Income - Expenses(Non-Quota) - Quotas - Fixed
@@ -1226,6 +1228,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       nextClosingDate,
       nextPaymentDate,
       usdExpenses,
+      arsExpenses,
     };
   },
 
@@ -1236,7 +1239,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     return creditCards.reduce<CreditCardCycleSummary[]>((acc, method) => {
       const status = get().getPaymentMethodStatus(method.id)
-      const { projectedTotal, nextPaymentDate, usdExpenses } = status
+      const { projectedTotal, nextPaymentDate, usdExpenses, arsExpenses } = status
 
       // projectedTotal = income - expenses (negative when user owes money to the card)
       if (!nextPaymentDate || projectedTotal >= 0) return acc
@@ -1253,7 +1256,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         methodId: method.id,
         name: method.name,
         total: Math.abs(projectedTotal),
-        totalUSD: usdExpenses > 0 ? usdExpenses : undefined,
+        totalARS: arsExpenses,
+        totalUSD: usdExpenses,
         nextPaymentDate,
         isPending,
         isPaidManually,
