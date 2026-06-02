@@ -369,9 +369,9 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     getInstallmentStatus,
     getCurrentMonthInstallmentsTotal,
     getMonthlyBurnRate,
+    getPendingCreditCardByCard,
   } = useFinanceStore();
 
-  const getPendingCreditCardByCard = useFinanceStore((s) => s.getPendingCreditCardByCard);
   const creditCards = getPendingCreditCardByCard();
 
   useEffect(() => {
