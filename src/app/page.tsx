@@ -133,6 +133,7 @@ export default function DashboardPage() {
     getMonthlyIncome,
     getMonthlyVariableExpenses,
     getMonthlyExpensesBreakdown,
+    getMonthlyLiquidityBreakdown,
     getRegistrationStreak,
     user
   } = useFinanceStore();
@@ -158,6 +159,7 @@ export default function DashboardPage() {
   const monthlyIncome = getMonthlyIncome();
   const monthlyVariableExpenses = getMonthlyVariableExpenses();
   const monthlyBreakdown = getMonthlyExpensesBreakdown();
+  const liquidBreakdown = getMonthlyLiquidityBreakdown();
   const streak = getRegistrationStreak();
 
   // Datos para los Gráficos y Modales
@@ -222,11 +224,11 @@ export default function DashboardPage() {
           {/* Expandible Balance Card */}
           <div data-tour="balance-card" className="col-span-2 lg:col-span-4">
             <BalanceCard
-              monthlyIncome={monthlyIncome}
-              monthlyExpenses={monthlyVariableExpenses}
-              installments={currentMonthInstallments}
-              burnRate={monthlyBurnRate}
-              savingsTransfers={monthlyBreakdown.savingsTransfers}
+              monthlyIncome={liquidBreakdown.income}
+              monthlyExpenses={liquidBreakdown.liquidVariableExpenses}
+              installments={liquidBreakdown.liquidInstallments}
+              burnRate={liquidBreakdown.liquidSubscriptions}
+              savingsTransfers={liquidBreakdown.savingsTransfers}
             />
           </div>
 
@@ -262,7 +264,7 @@ export default function DashboardPage() {
             ]}
           />
 
-          {/* Metric Row 2: Cuotas y Suscripciones */}
+          {/* Metric Row 2: Cuotas y Mensualidades */}
           <MetricRow
             items={[
               {
@@ -277,7 +279,7 @@ export default function DashboardPage() {
               {
                 label: "Fijos mes",
                 value: formatCurrency(monthlyBurnRate),
-                sublabel: "Suscripciones",
+                sublabel: "Mensualidades",
                 color: "amber",
                 icon: CalendarClock,
                 onClick: () => setIsFixedCostsModalOpen(true),

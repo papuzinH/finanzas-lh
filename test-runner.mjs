@@ -369,11 +369,11 @@ Devuelve esta estructura:
 }
 
 --- CASO D: CONSULTA (el usuario pregunta sobre sus finanzas) ---
-Si el usuario hace una pregunta sobre sus gastos, balance, suscripciones, cuotas, inversiones, o movimientos.
+Si el usuario hace una pregunta sobre sus gastos, balance, Mensualidades, cuotas, inversiones, o movimientos.
 Devuelve esta estructura:
 {
   "intencion": "consulta",
-  "tipo": "balance_global | gasto_mes | ingreso_mes | resumen_mes | categoria_mes | mayor_gasto | medio_pago_consumo | medio_pago_cierre | cuotas_mes | cuota_especifica | suscripciones_lista | suscripciones_total | portfolio | busqueda | ultimos_movimientos | proyeccion_mes",
+  "tipo": "balance_global | gasto_mes | ingreso_mes | resumen_mes | categoria_mes | mayor_gasto | medio_pago_consumo | medio_pago_cierre | cuotas_mes | cuota_especifica | Mensualidades_lista | Mensualidades_total | portfolio | busqueda | ultimos_movimientos | proyeccion_mes",
   "filtros": {
     "categoria": null,
     "medio_pago": null,
@@ -491,7 +491,7 @@ REGLAS CRÍTICAS DE PROCESAMIENTO:
 2. Si "es_gasto_real" es false, el resto de campos pueden ser null.
 3. Prioriza tu lista de categorías personalizada. Si no encaja, usa "Otros".
 4. Si el usuario dice palabras como 'mensual', 'suscripción', 'débito automático', 'plan', prioriza la intención 'suscripcion' sobre 'transaccion'.
-5. El campo "category_id" ES OBLIGATORIO para transacciones y suscripciones. Nunca lo dejes null si encontraste una categoría.
+5. El campo "category_id" ES OBLIGATORIO para transacciones y Mensualidades. Nunca lo dejes null si encontraste una categoría.
 6. Si el usuario dice "borrá", "eliminá", "sacá", "quitá" → intención "eliminar".
 7. Si el usuario dice "cambiá", "editá", "modificá", "renombrá", "actualizá" → intención "editar".
 8. Si el mensaje anterior del asistente pedía confirmación y el usuario responde sí/no/reasignar → intención "confirmar_accion".
@@ -926,7 +926,7 @@ test('incluye instrucciones sobre transacciones', () => {
   expect(prompt.includes('transaccion')).toBe(true)
 })
 
-test('incluye instrucciones sobre suscripciones', () => {
+test('incluye instrucciones sobre Mensualidades', () => {
   const prompt = buildChatPrompt([])
   expect(prompt.includes('suscripcion')).toBe(true)
 })
@@ -1002,7 +1002,7 @@ test('incluye CASO B para tarjetas', () => {
   expect(prompt.includes('CASO B')).toBe(true)
 })
 
-test('incluye CASO C para suscripciones', () => {
+test('incluye CASO C para Mensualidades', () => {
   const prompt = buildChatPrompt([])
   expect(prompt.includes('CASO C')).toBe(true)
 })
@@ -1114,18 +1114,18 @@ test('parsea consulta de portfolio', () => {
   expect(result.queryType).toBe('portfolio')
 })
 
-test('parsea consulta de suscripciones lista', () => {
-  const input = JSON.stringify({ intencion: 'consulta', tipo: 'suscripciones_lista', filtros: { categoria: null, medio_pago: null, descripcion: null, limite: null } })
+test('parsea consulta de Mensualidades lista', () => {
+  const input = JSON.stringify({ intencion: 'consulta', tipo: 'Mensualidades_lista', filtros: { categoria: null, medio_pago: null, descripcion: null, limite: null } })
   const result = parseGeminiResponse(input)
   expect(result.type).toBe('query')
-  expect(result.queryType).toBe('suscripciones_lista')
+  expect(result.queryType).toBe('Mensualidades_lista')
 })
 
-test('parsea consulta de suscripciones total', () => {
-  const input = JSON.stringify({ intencion: 'consulta', tipo: 'suscripciones_total', filtros: { categoria: null, medio_pago: null, descripcion: null, limite: null } })
+test('parsea consulta de Mensualidades total', () => {
+  const input = JSON.stringify({ intencion: 'consulta', tipo: 'Mensualidades_total', filtros: { categoria: null, medio_pago: null, descripcion: null, limite: null } })
   const result = parseGeminiResponse(input)
   expect(result.type).toBe('query')
-  expect(result.queryType).toBe('suscripciones_total')
+  expect(result.queryType).toBe('Mensualidades_total')
 })
 
 test('parsea consulta de búsqueda con descripción', () => {
@@ -1775,11 +1775,11 @@ test('edit de suscripción desactivándola (is_active false)', () => {
 })
 
 test('conversacion parsea reply correctamente', () => {
-  const input = JSON.stringify({ intencion: 'conversacion', respuesta: '¡Hola! Podés registrar gastos, ingresos y suscripciones.' })
+  const input = JSON.stringify({ intencion: 'conversacion', respuesta: '¡Hola! Podés registrar gastos, ingresos y Mensualidades.' })
   const result = parseGeminiResponse(input)
   expect(result.type).toBe('conversation')
   if (result.type === 'conversation') {
-    expect(result.reply).toBe('¡Hola! Podés registrar gastos, ingresos y suscripciones.')
+    expect(result.reply).toBe('¡Hola! Podés registrar gastos, ingresos y Mensualidades.')
   }
 })
 

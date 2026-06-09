@@ -16,7 +16,7 @@ node test-runner.mjs
 - **Cobertura:**
   - Transacciones simples (gastos e ingresos)
   - Compras en cuotas
-  - Suscripciones
+  - Mensualidades
   - Configuración de tarjetas
   - Manejo de errores JSON
   - Edge cases (valores grandes, monedas extranjeras)
@@ -177,7 +177,7 @@ test('maneja valores numéricos grandes')
 }
 ```
 
-### CASO C: Suscripciones
+### CASO C: Mensualidades
 
 **Tests:** 3
 ```javascript

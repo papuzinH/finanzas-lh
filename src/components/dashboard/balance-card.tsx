@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ChevronDown, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Minus, CreditCard } from "lucide-react"
+import { ChevronDown, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Minus, CreditCard, Check, Clock } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
@@ -114,10 +114,15 @@ export function BalanceCard({
   const getMonthlyComparison = useFinanceStore((s) => s.getMonthlyComparison)
   const getPendingCreditCardByCard = useFinanceStore((s) => s.getPendingCreditCardByCard)
   const comparison = getMonthlyComparison()
-  const pendingCards = getPendingCreditCardByCard().filter((c) => c.isPending)
+  const allCreditCards = getPendingCreditCardByCard()
+  const pendingCards = allCreditCards.filter((c) => c.isPending)
+  const pendingCreditTotal = pendingCards.reduce((acc, c) => acc + c.total, 0)
+  const hasCreditCards = allCreditCards.length > 0
+  const allCardsPaid = hasCreditCards && pendingCards.length === 0
 
   const totalMonthlySpend = monthlyExpenses + installments + burnRate + savingsTransfers
   const monthBalance = monthlyIncome - totalMonthlySpend
+  const balanceAfterCards = monthBalance - pendingCreditTotal
   const isPositive = monthBalance >= 0
 
   // Porcentaje de gasto vs ingreso
@@ -195,17 +200,22 @@ export function BalanceCard({
                   <span className="text-xs text-slate-400">{formatCurrency(totalMonthlySpend)}</span>
                 </div>
 
-                {/* Badge resultado mes */}
-                <div
-                  className={cn(
-                    "ml-auto text-sm font-semibold px-3 py-1 rounded-full",
-                    isPositive
-                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                      : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                  )}
-                >
-                  {isPositive ? "+" : "-"}{formatCurrency(monthBalance)} este mes
-                </div>
+                {/* Badge estado tarjetas */}
+                {hasCreditCards && (
+                  <div
+                    className={cn(
+                      "ml-auto flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full",
+                      allCardsPaid
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    )}
+                  >
+                    {allCardsPaid
+                      ? <><Check className="h-3 w-3" />Tarjetas al día</>
+                      : <><Clock className="h-3 w-3" />{pendingCards.length === 1 ? "1 tarjeta pendiente" : `${pendingCards.length} tarjetas pendientes`}</>
+                    }
+                  </div>
+                )}
               </div>
 
               {/* Tendencia vs mes anterior */}
@@ -283,32 +293,8 @@ export function BalanceCard({
               className="overflow-hidden"
             >
               <div className="border-t border-slate-800 px-5 py-4 space-y-3">
-                {pendingCards.length > 0 && (
-                  <>
-                    <p className="text-xs text-slate-400 uppercase tracking-wider font-medium flex items-center gap-1.5">
-                      <CreditCard className="h-3 w-3 text-indigo-400" />
-                      Tarjetas pendientes de pago
-                    </p>
-                    {pendingCards.map((card) => {
-                      const formattedDate = format(card.nextPaymentDate, "d 'de' MMM", { locale: es })
-                      return (
-                        <div key={card.methodId} className="flex justify-between items-center">
-                          <div className="flex flex-col">
-                            <span className="text-sm text-slate-300">{card.name}</span>
-                            <span className="text-xs text-slate-500">vence {formattedDate}</span>
-                          </div>
-                          <span className="text-sm font-medium text-rose-400">
-                            -{formatCurrency(card.total)}
-                          </span>
-                        </div>
-                      )
-                    })}
-                    <div className="h-px bg-slate-800" />
-                  </>
-                )}
-
                 <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">
-                  Desglose del mes
+                  Efectivo y débito
                 </p>
 
                 <div className="flex justify-between items-center">
@@ -347,7 +333,7 @@ export function BalanceCard({
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-amber-400" />
-                      <span className="text-sm text-slate-300">Suscripciones</span>
+                      <span className="text-sm text-slate-300">Mensualidades</span>
                     </div>
                     <span className="text-sm font-medium text-amber-400">
                       -{formatCurrency(burnRate)}
@@ -369,7 +355,7 @@ export function BalanceCard({
 
                 <div className="pt-2 border-t border-slate-800">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-slate-300">Resultado del mes</span>
+                    <span className="text-sm font-medium text-slate-300">Balance líquido</span>
                     <span
                       className={cn(
                         "text-sm font-bold",
@@ -380,6 +366,46 @@ export function BalanceCard({
                     </span>
                   </div>
                 </div>
+
+                {pendingCards.length > 0 && (
+                  <>
+                    <div className="h-px bg-slate-800" />
+                    <p className="text-xs text-slate-400 uppercase tracking-wider font-medium flex items-center gap-1.5">
+                      <CreditCard className="h-3 w-3 text-indigo-400" />
+                      Tarjetas pendientes de pago
+                    </p>
+                    {pendingCards.map((card) => {
+                      const formattedDate = format(card.nextPaymentDate, "d 'de' MMM", { locale: es })
+                      return (
+                        <div key={card.methodId} className="flex justify-between items-center">
+                          <div className="flex flex-col">
+                            <span className="text-sm text-slate-300">{card.name}</span>
+                            <span className="text-xs text-slate-500">vence {formattedDate}</span>
+                          </div>
+                          <div className="flex flex-col items-end gap-0.5">
+                            {card.totalARS > 0 && (
+                              <span className="text-sm font-medium text-rose-400">-{formatCurrency(card.totalARS)}</span>
+                            )}
+                            {card.totalUSD > 0 && (
+                              <span className="text-sm font-medium text-rose-400">-u$s {card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            )}
+                            {card.totalARS === 0 && card.totalUSD === 0 && (
+                              <span className="text-sm font-medium text-rose-400">-{formatCurrency(card.total)}</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div className="pt-2 border-t border-slate-800">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-slate-300">Balance tras pagar tarjetas</span>
+                        <span className={cn("text-sm font-bold", balanceAfterCards >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                          {balanceAfterCards >= 0 ? "+" : "-"}{formatCurrency(Math.abs(balanceAfterCards))}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           )}

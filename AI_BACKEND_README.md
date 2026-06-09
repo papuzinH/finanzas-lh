@@ -31,7 +31,7 @@ export function parseGeminiResponse(rawResponse: string): ChatIntent
 - `ChatIntent` - Union discriminada de intenciones
 - `TransactionData` - Gastos/ingresos simples
 - `InstallmentData` - Compras en cuotas
-- `SubscriptionData` - Suscripciones/gastos recurrentes
+- `SubscriptionData` - Mensualidades/gastos recurrentes
 - `CardConfigData` - Configuración de tarjeta de crédito
 
 **Características:**
@@ -341,7 +341,7 @@ logger.info('Transaction created', { userId, amount })
 
 - `src/app/dashboard/transactions/actions.ts` - Servidor de transacciones (reusa patrón)
 - `src/app/dashboard/installments/actions.ts` - Servidor de cuotas (reusa patrón)
-- `src/app/dashboard/subscriptions/actions.ts` - Servidor de suscripciones (reusa patrón)
+- `src/app/dashboard/subscriptions/actions.ts` - Servidor de Mensualidades (reusa patrón)
 - `src/types/database.ts` - Tipos de Supabase
 - `src/lib/schemas/` - Validación Zod
 

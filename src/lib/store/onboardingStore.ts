@@ -36,7 +36,7 @@ export const TOUR_STEPS_BY_ROUTE: Record<TourRoute, { target: string; text: stri
     { target: 'search-input', text: 'Buscá gastos específicos o filtrá por tarjeta y categoría rápidamente.', position: 'bottom' },
   ],
   '/compromisos': [
-    { target: 'compromisos-tabs', text: 'Registra tus cuotas de tarjeta y suscripciones fijas por separado para controlar qué pagás cada mes.', position: 'bottom' },
+    { target: 'compromisos-tabs', text: 'Registra tus cuotas de tarjeta y Mensualidades fijas por separado para controlar qué pagás cada mes.', position: 'bottom' },
   ],
   '/objetivos': [
     { target: 'tabs-list', text: 'Establece tus metas de ahorro y presupuestos mensuales por categoría.', position: 'bottom' },

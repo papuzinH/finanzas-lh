@@ -1,8 +1,8 @@
-# Movimientos y suscripciones en dólares — Plan de Implementación
+# Movimientos y Mensualidades en dólares — Plan de Implementación
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Permitir cargar movimientos (`/movimientos`) y suscripciones (`/compromisos`) en USD, guardando monto en USD + equivalente ARS del momento, y revaluar los USD a cotización actual en todos los cálculos.
+**Goal:** Permitir cargar movimientos (`/movimientos`) y Mensualidades (`/compromisos`) en USD, guardando monto en USD + equivalente ARS del momento, y revaluar los USD a cotización actual en todos los cálculos.
 
 **Architecture:** La DB guarda el snapshot ARS + datos de origen (USD, par de cotización, rate). El store, en `fetchAllData`, reescribe `amount` en memoria para filas USD usando la cotización vigente → los ~30 getters siguen leyendo `amount` sin cambios. Las cotizaciones son las mismas que `/inversiones` (tabla `exchange_rates` + dólar blue en vivo).
 
@@ -41,7 +41,7 @@
 
 ```sql
 -- ============================================================
--- MIGRACION: Soporte de moneda (USD) en movimientos y suscripciones
+-- MIGRACION: Soporte de moneda (USD) en movimientos y Mensualidades
 -- Fecha: 2026-05-31
 -- Descripcion: Permite cargar transactions y recurring_plans en USD,
 --   guardando el monto original, el par de cotizacion y el rate del momento.
@@ -838,7 +838,7 @@ rtk git commit -m "feat(actions): guardar movimientos en USD con snapshot ARS"
 
 ---
 
-## Task 9: Wiring + persistencia de moneda en suscripciones
+## Task 9: Wiring + persistencia de moneda en Mensualidades
 
 **Files:**
 - Modify: `src/components/subscriptions/create-subscription-dialog.tsx`
@@ -988,7 +988,7 @@ Expected: sin errores.
 
 ```bash
 rtk git add src/components/subscriptions/create-subscription-dialog.tsx src/components/subscriptions/edit-subscription-dialog.tsx src/app/dashboard/subscriptions/actions.ts
-rtk git commit -m "feat: suscripciones en USD con snapshot ARS"
+rtk git commit -m "feat: Mensualidades en USD con snapshot ARS"
 ```
 
 ---
@@ -1054,7 +1054,7 @@ rtk git commit -m "feat(ui): mostrar movimientos en USD con equivalente ARS"
 
 - [ ] **Step 1: Mostrar USD en el monto de la suscripción**
 
-El monto de la suscripción se renderiza en `src/app/compromisos/compromisos-client.tsx` líneas ~291-293, dentro del map de suscripciones (variable `plan`, de tipo `RecurringPlan`):
+El monto de la suscripción se renderiza en `src/app/compromisos/compromisos-client.tsx` líneas ~291-293, dentro del map de Mensualidades (variable `plan`, de tipo `RecurringPlan`):
 ```tsx
             <p className="font-bold text-sm font-mono text-slate-200">
               {formatCurrency(plan.amount)}
@@ -1084,7 +1084,7 @@ Expected: sin errores. Si TS marca que `currency`/`original_amount` no existen e
 
 ```bash
 rtk git add src/app/compromisos/compromisos-client.tsx
-rtk git commit -m "feat(ui): mostrar suscripciones en USD con equivalente ARS"
+rtk git commit -m "feat(ui): mostrar Mensualidades en USD con equivalente ARS"
 ```
 
 ---
@@ -1227,7 +1227,7 @@ Comprobar:
 - El balance disponible y el desglose mensual/por categoría reflejan el equivalente ARS.
 - Botón "Cotización": refresca y los montos en pesos de movimientos USD cambian si cambió el dólar.
 - Crear suscripción en USD → card muestra "US$ N ≈ $X"; el burn rate (`/compromisos` y dashboard) la considera en ARS.
-- Movimientos/suscripciones en ARS existentes: sin cambios visibles.
+- Movimientos/Mensualidades en ARS existentes: sin cambios visibles.
 - Editar un movimiento USD: el form abre con el monto en USD y el par correcto; guardar recalcula el snapshot con la cotización actual.
 
 - [ ] **Step 3: Recordatorio de schema a PROD**

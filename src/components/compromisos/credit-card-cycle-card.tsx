@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CreditCard, Check, Clock, Loader2, ChevronRight } from 'lucide-react';
+import { CreditCard, Check, Clock, Loader2, ChevronRight, Undo2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,14 +27,61 @@ interface CreditCardCycleChipProps {
 export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChipProps) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const { markCreditCardCyclePaid } = useFinanceStore();
+  const { markCreditCardCyclePaid, unmarkCreditCardCyclePaid } = useFinanceStore();
 
   if (!card.isPending) {
     return (
-      <Badge className="gap-1 bg-emerald-900/40 text-emerald-400 border-emerald-800 hover:bg-emerald-900/40 cursor-default select-none">
-        <Check className="h-3 w-3" />
-        Pagada
-      </Badge>
+      <>
+        <Badge
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpen(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(true); } }}
+          className="gap-1 bg-emerald-900/40 text-emerald-400 border-emerald-800 hover:bg-emerald-800/60 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+        >
+          <Check className="h-3 w-3" />
+          Pagada
+          <Undo2 className="h-3 w-3 opacity-60" />
+        </Badge>
+
+        <AlertDialog open={open} onOpenChange={(v) => !confirming && setOpen(v)}>
+          <AlertDialogContent className="bg-surface-overlay border-slate-800 text-slate-200">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white">
+                ¿Deshacer pago de {card.name}?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-slate-400">
+                La tarjeta volverá al estado pendiente para el ciclo que vence el {formattedDate}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <AlertDialogCancel
+                disabled={confirming}
+                className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-white hover:bg-slate-800 border-slate-700 bg-transparent"
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  setConfirming(true);
+                  try {
+                    unmarkCreditCardCyclePaid(card.methodId);
+                  } finally {
+                    setConfirming(false);
+                    setOpen(false);
+                  }
+                }}
+                disabled={confirming}
+                className="w-full sm:w-auto h-11 sm:h-9 bg-slate-700 hover:bg-slate-600 text-white border-0"
+              >
+                {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Sí, deshacer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
     );
   }
 

@@ -143,10 +143,10 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
           )}
         </div>
 
-        {/* Footer: Suscripciones y Movimientos */}
+        {/* Footer: Mensualidades y Movimientos */}
         <div className="space-y-4 pt-4 border-t border-slate-800/50">
 
-          {/* Resumen Suscripciones */}
+          {/* Resumen Mensualidades */}
           {subscriptions.length > 0 && (
             <div className="flex items-center justify-between text-xs bg-surface/50 p-2 rounded-lg border border-slate-800/50">
               <div className="flex items-center gap-2 text-slate-400">

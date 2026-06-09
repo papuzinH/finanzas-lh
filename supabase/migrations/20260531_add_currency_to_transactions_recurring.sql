@@ -1,5 +1,5 @@
 -- ============================================================
--- MIGRACION: Soporte de moneda (USD) en movimientos y suscripciones
+-- MIGRACION: Soporte de moneda (USD) en movimientos y Mensualidades
 -- Fecha: 2026-05-31
 -- Descripcion: Permite cargar transactions y recurring_plans en USD,
 --   guardando el monto original, el par de cotizacion y el rate del momento.

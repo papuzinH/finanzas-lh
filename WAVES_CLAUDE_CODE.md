@@ -343,7 +343,7 @@ Rediseñá todos los empty states de la aplicación:
 Buscá todos los empty states en estos archivos:
 - src/app/movimientos/page.tsx (sin movimientos)
 - src/app/cuotas/page.tsx (sin planes de cuotas)
-- src/app/mensualidades/page.tsx (sin suscripciones)
+- src/app/mensualidades/page.tsx (sin Mensualidades)
 - src/app/objetivos/page.tsx (sin metas / sin presupuestos)
 - src/app/inversiones/page.tsx (sin inversiones)
 - src/app/categorias/page.tsx (sin categorías)
@@ -376,7 +376,7 @@ Agregá animaciones staggered a todas las listas de cards en la app:
    - Dashboard: grid de transacciones recientes
    - Movimientos: grid de transacciones por día
    - Cuotas: grid de planes
-   - Mensualidades: grid de suscripciones
+   - Mensualidades: grid de Mensualidades
    - Inversiones: grid de activos
 
 3. Cada child item debe estar envuelto en `<motion.div variants={item}>`.

@@ -552,10 +552,10 @@ async function handleQuery(queryType: QueryType, filters: QueryFilters, userId: 
         return await handleCuotasMes(supabase, userId)
       case 'cuota_especifica':
         return await handleCuotaEspecifica(supabase, userId, filters)
-      case 'suscripciones_lista':
-        return await handleSuscripcionesLista(supabase, userId)
-      case 'suscripciones_total':
-        return await handleSuscripcionesTotal(supabase, userId)
+      case 'Mensualidades_lista':
+        return await handleMensualidadesLista(supabase, userId)
+      case 'Mensualidades_total':
+        return await handleMensualidadesTotal(supabase, userId)
       case 'portfolio':
         return await handlePortfolio(supabase, userId)
       case 'busqueda':
@@ -621,7 +621,7 @@ async function handleGastoMes(supabase: any, userId: number): Promise<ChatRespon
 
   return {
     success: true,
-    message: `📊 Gastos de ${mes}:\n💳 Variables: ${formatMoney(variables)}\n📦 Cuotas: ${formatMoney(cuotas)}\n🔄 Suscripciones: ${formatMoney(subs)}\n📉 Total: ${formatMoney(total)}`,
+    message: `📊 Gastos de ${mes}:\n💳 Variables: ${formatMoney(variables)}\n📦 Cuotas: ${formatMoney(cuotas)}\n🔄 Mensualidades: ${formatMoney(subs)}\n📉 Total: ${formatMoney(total)}`,
   }
 }
 
@@ -905,7 +905,7 @@ async function handleCuotaEspecifica(supabase: any, userId: number, filters: Que
   }
 }
 
-async function handleSuscripcionesLista(supabase: any, userId: number): Promise<ChatResponse> {
+async function handleMensualidadesLista(supabase: any, userId: number): Promise<ChatResponse> {
   const { data, error } = await supabase
     .from('recurring_plans')
     .select('description, amount, currency, frequency')
@@ -914,7 +914,7 @@ async function handleSuscripcionesLista(supabase: any, userId: number): Promise<
     .order('amount', { ascending: false })
 
   if (error) return { success: false, message: 'No pude obtener esa información.' }
-  if (!data || data.length === 0) return { success: true, message: '🔄 No tenés suscripciones activas.' }
+  if (!data || data.length === 0) return { success: true, message: '🔄 No tenés Mensualidades activas.' }
 
   const freqLabel: Record<string, string> = { monthly: 'mes', yearly: 'año', weekly: 'semana' }
   const lines = data.map((p: any) => {
@@ -925,11 +925,11 @@ async function handleSuscripcionesLista(supabase: any, userId: number): Promise<
 
   return {
     success: true,
-    message: `🔄 Suscripciones activas:\n${lines.join('\n')}`,
+    message: `🔄 Mensualidades activas:\n${lines.join('\n')}`,
   }
 }
 
-async function handleSuscripcionesTotal(supabase: any, userId: number): Promise<ChatResponse> {
+async function handleMensualidadesTotal(supabase: any, userId: number): Promise<ChatResponse> {
   const { data, error } = await supabase
     .from('recurring_plans')
     .select('amount, currency')
@@ -937,15 +937,15 @@ async function handleSuscripcionesTotal(supabase: any, userId: number): Promise<
     .eq('is_active', true)
 
   if (error) return { success: false, message: 'No pude obtener esa información.' }
-  if (!data || data.length === 0) return { success: true, message: '🔄 No tenés suscripciones activas.' }
+  if (!data || data.length === 0) return { success: true, message: '🔄 No tenés Mensualidades activas.' }
 
   const totalARS = data.filter((p: any) => p.currency === 'ARS').reduce((s: number, p: any) => s + p.amount, 0)
   const totalUSD = data.filter((p: any) => p.currency === 'USD').reduce((s: number, p: any) => s + p.amount, 0)
 
-  let msg = '🔄 Gasto mensual en suscripciones:'
+  let msg = '🔄 Gasto mensual en Mensualidades:'
   if (totalARS > 0) msg += `\n💲 ARS: ${formatMoney(totalARS)}/mes`
   if (totalUSD > 0) msg += `\n💵 USD: $${totalUSD}/mes`
-  if (totalARS === 0 && totalUSD === 0) msg += '\nNo tenés suscripciones con monto.'
+  if (totalARS === 0 && totalUSD === 0) msg += '\nNo tenés Mensualidades con monto.'
 
   return { success: true, message: msg }
 }
@@ -1307,7 +1307,7 @@ async function handleDelete(data: DeleteData, userId: number): Promise<ChatRespo
           .eq('payment_method_id', method.id)
           .eq('user_id', userId)
 
-        // Verificar dependencias: suscripciones
+        // Verificar dependencias: Mensualidades
         const { count: subCount } = await supabase
           .from('recurring_plans')
           .select('id', { count: 'exact' })
@@ -1331,7 +1331,7 @@ async function handleDelete(data: DeleteData, userId: number): Promise<ChatRespo
           const details: string[] = []
           if (txCount && txCount > 0) details.push(`${txCount} transacciones`)
           if (planCount && planCount > 0) details.push(`${planCount} planes de cuotas`)
-          if (subCount && subCount > 0) details.push(`${subCount} suscripciones`)
+          if (subCount && subCount > 0) details.push(`${subCount} Mensualidades`)
 
           return {
             success: true,
@@ -1424,7 +1424,7 @@ async function handleDelete(data: DeleteData, userId: number): Promise<ChatRespo
 
         const sub = subs[0]
 
-        // Suscripciones se desactivan, no se eliminan hard
+        // Mensualidades se desactivan, no se eliminan hard
         const { error: updateError } = await supabase
           .from('recurring_plans')
           .update({ is_active: false })
@@ -1586,7 +1586,7 @@ async function handleConfirmAction(data: ConfirmActionData, userId: number): Pro
           .eq('payment_method_id', pending.entityId)
           .eq('user_id', userId)
 
-        // Reasignar suscripciones
+        // Reasignar Mensualidades
         await supabase
           .from('recurring_plans')
           .update({ payment_method_id: newMethod.id })
@@ -1678,7 +1678,7 @@ async function handleProyeccionMes(supabase: any, userId: number): Promise<ChatR
 
   const gastadoHoy = gastosData?.reduce((s: number, t: any) => s + t.amount, 0) ?? 0
 
-  // Suscripciones activas (burn rate mensual)
+  // Mensualidades activas (burn rate mensual)
   const { data: subsData } = await supabase
     .from('recurring_plans')
     .select('amount, currency')

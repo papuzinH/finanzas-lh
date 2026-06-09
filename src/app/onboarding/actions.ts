@@ -229,7 +229,7 @@ Devolvé EXCLUSIVAMENTE un JSON con esta estructura:
 
 Reglas:
 - Cada categoría: emoji representativo, nombre corto (1-2 palabras), descripción detallada (la usa una IA para clasificar gastos futuros).
-- Si el usuario es vago, usá categorías genéricas argentinas: Supermercado, Transporte, Salidas, Hogar, Salud, Suscripciones, Entretenimiento.
+- Si el usuario es vago, usá categorías genéricas argentinas: Supermercado, Transporte, Salidas, Hogar, Salud, Mensualidades, Entretenimiento.
 - No agregues texto fuera del JSON.
 - JSON válido siempre.`
 

@@ -209,6 +209,7 @@ interface FinanceState {
   // Credit card cycle tracking (localStorage-backed)
   paidCycles: Record<number, { year: number; month: number }>;
   markCreditCardCyclePaid: (methodId: number) => void;
+  unmarkCreditCardCyclePaid: (methodId: number) => void;
   getPendingCreditCardByCard: () => CreditCardCycleSummary[];
 
   // Dashboard Helpers
@@ -238,6 +239,19 @@ interface FinanceState {
     totalExpenses: number;
     income: number;
     netBalance: number;
+  };
+
+  // Balance líquido: excluye gastos de tarjetas de crédito aún no pagadas
+  getMonthlyLiquidityBreakdown: () => {
+    income: number;
+    liquidVariableExpenses: number;
+    liquidInstallments: number;
+    liquidSubscriptions: number;
+    savingsTransfers: number;
+    liquidTotalExpenses: number;
+    liquidNetBalance: number;
+    pendingCreditTotal: number;
+    pendingCards: CreditCardCycleSummary[];
   };
   getEndOfMonthSurplusSuggestion: () => {
     suggestedAmount: number;
@@ -943,15 +957,15 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * Refleja el dinero real que tenés disponible HOY, considerando:
    *
    * Balance = ingresos históricos
-   *         - gastos variables históricos (sin cuotas, sin suscripciones)
+   *         - gastos variables históricos (sin cuotas, sin Mensualidades)
    *         - cuotas YA pagadas (fecha visual <= hoy)
    *         - cuotas que vencen este mes (según ciclo de tarjeta)
-   *         - suscripciones activas × 1 (solo el mes actual)
+   *         - Mensualidades activas × 1 (solo el mes actual)
    *
    * Decisiones de diseño:
    * - Cuotas FUTURAS: NO se restan. Todavía no salieron de tu bolsillo.
    *   Solo impactan cuando llega su mes.
-   * - Suscripciones: se restan UNA vez (mes actual) porque no generan
+   * - Mensualidades: se restan UNA vez (mes actual) porque no generan
    *   transacciones reales. No se multiplican por meses pasados para
    *   evitar inventar datos históricos que no existen en la base.
    *
@@ -973,7 +987,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .filter((t) => t.type === 'income')
       .reduce((acc, t) => acc + Number(t.amount), 0);
 
-    // 1. Gastos variables históricos (sin cuotas ni suscripciones recurrentes)
+    // 1. Gastos variables históricos (sin cuotas ni Mensualidades recurrentes)
     const variableExpenses = transactions
       .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id)
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
@@ -996,7 +1010,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       })
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
-    // 3. Suscripciones del mes actual (1×). Como las suscripciones no
+    // 3. Mensualidades del mes actual (1×). Como las Mensualidades no
     //    generan transacciones reales, las restamos una sola vez para
     //    reflejar el compromiso del mes en curso.
     const recurringExpense = getMonthlyBurnRate();
@@ -1011,16 +1025,16 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   /**
-   * Retorna la suma de TODAS las suscripciones activas.
+   * Retorna la suma de TODAS las Mensualidades activas.
    *
    * Este es un INDICADOR PROYECTADO de gasto mensual recurrente, no una cantidad
    * de gasto realizado. Útil para:
    * - Estimar flujo de caja futuro
    * - Alertas si el burn rate es alto
-   * - Dashboard de suscripciones
+   * - Dashboard de Mensualidades
    *
    * NOTA: NO se resta de getGlobalBalance() para evitar double-counting.
-   * Los gastos reales de suscripciones SÍ aparecen como transacciones.
+   * Los gastos reales de Mensualidades SÍ aparecen como transacciones.
    */
   getMonthlyBurnRate: () => {
     const { recurringPlans } = get();
@@ -1078,7 +1092,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * Para tarjetas de crédito:
    * - Calcula el período actual según closing_day/payment_day
    * - Agrupa ingresos, gastos y cuotas del ciclo
-   * - Retorna currentConsumption = ingresos - gastos - cuotas - suscripciones
+   * - Retorna currentConsumption = ingresos - gastos - cuotas - Mensualidades
    *
    * Para débito/efectivo:
    * - Usa mes calendario
@@ -1086,7 +1100,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    *
    * Resultado:
    * - currentConsumption: Balance neto del período (consumo real - ingresos)
-   * - fixedCosts: Suscripciones activas en este método
+   * - fixedCosts: Mensualidades activas en este método
    * - projectedTotal: Mismo que currentConsumption (consistencia)
    * - nextClosingDate: Próxima fecha de cierre (solo crédito)
    * - nextPaymentDate: Próxima fecha de vencimiento (solo crédito)
@@ -1202,15 +1216,28 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     let arsExpenses = 0;
 
     // Transacciones del ciclo (solo crédito con fechas configuradas)
+    // Se trackea qué planes recurrentes ya tienen transacción registrada en el ciclo
+    // para evitar doble conteo al agregar los planes activos después.
+    const recurringPlanIdsInCycle = new Set<number>();
     if (method.type === 'credit' && nextPaymentDate && startDate && endDate) {
       for (const t of transactions) {
         if (t.payment_method_id !== methodId || t.type !== 'expense') continue;
         const localTDate = parseLocalDate(t.date);
-        const inCycle = t.installment_plan_id
-          ? localTDate.getMonth() === nextPaymentDate.getMonth() &&
-            localTDate.getFullYear() === nextPaymentDate.getFullYear()
-          : localTDate >= startDate && localTDate <= endDate;
+        let inCycle: boolean;
+        if (t.installment_plan_id) {
+          inCycle = localTDate.getMonth() === nextPaymentDate.getMonth() &&
+                    localTDate.getFullYear() === nextPaymentDate.getFullYear();
+        } else {
+          // Gastos variables: rango de fechas del ciclo O mismo mes/año que el vencimiento
+          // según periodDate (cubre gastos cargados después del cierre pero antes del vencimiento)
+          const inCycleRange = localTDate >= startDate && localTDate <= endDate;
+          const pDate = parseLocalDate(t.periodDate ?? t.date);
+          const inPaymentMonth = pDate.getMonth() === nextPaymentDate.getMonth() &&
+                                 pDate.getFullYear() === nextPaymentDate.getFullYear();
+          inCycle = inCycleRange || inPaymentMonth;
+        }
         if (!inCycle) continue;
+        if (t.recurring_plan_id) recurringPlanIdsInCycle.add(t.recurring_plan_id);
         if (t.original_currency === 'USD' && t.original_amount) {
           usdExpenses += Math.abs(Number(t.original_amount));
         } else {
@@ -1219,9 +1246,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       }
     }
 
-    // Suscripciones activas del método (siempre aplican al ciclo mensual)
+    // Mensualidades activas sin transacción registrada en este ciclo
     for (const p of recurringPlans) {
       if (p.payment_method_id !== methodId || !p.is_active) continue;
+      if (recurringPlanIdsInCycle.has(p.id)) continue;
       if (p.currency === 'USD' && p.original_amount) {
         usdExpenses += Math.abs(Number(p.original_amount));
       } else {
@@ -1450,11 +1478,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    *
    * Solo incluye:
    * - Gastos normales (sin cuota de plan de cuotas)
-   * - Sin suscripciones (sin recurring_plan_id)
+   * - Sin Mensualidades (sin recurring_plan_id)
    *
    * Excluye:
    * - Cuotas (installment_plan_id)
-   * - Suscripciones activas (recurring_plan_id)
+   * - Mensualidades activas (recurring_plan_id)
    *
    * Útil para:
    * - Ver qué se gastó en consumo real (no recurrente)
@@ -1485,9 +1513,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * - Proyección de flujo de caja mensual
    *
    * Retorna:
-   * - variableExpenses: Gastos sin cuotas ni suscripciones
+   * - variableExpenses: Gastos sin cuotas ni Mensualidades
    * - installmentsTotal: Cuotas que vencen este mes
-   * - subscriptionsCost: Suscripciones activas (burn rate)
+   * - subscriptionsCost: Mensualidades activas (burn rate)
   * - savingsTransfers: Transferencias a ahorro del mes
   * - totalExpenses: Suma de gastos + transferencias a ahorro
    * - income: Ingresos del mes actual
@@ -1526,6 +1554,72 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       totalExpenses,
       income,
       netBalance,
+    };
+  },
+
+  getMonthlyLiquidityBreakdown: () => {
+    const {
+      transactions,
+      paymentMethods,
+      recurringPlans,
+      internalTransfers,
+      getPendingCreditCardByCard,
+      getMonthlyIncome,
+    } = get();
+    const now = new Date();
+    const currentMonth = format(now, 'yyyy-MM');
+
+    // Tarjetas de crédito pendientes de pago (no pagadas aún este ciclo)
+    const pendingCards = getPendingCreditCardByCard().filter((c) => c.isPending);
+    const pendingCardIds = new Set(pendingCards.map((c) => c.methodId));
+    const pendingCreditTotal = pendingCards.reduce((acc, c) => acc + c.total, 0);
+
+    // Gastos variables del mes EXCLUYENDO los de tarjetas pendientes
+    const liquidVariableExpenses = transactions
+      .filter(
+        (t) =>
+          t.type === 'expense' &&
+          !t.installment_plan_id &&
+          !t.recurring_plan_id &&
+          isExpenseInCurrentMonthScope(t, paymentMethods, now) &&
+          !pendingCardIds.has(t.payment_method_id ?? -1),
+      )
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+    // Cuotas del mes EXCLUYENDO las de tarjetas pendientes
+    const liquidInstallments = transactions
+      .filter(
+        (t) =>
+          t.type === 'expense' &&
+          !!t.installment_plan_id &&
+          isExpenseInCurrentMonthScope(t, paymentMethods, now) &&
+          !pendingCardIds.has(t.payment_method_id ?? -1),
+      )
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+    // Mensualidades activas EXCLUYENDO las de tarjetas pendientes
+    const liquidSubscriptions = recurringPlans
+      .filter((p) => p.is_active && !pendingCardIds.has(p.payment_method_id ?? -1))
+      .reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0);
+
+    const savingsTransfers = internalTransfers
+      .filter((transfer) => transfer.period_date?.slice(0, 7) === currentMonth)
+      .reduce((acc, transfer) => acc + Math.abs(Number(transfer.amount)), 0);
+
+    const income = getMonthlyIncome();
+    const liquidTotalExpenses = liquidVariableExpenses + liquidInstallments + liquidSubscriptions + savingsTransfers;
+    const liquidNetBalance = income - liquidTotalExpenses;
+
+    return {
+      income,
+      liquidVariableExpenses,
+      liquidInstallments,
+      liquidSubscriptions,
+      savingsTransfers,
+      liquidTotalExpenses,
+      liquidNetBalance,
+      pendingCreditTotal,
+      pendingCards,
     };
   },
 
@@ -1621,6 +1715,20 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       month: status.nextPaymentDate.getMonth(), // 0-indexed (Date.prototype.getMonth)
     }
     const updated = { ...paidCycles, [methodId]: entry }
+    set({ paidCycles: updated })
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('chanchito_paid_cycles', JSON.stringify(updated))
+      } catch {
+        // Storage quota exceeded or private browsing — in-memory state already updated
+      }
+    }
+  },
+
+  unmarkCreditCardCyclePaid: (methodId: number) => {
+    const { paidCycles } = get()
+    const updated = { ...paidCycles }
+    delete updated[methodId]
     set({ paidCycles: updated })
     if (typeof window !== 'undefined') {
       try {
@@ -1742,7 +1850,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    *
    * Tipos:
    * - 'income': Ingresos por semana
-   * - 'variable': Gastos variables (sin cuotas ni suscripciones) por semana
+   * - 'variable': Gastos variables (sin cuotas ni Mensualidades) por semana
    * - 'installments': Cuotas por semana
    * - 'fixed': Costo mensual de planes recurrentes dividido en 7 semanas iguales
    */

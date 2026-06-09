@@ -141,11 +141,11 @@ Devuelve esta estructura:
 }
 
 --- CASO D: CONSULTA (el usuario pregunta sobre sus finanzas) ---
-Si el usuario hace una pregunta sobre sus gastos, balance, suscripciones, cuotas, inversiones, o movimientos.
+Si el usuario hace una pregunta sobre sus gastos, balance, Mensualidades, cuotas, inversiones, o movimientos.
 Devuelve esta estructura:
 {
   "intencion": "consulta",
-  "tipo": "balance_global | gasto_mes | ingreso_mes | resumen_mes | categoria_mes | mayor_gasto | medio_pago_consumo | medio_pago_cierre | cuotas_mes | cuota_especifica | suscripciones_lista | suscripciones_total | portfolio | busqueda | ultimos_movimientos | proyeccion_mes",
+  "tipo": "balance_global | gasto_mes | ingreso_mes | resumen_mes | categoria_mes | mayor_gasto | medio_pago_consumo | medio_pago_cierre | cuotas_mes | cuota_especifica | Mensualidades_lista | Mensualidades_total | portfolio | busqueda | ultimos_movimientos | proyeccion_mes",
   "filtros": {
     "categoria": "nombre de categoría si pregunta por una específica, o null",
     "medio_pago": "nombre del medio de pago si pregunta por uno específico, o null",
@@ -165,8 +165,8 @@ Tipos de consulta y cuándo usarlos:
 - medio_pago_cierre: '¿Cuándo cierra la Visa?', '¿Cuándo vence la Master?' → filtros.medio_pago = nombre
 - cuotas_mes: '¿Qué cuotas pago este mes?', '¿Cuánto pago de cuotas?'
 - cuota_especifica: '¿Cuánto me queda de la TV?', 'Estado de la cuota del celular' → filtros.descripcion = keyword
-- suscripciones_lista: '¿Qué suscripciones tengo?', 'Mis gastos fijos'
-- suscripciones_total: '¿Cuánto gasto en suscripciones?', '¿Cuánto son mis fijos?'
+- Mensualidades_lista: '¿Qué Mensualidades tengo?', 'Mis gastos fijos'
+- Mensualidades_total: '¿Cuánto gasto en Mensualidades?', '¿Cuánto son mis fijos?'
 - portfolio: '¿Cómo está mi portfolio?', '¿Cuánto tengo invertido?', 'Mis inversiones'
 - busqueda: '¿Cuándo compré la tele?', '¿Cuánto gasté en Mercado Libre?' → filtros.descripcion = keyword
 - ultimos_movimientos: 'Últimos gastos', 'Mis últimas transacciones' → filtros.limite = N o 5 por default
@@ -177,7 +177,7 @@ Si el usuario saluda, pregunta algo general, o el mensaje no corresponde a ningu
 Devuelve esta estructura:
 {
   "intencion": "conversacion",
-  "respuesta": "Tu respuesta en español, amigable y breve. Recordale que podés registrar gastos, ingresos, cuotas y suscripciones."
+  "respuesta": "Tu respuesta en español, amigable y breve. Recordale que podés registrar gastos, ingresos, cuotas y Mensualidades."
 }
 
 --- CASO F: EDITAR UNA ENTIDAD EXISTENTE ---
@@ -299,7 +299,7 @@ REGLAS CRÍTICAS DE PROCESAMIENTO:
 2. Si "es_gasto_real" es false, el resto de campos pueden ser null.
 3. Prioriza tu lista de categorías personalizada. Si no encaja, usa "Otros".
 4. Si el usuario dice palabras como 'mensual', 'suscripción', 'débito automático', 'plan', prioriza la intención 'suscripcion' sobre 'transaccion'.
-5. El campo "category_id" ES OBLIGATORIO para transacciones y suscripciones. Nunca lo dejes null si encontraste una categoría.
+5. El campo "category_id" ES OBLIGATORIO para transacciones y Mensualidades. Nunca lo dejes null si encontraste una categoría.
 6. Si el usuario dice "borrá", "eliminá", "sacá", "quitá" → intención "eliminar".
 7. Si el usuario dice "cambiá", "editá", "modificá", "renombrá", "actualizá" → intención "editar".
 8. Si el mensaje anterior del asistente pedía confirmación y el usuario responde sí/no/reasignar → intención "confirmar_accion".

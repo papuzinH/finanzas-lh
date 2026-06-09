@@ -185,7 +185,7 @@ test('calcula correctamente monto por cuota', () => {
 })
 
 // ============================================
-// CASO C: Suscripciones
+// CASO C: Mensualidades
 // ============================================
 
 test('parsea suscripción simple', () => {
@@ -1024,12 +1024,12 @@ test('edit de suscripción desactivándola (is_active false)', () => {
 test('conversacion parsea reply correctamente', () => {
   const input = JSON.stringify({
     intencion: 'conversacion',
-    respuesta: '¡Hola! Podés registrar gastos, ingresos y suscripciones.',
+    respuesta: '¡Hola! Podés registrar gastos, ingresos y Mensualidades.',
   })
   const result = parseGeminiResponse(input)
   expect(result.type).toBe('conversation')
   if (result.type === 'conversation') {
-    expect(result.reply).toBe('¡Hola! Podés registrar gastos, ingresos y suscripciones.')
+    expect(result.reply).toBe('¡Hola! Podés registrar gastos, ingresos y Mensualidades.')
   }
 })
 

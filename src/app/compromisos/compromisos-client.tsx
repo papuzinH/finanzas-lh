@@ -57,7 +57,7 @@ interface PlanWithStatus extends InstallmentPlan {
   paymentMethodType?: string;
 }
 
-type ActiveTab = 'cuotas' | 'suscripciones';
+type ActiveTab = 'cuotas' | 'mensualidades';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const getServiceIcon = (description: string, category: string | null) => {
@@ -398,7 +398,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
   const totalDebtFuturo = plansWithProgress.reduce((sum, plan) => sum + plan.remaining, 0);
   const currentMonthCuotas = getCurrentMonthInstallmentsTotal();
 
-  // ── Suscripciones data ──
+  // ── mensualidades data ──
   const plansWithPayment = recurringPlans
     .map(plan => {
       const paymentMethod = paymentMethods.find(pm => pm.id === plan.payment_method_id);
@@ -415,7 +415,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     <div className="min-h-screen bg-surface text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
       <PageHeader
         title="Compromisos"
-        subtitle="Cuotas y suscripciones"
+        subtitle="Cuotas y mensualidades"
         icon={<CalendarClock className="h-5 w-5" />}
         containerClassName="max-w-[1440px]"
       >
@@ -451,7 +451,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
                 <p className="text-lg font-bold text-rose-400 font-mono">{formatCurrency(currentMonthCuotas)}</p>
               </div>
               <div>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Fijos</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Mensualidades</p>
                 <p className="text-lg font-bold text-purple-400 font-mono">{formatCurrency(totalMonthlyCost)}</p>
               </div>
             </div>
@@ -493,18 +493,18 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
             )}
           </button>
           <button
-            onClick={() => setActiveTab('suscripciones')}
+            onClick={() => setActiveTab('mensualidades')}
             className={cn(
               'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all w-full justify-center',
-              activeTab === 'suscripciones'
+              activeTab === 'mensualidades'
                 ? 'bg-purple-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
             )}
           >
             <CalendarClock className="h-4 w-4" />
-            Suscripciones
+            Mensualidades
             {plansWithPayment.filter(p => p.is_active).length > 0 && (
-              <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full', activeTab === 'suscripciones' ? 'bg-white/20' : 'bg-slate-800')}>{plansWithPayment.filter(p => p.is_active).length}</span>
+              <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full', activeTab === 'mensualidades' ? 'bg-white/20' : 'bg-slate-800')}>{plansWithPayment.filter(p => p.is_active).length}</span>
             )}
           </button>
         </div>
@@ -549,13 +549,13 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
           </>
         )}
 
-        {/* Tab: Suscripciones */}
-        {activeTab === 'suscripciones' && (
+        {/* Tab: mensualidades */}
+        {activeTab === 'mensualidades' && (
           <>
             {plansWithPayment.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 text-center">
                 <CalendarClock className="h-16 w-16 text-slate-700 mb-4" />
-                <h3 className="text-lg font-semibold text-slate-200 mb-2">Registrá tus gastos fijos y suscripciones</h3>
+                <h3 className="text-lg font-semibold text-slate-200 mb-2">Registrá tus gastos fijos y mensualidades</h3>
                 <p className="text-sm text-slate-400 max-w-xs mb-6">
                   Netflix, alquiler, gimnasio... sumá tus gastos recurrentes y sabé de antemano cuánto se te va cada mes.
                 </p>

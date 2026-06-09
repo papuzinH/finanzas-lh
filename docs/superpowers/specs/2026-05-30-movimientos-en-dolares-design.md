@@ -1,11 +1,11 @@
-# Movimientos y suscripciones en dólares — Diseño
+# Movimientos y Mensualidades en dólares — Diseño
 
 **Fecha:** 2026-05-30
 **Estado:** Aprobado para implementación
 
 ## Objetivo
 
-Permitir cargar movimientos (ingresos/egresos en `/movimientos`) y suscripciones
+Permitir cargar movimientos (ingresos/egresos en `/movimientos`) y Mensualidades
 (`recurring_plans` en `/compromisos`) en dólares además de pesos. De cada carga en USD
 se registra **tanto el monto en USD como el equivalente en pesos del momento**. El
 **balance disponible y todos los cálculos derivados** revalúan los montos en USD a la

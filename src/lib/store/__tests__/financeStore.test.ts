@@ -21,7 +21,7 @@ function calculateGlobalBalance(
     .filter((t) => t.type === 'income')
     .reduce((acc, t) => acc + Number(t.amount), 0)
 
-  // Gastos variables históricos (sin cuotas ni suscripciones recurrentes)
+  // Gastos variables históricos (sin cuotas ni Mensualidades recurrentes)
   const variableExpenses = transactions
     .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id)
     .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
@@ -354,7 +354,7 @@ describe('financeStore - Pure Functions', () => {
   })
 
   describe('calculateMonthlyBurnRate', () => {
-    it('suma correcta de suscripciones activas', () => {
+    it('suma correcta de Mensualidades activas', () => {
       const recurringPlans: RecurringPlan[] = [
         {
           id: 1,
@@ -392,7 +392,7 @@ describe('financeStore - Pure Functions', () => {
       expect(burnRate).toBe(225) // 100 + 50 + 75
     })
 
-    it('ignora suscripciones inactivas', () => {
+    it('ignora Mensualidades inactivas', () => {
       const recurringPlans: RecurringPlan[] = [
         {
           id: 1,
@@ -430,13 +430,13 @@ describe('financeStore - Pure Functions', () => {
       expect(burnRate).toBe(175) // 100 + 75 (ignora Old Service)
     })
 
-    it('retorna 0 si no hay suscripciones', () => {
+    it('retorna 0 si no hay Mensualidades', () => {
       const recurringPlans: RecurringPlan[] = []
       const burnRate = calculateMonthlyBurnRate(recurringPlans)
       expect(burnRate).toBe(0)
     })
 
-    it('retorna 0 si todas las suscripciones están inactivas', () => {
+    it('retorna 0 si todas las Mensualidades están inactivas', () => {
       const recurringPlans: RecurringPlan[] = [
         {
           id: 1,

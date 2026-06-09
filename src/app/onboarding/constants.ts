@@ -8,7 +8,7 @@ export const DEFAULT_ONBOARDING_CATEGORIES: Array<{
   { emoji: '🍔', name: 'Delivery de comida', description: 'Pedidos por apps como Rappi, PedidosYa, Uber Eats y otros servicios de comida a domicilio.' },
   { emoji: '🍻', name: 'Salidas', description: 'Restaurantes, bares, boliches, eventos y planes sociales fuera de casa.' },
   { emoji: '🚗', name: 'Transporte', description: 'Nafta, peajes, estacionamiento, Uber, Cabify, colectivo, subte, SUBE.' },
-  { emoji: '🔁', name: 'Suscripciones', description: 'Servicios pagos mensuales o anuales: streaming, software, gimnasio, apps, membresías.' },
+  { emoji: '🔁', name: 'Mensualidades', description: 'Servicios pagos mensuales o anuales: streaming, software, gimnasio, apps, membresías.' },
   { emoji: '🎬', name: 'Entretenimiento', description: 'Cine, teatro, conciertos, juegos, libros, hobbies y actividades recreativas.' },
   { emoji: '💊', name: 'Salud', description: 'Farmacia, médico, obra social, prepaga, estudios, terapia, gimnasio relacionado a salud.' },
 ]

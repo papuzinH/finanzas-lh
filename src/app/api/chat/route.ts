@@ -2,7 +2,7 @@
  * POST /api/chat
  *
  * Endpoint para procesar mensajes de chat usando Gemini AI.
- * Interpreta intenciones (transacciones, cuotas, suscripciones, configuraciones)
+ * Interpreta intenciones (transacciones, cuotas, Mensualidades, configuraciones)
  * y guarda los datos en Supabase.
  *
  * Body:

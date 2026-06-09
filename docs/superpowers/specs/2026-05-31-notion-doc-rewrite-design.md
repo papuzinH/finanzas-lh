@@ -25,7 +25,7 @@ Tres bloques bien separados, cada uno con propósito claro.
 
 ### Qué es Chanchito
 
-App web de finanzas personales (PWA) orientada al mercado argentino. Permite registrar gastos e ingresos, gestionar cuotas y suscripciones, hacer seguimiento de inversiones y metas de ahorro — todo desde una interfaz mobile-first. Incluye un chatbot con IA (Gemini) para registrar y consultar datos por lenguaje natural y voz.
+App web de finanzas personales (PWA) orientada al mercado argentino. Permite registrar gastos e ingresos, gestionar cuotas y Mensualidades, hacer seguimiento de inversiones y metas de ahorro — todo desde una interfaz mobile-first. Incluye un chatbot con IA (Gemini) para registrar y consultar datos por lenguaje natural y voz.
 
 **Estilo visual:** en proceso de redefinición (branding en desarrollo).
 
@@ -37,7 +37,7 @@ App web de finanzas personales (PWA) orientada al mercado argentino. Permite reg
 |---|---|
 | **Dashboard** (`/`) | Balance global, ingresos/gastos del mes, burn rate, gráfico de tendencia mensual, comparador de categorías, carrusel de insights, banner de tarjeta incompleta, banner de ahorro de fin de mes, últimos movimientos, overview de presupuestos |
 | **Movimientos** (`/movimientos`) | CRUD completo de transacciones con filtros por mes, medio de pago y categoría. Soporte ARS y USD con snapshot del tipo de cambio al momento del gasto |
-| **Compromisos** (`/compromisos`) | Cuotas y mensualidades unificadas en una pantalla con tabs. Gestión de planes de cuotas (progreso, cuotas pagadas/restantes) y suscripciones recurrentes (toggle activo/inactivo, burn rate, íconos de servicio) |
+| **Compromisos** (`/compromisos`) | Cuotas y mensualidades unificadas en una pantalla con tabs. Gestión de planes de cuotas (progreso, cuotas pagadas/restantes) y Mensualidades recurrentes (toggle activo/inactivo, burn rate, íconos de servicio) |
 | **Categorías** (`/categorias`) | Sistema de categorías predefinidas + personalizadas con emoji y descripción |
 | **Medios de pago** (`/medios-pago`) | Tarjetas de crédito (con ciclos de cierre y vencimiento), débito y efectivo. Tracking de consumo por ciclo |
 | **Inversiones** (`/inversiones`) | Portfolio bimonetario (ARS/USD) con tabs: dashboard de métricas, lista de activos y carga rápida. Precios en tiempo real, ganancia/pérdida, distribución por tipo de activo, barra de estado de precios, card de ahorro |
@@ -57,8 +57,8 @@ FAB flotante (fullscreen mobile, panel lateral desktop). Input por texto y voz (
 | Categoría | Intents |
 |---|---|
 | Registro | Gasto, ingreso, cuota, suscripción |
-| Consulta | Balance global, gastos del mes, ingresos, resumen, mayor gasto, consumo por medio de pago, cuotas del mes, cuota específica, suscripciones, portfolio, últimos movimientos, proyección del mes, búsqueda |
-| CRUD | Editar y eliminar transacciones, medios de pago, categorías, suscripciones |
+| Consulta | Balance global, gastos del mes, ingresos, resumen, mayor gasto, consumo por medio de pago, cuotas del mes, cuota específica, Mensualidades, portfolio, últimos movimientos, proyección del mes, búsqueda |
+| CRUD | Editar y eliminar transacciones, medios de pago, categorías, Mensualidades |
 | Objetivos | Crear objetivo, contribuir, consultar progreso, crear presupuesto, consultar presupuesto |
 | Confirmaciones | Reasignación o eliminación de entidades con dependencias |
 
@@ -121,7 +121,7 @@ FAB flotante (fullscreen mobile, panel lateral desktop). Input por texto y voz (
 | `getGlobalIncome()` | Ingresos totales |
 | `getGlobalEffectiveExpenses()` | Gastos efectivos totales |
 | `getExchangeRate(pair)` | Cotización de un par (USD_MEP, USD_CCL, etc.) |
-| `getMonthlyBurnRate()` | Suma de suscripciones activas |
+| `getMonthlyBurnRate()` | Suma de Mensualidades activas |
 | `getMonthlyIncome()` | Ingresos del mes actual |
 | `getMonthlyVariableExpenses()` | Gastos variables del mes |
 | `getMonthlyExpensesBreakdown()` | Desglose: variables + cuotas + burn rate |
@@ -164,9 +164,9 @@ FAB flotante (fullscreen mobile, panel lateral desktop). Input por texto y voz (
 
 ```
 Balance = Total Ingresos
-        - Gastos Variables (sin cuotas ni suscripciones)
+        - Gastos Variables (sin cuotas ni Mensualidades)
         - Cuotas del Mes (respeta ciclo de tarjeta)
-        - Burn Rate (suscripciones activas del mes)
+        - Burn Rate (Mensualidades activas del mes)
 ```
 
 Centralizada en `financeStore.ts → getGlobalBalance()`.
@@ -242,7 +242,7 @@ Los módulos más avanzados son Pro. Muchas features del roadmap encajan natural
 | | Free | Pro |
 |---|---|---|
 | Dashboard + Movimientos + Categorías | ✅ | ✅ |
-| Compromisos (cuotas + suscripciones) | ✅ | ✅ |
+| Compromisos (cuotas + Mensualidades) | ✅ | ✅ |
 | Inversiones | ❌ | ✅ |
 | Objetivos & Presupuestos | ❌ | ✅ |
 | Exportación CSV/PDF | ❌ | ✅ |

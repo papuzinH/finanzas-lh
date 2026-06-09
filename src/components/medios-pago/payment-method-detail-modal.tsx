@@ -137,12 +137,12 @@ export function PaymentMethodDetailModal({
             </div>
           </div>
 
-          {/* Suscripciones Adheridas */}
+          {/* Mensualidades Adheridas */}
           {subscriptions.length > 0 && (
             <div className="space-y-3 pt-4 border-t border-slate-800/50">
               <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-purple-400" />
-                Suscripciones Activas
+                Mensualidades Activas
               </h3>
               <div className="grid grid-cols-1 gap-2">
                 {subscriptions.map((sub) => (

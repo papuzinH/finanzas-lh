@@ -29,7 +29,7 @@ Tests para la función pura `parseGeminiResponse()` que parsea respuestas JSON d
 - ✅ Calcula correctamente monto por cuota
 - ✅ Maneja valores numéricos grandes
 
-#### Suscripciones (3 tests)
+#### Mensualidades (3 tests)
 - ✅ Parsea suscripción simple
 - ✅ Parsea suscripción sin medio de pago
 - ✅ Parsea suscripción anual
@@ -69,7 +69,7 @@ Tests para la función `buildChatPrompt()` que construye el system prompt dinám
 - ✅ Retorna prompt con longitud mínima (> 100 caracteres)
 - ✅ Incluye instrucciones de formato JSON
 - ✅ Incluye instrucciones sobre transacciones
-- ✅ Incluye instrucciones sobre suscripciones
+- ✅ Incluye instrucciones sobre Mensualidades
 - ✅ Incluye instrucciones sobre tarjetas
 
 #### Categorías del Usuario (5 tests)
@@ -84,7 +84,7 @@ Tests para la función `buildChatPrompt()` que construye el system prompt dinám
 - ✅ Incluye sección INSTRUCCIONES
 - ✅ Incluye CASO A para transacciones
 - ✅ Incluye CASO B para tarjetas
-- ✅ Incluye CASO C para suscripciones
+- ✅ Incluye CASO C para Mensualidades
 - ✅ Incluye REGLAS CRÍTICAS
 
 #### Fecha y Contexto (3 tests)
@@ -233,7 +233,7 @@ El mini test runner implementado tiene:
 3. **Tests de handlers:**
    - Implementar tests con mocks de Supabase
    - Cubrir casos de éxito/error
-   - Validar transacciones, cuotas, suscripciones
+   - Validar transacciones, cuotas, Mensualidades
 
 4. **E2E tests:**
    - Usar Playwright o Cypress

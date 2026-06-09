@@ -77,7 +77,7 @@ test('incluye instrucciones sobre transacciones', () => {
   expect(prompt.includes('transaccion')).toBe(true)
 })
 
-test('incluye instrucciones sobre suscripciones', () => {
+test('incluye instrucciones sobre Mensualidades', () => {
   const prompt = buildChatPrompt([])
   expect(prompt.includes('suscripcion')).toBe(true)
 })
@@ -164,7 +164,7 @@ test('incluye CASO B para configuración de tarjeta', () => {
   expect(prompt.includes('CONFIGURACIÓN')).toBe(true)
 })
 
-test('incluye CASO C para suscripciones', () => {
+test('incluye CASO C para Mensualidades', () => {
   const prompt = buildChatPrompt([])
   expect(prompt.includes('CASO C')).toBe(true)
   expect(prompt.includes('suscripción')).toBe(true)
@@ -271,12 +271,12 @@ test('prompt menciona campo "fecha"', () => {
 // Campos de suscripción
 // ============================================
 
-test('prompt menciona campo "descripcion" para suscripciones', () => {
+test('prompt menciona campo "descripcion" para Mensualidades', () => {
   const prompt = buildChatPrompt([])
   expect(prompt.includes('descripcion')).toBe(true)
 })
 
-test('prompt menciona campo "frecuencia" para suscripciones', () => {
+test('prompt menciona campo "frecuencia" para Mensualidades', () => {
   const prompt = buildChatPrompt([])
   expect(prompt.includes('frecuencia')).toBe(true)
 })
