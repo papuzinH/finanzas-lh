@@ -6,6 +6,6 @@ export default async function CompromisosPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const { tab } = await searchParams;
-  const initialTab = tab === 'Mensualidades' ? 'Mensualidades' : 'cuotas';
+  const initialTab = tab === 'mensualidades' ? 'mensualidades' : 'cuotas';
   return <CompromisosClient initialTab={initialTab} />;
 }
