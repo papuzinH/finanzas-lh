@@ -9,11 +9,12 @@ import { parseLocalDate } from '@/lib/utils/dates';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
-import { ChevronDown, ChevronRight, Search, X, Receipt, Tag } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, X, Receipt, Tag, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateExchangeRates } from '@/app/movimientos/actions';
 import { TransactionListSkeleton } from '@/components/ui/skeletons';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 
@@ -144,6 +145,14 @@ export default function MovimientosPage() {
 
   // Cálculo del Balance Mensual (Suma de todos los movimientos filtrados)
   const monthlyBalance = getMonthlyBalance(currentMonthStr, selectedPaymentMethodId);
+
+  const monthlyIncome = filteredTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const monthlyExpense = filteredTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
 
   const handleRefreshRates = async () => {
     setIsRefreshingRates(true);
@@ -278,7 +287,43 @@ export default function MovimientosPage() {
       <CreateTransactionDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
       <main className="mx-auto max-w-[1440px] px-5 py-6">
-       
+
+        {/* Resumen del mes */}
+        <div className="grid grid-cols-2 gap-2.5 mb-4">
+          <Card className="p-3.5">
+            <div className="flex items-center gap-1.5 text-good text-[10.5px] font-bold uppercase tracking-wider mb-1">
+              <span>↓</span> Ingresos
+            </div>
+            <p className="font-poster text-text text-[20px] tnum leading-none">
+              {formatCurrency(monthlyIncome)}
+            </p>
+          </Card>
+          <Card className="p-3.5">
+            <div className="flex items-center gap-1.5 text-bad text-[10.5px] font-bold uppercase tracking-wider mb-1">
+              <span>↑</span> Gastos
+            </div>
+            <p className="font-poster text-text text-[20px] tnum leading-none">
+              {formatCurrency(monthlyExpense)}
+            </p>
+          </Card>
+        </div>
+
+        {/* Botón de actualizar cotización */}
+        <div className="flex justify-end mb-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleRefreshRates}
+            disabled={isRefreshingRates}
+            className="text-muted hover:text-text gap-1.5 h-8 text-xs"
+            aria-label="Actualizar cotización del dólar"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', isRefreshingRates && 'animate-spin')} />
+            Actualizar cotización
+          </Button>
+        </div>
+
         {filteredTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
             <Receipt className="h-16 w-16 text-faint mb-4" />
