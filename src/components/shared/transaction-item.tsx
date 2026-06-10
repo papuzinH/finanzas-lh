@@ -69,11 +69,12 @@ interface TransactionItemProps {
   paymentMethodName?: string;
   paymentMethodType?: string;
   showDate?: boolean;
+  grouped?: boolean;
 }
 
 const SWIPE_THRESHOLD = 80;
 
-export function TransactionItem({ transaction, paymentMethodName, paymentMethodType, showDate = true }: TransactionItemProps) {
+export function TransactionItem({ transaction, paymentMethodName, paymentMethodType, showDate = true, grouped = false }: TransactionItemProps) {
   const router = useRouter();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -103,9 +104,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
     ? transaction.description.replace(/\s*\(\d+\/\d+\)$/, '')
     : transaction.description;
 
-  const handleDelete = () => {
-    setIsDeleteOpen(true);
-  };
+  const handleDelete = () => setIsDeleteOpen(true);
 
   const confirmDelete = async () => {
     setIsDeleting(true);
@@ -135,100 +134,86 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
 
   const handleDragEnd = (_: unknown, info: { offset: { x: number } }) => {
     hapticFired.current = false;
-    if (info.offset.x < -SWIPE_THRESHOLD) {
-      handleDelete();
-    } else if (info.offset.x > SWIPE_THRESHOLD) {
-      setIsEditOpen(true);
-    }
+    if (info.offset.x < -SWIPE_THRESHOLD) handleDelete();
+    else if (info.offset.x > SWIPE_THRESHOLD) setIsEditOpen(true);
     animate(x, 0, { type: 'spring', stiffness: 400, damping: 40 });
   };
 
   const cardInner = (
     <div className={cn(
-      "group relative flex items-center justify-between rounded-xl border p-3 transition-all hover:shadow-lg hover:shadow-black/20",
-      isInstallment
-        ? "border-l-2 border-l-violet-500/70 border-violet-700/40 bg-violet-950/10 hover:bg-violet-950/20 hover:border-violet-600/50"
-        : "border-slate-800/40 bg-surface-raised/20 hover:bg-surface-raised/60 hover:border-slate-700",
+      "group relative flex items-center justify-between p-3 transition-all bg-surface",
+      grouped
+        ? "hover:bg-surface-2"
+        : cn(
+            "rounded-xl border-[1.5px]",
+            isInstallment
+              ? "border-accent-soft/40 hover:border-accent-soft/70"
+              : "border-border hover:shadow-card"
+          ),
       !canSwipe && "pr-10"
     )}>
       {/* Left: Icon & Info */}
       <div className="flex items-center gap-3 overflow-hidden">
-        <div className={cn(
-          "flex h-10 w-10 min-w-10 items-center justify-center rounded-full border transition-colors",
-          isInstallment
-            ? "bg-violet-500/15 border-violet-500/30 text-violet-400"
-            : isIncome
-              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
-              : "bg-slate-800/50 border-slate-700/50 text-slate-400 group-hover:text-slate-300"
-        )}>
-          {isInstallment
-            ? category?.emoji
-              ? <span className="text-lg">{category.emoji}</span>
-              : <Layers className="h-4 w-4" />
-            : category?.emoji
-              ? <span className="text-lg">{category.emoji}</span>
-              : <DollarSign className="h-5 w-5" />
+        <div className="w-9 h-9 min-w-9 rounded-xl bg-surface-2 border-[1.5px] border-border grid place-items-center shrink-0 text-[18px]">
+          {category?.emoji
+            ? <span>{category.emoji}</span>
+            : isInstallment
+              ? <Layers className="h-4 w-4 text-accent" />
+              : <DollarSign className="h-4 w-4 text-muted" />
           }
         </div>
 
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-medium text-sm text-slate-200 truncate">
+            <span className="font-sans font-bold text-[13.5px] text-text truncate leading-snug">
               {displayDescription}
             </span>
             {isInstallment && currentInstallment && (
-              <span className="shrink-0 text-[10px] font-semibold bg-violet-500/15 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded-full leading-none">
+              <span className="shrink-0 text-[11px] font-bold text-muted border-[1.5px] border-border px-1.5 py-0.5 rounded-full leading-none">
                 {currentInstallment}/{totalInstallments}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5 text-xs truncate">
+          <div className="flex items-center gap-1 text-[12px] text-muted truncate mt-0.5">
             {paymentMethodName && (
-              <span className={cn(
-                "flex items-center gap-1",
-                isInstallment ? "text-violet-400/80" : "text-slate-400"
-              )}>
+              <span className="flex items-center gap-1">
                 {(isInstallment || isCredit) && <CreditCard className="h-2.5 w-2.5" />}
                 {paymentMethodName}
               </span>
             )}
-            {paymentMethodName && <span className="text-slate-500">•</span>}
+            {paymentMethodName && !isInstallment && <span className="text-faint">·</span>}
             {!isInstallment && (
-              <span className="capitalize text-slate-400">{category?.name || 'Varios'}</span>
+              <span className="capitalize">{category?.name || 'Varios'}</span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Right: Amount & Status */}
+      {/* Right: Amount & Meta */}
       <div className="flex flex-col items-end gap-0.5 pl-2 mr-2">
         <span className={cn(
-          "font-bold text-sm font-mono tracking-tight whitespace-nowrap",
-          isIncome ? "text-emerald-400" : "text-slate-200"
+          "font-poster tnum text-[15px] leading-none whitespace-nowrap",
+          isIncome ? "text-good" : "text-bad"
         )}>
-          {isIncome ? '+' : ''} {isUsd
+          {isIncome ? '+' : '-'} {isUsd
             ? `US$ ${Math.abs(transaction.original_amount as number).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : formatCurrency(Math.abs(transaction.amount))}
         </span>
 
         {isUsd && (
-          <span className="text-[10px] text-slate-400 font-mono">
+          <span className="text-[11px] text-muted tnum">
             ≈ {formatCurrency(Math.abs(transaction.amount))}{rateLabel ? ` · ${rateLabel}` : ''}
           </span>
         )}
 
         {showDate && !isInstallment && (
           isFutureDate ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-amber-500/80 font-medium">
-                {formatDate(transaction.date)}
-              </span>
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] text-warn font-medium">{formatDate(transaction.date)}</span>
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-warn animate-pulse" />
             </div>
           ) : (
-            <span className="text-[10px] text-slate-400">
-              {formatDate(transaction.date)}
-            </span>
+            <span className="text-[11px] text-faint">{formatDate(transaction.date)}</span>
           )
         )}
       </div>
@@ -238,25 +223,30 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
         <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Opciones de transacción" className="h-11 w-11 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Opciones de transacción"
+                className="h-8 w-8 text-muted hover:text-text hover:bg-surface-2"
+              >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-surface-overlay border-slate-800 text-slate-200">
+            <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
               {transaction.installment_plan_id ? (
-                <DropdownMenuItem disabled className="text-slate-500 cursor-not-allowed opacity-50">
+                <DropdownMenuItem disabled className="text-muted cursor-not-allowed opacity-50">
                   <span className="text-xs">Gestionar en Cuotas</span>
                 </DropdownMenuItem>
               ) : (
                 <>
-                  <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-slate-800 focus:text-slate-200 cursor-pointer">
+                  <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-surface-2 cursor-pointer">
                     <Pencil className="mr-2 h-4 w-4" />
                     Editar
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={handleDelete}
                     disabled={isDeleting}
-                    className="text-red-400 focus:bg-red-950/30 focus:text-red-400 cursor-pointer"
+                    className="text-bad focus:bg-bad/10 focus:text-bad cursor-pointer"
                   >
                     {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                     Eliminar
@@ -276,7 +266,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
         open={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}
         title="Eliminar transacción"
-        description="¿Estás seguro de que quieres eliminar esta transacción? Esta acción no se puede deshacer."
+        description="¿Estás seguro de que querés eliminar esta transacción? Esta acción no se puede deshacer."
         onConfirm={confirmDelete}
         isLoading={isDeleting}
         variant="destructive"
@@ -284,28 +274,27 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
       />
 
       {canSwipe ? (
-        <div className="relative overflow-hidden rounded-xl">
-          {/* Fondo editar – se revela al deslizar a la derecha */}
+        <div className={cn("relative overflow-hidden", !grouped && "rounded-xl")}>
+          {/* Fondo editar – deslizar a la derecha */}
           <motion.div
-            className="absolute inset-0 flex items-center px-5 rounded-xl bg-indigo-600"
+            className={cn("absolute inset-0 flex items-center px-5 bg-accent", !grouped && "rounded-xl")}
             style={{ opacity: editBgOpacity }}
             aria-hidden
           >
-            <Pencil className="h-5 w-5 text-white" />
-            <span className="ml-2 text-sm font-medium text-white">Editar</span>
+            <Pencil className="h-5 w-5 text-accent-ink" />
+            <span className="ml-2 text-sm font-bold text-accent-ink">Editar</span>
           </motion.div>
 
-          {/* Fondo eliminar – se revela al deslizar a la izquierda */}
+          {/* Fondo eliminar – deslizar a la izquierda */}
           <motion.div
-            className="absolute inset-0 flex items-center justify-end px-5 rounded-xl bg-red-600"
+            className={cn("absolute inset-0 flex items-center justify-end px-5 bg-bad", !grouped && "rounded-xl")}
             style={{ opacity: deleteBgOpacity }}
             aria-hidden
           >
-            <span className="mr-2 text-sm font-medium text-white">Eliminar</span>
+            <span className="mr-2 text-sm font-bold text-white">Eliminar</span>
             <Trash2 className="h-5 w-5 text-white" />
           </motion.div>
 
-          {/* Card deslizable */}
           <motion.div
             style={{ x }}
             drag="x"
