@@ -58,7 +58,7 @@ export function MonthSelector({ currentMonth, baseUrl = '/' }: MonthSelectorProp
     <div data-tour="month-selector" className="flex items-center justify-between gap-3 md:gap-6 py-2 md:py-4 w-full">
       <button
         onClick={() => navigate(-1)}
-        className="group flex h-11 w-11 items-center justify-center rounded-full border border-slate-800 bg-[var(--surface-raised)]/50 text-slate-400 transition-all hover:border-indigo-500/50 hover:bg-indigo-500/10 hover:text-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+        className="group flex h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-border bg-surface text-muted transition-all hover:border-accent/40 hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
         aria-label="Mes anterior"
       >
         <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 transition-transform group-hover:-translate-x-0.5" />
@@ -82,7 +82,7 @@ export function MonthSelector({ currentMonth, baseUrl = '/' }: MonthSelectorProp
             transition={{ duration: 0.18, ease: 'easeInOut' }}
             className="flex flex-col items-center gap-1"
           >
-            <span className="text-sm font-semibold capitalize text-slate-100">
+            <span className="font-sans text-[12.5px] font-extrabold capitalize text-text">
               {format(date, 'MMMM yyyy', { locale: es })}
             </span>
 
@@ -90,8 +90,8 @@ export function MonthSelector({ currentMonth, baseUrl = '/' }: MonthSelectorProp
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-medium leading-none ${
                   isHigher
-                    ? 'bg-rose-500/15 text-rose-400'
-                    : 'bg-emerald-500/15 text-emerald-400'
+                    ? 'bg-bad/10 text-bad'
+                    : 'bg-good/10 text-good'
                 }`}
               >
                 {isHigher ? '↑' : '↓'} {absChange.toFixed(0)}% vs {realPrevLabel}
@@ -103,7 +103,7 @@ export function MonthSelector({ currentMonth, baseUrl = '/' }: MonthSelectorProp
 
       <button
         onClick={() => navigate(1)}
-        className="group flex h-11 w-11 items-center justify-center rounded-full border border-slate-800 bg-[var(--surface-raised)]/50 text-slate-400 transition-all hover:border-indigo-500/50 hover:bg-indigo-500/10 hover:text-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+        className="group flex h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-border bg-surface text-muted transition-all hover:border-accent/40 hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
         aria-label="Mes siguiente"
       >
         <ChevronRight className="h-4 w-4 md:h-5 md:w-5 transition-transform group-hover:translate-x-0.5" />

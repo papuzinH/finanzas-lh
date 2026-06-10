@@ -233,25 +233,27 @@ export default function MovimientosPage() {
       {/* Header Sticky */}
       <header className="sticky top-0 z-20 bg-bg-2/95 backdrop-blur-md border-b-[1.5px] border-border">
         <div className="mx-auto max-w-[1440px]">
-          {/* Row 1: Título + Month + Plus */}
-          <div className="px-5 pt-4 pb-2 flex items-center justify-between gap-3">
+          {/* Row 1: Título + Plus */}
+          <div className="px-5 pt-4 pb-1.5 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="font-sans text-[10px] font-extrabold uppercase tracking-[0.22em] text-accent-deep mb-0.5">
                 Tus mangos
               </p>
               <h1 className="font-poster text-text text-[26px] leading-none">Movimientos</h1>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
-              <AnimatedPlusButton
-                label="Crear transacción"
-                onClick={() => setIsCreateOpen(true)}
-                ariaLabel="Nueva transacción"
-              />
-            </div>
+            <AnimatedPlusButton
+              label="Crear transacción"
+              onClick={() => setIsCreateOpen(true)}
+              ariaLabel="Nueva transacción"
+            />
           </div>
 
-          {/* Row 2: Search */}
+          {/* Row 2: Month selector */}
+          <div className="px-5 pb-2">
+            <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
+          </div>
+
+          {/* Row 3: Search */}
           <div className="px-5 pb-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
