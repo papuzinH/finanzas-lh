@@ -17,6 +17,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
+import { Chip } from '@/components/ui/chip';
 
 interface TransactionWithPeriod extends Transaction {
   periodDate?: string;
@@ -325,6 +326,69 @@ export default function MovimientosPage() {
             <RefreshCw className={cn('h-3.5 w-3.5', isRefreshingRates && 'animate-spin')} />
             Actualizar cotización
           </Button>
+        </div>
+
+        {/* Filtros siempre visibles */}
+        <div className="mb-5 space-y-2">
+          {/* Medios de pago */}
+          <div className="flex gap-2 overflow-x-auto -mx-5 px-5 pb-1 scrollbar-hide">
+            <Chip
+              active={selectedPaymentMethodId === 'all'}
+              onClick={() => handleFilterChange('paymentMethod', 'all')}
+              icon="wallet"
+            >
+              Todos
+            </Chip>
+            {paymentMethods.map((pm) => (
+              <Chip
+                key={pm.id}
+                active={selectedPaymentMethodId === pm.id.toString()}
+                onClick={() => handleFilterChange('paymentMethod', pm.id.toString())}
+                icon={pm.type === 'credit' ? 'credit-card' : 'wallet'}
+              >
+                {pm.name}
+              </Chip>
+            ))}
+          </div>
+
+          {/* Categorías */}
+          <div className="flex gap-2 overflow-x-auto -mx-5 px-5 pb-1 scrollbar-hide">
+            <Chip
+              active={selectedCategoryId === 'all'}
+              onClick={() => handleFilterChange('category', 'all')}
+              icon="tag"
+            >
+              Todas
+            </Chip>
+            {categories.map((cat) => (
+              <Chip
+                key={cat.id}
+                active={selectedCategoryId === cat.id}
+                onClick={() => handleFilterChange('category', cat.id)}
+              >
+                {cat.emoji} {cat.name}
+              </Chip>
+            ))}
+          </div>
+
+          {/* Limpiar filtros activos */}
+          {(selectedPaymentMethodId !== 'all' || selectedCategoryId !== 'all') && (
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const params = new URLSearchParams(searchParams);
+                  params.delete('paymentMethod');
+                  params.delete('category');
+                  router.replace(`${pathname}?${params.toString()}`);
+                }}
+                className="h-7 text-[11px] uppercase font-bold text-accent hover:text-accent-deep px-2"
+              >
+                Limpiar filtros
+              </Button>
+            </div>
+          )}
         </div>
 
         {filteredTransactions.length === 0 ? (
