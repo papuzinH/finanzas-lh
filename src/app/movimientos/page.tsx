@@ -9,7 +9,7 @@ import { parseLocalDate } from '@/lib/utils/dates';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
-import { ChevronDown, ChevronRight, Search, X, Receipt, Tag, RefreshCw, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, X, Receipt, RefreshCw, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateExchangeRates } from '@/app/movimientos/actions';
 import { TransactionListSkeleton } from '@/components/ui/skeletons';
@@ -366,7 +366,7 @@ export default function MovimientosPage() {
                 active={selectedCategoryId === cat.id}
                 onClick={() => handleFilterChange('category', cat.id)}
               >
-                {cat.emoji} {cat.name}
+                <span aria-hidden="true">{cat.emoji}</span> {cat.name}
               </Chip>
             ))}
           </div>
@@ -375,6 +375,7 @@ export default function MovimientosPage() {
           {(selectedPaymentMethodId !== 'all' || selectedCategoryId !== 'all') && (
             <div className="flex justify-end">
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => {
@@ -383,7 +384,7 @@ export default function MovimientosPage() {
                   params.delete('category');
                   router.replace(`${pathname}?${params.toString()}`);
                 }}
-                className="h-7 text-[11px] uppercase font-bold text-accent hover:text-accent-deep px-2"
+                className="text-[11px] uppercase font-bold text-accent hover:text-accent-deep px-2"
               >
                 Limpiar filtros
               </Button>
