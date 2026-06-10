@@ -9,7 +9,7 @@ import { parseLocalDate } from '@/lib/utils/dates';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
-import { ChevronDown, ChevronRight, Search, X, Receipt, Tag, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, X, Receipt, Tag, RefreshCw, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateExchangeRates } from '@/app/movimientos/actions';
 import { TransactionListSkeleton } from '@/components/ui/skeletons';
@@ -146,13 +146,14 @@ export default function MovimientosPage() {
   // Cálculo del Balance Mensual (Suma de todos los movimientos filtrados)
   const monthlyBalance = getMonthlyBalance(currentMonthStr, selectedPaymentMethodId);
 
-  const monthlyIncome = filteredTransactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const monthlyExpense = filteredTransactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
+  const { monthlyIncome, monthlyExpense } = filteredTransactions.reduce(
+    (acc, t) => {
+      if (t.type === 'income') acc.monthlyIncome += t.amount;
+      else if (t.type === 'expense') acc.monthlyExpense += t.amount;
+      return acc;
+    },
+    { monthlyIncome: 0, monthlyExpense: 0 }
+  );
 
   const handleRefreshRates = async () => {
     setIsRefreshingRates(true);
@@ -292,17 +293,19 @@ export default function MovimientosPage() {
         <div className="grid grid-cols-2 gap-2.5 mb-4">
           <Card className="p-3.5">
             <div className="flex items-center gap-1.5 text-good text-[10.5px] font-bold uppercase tracking-wider mb-1">
-              <span>↓</span> Ingresos
+              <ArrowDownLeft className="h-3 w-3" aria-hidden="true" />
+              Ingresos
             </div>
-            <p className="font-poster text-text text-[20px] tnum leading-none">
+            <p className="font-poster text-good text-[20px] tnum leading-none">
               {formatCurrency(monthlyIncome)}
             </p>
           </Card>
           <Card className="p-3.5">
             <div className="flex items-center gap-1.5 text-bad text-[10.5px] font-bold uppercase tracking-wider mb-1">
-              <span>↑</span> Gastos
+              <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+              Gastos
             </div>
-            <p className="font-poster text-text text-[20px] tnum leading-none">
+            <p className="font-poster text-bad text-[20px] tnum leading-none">
               {formatCurrency(monthlyExpense)}
             </p>
           </Card>
@@ -316,7 +319,7 @@ export default function MovimientosPage() {
             size="sm"
             onClick={handleRefreshRates}
             disabled={isRefreshingRates}
-            className="text-muted hover:text-text gap-1.5 h-8 text-xs"
+            className="text-muted hover:text-text gap-1.5 text-xs"
             aria-label="Actualizar cotización del dólar"
           >
             <RefreshCw className={cn('h-3.5 w-3.5', isRefreshingRates && 'animate-spin')} />
