@@ -36,7 +36,6 @@ export default function MovimientosPage() {
     fetchAllData,
     isInitialized,
     isLoading,
-    getMonthlyBalance
   } = useFinanceStore();
 
   const searchParams = useSearchParams();
@@ -143,9 +142,6 @@ export default function MovimientosPage() {
     }
     router.replace(`${pathname}?${params.toString()}`);
   };
-
-  // Cálculo del Balance Mensual (Suma de todos los movimientos filtrados)
-  const monthlyBalance = getMonthlyBalance(currentMonthStr, selectedPaymentMethodId);
 
   const { monthlyIncome, monthlyExpense } = filteredTransactions.reduce(
     (acc, t) => {
