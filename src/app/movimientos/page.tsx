@@ -201,7 +201,7 @@ export default function MovimientosPage() {
             {items.map((t, i) => {
               const paymentMethod = paymentMethods.find(pm => pm.id === t.payment_method_id);
               return (
-                <div key={t.id} className={cn(i > 0 && "border-t border-border")}>
+                <div key={t.id} className={cn(i > 0 && "border-t-[1.5px] border-border")}>
                   <TransactionItem
                     transaction={t}
                     paymentMethodName={paymentMethod?.name}
@@ -224,7 +224,7 @@ export default function MovimientosPage() {
   return (
     <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
       {/* Header Sticky */}
-      <header className="sticky top-0 z-20 bg-bg-2/95 backdrop-blur-md border-b border-border">
+      <header className="sticky top-0 z-20 bg-bg-2/95 backdrop-blur-md border-b-[1.5px] border-border">
         <div className="mx-auto max-w-[1440px]">
           {/* Row 1: Título + Month + Plus */}
           <div className="px-5 pt-4 pb-2 flex items-center justify-between gap-3">
@@ -277,7 +277,7 @@ export default function MovimientosPage() {
 
       <CreateTransactionDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
-      <main className="mx-auto max-w-[1440px] px-4 py-6">
+      <main className="mx-auto max-w-[1440px] px-5 py-6">
        
         {filteredTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
