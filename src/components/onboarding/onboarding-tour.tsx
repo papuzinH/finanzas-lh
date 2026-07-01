@@ -45,15 +45,14 @@ function useTargetRect(target: string, active: boolean) {
     window.addEventListener('resize', handleUpdate)
     window.addEventListener('scroll', handleUpdate, true)
 
+    // Poll while active; cleaned up when tour completes/skips/navigates
     const interval = setInterval(update, 200)
-    const timeout = setTimeout(() => clearInterval(interval), 2000)
 
     return () => {
       window.removeEventListener('resize', handleUpdate)
       window.removeEventListener('scroll', handleUpdate, true)
       cancelAnimationFrame(rafId)
       clearInterval(interval)
-      clearTimeout(timeout)
     }
   }, [target, active, update])
 
