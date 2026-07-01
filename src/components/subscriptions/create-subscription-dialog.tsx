@@ -108,14 +108,14 @@ export function CreateSubscriptionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton
-        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-border text-text"
       >
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle className="text-xl font-bold text-violet-300">
+          <DialogTitle className="font-poster text-text text-[18px]">
             Nuevo Gasto Fijo
           </DialogTitle>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-muted mt-1">
             {watchedFrequency === 'monthly' ? 'Mensual' : 'Anual'} · {' '}
             Inicia {watchedStartDate
               ? parseLocalDate(watchedStartDate).toLocaleDateString('es-AR', {
@@ -191,17 +191,19 @@ export function CreateSubscriptionDialog({
               <Button
                 type="submit"
                 form="subscription-form"
+                variant="accent"
+                size="lg"
                 disabled={isPending}
-                className="w-full min-h-[52px] rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(139,92,246,0.25)] transition-all active:scale-[0.98]"
+                className="w-full"
               >
                 {isPending ? (
                   <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    <Loader2 className="h-5 w-5 animate-spin" />
                     Creando...
                   </>
                 ) : (
                   <>
-                    <Plus className="mr-2 h-5 w-5" />
+                    <Plus className="h-5 w-5" />
                     Crear {watchedFrequency === 'monthly' ? 'Gasto Mensual' : 'Gasto Anual'}
                   </>
                 )}

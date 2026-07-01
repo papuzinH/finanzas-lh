@@ -21,9 +21,9 @@ export function PricesStatusBar({
   const hasFailed = (lastResult?.failed.length ?? 0) > 0
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-2">
-      <div className="flex items-center gap-1.5 text-xs text-slate-400 min-w-0">
-        <Clock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border-[1.5px] border-border bg-surface px-3 py-2">
+      <div className="flex items-center gap-1.5 text-xs text-muted min-w-0">
+        <Clock className="h-3.5 w-3.5 shrink-0 text-faint" />
         <span className="truncate">
           {lastUpdate ? `Actualizado ${formatRelativeTime(lastUpdate)}` : 'Sin precios cargados'}
         </span>
@@ -32,7 +32,7 @@ export function PricesStatusBar({
       {lastResult && (
         <div className="flex items-center gap-1.5 flex-wrap">
           {lastResult.updated > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+            <span className="inline-flex items-center gap-1 rounded-md bg-good/10 px-2 py-0.5 text-[10px] font-medium text-good">
               <CheckCircle2 className="h-3 w-3" />
               {lastResult.updated} OK
             </span>
@@ -40,7 +40,7 @@ export function PricesStatusBar({
           {hasFailed && (
             <button
               onClick={onOpenFailed}
-              className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400 hover:bg-amber-500/20 transition-colors"
+              className="inline-flex items-center gap-1 rounded-md bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn hover:bg-warn/20 transition-colors"
             >
               <AlertTriangle className="h-3 w-3" />
               {lastResult.failed.length} {lastResult.failed.length === 1 ? 'falló' : 'fallaron'} · Ver
@@ -52,7 +52,7 @@ export function PricesStatusBar({
       <button
         onClick={onRefresh}
         disabled={isRefreshing}
-        className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-slate-800 px-2.5 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-700 transition-all disabled:opacity-50"
+        className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-surface-2 border-[1.5px] border-border px-2.5 py-1 text-[11px] font-medium text-muted hover:text-text transition-all disabled:opacity-50"
       >
         <RefreshCw className={cn('h-3 w-3', isRefreshing && 'animate-spin')} />
         {isRefreshing ? 'Actualizando…' : 'Actualizar'}

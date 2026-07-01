@@ -25,22 +25,22 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 
 const STYLE_MAP = {
   positive: {
-    card: 'bg-emerald-500/5 border-emerald-500/20',
-    icon: 'text-emerald-400',
-    dot: 'bg-emerald-500',
-    dotInactive: 'bg-emerald-500/30',
+    card: 'bg-good/8 border-good/25',
+    icon: 'text-good',
+    dot: 'bg-good',
+    dotInactive: 'bg-good/30',
   },
   warning: {
-    card: 'bg-amber-500/5 border-amber-500/20',
-    icon: 'text-amber-400',
-    dot: 'bg-amber-500',
-    dotInactive: 'bg-amber-500/30',
+    card: 'bg-warn/8 border-warn/25',
+    icon: 'text-warn',
+    dot: 'bg-warn',
+    dotInactive: 'bg-warn/30',
   },
   info: {
-    card: 'bg-indigo-500/5 border-indigo-500/20',
-    icon: 'text-indigo-400',
-    dot: 'bg-indigo-500',
-    dotInactive: 'bg-indigo-500/30',
+    card: 'bg-accent/8 border-accent/25',
+    icon: 'text-accent',
+    dot: 'bg-accent',
+    dotInactive: 'bg-accent/30',
   },
 };
 
@@ -89,26 +89,31 @@ export function InsightsCarousel() {
             <div className={`flex-shrink-0 ${styles.icon}`}>
               <IconComponent className="w-4 h-4" />
             </div>
-            <p className="text-sm text-slate-200 leading-snug">{insight.message}</p>
+            <p className="text-sm text-text leading-snug">{insight.message}</p>
           </motion.div>
         </AnimatePresence>
       </div>
 
       {insights.length > 1 && (
-        <div className="flex items-center justify-center gap-1.5">
+        <div className="flex items-center justify-center">
           {insights.map((ins, i) => {
             const dotStyles = STYLE_MAP[ins.type];
             return (
               <button
                 key={i}
                 onClick={() => goTo(i)}
-                className={`rounded-full transition-all duration-300 ${
-                  i === current
-                    ? `w-4 h-1.5 ${dotStyles.dot}`
-                    : `w-1.5 h-1.5 ${dotStyles.dotInactive}`
-                }`}
+                className="flex items-center justify-center w-11 h-6 focus-visible:outline-none"
                 aria-label={`Insight ${i + 1}`}
-              />
+                aria-current={i === current ? 'true' : undefined}
+              >
+                <span
+                  className={`rounded-full transition-all duration-300 ${
+                    i === current
+                      ? `w-4 h-1.5 ${dotStyles.dot}`
+                      : `w-1.5 h-1.5 ${dotStyles.dotInactive}`
+                  }`}
+                />
+              </button>
             );
           })}
         </div>

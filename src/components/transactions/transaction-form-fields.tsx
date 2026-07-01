@@ -75,7 +75,7 @@ export function AmountField<T extends FieldValues>({
 
   return (
     <div className="flex flex-col items-center gap-3 pt-2">
-      <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+      <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
         Monto
       </span>
 
@@ -86,13 +86,13 @@ export function AmountField<T extends FieldValues>({
           <FormItem className="w-full flex flex-col items-center">
             <button
               type="button"
-              className="flex items-baseline justify-center gap-1 w-full focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg"
+              className="flex items-baseline justify-center gap-1 w-full focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg"
               onClick={() => amountInputRef.current?.focus()}
             >
-              <span className="text-3xl font-semibold text-slate-600">
+              <span className="text-3xl font-semibold text-muted">
                 {currency === 'USD' ? 'US$' : '$'}
               </span>
-              <span className="text-5xl sm:text-6xl font-semibold text-slate-50 tabular-nums">
+              <span className="text-5xl sm:text-6xl font-poster text-text tnum">
                 {displayAmount}
               </span>
             </button>
@@ -131,10 +131,10 @@ export function AmountField<T extends FieldValues>({
             }
             className={cn(
               'min-h-11 rounded-full px-5 py-2 text-sm font-medium transition-all active:scale-95',
-              'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none',
+              'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',
               watchedAmount === amount
-                ? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/50'
-                : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
+                ? 'bg-accent/10 text-accent ring-1 ring-accent/50'
+                : 'bg-surface-2 text-muted hover:bg-surface hover:text-text'
             )}
           >
             ${amount}
@@ -163,7 +163,7 @@ export function TypeToggle<T extends FieldValues & BaseTransactionFields>({
       name={'type' as Path<T>}
       render={({ field }) => (
         <FormItem>
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-900/80 p-1">
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
             {(['expense', 'income'] as const).map((type) => (
               <button
                 key={type}
@@ -171,10 +171,10 @@ export function TypeToggle<T extends FieldValues & BaseTransactionFields>({
                 onClick={() => field.onChange(type)}
                 className={cn(
                   'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
-                  'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none',
+                  'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',
                   field.value === type
-                    ? 'bg-indigo-500 text-white shadow-[0_0_20px_rgba(129,140,248,0.3)]'
-                    : 'text-slate-500 hover:text-slate-300'
+                    ? 'bg-accent text-accent-ink'
+                    : 'text-muted hover:text-text'
                 )}
               >
                 {type === 'expense' ? 'Gasto' : 'Ingreso'}
@@ -206,16 +206,16 @@ export function DescriptionField<T extends FieldValues & { description: string }
       name={'description' as Path<T>}
       render={({ field }) => (
         <FormItem>
-          <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
             Descripción
           </span>
           <FormControl>
             <div className="relative">
-              <AlignLeft className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
+              <AlignLeft className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
               <Input
                 placeholder="Ej: Compra supermercado"
                 {...field}
-                className="pl-10 bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-indigo-500"
+                className="pl-10 min-h-11"
               />
             </div>
           </FormControl>
@@ -250,7 +250,7 @@ export function CategoryPicker<T extends FieldValues & { category_id: string | u
       name={'category_id' as Path<T>}
       render={({ field }) => (
         <FormItem>
-          <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
             Categoría
           </span>
 
@@ -268,10 +268,10 @@ export function CategoryPicker<T extends FieldValues & { category_id: string | u
                 <div
                   className={cn(
                     'flex items-center justify-center h-14 w-14 rounded-full transition-all',
-                    'focus-visible:ring-2 focus-visible:ring-indigo-500',
+                    'focus-visible:ring-2 focus-visible:ring-accent/50',
                     field.value === cat.id
-                      ? 'bg-indigo-500/20 ring-2 ring-indigo-400 scale-105'
-                      : 'bg-slate-800/60 group-hover:bg-slate-700/60'
+                      ? 'bg-accent/10 ring-2 ring-accent scale-105'
+                      : 'bg-surface-2 group-hover:bg-surface'
                   )}
                 >
                   <span className="text-xl">{cat.emoji ?? '📦'}</span>
@@ -279,7 +279,7 @@ export function CategoryPicker<T extends FieldValues & { category_id: string | u
                 <span
                   className={cn(
                     'text-[10px] max-w-[60px] truncate transition-colors',
-                    field.value === cat.id ? 'text-indigo-300' : 'text-slate-500'
+                    field.value === cat.id ? 'text-accent' : 'text-muted'
                   )}
                 >
                   {cat.name}
@@ -296,13 +296,13 @@ export function CategoryPicker<T extends FieldValues & { category_id: string | u
               <div
                 className={cn(
                   'flex items-center justify-center h-14 w-14 rounded-full transition-all',
-                  'bg-slate-800/60 group-hover:bg-slate-700/60',
-                  showAll && 'ring-2 ring-slate-600'
+                  'bg-surface-2 group-hover:bg-surface',
+                  showAll && 'ring-2 ring-border'
                 )}
               >
-                <Grid3X3 className="h-5 w-5 text-slate-400" />
+                <Grid3X3 className="h-5 w-5 text-muted" />
               </div>
-              <span className="text-[10px] text-slate-500">Más</span>
+              <span className="text-[10px] text-muted">Más</span>
             </button>
           </div>
 
@@ -319,14 +319,14 @@ export function CategoryPicker<T extends FieldValues & { category_id: string | u
                   }}
                   className={cn(
                     'flex flex-col items-center gap-1 p-2 rounded-xl transition-all min-h-11',
-                    'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none',
+                    'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',
                     field.value === cat.id
-                      ? 'bg-indigo-500/20 ring-1 ring-indigo-400'
-                      : 'bg-slate-800/40 hover:bg-slate-700/40'
+                      ? 'bg-accent/10 ring-1 ring-accent'
+                      : 'bg-surface-2 hover:bg-surface'
                   )}
                 >
                   <span className="text-lg">{cat.emoji ?? '📦'}</span>
-                  <span className="text-[9px] text-slate-400 truncate w-full text-center">
+                  <span className="text-[9px] text-muted truncate w-full text-center">
                     {cat.name}
                   </span>
                 </button>
@@ -363,7 +363,7 @@ export function DateField<T extends FieldValues>({
       name={fieldName as Path<T>}
       render={({ field }) => (
         <FormItem>
-          <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
             {label}
           </span>
           <FormControl>
@@ -371,7 +371,7 @@ export function DateField<T extends FieldValues>({
               type="date"
               value={typeof field.value === 'string' ? field.value : ''}
               onChange={(e) => field.onChange(e.target.value)}
-              className="bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 focus-visible:ring-2 focus-visible:ring-indigo-500 block w-full"
+              className="min-h-11 block w-full"
             />
           </FormControl>
           <FormMessage />
@@ -389,20 +389,20 @@ export function DateField<T extends FieldValues>({
 export function PaymentMethodBadge({ type }: { type: string }) {
   if (type === 'credit') {
     return (
-      <span className="inline-flex items-center justify-center rounded-md bg-linear-to-r from-indigo-600 to-violet-600 px-2 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
+      <span className="inline-flex items-center justify-center rounded-md bg-hero px-2 py-0.5 text-[10px] font-bold tracking-wider text-cream-light uppercase">
         VISA
       </span>
     );
   }
   if (type === 'debit') {
     return (
-      <span className="inline-flex items-center justify-center rounded-md bg-emerald-600/80 px-2 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
+      <span className="inline-flex items-center justify-center rounded-md bg-good/15 px-2 py-0.5 text-[10px] font-bold tracking-wider text-good uppercase">
         Débito
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center justify-center rounded-md bg-slate-700 px-2 py-0.5 text-[10px] font-bold tracking-wider text-slate-300 uppercase">
+    <span className="inline-flex items-center justify-center rounded-md bg-surface-2 px-2 py-0.5 text-[10px] font-bold tracking-wider text-muted uppercase">
       Efectivo
     </span>
   );
@@ -441,7 +441,7 @@ export function InstallmentSelector<T extends FieldValues>({
       name={fieldName as Path<T>}
       render={() => (
         <FormItem>
-          <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
             Cuotas
           </span>
 
@@ -460,16 +460,16 @@ export function InstallmentSelector<T extends FieldValues>({
                 }
                 className={cn(
                   'flex items-center justify-center h-12 w-12 rounded-full transition-all',
-                  'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none active:scale-90',
+                  'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none active:scale-90',
                   watchedCount <= min
-                    ? 'bg-slate-800/40 text-slate-600 cursor-not-allowed'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    ? 'bg-surface-2/40 text-faint cursor-not-allowed'
+                    : 'bg-surface-2 text-muted hover:bg-surface'
                 )}
               >
                 <Minus className="h-5 w-5" />
               </button>
 
-              <span className="text-4xl font-bold text-slate-50 tabular-nums min-w-[3ch] text-center">
+              <span className="text-4xl font-poster text-text tnum min-w-[3ch] text-center">
                 {watchedCount}
               </span>
 
@@ -485,10 +485,10 @@ export function InstallmentSelector<T extends FieldValues>({
                 }
                 className={cn(
                   'flex items-center justify-center h-12 w-12 rounded-full transition-all',
-                  'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none active:scale-90',
+                  'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none active:scale-90',
                   watchedCount >= max
-                    ? 'bg-slate-800/40 text-slate-600 cursor-not-allowed'
-                    : 'bg-linear-to-br from-indigo-500 to-violet-500 text-white shadow-[0_0_20px_rgba(139,92,246,0.4)] hover:shadow-[0_0_28px_rgba(139,92,246,0.55)]'
+                    ? 'bg-surface-2/40 text-faint cursor-not-allowed'
+                    : 'bg-accent text-accent-ink shadow-offset hover:opacity-90'
                 )}
               >
                 <Plus className="h-5 w-5" />
@@ -497,12 +497,12 @@ export function InstallmentSelector<T extends FieldValues>({
 
             {/* Pill */}
             {installmentValue > 0 && (
-              <div className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 text-center animate-in fade-in-0 zoom-in-95 duration-200">
-                <span className="text-sm text-indigo-300">
+              <div className="rounded-full bg-accent/10 border border-accent/20 px-4 py-2 text-center animate-in fade-in-0 zoom-in-95 duration-200">
+                <span className="text-sm text-accent">
                   Pagarás{' '}
-                  <span className="font-semibold text-indigo-200">{watchedCount} cuotas</span>
+                  <span className="font-bold">{watchedCount} cuotas</span>
                   {' '}de{' '}
-                  <span className="font-semibold text-indigo-200">{formatCurrency(installmentValue)}</span>
+                  <span className="font-bold">{formatCurrency(installmentValue)}</span>
                 </span>
               </div>
             )}
@@ -533,10 +533,10 @@ export function FrequencySelector<T extends FieldValues & { frequency: 'monthly'
       name={'frequency' as Path<T>}
       render={({ field }) => (
         <FormItem>
-          <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
             Frecuencia
           </span>
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-900/80 p-1">
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
             {(['monthly', 'yearly'] as const).map((freq) => (
               <button
                 key={freq}
@@ -544,10 +544,10 @@ export function FrequencySelector<T extends FieldValues & { frequency: 'monthly'
                 onClick={() => field.onChange(freq)}
                 className={cn(
                   'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
-                  'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none',
+                  'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',
                   field.value === freq
-                    ? 'bg-violet-500 text-white shadow-[0_0_20px_rgba(139,92,246,0.3)]'
-                    : 'text-slate-500 hover:text-slate-300'
+                    ? 'bg-accent text-accent-ink'
+                    : 'text-muted hover:text-text'
                 )}
               >
                 {freq === 'monthly' ? 'Mensual' : 'Anual'}
@@ -644,7 +644,7 @@ export function PaymentMethodField<T extends FieldValues>({
         return (
         <>
           <FormItem>
-            <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
               Método de pago
             </span>
             <Select
@@ -666,27 +666,27 @@ export function PaymentMethodField<T extends FieldValues>({
             >
               <FormControl>
                 <SelectTrigger
-                  className="w-full bg-surface-raised border-0 rounded-xl min-h-[52px] px-3 py-2 flex items-center gap-3 focus-visible:ring-2 focus-visible:ring-indigo-500 [&>svg]:hidden"
+                  className="w-full bg-surface-2 border-[1.5px] border-border rounded-xl min-h-[52px] px-3 py-2 flex items-center gap-3 focus-visible:ring-2 focus-visible:ring-accent/50 [&>svg]:hidden"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     {selectedMethod ? (
                       <>
                         <PaymentMethodBadge type={selectedMethod.type} />
-                        <span className="text-sm text-slate-200 truncate">
+                        <span className="text-sm text-text truncate">
                           {selectedMethod.name}
                         </span>
                       </>
                     ) : (
                       <>
-                        <Wallet className="h-5 w-5 text-slate-500 shrink-0" />
-                        <span className="text-sm text-slate-400">Sin asignar</span>
+                        <Wallet className="h-5 w-5 text-muted shrink-0" />
+                        <span className="text-sm text-faint">Sin asignar</span>
                       </>
                     )}
                   </div>
-                  <ChevronRight className="h-4 w-4 text-slate-500 shrink-0" />
+                  <ChevronRight className="h-4 w-4 text-muted shrink-0" />
                 </SelectTrigger>
               </FormControl>
-              <SelectContent position="popper" sideOffset={4} className="bg-surface-overlay border-slate-800 text-slate-200 max-h-60">
+              <SelectContent position="popper" sideOffset={4} className="bg-surface border-border text-text max-h-60">
                 <SelectItem value="none">Sin asignar</SelectItem>
                 {paymentMethods.map((method) => (
                   <SelectItem key={method.id} value={method.id.toString()}>
@@ -701,7 +701,7 @@ export function PaymentMethodField<T extends FieldValues>({
 
             {/* Credit card charge date hint */}
             {creditHint && (
-              <p className="text-[11px] text-violet-400/80 mt-1 pl-1 animate-in fade-in-0 duration-200">
+              <p className="text-[11px] text-accent/80 mt-1 pl-1 animate-in fade-in-0 duration-200">
                 {creditHint}
               </p>
             )}
@@ -712,7 +712,7 @@ export function PaymentMethodField<T extends FieldValues>({
           {/* Debit payment day selector */}
           {selectedMethod?.type === 'debit' && setValue && (
             <div className="mt-4 animate-in fade-in-0 duration-300">
-              <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500 mb-3 block">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted mb-3 block">
                 Día de pago
               </span>
 
@@ -729,20 +729,20 @@ export function PaymentMethodField<T extends FieldValues>({
                   }
                   className={cn(
                     'flex items-center justify-center h-10 w-10 rounded-full transition-all',
-                    'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none active:scale-90',
+                    'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none active:scale-90',
                     (watchedDebitDay || 1) <= 1
-                      ? 'bg-slate-800/40 text-slate-600 cursor-not-allowed'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      ? 'bg-surface-2/40 text-faint cursor-not-allowed'
+                      : 'bg-surface-2 text-muted hover:bg-surface hover:text-text'
                   )}
                 >
                   <Minus className="h-4 w-4" />
                 </button>
 
                 <div className="text-center min-w-[80px]">
-                  <div className="text-2xl font-bold text-slate-50 tabular-nums">
+                  <div className="text-2xl font-poster text-text tnum">
                     {watchedDebitDay || (watchedDate ? parseLocalDate(watchedDate).getDate() : 1)}
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-muted">
                     de cada mes
                   </div>
                 </div>
@@ -759,10 +759,10 @@ export function PaymentMethodField<T extends FieldValues>({
                   }
                   className={cn(
                     'flex items-center justify-center h-10 w-10 rounded-full transition-all',
-                    'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none active:scale-90',
+                    'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none active:scale-90',
                     (watchedDebitDay || 1) >= 28
-                      ? 'bg-slate-800/40 text-slate-600 cursor-not-allowed'
-                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      ? 'bg-surface-2/40 text-faint cursor-not-allowed'
+                      : 'bg-accent text-accent-ink hover:opacity-90'
                   )}
                 >
                   <Plus className="h-4 w-4" />
@@ -818,11 +818,11 @@ export function CurrencyField<T extends FieldValues>({
       name={'currency' as Path<T>}
       render={({ field }) => (
         <FormItem>
-          <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
             Moneda
           </span>
           {/* ARS / USD */}
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-900/80 p-1">
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
             {(['ARS', 'USD'] as const).map((cur) => (
               <button
                 key={cur}
@@ -835,10 +835,10 @@ export function CurrencyField<T extends FieldValues>({
                 }}
                 className={cn(
                   'min-h-11 rounded-lg py-2.5 text-sm font-semibold transition-all',
-                  'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none',
+                  'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',
                   field.value === cur
-                    ? 'bg-indigo-500 text-white shadow-[0_0_20px_rgba(129,140,248,0.3)]'
-                    : 'text-slate-500 hover:text-slate-300'
+                    ? 'bg-accent text-accent-ink'
+                    : 'text-muted hover:text-text'
                 )}
               >
                 {cur === 'ARS' ? '$ Pesos' : 'US$ Dólares'}
@@ -849,7 +849,7 @@ export function CurrencyField<T extends FieldValues>({
           {/* Selector de cotización + preview, solo en USD */}
           {field.value === 'USD' && (
             <div className="mt-3 space-y-2 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-              <div className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800">
+              <div className="flex gap-1 p-1 rounded-xl bg-surface-2 border-[1.5px] border-border">
                 {RATE_OPTIONS.map((opt) => (
                   <button
                     key={opt.pair}
@@ -858,15 +858,15 @@ export function CurrencyField<T extends FieldValues>({
                     className={cn(
                       'flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all',
                       activePair === opt.pair
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-accent text-accent-ink'
+                        : 'text-muted hover:text-text'
                     )}
                   >
                     {opt.label}
                   </button>
                 ))}
               </div>
-              <p className="text-center text-xs text-slate-400">
+              <p className="text-center text-xs text-muted">
                 {rate > 0
                   ? <>≈ {formatCurrency(arsPreview)} ARS · a {formatCurrency(rate)} {rateLabel}</>
                   : 'Cotización no disponible'}

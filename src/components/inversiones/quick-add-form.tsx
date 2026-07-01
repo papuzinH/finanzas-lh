@@ -211,16 +211,16 @@ export function QuickAddForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       {/* Callout informativo */}
-      <div className="flex items-start gap-2 rounded-lg bg-indigo-500/5 border border-indigo-500/20 px-3 py-2.5">
-        <Info className="h-4 w-4 text-indigo-300 shrink-0 mt-0.5" />
-        <p className="text-[11px] text-indigo-200/80 leading-relaxed">
+      <div className="flex items-start gap-2 rounded-lg bg-accent/5 border-[1.5px] border-accent/20 px-3 py-2.5">
+        <Info className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+        <p className="text-[11px] text-muted leading-relaxed">
           Cargá la compra (cantidad y precio que pagaste). Chanchito busca el precio actual
           automáticamente y calcula tu rendimiento.
         </p>
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-slate-300 text-xs">Tipo de inversión *</Label>
+        <Label className="text-muted text-xs">Tipo de inversión *</Label>
         <Controller
           name="asset_type"
           control={control}
@@ -228,44 +228,44 @@ export function QuickAddForm() {
             <AssetTypePicker value={field.value} onChange={field.onChange} />
           )}
         />
-        {errors.asset_type && <p className="text-[10px] text-rose-400">{errors.asset_type.message}</p>}
+        {errors.asset_type && <p className="text-[10px] text-bad">{errors.asset_type.message}</p>}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="space-y-1.5">
-          <Label className="text-slate-300 text-xs">
+          <Label className="text-muted text-xs">
             {isFixedTerm ? 'Identificador único *' : 'Ticker *'}
           </Label>
           <Input
             {...register('ticker')}
             placeholder={(assetType && TICKER_PLACEHOLDERS[assetType]) || 'GGAL'}
-            className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 uppercase text-sm h-9"
+            className="bg-surface-2 border-border focus:border-accent/50 uppercase text-sm h-9"
           />
-          {errors.ticker && <p className="text-[10px] text-rose-400">{errors.ticker.message}</p>}
+          {errors.ticker && <p className="text-[10px] text-bad">{errors.ticker.message}</p>}
         </div>
         <div className="sm:col-span-2 space-y-1.5">
-          <Label className="text-slate-300 text-xs">Nombre descriptivo *</Label>
+          <Label className="text-muted text-xs">Nombre descriptivo *</Label>
           <Input
             {...register('name')}
             placeholder={(assetType && NAME_PLACEHOLDERS[assetType]) || 'Grupo Galicia'}
-            className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 text-sm h-9"
+            className="bg-surface-2 border-border focus:border-accent/50 text-sm h-9"
           />
-          {errors.name && <p className="text-[10px] text-rose-400">{errors.name.message}</p>}
+          {errors.name && <p className="text-[10px] text-bad">{errors.name.message}</p>}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="text-slate-300 text-xs">Fecha de compra *</Label>
+          <Label className="text-muted text-xs">Fecha de compra *</Label>
           <Input
             type="date"
             {...register('date')}
-            className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 text-sm h-9"
+            className="bg-surface-2 border-border focus:border-accent/50 text-sm h-9"
           />
-          {errors.date && <p className="text-[10px] text-rose-400">{errors.date.message}</p>}
+          {errors.date && <p className="text-[10px] text-bad">{errors.date.message}</p>}
         </div>
         <div className="space-y-1.5">
-          <Label className="text-slate-300 text-xs">Moneda de la operación</Label>
+          <Label className="text-muted text-xs">Moneda de la operación</Label>
           <Controller
             name="currency"
             control={control}
@@ -279,12 +279,12 @@ export function QuickAddForm() {
                 }}
                 disabled={isFixedTerm}
               >
-                <SelectTrigger className="bg-surface-raised border-slate-800 h-9 text-sm">
+                <SelectTrigger className="bg-surface-2 border-border h-9 text-sm">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-surface-overlay border-slate-800">
-                  <SelectItem value="ARS" className="focus:bg-slate-800 text-xs">ARS</SelectItem>
-                  <SelectItem value="USD" className="focus:bg-slate-800 text-xs">USD</SelectItem>
+                <SelectContent className="bg-surface border-border">
+                  <SelectItem value="ARS" className="focus:bg-surface-2 text-xs">ARS</SelectItem>
+                  <SelectItem value="USD" className="focus:bg-surface-2 text-xs">USD</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -296,33 +296,33 @@ export function QuickAddForm() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-slate-300 text-xs">Cantidad de nominales *</Label>
+              <Label className="text-muted text-xs">Cantidad de nominales *</Label>
               <Input
                 type="number"
                 step="any"
                 {...register('quantity', { valueAsNumber: true })}
                 placeholder="100"
-                className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 text-sm h-9"
+                className="bg-surface-2 border-border focus:border-accent/50 text-sm h-9"
               />
-              {errors.quantity && <p className="text-[10px] text-rose-400">{errors.quantity.message}</p>}
+              {errors.quantity && <p className="text-[10px] text-bad">{errors.quantity.message}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300 text-xs">Precio al que compraste cada unidad *</Label>
+              <Label className="text-muted text-xs">Precio al que compraste cada unidad *</Label>
               <Input
                 type="number"
                 step="any"
                 {...register('price_per_unit', { valueAsNumber: true })}
                 placeholder="1000"
-                className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 text-sm h-9"
+                className="bg-surface-2 border-border focus:border-accent/50 text-sm h-9"
               />
-              {errors.price_per_unit && <p className="text-[10px] text-rose-400">{errors.price_per_unit.message}</p>}
+              {errors.price_per_unit && <p className="text-[10px] text-bad">{errors.price_per_unit.message}</p>}
             </div>
           </div>
 
           {totalInvestido !== null && (
-            <div className="rounded-lg bg-slate-800/40 px-3 py-2 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500">Total invertido</span>
-              <span className="text-sm font-mono font-bold text-slate-100">
+            <div className="rounded-lg bg-surface-2 border-[1.5px] border-border px-3 py-2 flex items-center justify-between">
+              <span className="text-[11px] text-muted">Total invertido</span>
+              <span className="text-sm tnum font-bold text-text">
                 {fmtCurrency(totalInvestido, currency)}
               </span>
             </div>
@@ -330,72 +330,72 @@ export function QuickAddForm() {
 
           {needsUrl && (
             <div className="space-y-1.5">
-              <Label className="text-slate-300 text-xs">URL fuente de precio (opcional)</Label>
+              <Label className="text-muted text-xs">URL fuente de precio (opcional)</Label>
               <Input
                 {...register('data_source_url')}
                 placeholder="https://iol.invertironline.com/titulo/cotizacion/BCBA/AL30/1"
-                className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 text-sm h-9"
+                className="bg-surface-2 border-border focus:border-accent/50 text-sm h-9"
               />
-              <p className="text-[10px] text-slate-500">
+              <p className="text-[10px] text-muted">
                 Si Chanchito no encuentra el precio automáticamente, pegá el link de IOL del activo.
               </p>
-              {errors.data_source_url && <p className="text-[10px] text-rose-400">{errors.data_source_url.message}</p>}
+              {errors.data_source_url && <p className="text-[10px] text-bad">{errors.data_source_url.message}</p>}
             </div>
           )}
         </>
       )}
 
       {isFixedTerm && (
-        <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4 space-y-4">
-          <p className="text-xs font-medium text-indigo-300">
+        <div className="rounded-xl border-[1.5px] border-accent/20 bg-accent/5 p-4 space-y-4">
+          <p className="text-xs font-bold text-accent">
             {assetType === 'plazo_fijo' ? 'Datos de Plazo Fijo' : 'Datos de Money Market'}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-slate-300 text-xs">Capital inicial invertido (ARS) *</Label>
+              <Label className="text-muted text-xs">Capital inicial invertido (ARS) *</Label>
               <Input
                 type="number"
                 step="any"
                 {...register('quantity', { valueAsNumber: true })}
                 placeholder="Monto depositado"
-                className="bg-surface-raised border-slate-800 text-sm h-9"
+                className="bg-surface-2 border-border text-sm h-9"
               />
-              {errors.quantity && <p className="text-[10px] text-rose-400">{errors.quantity.message}</p>}
+              {errors.quantity && <p className="text-[10px] text-bad">{errors.quantity.message}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300 text-xs">TNA anual (%) *</Label>
+              <Label className="text-muted text-xs">TNA anual (%) *</Label>
               <Input
                 type="number"
                 step="0.01"
                 {...register('tna', { valueAsNumber: true })}
                 placeholder="35"
-                className="bg-surface-raised border-slate-800 text-sm h-9"
+                className="bg-surface-2 border-border text-sm h-9"
               />
-              {errors.tna && <p className="text-[10px] text-rose-400">{errors.tna.message}</p>}
+              {errors.tna && <p className="text-[10px] text-bad">{errors.tna.message}</p>}
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-slate-300 text-xs">Banco / Entidad financiera</Label>
+              <Label className="text-muted text-xs">Banco / Entidad financiera</Label>
               <Input
                 {...register('entity')}
                 placeholder="Banco Galicia o Mercado Pago"
-                className="bg-surface-raised border-slate-800 text-sm h-9"
+                className="bg-surface-2 border-border text-sm h-9"
               />
-              {errors.entity && <p className="text-[10px] text-rose-400">{errors.entity.message}</p>}
+              {errors.entity && <p className="text-[10px] text-bad">{errors.entity.message}</p>}
             </div>
 
             {assetType === 'plazo_fijo' && (
               <div className="space-y-1.5">
-                <Label className="text-slate-300 text-xs">Fecha de vencimiento *</Label>
+                <Label className="text-muted text-xs">Fecha de vencimiento *</Label>
                 <Input
                   type="date"
                   {...register('end_date')}
-                  className="bg-surface-raised border-slate-800 text-sm h-9"
+                  className="bg-surface-2 border-border text-sm h-9"
                 />
-                {errors.end_date && <p className="text-[10px] text-rose-400">{errors.end_date.message}</p>}
+                {errors.end_date && <p className="text-[10px] text-bad">{errors.end_date.message}</p>}
               </div>
             )}
           </div>
@@ -410,43 +410,43 @@ export function QuickAddForm() {
         <button
           type="button"
           onClick={() => setShowAdvanced((v) => !v)}
-          className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          className="flex items-center gap-1.5 text-xs text-muted hover:text-text transition-colors"
         >
           {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           Opciones avanzadas
         </button>
 
         {showAdvanced && (
-          <div className="mt-3 space-y-3 pt-3 border-t border-slate-800">
+          <div className="mt-3 space-y-3 pt-3 border-t-[1.5px] border-border">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-slate-300 text-xs">Comisiones</Label>
+                <Label className="text-muted text-xs">Comisiones</Label>
                 <Input
                   type="number"
                   step="any"
                   {...register('fees', { valueAsNumber: true })}
                   placeholder="0"
-                  className="bg-surface-raised border-slate-800 text-sm h-9"
+                  className="bg-surface-2 border-border text-sm h-9"
                 />
               </div>
               {!needsUrl && (
                 <div className="space-y-1.5">
-                  <Label className="text-slate-300 text-xs">URL fuente datos</Label>
+                  <Label className="text-muted text-xs">URL fuente datos</Label>
                   <Input
                     {...register('data_source_url')}
                     placeholder="https://iol.invertironline.com/..."
-                    className="bg-surface-raised border-slate-800 text-sm h-9"
+                    className="bg-surface-2 border-border text-sm h-9"
                   />
-                  {errors.data_source_url && <p className="text-[10px] text-rose-400">{errors.data_source_url.message}</p>}
+                  {errors.data_source_url && <p className="text-[10px] text-bad">{errors.data_source_url.message}</p>}
                 </div>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-300 text-xs">Notas</Label>
+              <Label className="text-muted text-xs">Notas</Label>
               <Input
                 {...register('notes')}
                 placeholder="Opcional"
-                className="bg-surface-raised border-slate-800 text-sm h-9"
+                className="bg-surface-2 border-border text-sm h-9"
               />
             </div>
           </div>
@@ -456,7 +456,8 @@ export function QuickAddForm() {
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white h-10"
+        variant="accent"
+        className="w-full h-10"
       >
         {isSubmitting ? (
           <>

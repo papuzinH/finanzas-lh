@@ -55,18 +55,16 @@ export function EndOfMonthSavingsBanner() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.25 }}
-        className={cn(
-          'relative rounded-xl border border-emerald-500/30 bg-linear-to-br from-emerald-500/15 via-emerald-500/5 to-cyan-500/10 p-4'
-        )}
+        className="relative rounded-xl border-[1.5px] border-good/25 bg-good/8 p-4"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="rounded-lg bg-emerald-500/15 p-2 shrink-0">
-              <PiggyBank className="h-4 w-4 text-emerald-300" />
+            <div className="rounded-lg bg-good/12 p-2 shrink-0">
+              <PiggyBank className="h-4 w-4 text-good" aria-hidden="true" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-emerald-100">Guardar sobrante en el chanchito</p>
-              <p className="text-[11px] text-emerald-200/70">
+              <p className="text-sm font-medium text-text">Guardar sobrante en el chanchito</p>
+              <p className="text-[11px] text-muted">
                 {alreadyTransferred
                   ? 'Ya transferiste este mes'
                   : suggestedAmount > 0
@@ -79,11 +77,11 @@ export function EndOfMonthSavingsBanner() {
           <button
             type="button"
             onClick={() => setIsCollapsed((prev) => !prev)}
-            className="shrink-0 rounded-md p-1 text-emerald-200/80 hover:bg-emerald-500/10 hover:text-emerald-100 transition-colors"
+            className="shrink-0 rounded-md p-2 text-muted hover:bg-good/10 hover:text-good transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-good/50"
             aria-expanded={!isCollapsed}
             aria-label={isCollapsed ? 'Expandir banner de ahorro' : 'Colapsar banner de ahorro'}
           >
-            <ChevronDown className={cn('h-4 w-4 transition-transform', !isCollapsed && 'rotate-180')} />
+            <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', !isCollapsed && 'rotate-180')} aria-hidden="true" />
           </button>
         </div>
 
@@ -96,23 +94,24 @@ export function EndOfMonthSavingsBanner() {
               transition={{ duration: 0.2, ease: 'easeOut' }}
               className="overflow-hidden"
             >
-              <div className="pt-3 flex items-start gap-2">
-                <Sparkles className="h-4 w-4 text-emerald-300 mt-0.5 shrink-0" />
+              <div className=" flex items-start gap-2">
+                {suggestedAmount < 0 && <Sparkles className="h-4 w-4 text-good mt-0.5 shrink-0" aria-hidden="true" />}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-emerald-200/80">
-                    {suggestedAmount > 0
-                      ? `Sugerencia actual: ${formatCurrency(suggestedAmount)} para pasar a ahorro y no sobreestimar tu disponible.`
-                      : 'Cuando el resultado mensual sea positivo, vas a poder mover el sobrante directo desde acá.'}
-                  </p>
+                  {suggestedAmount < 0 &&
+                    <p className="text-xs text-muted">
+                      Cuando el resultado mensual sea positivo, vas a poder mover el sobrante directo desde acá.
+                    </p>
+                  }
 
                   <button
                     type="button"
                     onClick={handleSaveSurplus}
                     disabled={isSaving || alreadyTransferred || suggestedAmount <= 0}
                     className={cn(
-                      'mt-3 inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold',
-                      'bg-emerald-400 text-emerald-950 hover:bg-emerald-300 transition-colors',
-                      'disabled:opacity-60 disabled:cursor-not-allowed'
+                      'mt-3 inline-flex items-center justify-center rounded-lg px-4 py-2 text-xs font-semibold min-h-11',
+                      'bg-good text-accent-ink hover:opacity-90 active:scale-[0.98] transition-all duration-150',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-good/50',
+                      'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100'
                     )}
                   >
                     {isSaving

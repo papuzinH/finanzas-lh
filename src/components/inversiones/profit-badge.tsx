@@ -29,10 +29,10 @@ export function ProfitBadge({ percent, amount, currency, showAmount = false, cla
       className={cn(
         'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium',
         isZero
-          ? 'bg-slate-700/40 text-slate-400'
+          ? 'bg-surface-2 text-muted'
           : isPositive
-            ? 'bg-emerald-500/15 text-emerald-400'
-            : 'bg-rose-500/15 text-rose-400',
+            ? 'bg-good/10 text-good'
+            : 'bg-bad/10 text-bad',
         className
       )}
     >

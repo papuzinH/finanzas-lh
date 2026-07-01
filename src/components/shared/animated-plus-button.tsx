@@ -51,34 +51,35 @@ export function AnimatedPlusButton({
   }, [triggerKey]); // Dependencia en triggerKey
 
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "relative flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white shadow-lg shadow-indigo-500/20 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
-        isExpanded 
-          ? "h-9 px-3 min-w-9" 
-          : "h-9 w-9",
-        className
-      )}
-      aria-label={ariaLabel || label}
-    >
-      <Plus 
+    <div className={cn("relative h-9 w-9 shrink-0", className)}>
+      <button
+        onClick={onClick}
+        disabled={disabled}
         className={cn(
-          "transition-all duration-200 shrink-0",
-          showText ? "h-3.5 w-3.5 mr-1.5" : "h-4 w-4"
-        )} 
-      />
-      <span 
-        className={cn(
-          "text-xs font-medium whitespace-nowrap transition-all duration-200 overflow-hidden",
-          showText 
-            ? "opacity-100 max-w-[200px]" 
-            : "opacity-0 max-w-0"
+          "absolute right-0 top-0 flex items-center justify-center rounded-full bg-accent text-accent-ink border-[1.5px] border-accent-deep shadow-offset disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 z-10",
+          isExpanded
+            ? "h-9 px-3 min-w-9"
+            : "h-9 w-9",
         )}
+        aria-label={ariaLabel || label}
       >
-        {label}
-      </span>
-    </button>
+        <Plus
+          className={cn(
+            "transition-all duration-200 shrink-0",
+            showText ? "h-3.5 w-3.5 mr-1.5" : "h-4 w-4"
+          )}
+        />
+        <span
+          className={cn(
+            "text-xs font-medium whitespace-nowrap transition-all duration-200 overflow-hidden",
+            showText
+              ? "opacity-100 max-w-[200px]"
+              : "opacity-0 max-w-0"
+          )}
+        >
+          {label}
+        </span>
+      </button>
+    </div>
   );
 }

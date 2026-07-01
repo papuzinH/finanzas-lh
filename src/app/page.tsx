@@ -11,15 +11,13 @@ import {
   ShoppingBag,
   DollarSign,
   Flame,
-  LayoutDashboard
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatCompact } from '@/lib/utils';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
-import { PageHeader } from '@/components/shared/page-header';
+import { ScreenHeader } from '@/components/shared/screen-header';
 import { TransactionItem } from '@/components/shared/transaction-item';
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { Modal } from '@/components/shared/modal';
-import { FullPageLoader } from '@/components/shared/loader';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { BalanceCard } from '@/components/dashboard/balance-card';
@@ -51,12 +49,12 @@ function CategoryBreakdownCard({
 }) {
   if (data.length === 0) {
     return (
-      <div className={`rounded-2xl border border-slate-800 bg-surface-raised/30 p-5 ${className ?? ''}`}>
-        <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2 mb-4">
-          <Icon className="w-4 h-4 text-slate-400" aria-hidden="true" />
+      <div className={`rounded-2xl border-[1.5px] border-border bg-surface p-5 ${className ?? ''}`}>
+        <h3 className="font-sans font-bold text-text text-sm flex items-center gap-2 mb-4">
+          <Icon className="w-4 h-4 text-muted" aria-hidden="true" />
           {title}
         </h3>
-        <div className="h-20 flex items-center justify-center text-xs text-slate-400 italic">
+        <div className="h-20 flex items-center justify-center text-xs text-muted italic">
           Sin datos para mostrar
         </div>
       </div>
@@ -66,15 +64,15 @@ function CategoryBreakdownCard({
   return (
     <button
       onClick={onClick}
-      className={`rounded-2xl border border-slate-800 bg-surface-raised/30 p-5 w-full text-left cursor-pointer hover:bg-slate-800/30 active:scale-[0.99] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${className ?? ''}`}
+      className={`rounded-2xl border-[1.5px] border-border bg-surface p-5 w-full text-left cursor-pointer hover:bg-surface-2/50 active:scale-[0.99] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${className ?? ''}`}
       aria-label={`Ver desglose de ${title}`}
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-          <Icon className="w-4 h-4 text-slate-400" aria-hidden="true" />
+        <h3 className="font-sans font-bold text-text text-sm flex items-center gap-2">
+          <Icon className="w-4 h-4 text-muted" aria-hidden="true" />
           {title}
         </h3>
-        <span className="text-xs text-slate-400 font-mono">{formatCurrency(total)}</span>
+        <span className="font-poster tnum text-xs text-muted">{formatCurrency(total)}</span>
       </div>
       <div className="space-y-2.5">
         {data.map((item, index) => (
@@ -86,14 +84,14 @@ function CategoryBreakdownCard({
                   style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   aria-hidden="true"
                 />
-                <span className="text-xs text-slate-300 truncate">{item.name}</span>
+                <span className="text-xs text-text truncate">{item.name}</span>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-3">
-                <span className="text-[10px] text-slate-400 tabular-nums">{item.percentage.toFixed(0)}%</span>
-                <span className="text-xs font-mono text-slate-200 tabular-nums">{formatCurrency(item.value)}</span>
+                <span className="text-[10px] text-muted tnum">{item.percentage.toFixed(0)}%</span>
+                <span className="font-poster tnum text-xs text-text">{formatCurrency(item.value)}</span>
               </div>
             </div>
-            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-1.5 w-full bg-surface-2 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
@@ -114,27 +112,30 @@ export default function DashboardPage() {
   const [isFixedCostsModalOpen, setIsFixedCostsModalOpen] = useState(false);
   const [isGlobalExpensesModalOpen, setIsGlobalExpensesModalOpen] = useState(false);
   const [isMonthlyExpensesModalOpen, setIsMonthlyExpensesModalOpen] = useState(false);
+  const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
+  const [isVariableExpensesModalOpen, setIsVariableExpensesModalOpen] = useState(false);
   const [isCreateTxOpen, setIsCreateTxOpen] = useState(false);
+  const [isTrendDetailOpen, setIsTrendDetailOpen] = useState(false);
 
   // Conectamos con el Store Global
-  const { 
-    transactions, 
+  const {
+    transactions,
     paymentMethods,
-    isLoading, 
-    isInitialized, 
+    isLoading,
+    isInitialized,
     fetchAllData,
     getMonthlyBurnRate,
     getCurrentMonthInstallmentsTotal,
     getCurrentMonthInstallments,
     getActiveRecurringPlans,
-    getGlobalIncome,
-    getGlobalEffectiveExpenses,
     getCategoryBreakdown,
     getMonthlyIncome,
+    getMonthlyIncomeTransactions,
     getMonthlyVariableExpenses,
-    getMonthlyExpensesBreakdown,
+    getMonthlyVariableExpenseTransactions,
     getMonthlyLiquidityBreakdown,
     getRegistrationStreak,
+    getMonthlyTrend,
     user
   } = useFinanceStore();
 
@@ -157,10 +158,12 @@ export default function DashboardPage() {
   const currentMonthInstallmentsList = getCurrentMonthInstallments();
   const activeRecurringPlans = getActiveRecurringPlans();
   const monthlyIncome = getMonthlyIncome();
+  const monthlyIncomeTransactions = getMonthlyIncomeTransactions();
   const monthlyVariableExpenses = getMonthlyVariableExpenses();
-  const monthlyBreakdown = getMonthlyExpensesBreakdown();
+  const monthlyVariableExpenseTransactions = getMonthlyVariableExpenseTransactions();
   const liquidBreakdown = getMonthlyLiquidityBreakdown();
   const streak = getRegistrationStreak();
+  const trendData = getMonthlyTrend(6);
 
   // Datos para los Gráficos y Modales
   const globalBreakdown = getCategoryBreakdown('global');
@@ -176,42 +179,41 @@ export default function DashboardPage() {
 
   // Componente del dashboard principal
   const dashboardContent = (
-    <div className="min-h-screen bg-[var(--surface)] text-slate-50 font-sans pb-24">
-      <PageHeader
-        title={`Hola, ${user?.first_name || 'Usuario'} 👋`}
-        subtitle="Tu resumen financiero"
-        icon={<LayoutDashboard className="h-5 w-5" />}
-        containerClassName="max-w-[1440px]"
-      >
-        {streak.days > 0 && (
-          <div
-            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20"
-            title={!streak.isActiveToday ? 'Registrá un gasto para mantener tu racha' : undefined}
-          >
-            <Flame
-              className={[
-                'w-3.5 h-3.5 text-amber-400',
-                streak.isActiveToday ? '' : 'opacity-50',
-                streak.days > 7 ? 'animate-pulse' : '',
-              ].join(' ')}
-            />
-            <span className="text-[11px] font-semibold text-amber-400 leading-none">
-              {streak.days}d
-            </span>
+    <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
+      <ScreenHeader
+        kicker="tu resumen"
+        title={`Hola, ${user?.first_name || 'vos'} 👋`}
+        right={
+          <div className="flex items-center gap-2">
+            {streak.days > 0 && (
+              <div
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-warn/10 border border-warn/20"
+                title={!streak.isActiveToday ? 'Registrá un gasto para mantener tu racha' : undefined}
+              >
+                <Flame
+                  className={[
+                    'w-3.5 h-3.5 text-warn',
+                    streak.isActiveToday ? '' : 'opacity-50',
+                    streak.days > 7 ? 'animate-pulse' : '',
+                  ].join(' ')}
+                />
+                <span className="text-[11px] font-semibold text-warn leading-none">
+                  {streak.days}d
+                </span>
+              </div>
+            )}
+            <div data-tour="add-transaction-button">
+              <AnimatedPlusButton
+                label="Crear transacción"
+                onClick={() => setIsCreateTxOpen(true)}
+                ariaLabel="Nueva transacción"
+              />
+            </div>
           </div>
-        )}
-        <div data-tour="add-transaction-button">
-        <div data-tour="add-transaction-button">
-          <AnimatedPlusButton
-            label="Crear transacción"
-            onClick={() => setIsCreateTxOpen(true)}
-            ariaLabel="Nueva transacción"
-          />
-        </div>
-        </div>
-      </PageHeader>
+        }
+      />
 
-      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 space-y-6">
+      <main className="mx-auto max-w-[1440px] px-5 py-4 space-y-5">
 
         {/* Aviso: tarjetas de crédito sin fechas configuradas */}
         <IncompleteCreditCardsBanner />
@@ -252,6 +254,7 @@ export default function DashboardPage() {
                 color: "emerald",
                 icon: DollarSign,
                 sparklineType: "income",
+                onClick: () => setIsIncomeModalOpen(true),
               },
               {
                 label: "Variables mes",
@@ -260,6 +263,7 @@ export default function DashboardPage() {
                 color: "rose",
                 icon: ShoppingBag,
                 sparklineType: "variable",
+                onClick: () => setIsVariableExpensesModalOpen(true),
               },
             ]}
           />
@@ -295,27 +299,27 @@ export default function DashboardPage() {
         {/* ── BELOW THE FOLD ── */}
 
         {/* Separador: Análisis */}
-        <div className="flex items-center gap-2 mt-8 mb-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Análisis</h2>
-          <div className="flex-1 h-px bg-slate-800" />
+        <div className="flex items-center gap-2 mt-6 mb-2">
+          <h2 className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-muted whitespace-nowrap">Análisis</h2>
+          <div className="flex-1 h-px bg-border" />
         </div>
 
         {/* SECCIÓN B: ANÁLISIS VISUAL (Charts) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
           {/* Gráfico 0: Tendencia Ingreso vs Gasto (6 meses) */}
-          <div className="col-span-full rounded-2xl border border-slate-800 bg-surface-raised/30 p-5">
+          <div className="col-span-full rounded-2xl border-[1.5px] border-border bg-surface p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-slate-400" aria-hidden="true" />
+              <h3 className="font-sans font-bold text-text text-sm flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-muted" aria-hidden="true" />
                 Tendencia Ingreso vs Gasto
               </h3>
-              <div className="flex items-center gap-3 text-[10px] text-slate-400">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" aria-hidden="true" />Ingresos</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" aria-hidden="true" />Gastos</span>
+              <div className="flex items-center gap-3 text-[10px] text-muted">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-good inline-block" aria-hidden="true" />Ingresos</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-bad inline-block" aria-hidden="true" />Gastos</span>
               </div>
             </div>
-            <TrendChart />
+            <TrendChart onTap={() => setIsTrendDetailOpen(true)} />
           </div>
 
           {/* Gráfico 1: Gastos Globales */}
@@ -345,10 +349,10 @@ export default function DashboardPage() {
         </div>
 
         {/* Separador: Últimos movimientos */}
-        <div className="flex items-center gap-2 mt-8 mb-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Últimos movimientos</h2>
-          <div className="flex-1 h-px bg-slate-800" />
-          <Link href="/movimientos" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">Ver todos</Link>
+        <div className="flex items-center gap-2 mt-6 mb-2">
+          <h2 className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-muted whitespace-nowrap">Últimos movimientos</h2>
+          <div className="flex-1 h-px bg-border" />
+          <Link href="/movimientos" className="text-xs text-accent hover:text-accent-deep transition-colors">Ver todos</Link>
         </div>
 
         {/* SECCIÓN C: ÚLTIMOS MOVIMIENTOS */}
@@ -393,7 +397,7 @@ export default function DashboardPage() {
               );
             })
           ) : (
-            <p className="text-slate-400 text-center py-4">No hay cuotas para este mes.</p>
+            <p className="text-muted text-center py-4">No hay cuotas para este mes.</p>
           )}
         </div>
       </Modal>
@@ -428,7 +432,7 @@ export default function DashboardPage() {
               );
             })
           ) : (
-            <p className="text-slate-400 text-center py-4">No hay gastos fijos activos.</p>
+            <p className="text-muted text-center py-4">No hay gastos fijos activos.</p>
           )}
         </div>
       </Modal>
@@ -439,30 +443,30 @@ export default function DashboardPage() {
         title="Desglose de Gastos Globales"
       >
         <div className="space-y-6">
-          <div className="text-center py-4 border-b border-slate-800">
-            <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Total Gastado</p>
-            <p className="text-3xl font-bold font-mono text-white">{formatCurrency(globalBreakdown.total)}</p>
+          <div className="text-center py-4 border-b border-border">
+            <p className="text-xs text-muted uppercase tracking-wider mb-1">Total Gastado</p>
+            <p className="font-poster tnum text-3xl text-text">{formatCurrency(globalBreakdown.total)}</p>
           </div>
           <div className="space-y-4">
             {globalBreakdown.items.map((item, index) => (
               <div key={item.name} className="space-y-1.5">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-300 flex items-center gap-2">
+                  <span className="text-text flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                     {item.name}
                   </span>
-                  <span className="font-mono text-slate-100">{formatCurrency(item.value)}</span>
+                  <span className="font-poster tnum text-text">{formatCurrency(item.value)}</span>
                 </div>
-                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full rounded-full transition-all duration-500" 
-                    style={{ 
+                <div className="h-2 w-full bg-surface-2 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
                       width: `${item.percentage}%`,
                       backgroundColor: COLORS[index % COLORS.length]
-                    }} 
+                    }}
                   />
                 </div>
-                <p className="text-[10px] text-right text-slate-400">{item.percentage.toFixed(1)}% del total</p>
+                <p className="text-[10px] text-right text-muted">{item.percentage.toFixed(1)}% del total</p>
               </div>
             ))}
           </div>
@@ -475,39 +479,193 @@ export default function DashboardPage() {
         title="Desglose de Gastos del Mes"
       >
         <div className="space-y-6">
-          <div className="text-center py-4 border-b border-slate-800">
-            <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Total del Mes</p>
-            <p className="text-3xl font-bold font-mono text-white">{formatCurrency(currentMonthBreakdown.total)}</p>
+          <div className="text-center py-4 border-b border-border">
+            <p className="text-xs text-muted uppercase tracking-wider mb-1">Total del Mes</p>
+            <p className="font-poster tnum text-3xl text-text">{formatCurrency(currentMonthBreakdown.total)}</p>
           </div>
           {currentMonthBreakdown.items.length > 0 ? (
             <div className="space-y-4">
               {currentMonthBreakdown.items.map((item, index) => (
                 <div key={item.name} className="space-y-1.5">
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-300 flex items-center gap-2">
+                    <span className="text-text flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                       {item.name}
                     </span>
-                    <span className="font-mono text-slate-100">{formatCurrency(item.value)}</span>
+                    <span className="font-poster tnum text-text">{formatCurrency(item.value)}</span>
                   </div>
-                  <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all duration-500" 
-                      style={{ 
+                  <div className="h-2 w-full bg-surface-2 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
                         width: `${item.percentage}%`,
                         backgroundColor: COLORS[index % COLORS.length]
-                      }} 
+                      }}
                     />
                   </div>
-                  <p className="text-[10px] text-right text-slate-400">{item.percentage.toFixed(1)}% del total</p>
+                  <p className="text-[10px] text-right text-muted">{item.percentage.toFixed(1)}% del total</p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-slate-400 text-center py-4 italic">No hay gastos registrados este mes.</p>
+            <p className="text-muted text-center py-4 italic">No hay gastos registrados este mes.</p>
           )}
         </div>
       </Modal>
+      <Modal
+        isOpen={isIncomeModalOpen}
+        onClose={() => setIsIncomeModalOpen(false)}
+        title="Ingresos del mes"
+      >
+        <div className="space-y-3">
+          {monthlyIncomeTransactions.length > 0 ? (
+            <>
+              <div className="text-center py-3 border-b border-border mb-4">
+                <p className="text-xs text-muted uppercase tracking-wider mb-1">Total percibido</p>
+                <p className="font-poster tnum text-3xl text-good">{formatCurrency(monthlyIncome)}</p>
+              </div>
+              {monthlyIncomeTransactions.map((t) => {
+                const paymentMethod = paymentMethods.find((pm) => pm.id === t.payment_method_id);
+                return (
+                  <TransactionItem
+                    key={t.id}
+                    transaction={t}
+                    paymentMethodName={paymentMethod?.name}
+                    paymentMethodType={paymentMethod?.type}
+                    showDate={true}
+                  />
+                );
+              })}
+            </>
+          ) : (
+            <p className="text-muted text-center py-4 italic">No hay ingresos registrados este mes.</p>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isVariableExpensesModalOpen}
+        onClose={() => setIsVariableExpensesModalOpen(false)}
+        title="Gastos variables del mes"
+      >
+        <div className="space-y-3">
+          {monthlyVariableExpenseTransactions.length > 0 ? (
+            <>
+              <div className="text-center py-3 border-b border-border mb-4">
+                <p className="text-xs text-muted uppercase tracking-wider mb-1">Total gastado</p>
+                <p className="font-poster tnum text-3xl text-bad">{formatCurrency(monthlyVariableExpenses)}</p>
+              </div>
+              {monthlyVariableExpenseTransactions.map((t) => {
+                const paymentMethod = paymentMethods.find((pm) => pm.id === t.payment_method_id);
+                return (
+                  <TransactionItem
+                    key={t.id}
+                    transaction={t}
+                    paymentMethodName={paymentMethod?.name}
+                    paymentMethodType={paymentMethod?.type}
+                    showDate={true}
+                  />
+                );
+              })}
+            </>
+          ) : (
+            <p className="text-muted text-center py-4 italic">No hay gastos variables este mes.</p>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isTrendDetailOpen}
+        onClose={() => setIsTrendDetailOpen(false)}
+        title="Detalle mensual"
+      >
+        <div className="space-y-3">
+          {trendData.map((row, i) => {
+            const isLast = i === trendData.length - 1;
+            const savingsRate = row.income > 0 ? ((row.net / row.income) * 100) : null;
+            return (
+              <div
+                key={row.month}
+                className={`rounded-2xl border-[1.5px] p-4 space-y-3 ${isLast ? 'border-accent bg-accent/5' : 'border-border bg-surface'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`text-[11px] font-extrabold uppercase tracking-widest ${isLast ? 'text-accent' : 'text-muted'}`}>
+                    {row.month}{isLast ? ' · actual' : ''}
+                  </span>
+                  {savingsRate !== null && (
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${row.net >= 0 ? 'bg-good/10 text-good' : 'bg-bad/10 text-bad'}`}>
+                      {row.net >= 0 ? '+' : ''}{savingsRate.toFixed(0)}% ahorro
+                    </span>
+                  )}
+                </div>
+                {/* Fila principal: ingreso / total gastos / balance */}
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div>
+                    <p className="text-[10px] text-muted mb-0.5">Ingresos</p>
+                    <p className="font-poster tnum text-sm text-good">{formatCompact(row.income)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted mb-0.5">Gastos</p>
+                    <p className="font-poster tnum text-sm text-bad">{formatCompact(row.expenses)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted mb-0.5">Balance</p>
+                    <p className={`font-poster tnum text-sm ${row.net >= 0 ? 'text-good' : 'text-bad'}`}>
+                      {row.net >= 0 ? '+' : '−'}{formatCompact(Math.abs(row.net))}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Desglose de gastos */}
+                {row.expenses > 0 && (
+                  <div className="bg-surface-2/60 rounded-xl px-3 py-2.5 space-y-1.5">
+                    {row.variable > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-muted">Variables</span>
+                        <span className="font-poster tnum text-[11px] text-text">{formatCompact(row.variable)}</span>
+                      </div>
+                    )}
+                    {row.installments > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-muted">Cuotas</span>
+                        <span className="font-poster tnum text-[11px] text-text">{formatCompact(row.installments)}</span>
+                      </div>
+                    )}
+                    {row.recurring > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-muted">Mensualidades</span>
+                        <span className="font-poster tnum text-[11px] text-text">{formatCompact(row.recurring)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* mini barra comparativa ingreso vs gasto */}
+                {(row.income > 0 || row.expenses > 0) && (() => {
+                  const maxVal = Math.max(row.income, row.expenses);
+                  return (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-good shrink-0" />
+                        <div className="flex-1 h-1.5 bg-surface-2 rounded-full overflow-hidden">
+                          <div className="h-full bg-good rounded-full" style={{ width: `${(row.income / maxVal) * 100}%` }} />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-bad shrink-0" />
+                        <div className="flex-1 h-1.5 bg-surface-2 rounded-full overflow-hidden">
+                          <div className="h-full bg-bad rounded-full" style={{ width: `${(row.expenses / maxVal) * 100}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })}
+        </div>
+      </Modal>
+
       <CreateTransactionDialog open={isCreateTxOpen} onOpenChange={setIsCreateTxOpen} />
     </div>
   );

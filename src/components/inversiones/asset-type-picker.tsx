@@ -68,19 +68,19 @@ export function AssetTypePicker({ value, onChange }: AssetTypePickerProps) {
               type="button"
               onClick={() => onChange(qt.value)}
               className={cn(
-                'flex flex-col items-start gap-1 rounded-xl border px-3 py-3 text-left transition-all touch-manipulation',
+                'flex flex-col items-start gap-1 rounded-xl border-[1.5px] px-3 py-3 text-left transition-all touch-manipulation',
                 active
-                  ? 'border-indigo-500 bg-indigo-600/15 ring-1 ring-indigo-500/40'
-                  : 'border-slate-800 bg-surface-raised hover:border-slate-700 hover:bg-slate-800/40'
+                  ? 'border-accent bg-accent/10 ring-1 ring-accent/30'
+                  : 'border-border bg-surface-2 hover:border-accent/50 hover:bg-surface'
               )}
             >
               <div className="flex items-center gap-1.5">
-                <Icon className={cn('h-3.5 w-3.5', active ? 'text-indigo-300' : 'text-slate-400')} />
-                <span className={cn('text-xs font-semibold', active ? 'text-indigo-200' : 'text-slate-200')}>
+                <Icon className={cn('h-3.5 w-3.5', active ? 'text-accent' : 'text-muted')} />
+                <span className={cn('text-xs font-semibold', active ? 'text-text' : 'text-text')}>
                   {qt.label}
                 </span>
               </div>
-              <span className="text-[10px] text-slate-500 leading-tight">{qt.description}</span>
+              <span className="text-[10px] text-muted leading-tight">{qt.description}</span>
             </button>
           )
         })}
@@ -91,10 +91,10 @@ export function AssetTypePicker({ value, onChange }: AssetTypePickerProps) {
           <button
             type="button"
             className={cn(
-              'flex items-center justify-between gap-2 w-full rounded-lg border px-3 py-2 text-xs font-medium transition-colors',
+              'flex items-center justify-between gap-2 w-full rounded-lg border-[1.5px] px-3 py-2 text-xs font-medium transition-colors',
               isInMore
-                ? 'border-indigo-500 bg-indigo-600/15 text-indigo-200'
-                : 'border-slate-800 bg-surface-raised text-slate-400 hover:bg-slate-800/40'
+                ? 'border-accent bg-accent/10 text-text'
+                : 'border-border bg-surface-2 text-muted hover:text-text hover:border-accent/50'
             )}
           >
             <span>
@@ -103,7 +103,7 @@ export function AssetTypePicker({ value, onChange }: AssetTypePickerProps) {
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-72 bg-surface-overlay border-slate-800 p-2">
+        <PopoverContent className="w-72 bg-surface border-[1.5px] border-border p-2">
           <ul className="space-y-0.5">
             {MORE_TYPES.map((t) => {
               const active = value === t
@@ -118,12 +118,12 @@ export function AssetTypePicker({ value, onChange }: AssetTypePickerProps) {
                     className={cn(
                       'flex items-center justify-between w-full rounded-md px-2.5 py-2 text-xs transition-colors',
                       active
-                        ? 'bg-indigo-600/20 text-indigo-200'
-                        : 'text-slate-300 hover:bg-slate-800'
+                        ? 'bg-accent/10 text-text font-semibold'
+                        : 'text-text hover:bg-surface-2'
                     )}
                   >
                     <span>{getAssetTypeLabel(t)}</span>
-                    {active && <Check className="h-3.5 w-3.5" />}
+                    {active && <Check className="h-3.5 w-3.5 text-accent" />}
                   </button>
                 </li>
               )

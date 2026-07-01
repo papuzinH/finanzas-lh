@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Adriel/.claude/plugins/cache/ui-ux-pro-max-skill/ui-ux-pro-max/2.5.0/.claude/skills/ui-ux-pro-max/**)",
+      "Bash(python scripts/search.py \"fintech personal finance dashboard mobile\" --design-system -p \"Chanchito\" -f markdown)",
+      "Read(//c/Users/Adriel/.claude/plugins/cache/ui-ux-pro-max-skill/**)",
+      "Bash(python src/ui-ux-pro-max/scripts/search.py \"fintech personal finance dashboard mobile\" --design-system -p \"Chanchito\" -f markdown)"
+    ]
+  }
+}

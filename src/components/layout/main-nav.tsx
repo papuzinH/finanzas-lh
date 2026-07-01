@@ -3,28 +3,28 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import {
-  LayoutDashboard,
-  ListOrdered,
-  CalendarClock,
-  Target,
-  TrendingUp,
-  Settings,
-} from 'lucide-react';
+import { Home, ListOrdered, Layers, Target, TrendingUp, Settings, MoreHorizontal } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const navItems = [
-  { label: 'Inicio',      href: '/',            icon: LayoutDashboard },
-  { label: 'Movimientos', href: '/movimientos', icon: ListOrdered },
-  { label: 'Compromisos', href: '/compromisos', icon: CalendarClock },
-  { label: 'Objetivos',   href: '/objetivos',   icon: Target },
-  { label: 'Inversiones', href: '/inversiones', icon: TrendingUp },
-  { label: 'Ajustes',     href: '/ajustes',     icon: Settings },
+const mobileItems = [
+  { label: 'Inicio',      href: '/',            Icon: Home },
+  { label: 'Movimientos', href: '/movimientos', Icon: ListOrdered },
+  { label: 'Compromisos', href: '/compromisos', Icon: Layers },
+  { label: 'Objetivos',   href: '/objetivos',   Icon: Target },
+  { label: 'Inversiones', href: '/inversiones', Icon: TrendingUp },
+  { label: 'Más',         href: '/ajustes',     Icon: MoreHorizontal },
+];
+const desktopItems = [
+  { label: 'Inicio',      href: '/',            Icon: Home },
+  { label: 'Movimientos', href: '/movimientos', Icon: ListOrdered },
+  { label: 'Compromisos', href: '/compromisos', Icon: Layers },
+  { label: 'Objetivos',   href: '/objetivos',   Icon: Target },
+  { label: 'Inversiones', href: '/inversiones', Icon: TrendingUp },
+  { label: 'Ajustes',     href: '/ajustes',     Icon: Settings },
 ];
 
-function isRouteActive(itemHref: string, pathname: string) {
-  if (itemHref === '/') return pathname === '/';
-  return pathname === itemHref || pathname.startsWith(itemHref + '/');
+function isActive(href: string, pathname: string) {
+  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/');
 }
 
 export function MainNav() {
@@ -33,70 +33,59 @@ export function MainNav() {
   return (
     <>
       {/* ========== MOBILE BOTTOM NAV ========== */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
-        <div className="relative z-50 border-t border-slate-800/80 bg-[var(--surface)]/95 backdrop-blur-xl">
-          <div className="mx-auto flex h-16 items-center justify-around px-1 pb-[env(safe-area-inset-bottom)]">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = isRouteActive(item.href, pathname);
+      <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden">
+        <div
+          className="bg-bg-2/95 backdrop-blur border-t-[1.5px] border-border"
+          style={{ boxShadow: '0 -6px 20px -12px rgba(28,42,71,0.4)' }}
+        >
+          <div className="flex items-stretch justify-between px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+8px)]">
+            {mobileItems.map(({ label, href, Icon }) => {
+              const on = isActive(href, pathname);
               return (
-                <Link key={item.href} href={item.href} className="flex-1">
+                <Link key={href} href={href} className="flex-1">
                   <motion.div
-                    whileTap={{ scale: 0.85 }}
-                    className="flex flex-col items-center justify-center gap-0.5 py-1.5 relative"
+                    whileTap={{ scale: 0.88 }}
+                    className="flex flex-col items-center gap-1 py-1"
                   >
-                    {isActive && (
-                      <motion.div
-                        layoutId="mobileActiveTab"
-                        className="absolute -top-px left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-full bg-emerald-500"
-                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      />
-                    )}
-                    <Icon className={`h-[22px] w-[22px] transition-colors ${
-                      isActive ? 'text-emerald-400 stroke-[2.5px]' : 'text-slate-500 stroke-[1.5px]'
-                    }`} />
-                    <span className={`text-[10px] transition-colors ${
-                      isActive ? 'text-emerald-400 font-semibold' : 'text-slate-500 font-medium'
-                    }`}>
-                      {item.label}
+                    <span className={`grid place-items-center w-11 h-8 rounded-full transition-colors ${on ? 'bg-accent text-accent-ink' : 'text-muted'}`}>
+                      <Icon size={20} strokeWidth={on ? 2.4 : 2} />
+                    </span>
+                    <span className={`text-[9.5px] font-bold tracking-tight transition-colors ${on ? 'text-text' : 'text-faint'}`}>
+                      {label}
                     </span>
                   </motion.div>
                 </Link>
               );
             })}
           </div>
+          <div className="mx-auto h-1 w-32 rounded-full bg-text opacity-25 mb-1" />
         </div>
       </nav>
 
       {/* ========== DESKTOP SIDEBAR ========== */}
-      <nav className="hidden fixed left-0 top-0 z-40 h-full w-64 border-r border-slate-800 bg-[var(--surface)] p-6 md:flex md:flex-col">
+      <nav className="hidden fixed left-0 top-0 z-40 h-full w-64 border-r-[1.5px] border-border bg-bg-2 p-6 md:flex md:flex-col">
         <div className="flex items-center gap-3 mb-10 px-2">
-          <div className="relative h-10 w-10 aspect-square overflow-hidden rounded-full shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-            <Image src="/icon.png" alt="Chanchito Logo" fill className="object-cover" />
+          <div className="relative h-10 w-10 overflow-hidden rounded-full border-[1.5px] border-border">
+            <Image src="/icon.png" alt="Chanchito" fill className="object-cover" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-100">Chanchito</h1>
+          <h1 className="font-poster text-text text-[20px]">Chanchito</h1>
         </div>
-        <div className="flex flex-col gap-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = isRouteActive(item.href, pathname);
+        <div className="flex flex-col gap-1">
+          {desktopItems.map(({ label, href, Icon }) => {
+            const on = isActive(href, pathname);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block"
-              >
+              <Link key={href} href={href}>
                 <motion.div
-                  whileHover={{ x: 4 }}
+                  whileHover={{ x: 3 }}
                   whileTap={{ scale: 0.98 }}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
-                    isActive
-                      ? 'bg-emerald-500/10 text-emerald-500'
-                      : 'text-slate-400 hover:bg-surface-raised hover:text-slate-200'
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-[13.5px] font-bold transition-colors ${
+                    on
+                      ? 'bg-accent/10 text-accent'
+                      : 'text-muted hover:text-text hover:bg-surface'
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  {item.label}
+                  <Icon size={18} strokeWidth={on ? 2.4 : 2} />
+                  {label}
                 </motion.div>
               </Link>
             );

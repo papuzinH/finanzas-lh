@@ -8,23 +8,23 @@ interface PortfolioDistributionProps {
 }
 
 const COLORS = [
-  '#3b82f6', // blue-500
-  '#10b981', // emerald-500
-  '#f59e0b', // amber-500
-  '#ef4444', // red-500
-  '#8b5cf6', // violet-500
-  '#ec4899', // pink-500
-  '#06b6d4', // cyan-500
-  '#f97316', // orange-500
-  '#14b8a6', // teal-500
+  '#5E98BC', // accent/celeste
+  '#2E7D5B', // good
+  '#E3A938', // warn
+  '#C2403A', // bad
+  '#3C708F', // accent-deep
+  '#A9CFE0', // accent-soft
+  '#1C2A47', // navy
+  '#5b6577', // muted
+  '#292e3a', // hero
 ];
 
 export function PortfolioDistribution({ data }: PortfolioDistributionProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="h-full rounded-xl border border-slate-800 bg-surface-raised/40 p-3 md:p-4 flex flex-col">
-        <h3 className="text-xs md:text-sm font-semibold text-slate-300 mb-4">Composición</h3>
-        <div className="flex-1 flex items-center justify-center text-slate-500 text-xs md:text-sm">
+      <div className="h-full rounded-xl border-[1.5px] border-border bg-surface p-3 md:p-4 flex flex-col">
+        <h3 className="text-xs md:text-sm font-bold text-text mb-4">Composición</h3>
+        <div className="flex-1 flex items-center justify-center text-muted text-xs md:text-sm">
           No hay datos para mostrar
         </div>
       </div>
@@ -32,8 +32,8 @@ export function PortfolioDistribution({ data }: PortfolioDistributionProps) {
   }
 
   return (
-    <div className="h-full rounded-xl border border-slate-800 bg-surface-raised/40 p-3 md:p-4 flex flex-col">
-      <h3 className="text-xs md:text-sm font-semibold text-slate-300 mb-3 md:mb-4">Composición de Cartera</h3>
+    <div className="h-full rounded-xl border-[1.5px] border-border bg-surface p-3 md:p-4 flex flex-col">
+      <h3 className="text-xs md:text-sm font-bold text-text mb-3 md:mb-4">Composición de Cartera</h3>
       <div className="flex-1 w-full min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -56,11 +56,11 @@ export function PortfolioDistribution({ data }: PortfolioDistributionProps) {
                 const currency = props.payload?.currency;
                 return formatTickerCurrency(value, ticker, currency);
               }}
-              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px', fontSize: '11px', color: '#e2e8f0' }}
-              itemStyle={{ color: '#e2e8f0' }}
+              contentStyle={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(28,42,71,0.16)', borderRadius: '8px', fontSize: '11px', color: '#1C2A47' }}
+              itemStyle={{ color: '#1C2A47' }}
             />
             <Legend
-              wrapperStyle={{ color: '#94a3b8', fontSize: '11px' }}
+              wrapperStyle={{ color: '#5b6577', fontSize: '11px' }}
             />
           </PieChart>
         </ResponsiveContainer>

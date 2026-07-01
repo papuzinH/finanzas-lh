@@ -73,20 +73,20 @@ export function FailedPricesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-surface border-slate-800 text-slate-200 sm:max-w-xl">
+      <DialogContent className="bg-surface border-[1.5px] border-border text-text sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-slate-100">
-            <AlertTriangle className="h-5 w-5 text-amber-400" />
+          <DialogTitle className="flex items-center gap-2 text-text">
+            <AlertTriangle className="h-5 w-5 text-warn" />
             Activos sin precio actualizable
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-muted">
             Posibles causas: ticker mal escrito, mercado cerrado, o la fuente está caída.
           </DialogDescription>
         </DialogHeader>
 
         <div className="max-h-[50vh] overflow-y-auto -mx-2 px-2">
           {failedAssets.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-4">Sin activos para mostrar.</p>
+            <p className="text-sm text-muted text-center py-4">Sin activos para mostrar.</p>
           ) : (
             <ul className="space-y-2">
               {failedAssets.map((asset) => {
@@ -97,34 +97,34 @@ export function FailedPricesDialog({
                 return (
                   <li
                     key={asset.ticker}
-                    className="rounded-lg border border-slate-800 bg-slate-900/40 p-3"
+                    className="rounded-lg border-[1.5px] border-border bg-surface-2 p-3"
                   >
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-bold text-slate-100 text-sm">{asset.ticker}</span>
+                      <span className="font-bold text-text text-sm">{asset.ticker}</span>
                       <AssetTypeBadge assetType={asset.asset_type} />
                       {asset.currency && (
-                        <span className="text-[10px] text-slate-500">{asset.currency}</span>
+                        <span className="text-[10px] text-muted">{asset.currency}</span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-400 truncate">{asset.name}</p>
+                    <p className="text-xs text-muted truncate">{asset.name}</p>
                     {isCrypto ? (
-                      <p className="text-[10px] text-amber-500/70 mt-1">
+                      <p className="text-[10px] text-warn mt-1">
                         Para criptos menos comunes, usá el coin ID exacto de CoinGecko
                         (ej. <span className="font-mono">bitcoin</span>,{' '}
                         <span className="font-mono">solana</span>) en vez del ticker.
                       </p>
                     ) : isIolType ? (
                       asset.data_source_url ? (
-                        <p className="text-[10px] text-slate-600 mt-1 truncate font-mono">
+                        <p className="text-[10px] text-faint mt-1 truncate font-mono">
                           Fuente: {asset.data_source_url}
                         </p>
                       ) : (
-                        <p className="text-[10px] text-amber-500/70 mt-1">
+                        <p className="text-[10px] text-warn mt-1">
                           Sin URL fuente configurada. Podés pegar el link de IOL del activo.
                         </p>
                       )
                     ) : (
-                      <p className="text-[10px] text-slate-600 mt-1">
+                      <p className="text-[10px] text-faint mt-1">
                         Verificá que el ticker esté bien escrito.
                       </p>
                     )}
@@ -137,16 +137,15 @@ export function FailedPricesDialog({
 
         <DialogFooter>
           <Button
-            variant="outline"
+            variant="soft"
             onClick={() => onOpenChange(false)}
-            className="border-slate-700 text-slate-300 hover:bg-slate-800"
           >
             Cerrar
           </Button>
           <Button
+            variant="accent"
             onClick={handleRetryAll}
             disabled={isRetrying || failedAssets.length === 0}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             {isRetrying ? (
               <>

@@ -18,16 +18,16 @@ interface CurrencyToggleProps {
 
 export function CurrencyToggle({ value, onChange }: CurrencyToggleProps) {
   return (
-    <div className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800">
+    <div className="flex gap-1 p-1 rounded-xl bg-surface-2 border-[1.5px] border-border">
       {OPTIONS.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
-            'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+            'px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
             value === opt.value
-              ? 'bg-indigo-600 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-accent text-accent-ink shadow-sm'
+              : 'text-muted hover:text-text'
           )}
         >
           {opt.label}

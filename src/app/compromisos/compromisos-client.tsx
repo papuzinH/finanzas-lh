@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import {
   CreditCard,
-  AlertCircle,
-  CheckCircle2,
   MoreVertical,
   Pencil,
   Trash2,
@@ -23,8 +21,9 @@ import {
   Plus,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
-import { PageHeader } from '@/components/shared/page-header';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { ScreenHeader } from '@/components/shared/screen-header';
+import { ProgressBar } from '@/components/ui/progress-bar';
+import { TabsDS } from '@/components/ui/tabs-ds';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -110,27 +109,27 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
         variant="destructive"
         confirmText="Eliminar Plan"
       />
-      <div className="group relative overflow-hidden rounded-xl border border-slate-800 bg-surface-raised/50 p-5 transition-all hover:bg-surface-raised hover:border-slate-700 flex flex-col justify-between">
-        <div className="flex items-start justify-between mb-4">
+      <div className="group rounded-2xl border-[1.5px] border-border bg-surface p-5 flex flex-col justify-between gap-4">
+        <div className="flex items-start justify-between">
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-slate-200 group-hover:text-white transition-colors truncate">
+            <h3 className="font-sans font-bold text-text truncate">
               {plan.description}
             </h3>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-muted mt-1">
               Total del plan: {formatCurrency(Number(plan.total_amount))}
             </p>
-            <p className="text-xs text-slate-400 mt-0.5 font-medium">
+            <p className="text-xs text-muted mt-0.5">
               Valor cuota: {formatCurrency(Number(plan.total_amount) / plan.installments_count)}
             </p>
             <div className="flex flex-wrap gap-2 mt-3">
               {plan.paymentMethodName && (
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md w-fit">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted bg-surface-2 border border-border px-2 py-1 rounded-full w-fit">
                   <CreditCard className="h-3 w-3" />
                   <span>{plan.paymentMethodName}</span>
                 </div>
               )}
               {category && (
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md w-fit">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted bg-surface-2 border border-border px-2 py-1 rounded-full w-fit">
                   {category.emoji ? <span>{category.emoji}</span> : <Tag className="h-3 w-3" />}
                   <span>{category.name}</span>
                 </div>
@@ -139,26 +138,26 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
           </div>
           <div className="text-right flex flex-col items-end ml-4">
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm font-bold text-slate-200 font-mono">
+              <p className="text-sm font-bold text-text">
                 {!plan.isFinished
                   ? `Cuota ${plan.installmentsPaid + 1} / ${plan.installments_count}`
                   : 'Finalizado'}
               </p>
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="Opciones del plan" className="h-6 w-6 min-h-11 min-w-11 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 -mr-2 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
+                  <Button variant="ghost" size="icon" aria-label="Opciones del plan" className="h-6 w-6 min-h-11 min-w-11 text-muted hover:text-text hover:bg-surface-2 -mr-2">
                     <MoreVertical className="h-3.5 w-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-surface-overlay border-slate-800 text-slate-200">
-                  <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-slate-800 focus:text-slate-200 cursor-pointer">
+                <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
+                  <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-surface-2 cursor-pointer">
                     <Pencil className="mr-2 h-4 w-4" />
                     Editar
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setIsDeleteOpen(true)}
                     disabled={isDeleting}
-                    className="text-red-400 focus:bg-red-950/30 focus:text-red-400 cursor-pointer"
+                    className="text-bad focus:bg-bad/10 focus:text-bad cursor-pointer"
                   >
                     {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                     Eliminar Plan
@@ -166,7 +165,7 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <p className="text-[10px] uppercase tracking-wider text-slate-400">
+            <p className="text-[10px] uppercase tracking-wider text-muted">
               {plan.remainingInstallments > 0
                 ? `${plan.remainingInstallments} restantes`
                 : 'Completado'}
@@ -174,37 +173,23 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
           </div>
         </div>
 
-        <div
-          className="relative h-2 w-full overflow-hidden rounded-full bg-slate-800 mb-4"
-          role="progressbar"
-          aria-valuenow={Math.round(plan.progress)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`Progreso del plan ${plan.description}: ${Math.round(plan.progress)}%`}
-        >
-          <div
-            className={`h-full rounded-full transition-all duration-500 ease-out ${
-              plan.isFinished ? 'bg-emerald-500' : 'bg-indigo-500'
-            }`}
-            style={{ width: `${plan.progress}%` }}
-          />
-        </div>
+        <ProgressBar value={plan.progress} tone={plan.isFinished ? 'good' : 'bad'} />
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {plan.isFinished ? (
-              <StatusBadge variant="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />}>
-                Pagado
-              </StatusBadge>
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-good/10 text-good border border-good/20">
+                ✓ Pagado
+              </span>
             ) : (
-              <StatusBadge variant="info" icon={<AlertCircle className="h-3.5 w-3.5" />}>
-                En curso
-              </StatusBadge>
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-accent-soft text-accent-deep border border-accent/20">
+                ● En curso
+              </span>
             )}
           </div>
           <div className="text-right">
-            <p className="text-xs text-slate-400 mb-0.5">Te faltan (Futuro)</p>
-            <p className="text-lg font-bold text-slate-200 font-mono">
+            <p className="text-xs text-muted mb-0.5">Te faltan (Futuro)</p>
+            <p className="font-poster tnum text-[17px] text-bad">
               {formatCurrency(plan.remaining)}
             </p>
           </div>
@@ -263,59 +248,56 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
       />
       <div
         className={cn(
-          'group relative flex flex-col justify-between rounded-xl border p-4 transition-all',
+          'group rounded-2xl border-[1.5px] p-4 flex flex-col justify-between gap-4 transition-all',
           plan.is_active
-            ? 'border-slate-800 bg-surface-raised/40 hover:bg-surface-raised hover:border-slate-700'
-            : 'border-slate-800/50 bg-surface-raised/20 opacity-60 grayscale'
+            ? 'border-border bg-surface'
+            : 'border-border/50 bg-surface opacity-50 grayscale'
         )}
       >
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <div className={cn(
-              'flex h-10 w-10 items-center justify-center rounded-full border border-slate-800',
-              plan.is_active ? 'bg-slate-800 text-slate-300 group-hover:text-white' : 'bg-surface-raised text-slate-400'
-            )}>
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-2 border-[1.5px] border-border text-text shrink-0">
               {category?.emoji ? <span className="text-lg">{category.emoji}</span> : getServiceIcon(plan.description, category?.name || null)}
             </div>
             <div>
-              <h3 className="font-medium text-sm text-slate-200 group-hover:text-white transition-colors">
+              <h3 className="font-sans font-bold text-sm text-text">
                 {plan.description}
               </h3>
               {category && (
-                <span className="inline-flex items-center rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-400 mt-1">
+                <span className="inline-flex items-center rounded-full bg-surface-2 border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted mt-1">
                   {category.name}
                 </span>
               )}
             </div>
           </div>
-          <div className="text-right">
-            <p className="font-bold text-sm font-mono text-slate-200">
-              {plan.currency === 'USD' && plan.original_amount != null ? (
-                <span className="flex flex-col items-end leading-tight">
-                  <span>US$ {Number(plan.original_amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  <span className="text-[10px] text-slate-400 font-normal">≈ {formatCurrency(plan.amount)}</span>
+          <div className="text-right shrink-0">
+            {plan.currency === 'USD' && plan.original_amount != null ? (
+              <div className="flex flex-col items-end leading-tight">
+                <span className="font-poster tnum text-[15px] text-text">
+                  US$ {Number(plan.original_amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
-              ) : (
-                formatCurrency(plan.amount)
-              )}
-            </p>
+                <span className="text-[10px] text-muted">≈ {formatCurrency(plan.amount)}</span>
+              </div>
+            ) : (
+              <span className="font-poster tnum text-[15px] text-text">{formatCurrency(plan.amount)}</span>
+            )}
             <div className="flex items-center justify-end gap-1.5 mt-1">
-              <div className={cn('h-1.5 w-1.5 rounded-full', plan.is_active ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]' : 'bg-slate-600')} />
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider">
+              <div className={cn('h-1.5 w-1.5 rounded-full', plan.is_active ? 'bg-good' : 'bg-muted')} />
+              <p className="text-[10px] text-muted uppercase tracking-wider">
                 {plan.is_active ? 'Activo' : 'Inactivo'}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-slate-800/50">
+        <div className="flex items-center justify-between pt-3 border-t border-border">
           {plan.paymentMethodName ? (
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md">
+            <div className="flex items-center gap-1.5 text-[10px] text-muted bg-surface-2 border border-border px-2 py-1 rounded-full">
               <CreditCard className="h-3 w-3" />
               <span>{plan.paymentMethodName}</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-surface-raised/50 px-2 py-1 rounded-md">
+            <div className="flex items-center gap-1.5 text-[10px] text-faint bg-surface-2 border border-border px-2 py-1 rounded-full">
               <CreditCard className="h-3 w-3" />
               <span>Sin asignar</span>
             </div>
@@ -323,19 +305,19 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
 
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Opciones de suscripción" className="h-6 w-6 min-h-11 min-w-11 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
+              <Button variant="ghost" size="icon" aria-label="Opciones de suscripción" className="h-6 w-6 min-h-11 min-w-11 text-muted hover:text-text hover:bg-surface-2">
                 <MoreVertical className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-surface-overlay border-slate-800 text-slate-200">
-              <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-slate-800 focus:text-slate-200 cursor-pointer">
+            <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
+              <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-surface-2 cursor-pointer">
                 <Pencil className="mr-2 h-4 w-4" />
                 Editar
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setIsDeleteOpen(true)}
                 disabled={isDeleting}
-                className="text-red-400 focus:bg-red-950/30 focus:text-red-400 cursor-pointer"
+                className="text-bad focus:bg-bad/10 focus:text-bad cursor-pointer"
               >
                 {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                 Eliminar
@@ -398,7 +380,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
   const totalDebtFuturo = plansWithProgress.reduce((sum, plan) => sum + plan.remaining, 0);
   const currentMonthCuotas = getCurrentMonthInstallmentsTotal();
 
-  // ── mensualidades data ──
+  // ── Mensualidades data ──
   const plansWithPayment = recurringPlans
     .map(plan => {
       const paymentMethod = paymentMethods.find(pm => pm.id === plan.payment_method_id);
@@ -412,58 +394,57 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
   const totalCompromisosMes = currentMonthCuotas + totalMonthlyCost;
 
   return (
-    <div className="min-h-screen bg-surface text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
-      <PageHeader
+    <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
+      <ScreenHeader
+        kicker="compromisos"
         title="Compromisos"
-        subtitle="Cuotas y mensualidades"
-        icon={<CalendarClock className="h-5 w-5" />}
-        containerClassName="max-w-[1440px]"
-      >
-        <AnimatedPlusButton
-          label={activeTab === 'cuotas' ? 'Crear cuota' : 'Crear suscripción'}
-          onClick={activeTab === 'cuotas' 
-            ? () => setIsCreateCuotaOpen(true) 
-            : () => setIsCreateSuscripcionOpen(true)
-          }
-          triggerKey={activeTab}
-          ariaLabel={activeTab === 'cuotas' ? 'Nueva cuota' : 'Nueva suscripción'}
-        />
-      </PageHeader>
+        right={
+          <AnimatedPlusButton
+            label={activeTab === 'cuotas' ? 'Crear cuota' : 'Crear suscripción'}
+            onClick={activeTab === 'cuotas'
+              ? () => setIsCreateCuotaOpen(true)
+              : () => setIsCreateSuscripcionOpen(true)
+            }
+            triggerKey={activeTab}
+            ariaLabel={activeTab === 'cuotas' ? 'Nueva cuota' : 'Nueva suscripción'}
+          />
+        }
+      />
 
       <CreateInstallmentPlanDialog open={isCreateCuotaOpen} onOpenChange={setIsCreateCuotaOpen} />
       <CreateSubscriptionDialog open={isCreateSuscripcionOpen} onOpenChange={setIsCreateSuscripcionOpen} />
 
-      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8">
+      <main className="mx-auto max-w-[1440px] space-y-5 pb-4">
 
         {/* Hero Card */}
-        <div className="mb-6 relative overflow-hidden rounded-2xl border border-slate-800 bg-surface-raised/50 p-6 md:p-8 shadow-xl backdrop-blur-sm">
-          <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-indigo-500/10 blur-2xl" />
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <p className="text-xs font-medium text-indigo-300 uppercase tracking-wider mb-1">Total Compromisos del Mes</p>
-              <p className="text-3xl md:text-4xl font-bold text-white font-mono tracking-tight">
-                {formatCurrency(totalCompromisosMes)}
-              </p>
+        <div
+          className="mx-5 rounded-2xl bg-hero text-cream p-5"
+          style={{ boxShadow: '0 18px 36px -18px rgba(28,42,71,0.70)' }}
+        >
+          <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
+            Compromisos del mes
+          </p>
+          <p className="font-poster tnum text-[36px] leading-[0.95] mt-1 text-cream-light">
+            {formatCurrency(totalCompromisosMes)}
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2">
+              <p className="text-[9.5px] font-bold uppercase tracking-wider text-celeste">Cuotas</p>
+              <p className="font-poster tnum text-[15px] mt-0.5 text-cream-light">{formatCurrency(currentMonthCuotas)}</p>
             </div>
-            <div className="flex gap-4 sm:gap-6 text-right">
-              <div>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Cuotas</p>
-                <p className="text-lg font-bold text-rose-400 font-mono">{formatCurrency(currentMonthCuotas)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Mensualidades</p>
-                <p className="text-lg font-bold text-purple-400 font-mono">{formatCurrency(totalMonthlyCost)}</p>
-              </div>
+            <div className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2">
+              <p className="text-[9.5px] font-bold uppercase tracking-wider text-celeste">Mensualidades</p>
+              <p className="font-poster tnum text-[15px] mt-0.5 text-cream-light">{formatCurrency(totalMonthlyCost)}</p>
             </div>
           </div>
         </div>
 
         {/* Tarjetas de crédito */}
         {creditCards.length > 0 && (
-          <section className="mb-6">
+          <section className="px-5">
             <div className="flex items-center gap-2 mb-3">
-              <CreditCard className="h-4 w-4 text-indigo-400" />
-              <h2 className="text-sm font-medium text-slate-300 uppercase tracking-wider">
+              <CreditCard className="h-4 w-4 text-muted" />
+              <h2 className="text-[11px] font-extrabold text-muted uppercase tracking-[0.15em]">
                 Tarjetas de crédito
               </h2>
             </div>
@@ -475,65 +456,43 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
           </section>
         )}
 
-        {/* Segmented Control */}
-        <div data-tour="compromisos-tabs" className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800 mb-6 w-full justify-between">
-          <button
-            onClick={() => setActiveTab('cuotas')}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all w-full justify-center',
-              activeTab === 'cuotas'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            )}
-          >
-            <CreditCard className="h-4 w-4" />
-            Cuotas
-            {plansWithProgress.length > 0 && (
-              <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full', activeTab === 'cuotas' ? 'bg-white/20' : 'bg-slate-800')}>{plansWithProgress.length}</span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('mensualidades')}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all w-full justify-center',
-              activeTab === 'mensualidades'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            )}
-          >
-            <CalendarClock className="h-4 w-4" />
-            Mensualidades
-            {plansWithPayment.filter(p => p.is_active).length > 0 && (
-              <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full', activeTab === 'mensualidades' ? 'bg-white/20' : 'bg-slate-800')}>{plansWithPayment.filter(p => p.is_active).length}</span>
-            )}
-          </button>
+        {/* Segmented Tabs */}
+        <div className="px-5">
+          <TabsDS
+            tabs={[
+              { id: 'cuotas', label: 'Cuotas', icon: 'credit-card' },
+              { id: 'mensualidades', label: 'Mensualidades', icon: 'repeat' },
+            ]}
+            active={activeTab}
+            onChange={(id) => setActiveTab(id as ActiveTab)}
+          />
         </div>
 
         {/* Tab: Cuotas */}
         {activeTab === 'cuotas' && (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-              <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-5 text-center">
-                <p className="text-xs font-medium text-indigo-300 uppercase tracking-wider mb-1">Deuda Futura</p>
-                <p className="text-xl font-bold text-indigo-400 font-mono">{formatCurrency(totalDebtFuturo)}</p>
-                <p className="text-[10px] text-slate-400 mt-1">Pendiente a largo plazo</p>
+          <div className="px-5 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Deuda Futura</p>
+                <p className="font-poster tnum text-[20px] text-text">{formatCurrency(totalDebtFuturo)}</p>
+                <p className="text-[10px] text-faint mt-1">Pendiente a largo plazo</p>
               </div>
-              <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-5 text-center">
-                <p className="text-xs font-medium text-rose-300 uppercase tracking-wider mb-1">Vence este mes</p>
-                <p className="text-xl font-bold text-rose-400 font-mono">{formatCurrency(currentMonthCuotas)}</p>
-                <p className="text-[10px] text-slate-400 mt-1">A pagar en el ciclo actual</p>
+              <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Vence este mes</p>
+                <p className="font-poster tnum text-[20px] text-bad">{formatCurrency(currentMonthCuotas)}</p>
+                <p className="text-[10px] text-faint mt-1">A pagar en el ciclo actual</p>
               </div>
             </div>
 
             {plansWithProgress.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 text-center">
-                <CreditCard className="h-16 w-16 text-slate-700 mb-4" />
-                <h3 className="text-lg font-semibold text-slate-200 mb-2">Organizá tus pagos en cuotas</h3>
-                <p className="text-sm text-slate-400 max-w-xs mb-6">
+              <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
+                <CreditCard className="h-14 w-14 text-faint mb-4" />
+                <h3 className="font-sans font-bold text-text text-lg mb-2">Organizá tus pagos en cuotas</h3>
+                <p className="text-sm text-muted max-w-xs mb-6">
                   Registrá tus planes de cuotas para saber exactamente cuánto pagás cada mes y cuándo terminás de pagar.
                 </p>
-                <Button onClick={() => setIsCreateCuotaOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button onClick={() => setIsCreateCuotaOpen(true)}>
+                  <Plus className="h-4 w-4" />
                   Nuevo Plan de Cuotas
                 </Button>
               </div>
@@ -546,21 +505,21 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
                 ))}
               </StaggeredList>
             )}
-          </>
+          </div>
         )}
 
-        {/* Tab: mensualidades */}
+        {/* Tab: Mensualidades */}
         {activeTab === 'mensualidades' && (
-          <>
+          <div className="px-5 space-y-4">
             {plansWithPayment.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-800 bg-surface-raised/20 text-center">
-                <CalendarClock className="h-16 w-16 text-slate-700 mb-4" />
-                <h3 className="text-lg font-semibold text-slate-200 mb-2">Registrá tus gastos fijos y mensualidades</h3>
-                <p className="text-sm text-slate-400 max-w-xs mb-6">
+              <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
+                <CalendarClock className="h-14 w-14 text-faint mb-4" />
+                <h3 className="font-sans font-bold text-text text-lg mb-2">Registrá tus gastos fijos y mensualidades</h3>
+                <p className="text-sm text-muted max-w-xs mb-6">
                   Netflix, alquiler, gimnasio... sumá tus gastos recurrentes y sabé de antemano cuánto se te va cada mes.
                 </p>
-                <Button onClick={() => setIsCreateSuscripcionOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button onClick={() => setIsCreateSuscripcionOpen(true)}>
+                  <Plus className="h-4 w-4" />
                   Nueva Suscripción
                 </Button>
               </div>
@@ -573,7 +532,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
                 ))}
               </StaggeredList>
             )}
-          </>
+          </div>
         )}
       </main>
     </div>

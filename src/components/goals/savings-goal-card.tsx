@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { ProgressBar } from '@/components/ui/progress-bar'
 import { AddContributionDialog } from './add-contribution-dialog'
 import { EditSavingsGoalDialog } from './edit-savings-goal-dialog'
 import { deleteSavingsGoal } from '@/app/dashboard/goals/actions'
@@ -44,11 +44,7 @@ export function SavingsGoalCard({ goal }: Props) {
   const { percent, totalContributed, currentMonthContributed, remaining, daysLeft, status } = progress
   const effectiveContributed = goal.type === 'monthly' ? currentMonthContributed : totalContributed
 
-  const barColor =
-    status === 'completed' ? 'bg-emerald-500' :
-    percent >= 75 ? 'bg-teal-400' :
-    percent >= 40 ? 'bg-indigo-400' :
-    'bg-slate-500'
+  const progressTone = status === 'completed' ? 'good' : percent >= 75 ? 'accent' : 'accent'
 
   const goalContributions = savingsGoalContributions
     .filter((c) => c.goal_id === goal.id)
@@ -68,41 +64,41 @@ export function SavingsGoalCard({ goal }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-surface-raised/40 p-5 space-y-4">
+    <div className="rounded-2xl border-[1.5px] border-border bg-surface p-5 space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             {goal.type === 'one_time' ? (
-              <Badge variant="outline" className="border-indigo-700/50 text-indigo-300 text-[10px] px-2 py-0">
-                <Calendar className="w-2.5 h-2.5 mr-1" />
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-accent/20 text-accent bg-accent-soft/30">
+                <Calendar className="w-2.5 h-2.5" />
                 Meta única
-              </Badge>
+              </span>
             ) : (
-              <Badge variant="outline" className="border-teal-700/50 text-teal-300 text-[10px] px-2 py-0">
-                <RefreshCw className="w-2.5 h-2.5 mr-1" />
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-border text-muted bg-surface-2">
+                <RefreshCw className="w-2.5 h-2.5" />
                 Mensual
-              </Badge>
+              </span>
             )}
             {status === 'completed' && showCelebration && (
               <motion.div
                 animate={{ scale: [1, 1.15, 1] }}
                 transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 2 }}
               >
-                <Badge className="bg-emerald-500/20 text-emerald-300 border-0 text-[10px] px-2 py-0">
-                  <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-good/10 text-good border border-good/20">
+                  <CheckCircle2 className="w-2.5 h-2.5" />
                   ¡Meta cumplida! 🎉
-                </Badge>
+                </span>
               </motion.div>
             )}
             {status === 'completed' && !showCelebration && (
-              <Badge className="bg-emerald-500/20 text-emerald-300 border-0 text-[10px] px-2 py-0">
-                <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-good/10 text-good border border-good/20">
+                <CheckCircle2 className="w-2.5 h-2.5" />
                 ¡Lograda!
-              </Badge>
+              </span>
             )}
           </div>
-          <h3 className="font-semibold text-slate-100 truncate">{goal.name}</h3>
+          <h3 className="font-sans font-bold text-text truncate">{goal.name}</h3>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <EditSavingsGoalDialog goal={goal} />
@@ -110,7 +106,7 @@ export function SavingsGoalCard({ goal }: Props) {
             variant="ghost"
             size="icon"
             aria-label="Eliminar meta"
-            className="h-11 w-11 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10"
+            className="h-11 w-11 text-muted hover:text-bad hover:bg-bad/10"
             onClick={handleDelete}
             disabled={deleting}
           >
@@ -122,25 +118,20 @@ export function SavingsGoalCard({ goal }: Props) {
       {/* Progress */}
       <div className="space-y-2">
         <div className="flex justify-between items-end text-sm">
-          <span className="text-slate-400">
+          <span className="font-poster tnum text-[14px] text-good">
             {goal.currency === 'USD' ? 'USD ' : ''}
             {formatCurrency(effectiveContributed)}
           </span>
-          <span className="font-semibold text-slate-200">
+          <span className="font-poster tnum text-[13px] text-text">
             de {goal.currency === 'USD' ? 'USD ' : ''}
             {formatCurrency(goal.target_amount)}
           </span>
         </div>
-        <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-700 ${barColor}`}
-            style={{ width: `${percent}%` }}
-          />
-        </div>
-        <div className="flex justify-between items-center text-[11px] text-slate-500">
+        <ProgressBar value={percent} tone={progressTone} />
+        <div className="flex justify-between items-center text-[11px] text-muted">
           <span>{percent.toFixed(1)}% completado</span>
           {goal.type === 'one_time' && daysLeft !== null && (
-            <span className={daysLeft < 30 ? 'text-amber-400' : ''}>
+            <span className={daysLeft < 30 ? 'text-warn' : ''}>
               {daysLeft > 0 ? `${daysLeft} días restantes` : daysLeft === 0 ? '¡Hoy es el día!' : 'Fecha vencida'}
             </span>
           )}
@@ -152,8 +143,8 @@ export function SavingsGoalCard({ goal }: Props) {
 
       {/* Remaining */}
       {status !== 'completed' && remaining > 0 && (
-        <p className="text-xs text-slate-500">
-          Te faltan <span className="text-slate-300 font-medium">
+        <p className="text-xs text-muted">
+          Te faltan <span className="text-text font-bold">
             {goal.currency === 'USD' ? 'USD ' : ''}{formatCurrency(remaining)}
           </span> para llegar a tu meta
           {goal.type === 'monthly' ? ' este mes' : ''}
@@ -166,7 +157,7 @@ export function SavingsGoalCard({ goal }: Props) {
         {goalContributions.length > 0 && (
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1 transition-colors"
+            className="text-xs text-muted hover:text-text flex items-center gap-1 transition-colors"
           >
             {showHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             {showHistory ? 'Ocultar' : `${goalContributions.length} aportes`}
@@ -176,14 +167,14 @@ export function SavingsGoalCard({ goal }: Props) {
 
       {/* Contribution history */}
       {showHistory && goalContributions.length > 0 && (
-        <div className="border-t border-slate-800 pt-3 space-y-2">
+        <div className="border-t border-border pt-3 space-y-2">
           {goalContributions.map((c) => (
             <div key={c.id} className="flex items-center justify-between text-xs">
               <div>
-                <span className="text-slate-400">{c.date}</span>
-                {c.note && <span className="text-slate-500 ml-2 italic">{c.note}</span>}
+                <span className="text-muted">{c.date}</span>
+                {c.note && <span className="text-faint ml-2 italic">{c.note}</span>}
               </div>
-              <span className="text-emerald-400 font-medium font-mono">
+              <span className="text-good font-poster tnum">
                 +{c.currency === 'USD' ? 'USD ' : ''}{formatCurrency(c.amount)}
               </span>
             </div>

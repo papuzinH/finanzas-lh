@@ -1,29 +1,23 @@
 import Link from 'next/link';
-import { Wallet, Tag, User, ChevronRight, Settings } from 'lucide-react';
-import { PageHeader } from '@/components/shared/page-header';
+import { Wallet, Tag, User, ChevronRight } from 'lucide-react';
+import { ScreenHeader } from '@/components/shared/screen-header';
 
 const sections = [
   {
     href: '/ajustes/medios',
     icon: Wallet,
-    iconColor: 'text-sky-400',
-    iconBg: 'bg-sky-500/10',
     title: 'Medios de Pago',
     description: 'Tarjetas, billeteras y deudas personales',
   },
   {
     href: '/ajustes/categorias',
     icon: Tag,
-    iconColor: 'text-emerald-400',
-    iconBg: 'bg-emerald-500/10',
     title: 'Categorías',
     description: 'Etiquetas para clasificar tus gastos',
   },
   {
     href: '/ajustes/perfil',
     icon: User,
-    iconColor: 'text-violet-400',
-    iconBg: 'bg-violet-500/10',
     title: 'Perfil',
     description: 'Tu cuenta y sesión',
   },
@@ -31,31 +25,26 @@ const sections = [
 
 export default function AjustesPage() {
   return (
-    <div className="min-h-screen bg-surface text-slate-50 font-sans selection:bg-emerald-500/30 pb-24">
-      <PageHeader
-        title="Ajustes"
-        subtitle="Configuración de la app"
-        icon={<Settings className="h-5 w-5" />}
-        containerClassName="max-w-[1440px]"
-      />
+    <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
+      <ScreenHeader title="Ajustes" sub="Configuración de la app" />
 
-      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8">
+      <main className="mx-auto max-w-[1440px] px-5 py-4">
         <div className="flex flex-col gap-3 max-w-xl">
-          {sections.map(({ href, icon: Icon, iconColor, iconBg, title, description }) => (
+          {sections.map(({ href, icon: Icon, title, description }) => (
             <Link
               key={href}
               href={href}
               data-tour={href === '/ajustes/medios' ? 'section-medios' : undefined}
-              className="group flex items-center gap-4 rounded-2xl border border-slate-800 bg-surface-raised/50 p-5 transition-all hover:bg-surface-raised hover:border-slate-700"
+              className="group flex items-center gap-4 rounded-2xl border-[1.5px] border-border bg-surface p-5 transition-all hover:bg-surface-2/50 active:scale-[0.99]"
             >
-              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
-                <Icon className={`h-5 w-5 ${iconColor}`} />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft/30 text-accent-deep">
+                <Icon className="h-5 w-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-200 group-hover:text-white transition-colors">{title}</p>
-                <p className="text-xs text-slate-400 mt-0.5 truncate">{description}</p>
+                <p className="font-sans font-bold text-text">{title}</p>
+                <p className="text-xs text-muted mt-0.5 truncate">{description}</p>
               </div>
-              <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-slate-400 transition-colors shrink-0" />
+              <ChevronRight className="h-4 w-4 text-muted group-hover:text-text transition-colors shrink-0" />
             </Link>
           ))}
         </div>

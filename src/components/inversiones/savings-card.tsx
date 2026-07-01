@@ -59,7 +59,6 @@ export function SavingsCard({ displayCurrency = 'ARS' }: SavingsCardProps) {
   const cclRate = getRateFor(exchangeRates, 'USD_ARS_CCL', blueFallback)
   const usdtRate = getRateFor(exchangeRates, 'USDT_ARS', blueFallback)
 
-  // Total en ARS — base para conversión a display
   const totalInARS = totalARS + totalUSD * mepRate
 
   let totalInDisplay = totalInARS
@@ -115,24 +114,24 @@ export function SavingsCard({ displayCurrency = 'ARS' }: SavingsCardProps) {
   }
 
   return (
-    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 relative overflow-hidden">
-      <div className="absolute top-0 right-0 p-3 opacity-10">
-        <PiggyBank className="w-12 h-12 text-amber-500" />
+    <div className="rounded-xl border-[1.5px] border-border bg-surface p-4 relative overflow-hidden">
+      <div className="absolute top-0 right-0 p-3 opacity-5">
+        <PiggyBank className="w-12 h-12 text-text" />
       </div>
 
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
-          <p className="text-[10px] font-medium text-amber-300 uppercase tracking-wider mb-1">
+          <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">
             Ahorros (sin invertir)
           </p>
-          <p className="text-lg md:text-xl font-bold text-white font-mono tracking-tight">
+          <p className="text-lg md:text-xl font-poster tnum text-text">
             {fmtMoney(totalInDisplay, displayLabel)}
           </p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5 text-[11px] text-slate-400">
-            {totalARS > 0 && <span>{fmtMoney(totalARS, 'ARS')} ARS</span>}
-            {totalUSD > 0 && <span>{fmtMoney(totalUSD, 'USD')} USD</span>}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5 text-[11px] text-muted">
+            {totalARS > 0 && <span className="tnum">{fmtMoney(totalARS, 'ARS')} ARS</span>}
+            {totalUSD > 0 && <span className="tnum">{fmtMoney(totalUSD, 'USD')} USD</span>}
             {dolarBlue && (
-              <span className="text-amber-400/70">
+              <span className="text-warn/80 tnum">
                 Blue: ${dolarBlue.venta.toLocaleString('es-AR')}
               </span>
             )}
@@ -141,44 +140,44 @@ export function SavingsCard({ displayCurrency = 'ARS' }: SavingsCardProps) {
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-amber-600 hover:bg-amber-700 text-white text-xs shrink-0">
+            <Button variant="accent" className="text-xs shrink-0">
               <Plus className="w-3.5 h-3.5 mr-1" />
               Sumar
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[400px] bg-surface-overlay border-slate-800 text-slate-50">
+          <DialogContent className="sm:max-w-[400px] bg-surface border-[1.5px] border-border text-text">
             <form onSubmit={handleAdd}>
               <DialogHeader>
-                <DialogTitle className="text-lg font-bold text-amber-300">
+                <DialogTitle className="text-lg font-bold text-text">
                   Sumar a tus ahorros
                 </DialogTitle>
-                <DialogDescription className="text-slate-400">
+                <DialogDescription className="text-muted">
                   Registrá dólares o pesos sueltos (no invertidos) que querés trackear.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-6 space-y-4">
                 <div>
-                  <Label className="text-slate-300 mb-2 block">Monto</Label>
+                  <Label className="text-muted mb-2 block">Monto</Label>
                   <Input
                     type="number"
                     step="any"
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
                     placeholder="100"
-                    className="bg-surface-raised border-slate-800 focus:border-amber-500/50 text-lg font-mono"
+                    className="bg-surface-2 border-border text-lg tnum"
                     autoFocus
                     required
                   />
                 </div>
                 <div>
-                  <Label className="text-slate-300 mb-2 block">Moneda</Label>
+                  <Label className="text-muted mb-2 block">Moneda</Label>
                   <Select value={currency} onValueChange={v => setCurrency(v as 'ARS' | 'USD')}>
-                    <SelectTrigger className="bg-surface-raised border-slate-800">
+                    <SelectTrigger className="bg-surface-2 border-border">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-surface-overlay border-slate-800">
-                      <SelectItem value="USD" className="focus:bg-slate-800">USD</SelectItem>
-                      <SelectItem value="ARS" className="focus:bg-slate-800">ARS</SelectItem>
+                    <SelectContent className="bg-surface border-border">
+                      <SelectItem value="USD" className="focus:bg-surface-2">USD</SelectItem>
+                      <SelectItem value="ARS" className="focus:bg-surface-2">ARS</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -188,14 +187,13 @@ export function SavingsCard({ displayCurrency = 'ARS' }: SavingsCardProps) {
                   type="button"
                   variant="ghost"
                   onClick={() => setOpen(false)}
-                  className="text-slate-400 hover:text-slate-100 hover:bg-slate-800"
                 >
                   Cancelar
                 </Button>
                 <Button
                   type="submit"
+                  variant="accent"
                   disabled={isPending}
-                  className="bg-amber-600 hover:bg-amber-700 text-white"
                 >
                   {isPending ? 'Guardando...' : 'Sumar'}
                 </Button>
@@ -210,14 +208,14 @@ export function SavingsCard({ displayCurrency = 'ARS' }: SavingsCardProps) {
           {savings.map(s => (
             <div
               key={s.id}
-              className="flex items-center justify-between text-xs bg-surface-raised/50 rounded-md px-2.5 py-1.5 group"
+              className="flex items-center justify-between text-xs bg-surface-2 rounded-md px-2.5 py-1.5 group"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <DollarSign className="w-3 h-3 text-amber-500/50 shrink-0" />
-                <span className="text-slate-300 font-mono shrink-0">
+                <DollarSign className="w-3 h-3 text-muted shrink-0" />
+                <span className="text-text tnum shrink-0">
                   {fmtMoney(Number(s.amount), s.currency as 'ARS' | 'USD')}
                 </span>
-                <span className="text-slate-500 text-[10px] truncate">
+                <span className="text-muted text-[10px] truncate">
                   {new Date(s.date).toLocaleDateString('es-AR')}
                 </span>
               </div>
@@ -226,7 +224,7 @@ export function SavingsCard({ displayCurrency = 'ARS' }: SavingsCardProps) {
                 size="sm"
                 disabled={isPending}
                 onClick={() => handleDelete(s)}
-                className="h-5 w-5 p-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-opacity"
+                className="h-5 w-5 p-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 text-bad hover:text-bad hover:bg-bad/10 transition-opacity"
               >
                 <Trash2 className="w-3 h-3" />
               </Button>

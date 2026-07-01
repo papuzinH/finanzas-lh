@@ -72,15 +72,15 @@ export function ChatInput() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-t border-zinc-800 p-4 bg-zinc-950 flex gap-2"
+      className="border-t-[1.5px] border-border px-3 py-3 pb-5 bg-bg-2 flex items-center gap-2"
     >
       {isListening ? (
-        <div className="flex-1 bg-zinc-900 border border-red-500/50 rounded-lg px-3 py-2 text-sm flex items-center gap-2">
+        <div className="flex-1 bg-surface border-[1.5px] border-bad/40 rounded-full px-4 py-2.5 text-sm flex items-center gap-2">
           <span className="flex gap-0.5 items-end h-4">
             {[0, 1, 2, 3].map((i) => (
               <span
                 key={i}
-                className="w-0.5 bg-red-400 rounded-full animate-pulse"
+                className="w-0.5 bg-bad rounded-full animate-pulse"
                 style={{
                   height: `${[60, 100, 80, 50][i]}%`,
                   animationDelay: `${i * 0.15}s`,
@@ -88,7 +88,7 @@ export function ChatInput() {
               />
             ))}
           </span>
-          <span className="text-red-400 text-xs">
+          <span className="font-sans text-bad text-xs">
             {transcript || 'Escuchando...'}
           </span>
         </div>
@@ -99,8 +99,8 @@ export function ChatInput() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={isLoading}
-          placeholder="Contale a Chanchito..."
-          className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
+          placeholder="Escribí o mandá un audio…"
+          className="flex-1 bg-surface border-[1.5px] border-border rounded-full px-4 py-2.5 text-[13px] font-sans text-text placeholder:text-faint focus:outline-none focus:border-accent-deep disabled:opacity-50 transition-colors"
         />
       )}
 
@@ -111,7 +111,7 @@ export function ChatInput() {
           aria-label="Enviar mensaje"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="flex-shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg p-2.5 min-h-[44px] min-w-[44px] disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="flex-shrink-0 bg-accent text-accent-ink border-[1.5px] border-accent-deep rounded-full p-2.5 min-h-[44px] min-w-[44px] disabled:opacity-50 shadow-offset active:translate-y-[2px] transition-transform focus-visible:outline-none"
         >
           <Send className="w-5 h-5" />
         </motion.button>
@@ -123,10 +123,10 @@ export function ChatInput() {
           aria-pressed={isListening}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className={`flex-shrink-0 rounded-lg p-2.5 min-h-[44px] min-w-[44px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
+          className={`flex-shrink-0 rounded-full p-2.5 min-h-[44px] min-w-[44px] border-[1.5px] transition-colors focus-visible:outline-none ${
             isListening
-              ? 'bg-red-500/20 border border-red-500/50 text-red-400 animate-pulse ring-1 ring-red-500/30'
-              : 'bg-zinc-800 hover:bg-zinc-700 text-slate-400 hover:text-slate-300'
+              ? 'bg-bad/10 border-bad/40 text-bad animate-pulse'
+              : 'bg-surface border-border text-text'
           }`}
         >
           <Mic className="w-5 h-5" />

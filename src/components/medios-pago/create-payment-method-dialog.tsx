@@ -80,13 +80,13 @@ export function CreatePaymentMethodDialog() {
       </DialogTrigger>
       <DialogContent
         showCloseButton
-        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-border text-text"
       >
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle className="text-xl font-bold text-purple-300">
+          <DialogTitle className="font-poster text-text text-[18px]">
             Nuevo Medio de Pago
           </DialogTitle>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-muted mt-1">
             Agrega una tarjeta, cuenta o billetera.
           </p>
         </DialogHeader>
@@ -101,15 +101,15 @@ export function CreatePaymentMethodDialog() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
                     Nombre
                   </span>
                   <FormControl>
                     <div className="relative">
-                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
+                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
                       <Input
                         placeholder="Ej: Visa BBVA, Mercado Pago..."
-                        className="pl-10 bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-purple-500"
+                        className="pl-10 min-h-11"
                         {...field}
                       />
                     </div>
@@ -125,10 +125,10 @@ export function CreatePaymentMethodDialog() {
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
                     Tipo
                   </span>
-                  <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-900/80 p-1">
+                  <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface-2 p-1">
                     {PAYMENT_TYPES.map((t) => {
                       const Icon = t.icon
                       return (
@@ -138,10 +138,10 @@ export function CreatePaymentMethodDialog() {
                           onClick={() => field.onChange(t.value)}
                           className={cn(
                             'min-h-11 rounded-lg py-2.5 text-sm font-semibold transition-all flex items-center justify-center gap-1.5',
-                            'focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:outline-none',
+                            'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',
                             field.value === t.value
-                              ? 'bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.3)]'
-                              : 'text-slate-500 hover:text-slate-300'
+                              ? 'bg-accent text-accent-ink'
+                              : 'text-muted hover:text-text'
                           )}
                         >
                           <Icon className="h-4 w-4" />
@@ -164,7 +164,7 @@ export function CreatePaymentMethodDialog() {
                     name="default_closing_day"
                     render={({ field }) => (
                       <FormItem>
-                        <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
                           Día de cierre
                         </span>
                         <FormControl>
@@ -173,7 +173,7 @@ export function CreatePaymentMethodDialog() {
                             min="1"
                             max="31"
                             placeholder="Ej: 15"
-                            className="bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-purple-500"
+                            className="min-h-11"
                             {...field}
                             value={field.value ?? ''}
                             onChange={(e) => {
@@ -191,7 +191,7 @@ export function CreatePaymentMethodDialog() {
                     name="default_payment_day"
                     render={({ field }) => (
                       <FormItem>
-                        <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
                           Día de vencimiento
                         </span>
                         <FormControl>
@@ -200,7 +200,7 @@ export function CreatePaymentMethodDialog() {
                             min="1"
                             max="31"
                             placeholder="Ej: 5"
-                            className="bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-purple-500"
+                            className="min-h-11"
                             {...field}
                             value={field.value ?? ''}
                             onChange={(e) => {
@@ -214,7 +214,7 @@ export function CreatePaymentMethodDialog() {
                     )}
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 italic pl-1">
+                <p className="text-[11px] text-muted italic pl-1">
                   Cierre: cuando tu tarjeta cierra el período · Vencimiento: cuando debés pagar.
                 </p>
               </div>
@@ -225,12 +225,12 @@ export function CreatePaymentMethodDialog() {
               control={form.control}
               name="is_personal"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-xl bg-surface-raised px-4 py-3 min-h-[52px]">
+                <FormItem className="flex items-center justify-between rounded-xl bg-surface-2 border-[1.5px] border-border px-4 py-3 min-h-[52px]">
                   <div>
-                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
                       Personal / informal
                     </span>
-                    <FormDescription className="text-[11px] text-slate-500 mt-0.5">
+                    <FormDescription className="text-[11px] text-muted mt-0.5">
                       Prestamos o deudas entre personas
                     </FormDescription>
                   </div>
@@ -250,7 +250,7 @@ export function CreatePaymentMethodDialog() {
             type="submit"
             form="payment-method-form"
             disabled={isPending}
-            className="w-full min-h-[52px] rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(168,85,247,0.25)] transition-all active:scale-[0.98]"
+            variant="accent" size="lg" className="w-full"
           >
             {isPending ? (
               <>

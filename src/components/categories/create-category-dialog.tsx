@@ -91,13 +91,13 @@ export function CreateCategoryDialog() {
       </DialogTrigger>
       <DialogContent
         showCloseButton
-        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-border text-text"
       >
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle className="text-xl font-bold text-indigo-300">
+          <DialogTitle className="font-poster text-text text-[18px]">
             Nueva Categoría
           </DialogTitle>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-muted mt-1">
             La descripción es clave para que Chanchito clasifique automáticamente.
           </p>
         </DialogHeader>
@@ -118,13 +118,13 @@ export function CreateCategoryDialog() {
                           <Button
                             type="button"
                             variant="outline"
-                            className="w-14 h-14 text-2xl p-0 border-0 bg-surface-raised rounded-xl hover:bg-slate-800 transition-all"
+                            className="w-14 h-14 text-2xl p-0 bg-surface-2 border-[1.5px] border-border rounded-xl hover:bg-surface transition-all"
                             aria-label="Seleccionar emoji"
                           >
                             {field.value}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-64 p-2 bg-surface-overlay border-slate-800 shadow-2xl">
+                        <PopoverContent className="w-64 p-2 bg-surface border-border shadow-float">
                           <div className="grid grid-cols-5 gap-1">
                             {COMMON_EMOJIS.map((e) => (
                               <button
@@ -132,7 +132,7 @@ export function CreateCategoryDialog() {
                                 type="button"
                                 onClick={() => field.onChange(e)}
                                 aria-label={`Seleccionar emoji ${e}`}
-                                className="w-10 h-10 min-h-11 min-w-11 flex items-center justify-center text-xl hover:bg-slate-800 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                className="w-10 h-10 min-h-11 min-w-11 flex items-center justify-center text-xl hover:bg-surface-2 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                               >
                                 {e}
                               </button>
@@ -149,15 +149,15 @@ export function CreateCategoryDialog() {
                   name="name"
                   render={({ field }) => (
                     <FormItem className="flex-1">
-                      <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
                         Nombre
                       </span>
                       <FormControl>
                         <div className="relative">
-                          <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
+                          <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
                           <Input
                             placeholder="Ej: Comida Rápida, Gimnasio..."
-                            className="pl-10 bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            className="pl-10 min-h-11"
                             {...field}
                           />
                         </div>
@@ -175,7 +175,7 @@ export function CreateCategoryDialog() {
                 render={({ field }) => (
                   <FormItem className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
                         Descripción (para la IA)
                       </span>
                       <Button
@@ -184,7 +184,7 @@ export function CreateCategoryDialog() {
                         size="sm"
                         onClick={handleGenerateDescription}
                         disabled={generatingAi || !watchedName}
-                        className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+                        className="text-accent hover:text-accent-deep hover:bg-accent/10 transition-colors"
                       >
                         {generatingAi ? (
                           <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -198,7 +198,7 @@ export function CreateCategoryDialog() {
                       <FormControl>
                         <Textarea
                           placeholder="Explica qué gastos entran acá..."
-                          className="bg-surface-raised border-0 rounded-xl min-h-[100px] resize-none text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-indigo-500"
+                          className="min-h-[100px] resize-none"
                           {...field}
                         />
                       </FormControl>
@@ -208,9 +208,9 @@ export function CreateCategoryDialog() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-surface-raised/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl"
+                            className="absolute inset-0 bg-surface-2/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl"
                           >
-                            <div className="flex items-center gap-2 text-indigo-400 font-medium">
+                            <div className="flex items-center gap-2 text-accent font-medium">
                               <Sparkles className="w-4 h-4 animate-pulse" />
                               <span>Chanchito está pensando...</span>
                             </div>
@@ -218,7 +218,7 @@ export function CreateCategoryDialog() {
                         )}
                       </AnimatePresence>
                     </div>
-                    <p className="text-[11px] text-slate-500 italic">
+                    <p className="text-[11px] text-muted italic">
                       * Cuanto mejor sea la descripción, mejor clasificará Chanchito tus gastos automáticamente.
                     </p>
                     <FormMessage />
@@ -234,7 +234,7 @@ export function CreateCategoryDialog() {
                 type="submit"
                 form="category-form"
                 disabled={isPending}
-                className="w-full min-h-[52px] rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(129,140,248,0.25)] transition-all active:scale-[0.98]"
+                variant="accent" size="lg" className="w-full"
               >
                 {isPending ? (
                   <>

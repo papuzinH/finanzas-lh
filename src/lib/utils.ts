@@ -14,6 +14,23 @@ export const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+/** Formato compacto para espacios ajustados: $1,5M · $340K · $890 */
+export const formatCompact = (amount: number): string => {
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+  if (abs >= 1_000_000) {
+    const val = abs / 1_000_000;
+    const str = val % 1 === 0 ? val.toFixed(0) : val.toFixed(1).replace('.', ',');
+    return `${sign}$${str}M`;
+  }
+  if (abs >= 1_000) {
+    const val = abs / 1_000;
+    const str = val % 1 === 0 ? val.toFixed(0) : val.toFixed(1).replace('.', ',');
+    return `${sign}$${str}K`;
+  }
+  return `${sign}$${Math.round(abs)}`;
+};
+
 /**
  * Formatea moneda de forma inteligente para inversiones.
  * Detecta la moneda por:

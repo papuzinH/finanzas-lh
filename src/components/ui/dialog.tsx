@@ -38,7 +38,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/75 backdrop-blur-sm",
+        "fixed inset-0 z-50 bg-text/40 backdrop-blur-sm",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         className
@@ -81,12 +81,12 @@ function DialogContent({
         {...props}
       >
         {/* Mobile drag handle */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-slate-600 sm:hidden" />
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-border sm:hidden" />
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-3 right-3 flex items-center justify-center size-11 rounded-xl opacity-60 ring-offset-background transition-all hover:opacity-100 hover:bg-slate-800 active:scale-95 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            className="absolute top-3 right-3 flex items-center justify-center size-11 rounded-xl opacity-60 ring-offset-background transition-all hover:opacity-100 hover:bg-surface-2 active:scale-95 focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
             <span className="sr-only">Close</span>

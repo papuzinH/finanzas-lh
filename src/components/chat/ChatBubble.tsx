@@ -49,7 +49,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
     >
       {/* Avatar de Chanchito */}
       {!isUser && (
-        <div className="flex-shrink-0 w-7 h-7 bg-zinc-700 rounded-full flex items-center justify-center text-sm">
+        <div className="flex-shrink-0 w-7 h-7 bg-surface border-[1.5px] border-border rounded-full flex items-center justify-center text-sm">
           🐷
         </div>
       )}
@@ -58,7 +58,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
       <div className="flex flex-col gap-2 flex-1">
         {/* Burbuja de texto o de voz */}
         {isUser && message.isVoice ? (
-          <div className="bg-indigo-600 text-white rounded-2xl rounded-br-sm ml-auto max-w-[80%] px-4 py-2.5 flex flex-col gap-1">
+          <div className="bg-accent text-accent-ink border-[1.5px] border-accent-deep rounded-2xl rounded-br-md ml-auto max-w-[80%] px-4 py-2.5 flex flex-col gap-1 font-sans">
             <div className="flex items-center gap-2">
               <Mic className="w-3.5 h-3.5 flex-shrink-0 opacity-80" />
               <span className="text-xs opacity-80">Mensaje de voz</span>
@@ -68,10 +68,10 @@ export function ChatBubble({ message }: ChatBubbleProps) {
         ) : (
           <div
             className={cn(
-              'rounded-2xl px-4 py-2.5 max-w-[80%] break-words text-sm whitespace-pre-line',
+              'rounded-2xl px-3.5 py-2.5 max-w-[80%] break-words text-[13.5px] leading-snug font-sans whitespace-pre-line border-[1.5px]',
               isUser
-                ? 'bg-indigo-600 text-white rounded-br-sm ml-auto'
-                : 'bg-zinc-800 text-slate-100 rounded-bl-sm mr-auto'
+                ? 'bg-accent text-accent-ink border-accent-deep rounded-br-md ml-auto'
+                : 'bg-surface text-text border-border rounded-bl-md mr-auto'
             )}
           >
             {formatMessage(message.content)}
@@ -84,7 +84,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.2, delay: 0.1 }}
-            className="border border-emerald-500/30 rounded-xl bg-emerald-500/5 p-3 mr-auto max-w-[80%]"
+            className="border-[1.5px] border-border rounded-xl bg-surface p-3 mr-auto max-w-[80%]"
           >
             <div className="flex items-start gap-3">
               {message.actionResult.emoji && (
@@ -92,19 +92,19 @@ export function ChatBubble({ message }: ChatBubbleProps) {
                   {message.actionResult.emoji}
                 </div>
               )}
-              <div className="flex-1 text-xs">
+              <div className="flex-1 text-xs font-sans">
                 {message.actionResult.description && (
-                  <p className="text-slate-200 font-medium mb-1">
+                  <p className="text-text font-semibold mb-1">
                     {message.actionResult.description}
                   </p>
                 )}
                 {message.actionResult.amount && (
-                  <p className="text-emerald-400 font-mono font-semibold">
+                  <p className="text-good font-sans font-semibold tnum">
                     {formatCurrency(message.actionResult.amount)}
                   </p>
                 )}
                 {message.actionResult.category && (
-                  <p className="text-slate-400 text-[10px] mt-1">
+                  <p className="text-muted text-[10px] mt-1">
                     Categoría: {message.actionResult.category}
                   </p>
                 )}
@@ -121,14 +121,14 @@ export function ChatBubble({ message }: ChatBubbleProps) {
             transition={{ duration: 0.2, delay: 0.15 }}
             className="flex items-center gap-2 mr-auto"
           >
-            <p className="text-xs text-slate-400">¿Es correcto?</p>
+            <p className="font-sans text-xs text-muted">¿Es correcto?</p>
             <button
               onClick={() => {
                 setConfirmationHandled(message.id)
                 sendMessage('confirmar')
               }}
               aria-label="Confirmar"
-              className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 rounded-lg px-4 py-2.5 min-h-[44px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+              className="font-sans text-xs bg-good/10 hover:bg-good/20 border-[1.5px] border-good/30 text-good rounded-lg px-4 py-2.5 min-h-[44px] transition-colors focus-visible:outline-none"
             >
               ✅ Sí
             </button>
@@ -138,7 +138,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
                 sendMessage('cancelar')
               }}
               aria-label="Cancelar"
-              className="text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-400 rounded-lg px-4 py-2.5 min-h-[44px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+              className="font-sans text-xs bg-bad/10 hover:bg-bad/20 border-[1.5px] border-bad/30 text-bad rounded-lg px-4 py-2.5 min-h-[44px] transition-colors focus-visible:outline-none"
             >
               ❌ No
             </button>

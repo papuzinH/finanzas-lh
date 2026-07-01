@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { TrendingUp, BarChart3, Plus, Clock } from 'lucide-react'
 import { useFinanceStore } from '@/lib/store/financeStore'
-import { PageHeader } from '@/components/shared/page-header'
+import { ScreenHeader } from '@/components/shared/screen-header'
+import { TabsDS } from '@/components/ui/tabs-ds'
 import { Card } from '@/components/ui/card'
 import { CurrencyToggle, type DisplayCurrency } from '@/components/inversiones/currency-toggle'
 import { AssetTypeBadge } from '@/components/inversiones/asset-type-badge'
@@ -16,9 +17,8 @@ import { PricesStatusBar } from '@/components/inversiones/prices-status-bar'
 import { FailedPricesDialog } from '@/components/inversiones/failed-prices-dialog'
 import { SavingsCard } from '@/components/inversiones/savings-card'
 import { deleteAsset } from './actions'
-import { cn } from '@/lib/utils'
 
-const STALE_THRESHOLD_MS = 60 * 60 * 1000 // 1 hora
+const STALE_THRESHOLD_MS = 60 * 60 * 1000
 
 type ActiveTab = 'dashboard' | 'portfolio' | 'cargar'
 
@@ -83,7 +83,6 @@ export function InversionesClient() {
     }
   }
 
-  // Auto-refresh on-mount si los precios son viejos (>1h) o si faltan tipos de cambio
   useEffect(() => {
     if (autoRefreshAttempted.current) return
     if (!isInitialized) return
@@ -115,12 +114,10 @@ export function InversionesClient() {
     }
   }
 
-  // Mejor y peor activo
   const sortedByPL = [...portfolio.assets].sort((a, b) => b.plPercent - a.plPercent)
   const best = sortedByPL[0] ?? null
   const worst = sortedByPL[sortedByPL.length - 1] ?? null
 
-  // Distribucion consistente con moneda seleccionada
   const groupedByType = portfolio.assets.reduce<Record<string, number>>((acc, asset) => {
     acc[asset.asset_type] = (acc[asset.asset_type] ?? 0) + asset.currentValue
     return acc
@@ -131,15 +128,14 @@ export function InversionesClient() {
     .map(([name, value]) => ({ name, value }))
 
   return (
-    <div className="min-h-screen bg-surface text-slate-50 pb-24">
-      <PageHeader
+    <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
+      <ScreenHeader
+        kicker="inversiones"
         title="Inversiones"
-        subtitle="Portfolio bimonetario"
-        icon={<TrendingUp className="h-5 w-5" />}
-        containerClassName="max-w-[1440px]"
+        sub="Portfolio bimonetario"
       />
 
-      <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 space-y-6">
+      <main className="mx-auto max-w-[1440px] px-5 space-y-5 pb-4">
 
         {/* Currency Toggle + Status de precios */}
         <div className="space-y-3">
@@ -154,41 +150,51 @@ export function InversionesClient() {
         </div>
 
         {/* Hero Card */}
-        <div className="rounded-2xl border border-indigo-500/20 bg-linear-to-br from-indigo-500/10 via-violet-500/5 to-slate-950 p-5 md:p-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10">
-            <TrendingUp className="w-20 h-20 text-indigo-400" />
-          </div>
-          <p className="text-[10px] md:text-xs font-medium text-indigo-300 uppercase tracking-wider mb-1.5">
+        <div
+          className="rounded-2xl bg-hero text-cream p-5"
+          style={{ boxShadow: '0 18px 36px -18px rgba(28,42,71,0.70)' }}
+        >
+          <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
             Valor Total del Portfolio
           </p>
-          <p className="text-3xl md:text-4xl font-bold text-white font-mono tracking-tight">
+          <p className="font-poster tnum text-[36px] leading-[0.95] mt-1 text-cream-light">
             {fmtCurrency(portfolio.totalValue, currencyLabel)}
           </p>
-          <div className="flex items-center gap-3 mt-2 flex-wrap">
-            <span className="text-xs text-slate-400">
-              Invertido: {fmtCurrency(portfolio.totalInvested, currencyLabel)}
-            </span>
-            {portfolio.totalSavings > 0 && (
-              <span className="text-xs text-amber-300/80">
-                Ahorros: {fmtCurrency(portfolio.totalSavings, currencyLabel)}
-              </span>
-            )}
-            {portfolio.totalInvested > 0 && (
-              <ProfitBadge
-                percent={portfolio.totalPLPercent}
-                amount={portfolio.totalUnrealizedPL}
-                currency={currencyLabel}
-                showAmount
-              />
-            )}
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-xl bg-cream-light/10 border-[1.5px] border-cream-light/15 px-3 py-2">
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">Invertido</p>
+              <p className="font-poster tnum text-[15px] mt-0.5 text-cream-light">
+                {fmtCurrency(portfolio.totalInvested, currencyLabel)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-cream-light/10 border-[1.5px] border-cream-light/15 px-3 py-2">
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">P&L</p>
+              <div className="mt-0.5">
+                {portfolio.totalInvested > 0 ? (
+                  <ProfitBadge
+                    percent={portfolio.totalPLPercent}
+                    amount={portfolio.totalUnrealizedPL}
+                    currency={currencyLabel}
+                    showAmount
+                  />
+                ) : (
+                  <p className="font-poster tnum text-[15px] text-cream-light/50">—</p>
+                )}
+              </div>
+            </div>
           </div>
+          {portfolio.totalSavings > 0 && (
+            <p className="text-[11px] text-celeste/70 mt-2">
+              Ahorros: {fmtCurrency(portfolio.totalSavings, currencyLabel)}
+            </p>
+          )}
         </div>
 
         {/* Metric Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="bg-slate-900/40 border-slate-800 p-4">
-            <p className="text-[10px] uppercase text-slate-500 font-medium mb-1">Ganancia Total</p>
-            <p className="text-xl font-bold text-slate-100 font-mono">
+          <Card className="p-4">
+            <p className="text-[10px] uppercase text-muted font-bold mb-1">Ganancia Total</p>
+            <p className="font-poster tnum text-[20px] text-text">
               {fmtCurrency(portfolio.totalUnrealizedPL + portfolio.totalRealizedPL, currencyLabel)}
             </p>
             {portfolio.totalPLPercent !== 0 && (
@@ -196,68 +202,56 @@ export function InversionesClient() {
             )}
           </Card>
 
-          <Card className="bg-slate-900/40 border-slate-800 p-4">
-            <p className="text-[10px] uppercase text-slate-500 font-medium mb-1">Mejor activo</p>
+          <Card className="p-4">
+            <p className="text-[10px] uppercase text-muted font-bold mb-1">Mejor activo</p>
             {best ? (
               <>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-bold text-slate-100">{best.ticker}</span>
+                  <span className="font-sans font-bold text-sm text-text">{best.ticker}</span>
                   <AssetTypeBadge assetType={best.asset_type} />
                 </div>
                 <ProfitBadge percent={best.plPercent} />
               </>
             ) : (
-              <p className="text-sm text-slate-600">—</p>
+              <p className="text-sm text-faint">—</p>
             )}
           </Card>
 
-          <Card className="bg-slate-900/40 border-slate-800 p-4">
-            <p className="text-[10px] uppercase text-slate-500 font-medium mb-1">Peor activo</p>
+          <Card className="p-4">
+            <p className="text-[10px] uppercase text-muted font-bold mb-1">Peor activo</p>
             {worst && worst.id !== best?.id ? (
               <>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-bold text-slate-100">{worst.ticker}</span>
+                  <span className="font-sans font-bold text-sm text-text">{worst.ticker}</span>
                   <AssetTypeBadge assetType={worst.asset_type} />
                 </div>
                 <ProfitBadge percent={worst.plPercent} />
               </>
             ) : (
-              <p className="text-sm text-slate-600">—</p>
+              <p className="text-sm text-faint">—</p>
             )}
           </Card>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800 w-full justify-between">
-          {([
-            { key: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-            { key: 'portfolio', label: 'Portfolio', icon: TrendingUp },
-            { key: 'cargar',    label: 'Cargar',    icon: Plus },
-          ] as { key: ActiveTab; label: string; icon: React.ElementType }[]).map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all w-full justify-center',
-                activeTab === key
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </button>
-          ))}
-        </div>
+        <TabsDS
+          tabs={[
+            { id: 'dashboard', label: 'Dashboard', icon: 'chart' },
+            { id: 'portfolio', label: 'Portfolio', icon: 'trending-up' },
+            { id: 'cargar', label: 'Cargar', icon: 'plus' },
+          ]}
+          active={activeTab}
+          onChange={(id) => setActiveTab(id as ActiveTab)}
+        />
 
         {/* Tab: Dashboard */}
         {activeTab === 'dashboard' && (
           <section className="space-y-4">
             {portfolio.assets.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-800 py-16 text-center flex flex-col items-center gap-3">
-                <TrendingUp className="h-16 w-16 text-slate-700" />
-                <h3 className="text-lg font-semibold text-slate-200">Sin activos registrados</h3>
-                <p className="text-slate-500 text-sm max-w-xs">
+              <div className="rounded-2xl border-[1.5px] border-dashed border-border py-16 text-center flex flex-col items-center gap-3">
+                <TrendingUp className="h-14 w-14 text-faint" />
+                <h3 className="font-sans font-bold text-text text-lg">Sin activos registrados</h3>
+                <p className="text-muted text-sm max-w-xs">
                   Usá la pestaña &quot;Cargar&quot; para registrar tus primeras inversiones.
                 </p>
               </div>
@@ -267,25 +261,24 @@ export function InversionesClient() {
               </div>
             )}
 
-            {/* Tabla resumen en dashboard */}
             {portfolio.assets.length > 0 && (
-              <div className="rounded-xl border border-slate-800 overflow-hidden">
-                <div className="px-4 py-2.5 bg-slate-900/60 border-b border-slate-800">
-                  <p className="text-xs font-medium text-slate-400">Resumen de posiciones</p>
+              <div className="rounded-2xl border-[1.5px] border-border overflow-hidden">
+                <div className="px-4 py-2.5 bg-surface-2 border-b border-border">
+                  <p className="text-xs font-bold text-muted">Resumen de posiciones</p>
                 </div>
-                <div className="divide-y divide-slate-800/60">
+                <div className="divide-y divide-border/60">
                   {[...portfolio.assets]
                     .sort((a, b) => b.currentValue - a.currentValue)
                     .slice(0, 8)
                     .map((asset) => (
-                      <div key={asset.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                      <div key={asset.id} className="px-4 py-2.5 flex items-center justify-between gap-3 bg-surface">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-bold text-sm text-slate-100 shrink-0">{asset.ticker}</span>
+                          <span className="font-sans font-bold text-sm text-text shrink-0">{asset.ticker}</span>
                           <AssetTypeBadge assetType={asset.asset_type} />
-                          <span className="text-xs text-slate-500 truncate hidden sm:block">{asset.name}</span>
+                          <span className="text-xs text-muted truncate hidden sm:block">{asset.name}</span>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-sm font-mono text-slate-200">
+                          <span className="font-poster tnum text-sm text-text">
                             {fmtCurrency(asset.currentValue, currencyLabel)}
                           </span>
                           <ProfitBadge percent={asset.plPercent} />
@@ -294,10 +287,10 @@ export function InversionesClient() {
                     ))}
                 </div>
                 {portfolio.assets.length > 8 && (
-                  <div className="px-4 py-2 border-t border-slate-800">
+                  <div className="px-4 py-2 border-t border-border bg-surface">
                     <button
                       onClick={() => setActiveTab('portfolio')}
-                      className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                      className="text-xs text-accent hover:text-accent-deep transition-colors"
                     >
                       Ver todos ({portfolio.assets.length} activos) →
                     </button>
@@ -314,9 +307,9 @@ export function InversionesClient() {
         {activeTab === 'portfolio' && (
           <section>
             {portfolio.assets.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-800 py-16 text-center flex flex-col items-center gap-3">
-                <Clock className="h-16 w-16 text-slate-700" />
-                <p className="text-slate-500 text-sm">Sin posiciones abiertas</p>
+              <div className="rounded-2xl border-[1.5px] border-dashed border-border py-16 text-center flex flex-col items-center gap-3">
+                <Clock className="h-14 w-14 text-faint" />
+                <p className="text-muted text-sm">Sin posiciones abiertas</p>
               </div>
             ) : (
               <PortfolioList
@@ -333,14 +326,14 @@ export function InversionesClient() {
         {activeTab === 'cargar' && (
           <section>
             <div className="max-w-lg mx-auto">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 md:p-6">
-                <div className="flex items-center gap-2 mb-5">
-                  <div className="p-2 rounded-xl bg-indigo-500/10">
-                    <Plus className="w-5 h-5 text-indigo-400" />
+              <div className="rounded-2xl border-[1.5px] border-border bg-surface p-5 md:p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="p-2 rounded-xl bg-surface-2 border-[1.5px] border-border">
+                    <Plus className="w-5 h-5 text-muted" />
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-slate-100">Nueva operación</h2>
-                    <p className="text-xs text-slate-500">Registrá una compra en tu portfolio</p>
+                    <h2 className="font-sans font-bold text-text">Nueva operación</h2>
+                    <p className="text-xs text-muted">Registrá una compra en tu portfolio</p>
                   </div>
                 </div>
                 <QuickAddForm />

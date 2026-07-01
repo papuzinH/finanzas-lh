@@ -85,21 +85,21 @@ export function CreateBudgetDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {controlledOpen === undefined && (
         <DialogTrigger asChild>
-          <Button size="icon" className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
+          <Button size="icon-sm" variant="accent">
             <Plus className="h-4 w-4" />
           </Button>
         </DialogTrigger>
       )}
       <DialogContent
         showCloseButton
-        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-border text-text"
       >
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle className="text-xl font-bold text-indigo-300">
+          <DialogTitle className="font-poster text-text text-[18px]">
             Nuevo Presupuesto
           </DialogTitle>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-muted mt-1">
             Establecé un límite mensual de gasto por categoría.
           </p>
         </DialogHeader>
@@ -122,12 +122,12 @@ export function CreateBudgetDialog({
                 name="category_id"
                 render={({ field }) => (
                   <FormItem>
-                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
                       Categoría
                     </span>
 
                     {availableCategories.length === 0 ? (
-                      <p className="text-sm text-slate-500 italic py-2">
+                      <p className="text-sm text-muted italic py-2">
                         Todas las categorías ya tienen presupuesto asignado.
                       </p>
                     ) : (
@@ -139,14 +139,14 @@ export function CreateBudgetDialog({
                             onClick={() => field.onChange(cat.id)}
                             className={cn(
                               'flex flex-col items-center gap-1 p-2 rounded-xl transition-all min-h-11',
-                              'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none',
+                              'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',
                               field.value === cat.id
-                                ? 'bg-indigo-500/20 ring-1 ring-indigo-400'
-                                : 'bg-slate-800/40 hover:bg-slate-700/40'
+                                ? 'bg-accent/10 ring-1 ring-accent'
+                                : 'bg-surface-2 hover:bg-surface'
                             )}
                           >
                             <span className="text-lg">{cat.emoji ?? '📦'}</span>
-                            <span className="text-[9px] text-slate-400 truncate w-full text-center">
+                            <span className="text-[9px] text-muted truncate w-full text-center">
                               {cat.name}
                             </span>
                           </button>
@@ -165,10 +165,10 @@ export function CreateBudgetDialog({
                 name="currency"
                 render={({ field }) => (
                   <FormItem>
-                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
                       Moneda
                     </span>
-                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-900/80 p-1">
+                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
                       {([
                         { value: 'ARS' as const, label: '🇦🇷 ARS' },
                         { value: 'USD' as const, label: '🇺🇸 USD' },
@@ -179,10 +179,10 @@ export function CreateBudgetDialog({
                           onClick={() => field.onChange(opt.value)}
                           className={cn(
                             'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
-                            'focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none',
+                            'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',
                             field.value === opt.value
-                              ? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/50'
-                              : 'text-slate-500 hover:text-slate-300'
+                              ? 'bg-accent/10 text-accent ring-1 ring-accent/50'
+                              : 'text-muted hover:text-text'
                           )}
                         >
                           {opt.label}
@@ -201,7 +201,7 @@ export function CreateBudgetDialog({
                 type="submit"
                 form="budget-form"
                 disabled={isPending || availableCategories.length === 0}
-                className="w-full min-h-[52px] rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(129,140,248,0.25)] transition-all active:scale-[0.98]"
+                variant="accent" size="lg" className="w-full"
               >
                 {isPending ? (
                   <>

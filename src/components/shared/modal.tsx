@@ -30,19 +30,19 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-text/40 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-lg bg-surface-overlay border border-slate-800 rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-lg bg-surface border-[1.5px] border-border rounded-2xl shadow-card animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-slate-800">
-          <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="font-poster text-text text-[18px]">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Cerrar"
-            className="flex items-center justify-center size-11 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors active:scale-95 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            className="flex items-center justify-center size-11 text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors active:scale-95 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
           >
             <X className="w-5 h-5" />
           </button>

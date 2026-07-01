@@ -103,17 +103,17 @@ export function CreateInvestmentDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="icon" className="h-9 w-9 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20">
+        <Button size="icon-sm" variant="accent">
           <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px] bg-surface-overlay border-slate-800 text-slate-50">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px] bg-surface border-border text-text">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-sky-400 bg-clip-text text-transparent">
-              Agregar Inversion
+            <DialogTitle className="font-poster text-text text-[18px]">
+              Agregar Inversión
             </DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-muted">
               Registra un nuevo activo en tu portafolio.
             </DialogDescription>
           </DialogHeader>
@@ -121,22 +121,22 @@ export function CreateInvestmentDialog() {
           <div className="grid gap-4 py-4 md:py-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-2">
-                <Label className="text-slate-300">Ticker</Label>
+                <Label className="text-muted font-extrabold uppercase tracking-wider text-[10px]">Ticker</Label>
                 <Input
                   value={ticker}
                   onChange={e => handleTickerChange(e.target.value)}
                   placeholder="AL30D"
-                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50 uppercase"
+                  className=" uppercase"
                   required
                 />
               </div>
               <div className="col-span-2 space-y-2">
-                <Label className="text-slate-300">Nombre</Label>
+                <Label className="text-muted font-extrabold uppercase tracking-wider text-[10px]">Nombre</Label>
                 <Input
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="Grupo Financiero Galicia"
-                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
+                  className=""
                   required
                 />
               </div>
@@ -144,14 +144,14 @@ export function CreateInvestmentDialog() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-slate-300">Tipo</Label>
+                <Label className="text-muted font-extrabold uppercase tracking-wider text-[10px]">Tipo</Label>
                 <Select value={type} onValueChange={handleTypeChange}>
-                  <SelectTrigger className="bg-surface-raised border-slate-800">
+                  <SelectTrigger className="bg-surface-2 border-border">
                     <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
-                  <SelectContent className="bg-surface-overlay border-slate-800">
+                  <SelectContent className="bg-surface border-border">
                     {INVESTMENT_TYPES.map(t => (
-                      <SelectItem key={t.value} value={t.value} className="focus:bg-slate-800">
+                      <SelectItem key={t.value} value={t.value} className="focus:bg-surface-2">
                         {t.label}
                       </SelectItem>
                     ))}
@@ -159,14 +159,14 @@ export function CreateInvestmentDialog() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-300">Moneda</Label>
+                <Label className="text-muted font-extrabold uppercase tracking-wider text-[10px]">Moneda</Label>
                 <Select value={currency} onValueChange={setCurrency}>
-                  <SelectTrigger className="bg-surface-raised border-slate-800">
+                  <SelectTrigger className="bg-surface-2 border-border">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-surface-overlay border-slate-800">
-                    <SelectItem value="ARS" className="focus:bg-slate-800">ARS</SelectItem>
-                    <SelectItem value="USD" className="focus:bg-slate-800">USD</SelectItem>
+                  <SelectContent className="bg-surface border-border">
+                    <SelectItem value="ARS" className="focus:bg-surface-2">ARS</SelectItem>
+                    <SelectItem value="USD" className="focus:bg-surface-2">USD</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -174,26 +174,26 @@ export function CreateInvestmentDialog() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-slate-300">Cantidad</Label>
+                <Label className="text-muted font-extrabold uppercase tracking-wider text-[10px]">Cantidad</Label>
                 <Input
                   type="number"
                   step="any"
                   value={quantity}
                   onChange={e => setQuantity(e.target.value)}
                   placeholder="100"
-                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
+                  className=""
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-300">Precio Promedio</Label>
+                <Label className="text-muted font-extrabold uppercase tracking-wider text-[10px]">Precio Promedio</Label>
                 <Input
                   type="number"
                   step="any"
                   value={avgBuyPrice}
                   onChange={e => setAvgBuyPrice(e.target.value)}
                   placeholder="Opcional"
-                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
+                  className=""
                 />
               </div>
             </div>
@@ -202,16 +202,15 @@ export function CreateInvestmentDialog() {
           <DialogFooter className="gap-2">
             <Button
               type="button"
-              variant="ghost"
               onClick={() => setOpen(false)}
-              className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+              variant="ghost" className="w-full sm:w-auto h-11 sm:h-9"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isPending}
-              className="w-full sm:w-auto h-11 sm:h-9 bg-indigo-600 hover:bg-indigo-700 text-white"
+              variant="accent" className="w-full sm:w-auto h-11 sm:h-9"
             >
               {isPending ? (
                 <>

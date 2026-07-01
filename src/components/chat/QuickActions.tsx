@@ -42,23 +42,21 @@ export function QuickActions() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="flex flex-col gap-2 pt-4"
+      className="pt-4 space-y-2"
     >
-      <p className="text-xs text-slate-400 px-4 uppercase tracking-wider">
+      <p className="font-sans text-xs text-muted font-semibold uppercase tracking-wider">
         Sugerencias
       </p>
-      <div className="flex flex-col gap-2 px-4">
+      <div className="flex gap-2 overflow-x-auto no-sb pb-1">
         {QUICK_ACTIONS.map((action) => (
           <motion.button
             key={action.text}
             variants={itemVariants}
             onClick={() => handleQuickAction(action.message)}
-            className="group flex items-center gap-3 px-3 py-2.5 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700 transition-all"
+            className="shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11.5px] font-bold bg-surface border-[1.5px] border-border text-text transition-colors active:opacity-70"
           >
-            <span className="text-lg flex-shrink-0">{action.emoji}</span>
-            <span className="text-sm text-slate-300 group-hover:text-slate-100 transition-colors text-left">
-              {action.text}
-            </span>
+            <span>{action.emoji}</span>
+            <span>{action.text}</span>
           </motion.button>
         ))}
       </div>

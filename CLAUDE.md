@@ -38,10 +38,41 @@ Getters disponibles:
 - **Siempre** usar `parseLocalDate()` de `lib/utils/dates.ts` (evita bugs UTC)
 
 ## UI
-- Dark mode: `bg-surface`, `text-slate-50`, acentos Indigo/Violet.
-- Shadcn UI siempre (nunca `<div>` crudo si existe `<Card>`).
-- Íconos: `lucide-react` (importar específicos).
-- Mobile-first: `w-full` → `md:w-auto`.
+- **Fondo de app**: `bg-bg` (crema). Cards: `bg-surface`.
+- **Tokens semánticos SIEMPRE**: nunca hardcodees hex ni colores Tailwind para UI.
+  - Layout: `bg-bg`, `bg-bg-2`, `bg-surface`, `bg-surface-2`, `text-text`, `text-muted`, `text-faint`, `border-border`
+  - Acento: `bg-accent text-accent-ink border-accent-deep shadow-offset`
+  - Financiero: `text-good` (ingreso/positivo), `text-bad` (gasto/negativo), `text-warn` (atención)
+  - Hero card: `bg-hero text-cream shadow-float rounded-[26px]`
+- **NO usar**: `emerald-*`, `rose-*`, `indigo-*`, `violet-*`, `slate-*` para UI nueva.
+- **Bordes**: siempre `border-[1.5px] border-border`. Nunca `border` (1px default).
+- **Tipografía** (por rol):
+  - `font-poster` (Alfa Slab One): saldos, montos display, títulos de pantalla
+  - `font-sans` (DM Sans): TODA la UI de texto (labels, descripciones, botones)
+  - `font-serifd` (Bodoni Moda): solo frases editoriales/marketing
+  - `font-script` (Yellowtail): solo tagline/logo
+  - `tnum`: TODOS los números financieros (alineación en columna)
+- **Botones**: `<Button>` de `@/components/ui/button` → pill + `border-[1.5px] shadow-offset active:translate-y-[2px]`. Variants: `accent`, `navy`, `soft`, `ghost`.
+- **Cards**: `<Card>` de `@/components/ui/card` → `rounded-2xl bg-surface border-[1.5px] border-border shadow-card`.
+- **Tabs**: `<TabsDS>` de `@/components/ui/tabs-ds`.
+- **Toggles**: `<ToggleDS>` de `@/components/ui/toggle-ds`.
+- **Progress bars**: `<ProgressBar>` de `@/components/ui/progress-bar` con `tone="accent|good|warn|bad"`.
+- **Chips de filtro**: `<Chip>` de `@/components/ui/chip`.
+- **Banners**: `<BannerDS>` de `@/components/ui/banner-ds`.
+- **Íconos**: `lucide-react` directo (importar específicos) O `<Icon name="..." />` de `@/components/ui/icon`.
+- **ScreenHeader**: `<ScreenHeader kicker="..." title="..." sub="..." right={...} />` de `@/components/shared/screen-header`. Reemplaza cualquier `PageHeader`.
+- **Mobile-first**: canvas base 392px. Margen lateral `px-5`. Touch targets ≥44px. `pb-28` para clearear BottomNav.
+
+## Prototipos de referencia
+Los archivos JSX en `design_handoff_chanchito/prototypes/app/` son la fuente visual de verdad:
+- `ui.jsx` — BottomNav, ScreenHeader, Card, SectionTitle
+- `screen-inicio.jsx` — Dashboard
+- `screen-movimientos.jsx` — Movimientos
+- `screen-compromisos.jsx` — Compromisos
+- `screen-objetivos.jsx` — Objetivos
+- `screen-inversiones.jsx` — Inversiones
+
+Para verificar visualmente: `design_handoff_chanchito/prototypes/Chanchito App.html` en el navegador.
 
 ## TypeScript
 - Tipos de `types/database.ts`. Nunca `any`.

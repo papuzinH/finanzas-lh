@@ -84,7 +84,7 @@ const TRANSACTION_TYPE_LABELS: Record<string, string> = {
 }
 
 const plColor = (n: number) =>
-  n > 0 ? 'text-emerald-400' : n < 0 ? 'text-rose-400' : 'text-slate-400'
+  n > 0 ? 'text-good' : n < 0 ? 'text-bad' : 'text-muted'
 
 export function PortfolioList({ assets, transactions, displayCurrency, onDeleteAsset }: PortfolioListProps) {
   const [filterType, setFilterType] = useState<string>('all')
@@ -114,13 +114,13 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
       {/* Filtros */}
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-44 bg-slate-900/60 border-slate-800 text-slate-300 text-xs h-8">
+          <SelectTrigger className="w-44 bg-surface-2 border-[1.5px] border-border text-text text-xs h-8">
             <SelectValue placeholder="Todos los tipos" />
           </SelectTrigger>
-          <SelectContent className="bg-surface-overlay border-slate-800">
-            <SelectItem value="all" className="focus:bg-slate-800 text-xs">Todos los tipos</SelectItem>
+          <SelectContent className="bg-surface border-border">
+            <SelectItem value="all" className="focus:bg-surface-2 text-xs">Todos los tipos</SelectItem>
             {ASSET_TYPES.map((t) => (
-              <SelectItem key={t} value={t} className="focus:bg-slate-800 text-xs">
+              <SelectItem key={t} value={t} className="focus:bg-surface-2 text-xs">
                 {getAssetTypeLabel(t)}
               </SelectItem>
             ))}
@@ -133,10 +133,10 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
               key={k}
               onClick={() => toggleSort(k)}
               className={cn(
-                'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all',
+                'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all border-[1.5px]',
                 sortKey === k
-                  ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/30'
-                  : 'text-slate-500 hover:text-slate-300 border border-slate-800'
+                  ? 'bg-accent/15 text-accent-deep border-accent/30'
+                  : 'text-muted border-border hover:text-text'
               )}
             >
               {k === 'value' ? 'Valor' : k === 'plPercent' ? 'Variación' : 'Nombre'}
@@ -147,7 +147,7 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
       </div>
 
       {sorted.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-800 py-12 text-center text-sm text-slate-500">
+        <div className="rounded-xl border-[1.5px] border-dashed border-border py-12 text-center text-sm text-muted">
           Sin activos para mostrar
         </div>
       )}
@@ -160,27 +160,27 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
           const fixedTerm = isFixedTermAsset(asset.asset_type)
           const stale = !fixedTerm && isStale(asset.lastUpdate)
           return (
-            <div key={asset.id} className="rounded-xl border border-slate-800 bg-slate-900/40 overflow-hidden">
+            <div key={asset.id} className="rounded-xl border-[1.5px] border-border bg-surface overflow-hidden">
               <button
                 onClick={() => setExpandedId(isExpanded ? null : asset.id)}
                 className="w-full p-3 text-left flex items-start justify-between gap-2"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-slate-100 text-sm">{asset.ticker}</span>
+                    <span className="font-bold text-text text-sm">{asset.ticker}</span>
                     <AssetTypeBadge assetType={asset.asset_type} />
                   </div>
-                  <p className="text-xs text-slate-400 truncate">{asset.name}</p>
+                  <p className="text-xs text-muted truncate">{asset.name}</p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-[10px] text-muted tnum">
                       {fixedTerm
                         ? `Monto ${fmtCurrency(asset.position, currencyLabel)}`
                         : `${fmtNumber(asset.position, 4)} u`}
                     </span>
                     {!fixedTerm && (
                       <>
-                        <span className="text-[10px] text-slate-600">·</span>
-                        <span className="text-[10px] text-slate-500">
+                        <span className="text-[10px] text-faint">·</span>
+                        <span className="text-[10px] text-muted">
                           {formatRelativeTime(asset.lastUpdate)}
                         </span>
                         <PriceSourceBadge source={asset.source} />
@@ -188,56 +188,56 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                     )}
                     {fixedTerm && (
                       <>
-                        <span className="text-[10px] text-slate-600">·</span>
-                        <span className="text-[10px] text-indigo-300">{tnaLabel(asset.metadata)}</span>
+                        <span className="text-[10px] text-faint">·</span>
+                        <span className="text-[10px] text-accent font-medium">{tnaLabel(asset.metadata)}</span>
                       </>
                     )}
                     {stale && (
-                      <span className="text-[9px] font-medium text-rose-400 uppercase tracking-wide">
+                      <span className="text-[9px] font-medium text-bad uppercase tracking-wide">
                         Desactualizado
                       </span>
                     )}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold text-slate-100 font-mono">
+                  <p className="text-sm font-semibold text-text tnum">
                     {fmtCurrency(asset.currentValue, currencyLabel)}
                   </p>
-                  <p className={cn('text-xs font-mono', plColor(asset.unrealizedPL))}>
+                  <p className={cn('text-xs tnum', plColor(asset.unrealizedPL))}>
                     {fmtSignedCurrency(asset.unrealizedPL, currencyLabel)}
                   </p>
-                  <p className={cn('text-[11px] font-semibold', plColor(asset.plPercent))}>
+                  <p className={cn('text-[11px] font-semibold tnum', plColor(asset.plPercent))}>
                     {fmtSignedPercent(asset.plPercent)}
                   </p>
                   {isExpanded
-                    ? <ChevronUp className="h-3.5 w-3.5 text-slate-500 mx-auto mt-1" />
-                    : <ChevronDown className="h-3.5 w-3.5 text-slate-500 mx-auto mt-1" />}
+                    ? <ChevronUp className="h-3.5 w-3.5 text-muted mx-auto mt-1" />
+                    : <ChevronDown className="h-3.5 w-3.5 text-muted mx-auto mt-1" />}
                 </div>
               </button>
 
               {isExpanded && (
-                <div className="px-3 pb-3 border-t border-slate-800/60 pt-3 space-y-3">
+                <div className="px-3 pb-3 border-t border-border pt-3 space-y-3 bg-surface-2">
                   <div className="grid grid-cols-2 gap-2 text-[10px]">
                     <div>
-                      <p className="text-slate-500 uppercase">PPC</p>
-                      <p className="text-slate-200 font-mono">{fmtNumber(asset.ppc, 2)}</p>
+                      <p className="text-muted uppercase font-bold">PPC</p>
+                      <p className="text-text tnum">{fmtNumber(asset.ppc, 2)}</p>
                     </div>
                     <div>
-                      <p className="text-slate-500 uppercase">V. Inicial</p>
-                      <p className="text-slate-200 font-mono">{fmtCurrency(asset.investedValue, currencyLabel)}</p>
+                      <p className="text-muted uppercase font-bold">V. Inicial</p>
+                      <p className="text-text tnum">{fmtCurrency(asset.investedValue, currencyLabel)}</p>
                     </div>
                     {asset.realizedPL !== 0 && (
                       <div>
-                        <p className="text-slate-500 uppercase">Realizado</p>
-                        <p className={cn('font-mono', plColor(asset.realizedPL))}>
+                        <p className="text-muted uppercase font-bold">Realizado</p>
+                        <p className={cn('tnum', plColor(asset.realizedPL))}>
                           {fmtSignedCurrency(asset.realizedPL, currencyLabel)}
                         </p>
                       </div>
                     )}
                     {asset.realizedPL !== 0 && (
                       <div>
-                        <p className="text-slate-500 uppercase">Total P/L</p>
-                        <p className={cn('font-mono', plColor(asset.totalPL))}>
+                        <p className="text-muted uppercase font-bold">Total P/L</p>
+                        <p className={cn('tnum', plColor(asset.totalPL))}>
                           {fmtSignedCurrency(asset.totalPL, currencyLabel)}
                         </p>
                       </div>
@@ -245,9 +245,9 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                   </div>
 
                   <div>
-                    <p className="text-[10px] uppercase text-slate-500 font-medium mb-2">Transacciones</p>
+                    <p className="text-[10px] uppercase text-muted font-bold mb-2">Transacciones</p>
                     {assetTxs.length === 0 ? (
-                      <p className="text-xs text-slate-600">Sin transacciones registradas</p>
+                      <p className="text-xs text-faint">Sin transacciones registradas</p>
                     ) : (
                       <div className="space-y-1.5">
                         {assetTxs.map((tx) => (
@@ -255,17 +255,17 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                             <div className="flex items-center gap-2">
                               <span className={cn(
                                 'px-1.5 py-0.5 rounded text-[10px] font-medium',
-                                tx.type === 'buy' ? 'bg-emerald-500/15 text-emerald-400' :
-                                tx.type === 'sell' ? 'bg-rose-500/15 text-rose-400' :
-                                'bg-indigo-500/15 text-indigo-400'
+                                tx.type === 'buy' ? 'bg-good/10 text-good' :
+                                tx.type === 'sell' ? 'bg-bad/10 text-bad' :
+                                'bg-accent/10 text-accent-deep'
                               )}>
                                 {TRANSACTION_TYPE_LABELS[tx.type] ?? tx.type}
                               </span>
-                              <span className="text-slate-500">{tx.date}</span>
+                              <span className="text-muted">{tx.date}</span>
                             </div>
-                            <div className="text-right">
-                              <span className="text-slate-300">{fmtNumber(tx.quantity, 4)} u</span>
-                              <span className="text-slate-500 ml-2">@ {fmtNumber(tx.price_per_unit, 2)}</span>
+                            <div className="text-right tnum">
+                              <span className="text-text">{fmtNumber(tx.quantity, 4)} u</span>
+                              <span className="text-muted ml-2">@ {fmtNumber(tx.price_per_unit, 2)}</span>
                             </div>
                           </div>
                         ))}
@@ -276,7 +276,7 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                   {onDeleteAsset && (
                     <button
                       onClick={() => onDeleteAsset(asset.id)}
-                      className="text-[10px] text-rose-500/70 hover:text-rose-400 transition-colors"
+                      className="text-[10px] text-bad/70 hover:text-bad transition-colors"
                     >
                       Dar de baja activo
                     </button>
@@ -289,22 +289,22 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
       </div>
 
       {/* Desktop: tabla */}
-      <div className="hidden md:block rounded-xl border border-slate-800 overflow-hidden">
+      <div className="hidden md:block rounded-xl border-[1.5px] border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-800 bg-slate-900/60">
-              <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-400">Activo</th>
-              <th className="text-right px-3 py-2.5 text-xs font-medium text-slate-400">Nominales</th>
-              <th className="text-right px-3 py-2.5 text-xs font-medium text-slate-400">V. Inicial</th>
-              <th className="text-right px-3 py-2.5 text-xs font-medium text-slate-400">Precio</th>
-              <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400">
-                <button onClick={() => toggleSort('value')} className="flex items-center gap-1 ml-auto">
+            <tr className="border-b border-border bg-surface-2">
+              <th className="text-left px-4 py-2.5 text-xs font-bold text-muted">Activo</th>
+              <th className="text-right px-3 py-2.5 text-xs font-bold text-muted">Nominales</th>
+              <th className="text-right px-3 py-2.5 text-xs font-bold text-muted">V. Inicial</th>
+              <th className="text-right px-3 py-2.5 text-xs font-bold text-muted">Precio</th>
+              <th className="text-right px-4 py-2.5 text-xs font-bold text-muted">
+                <button onClick={() => toggleSort('value')} className="flex items-center gap-1 ml-auto hover:text-text transition-colors">
                   V. Actual <ArrowUpDown className="h-3 w-3" />
                 </button>
               </th>
-              <th className="text-right px-3 py-2.5 text-xs font-medium text-slate-400">Rendimiento</th>
-              <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400">
-                <button onClick={() => toggleSort('plPercent')} className="flex items-center gap-1 ml-auto">
+              <th className="text-right px-3 py-2.5 text-xs font-bold text-muted">Rendimiento</th>
+              <th className="text-right px-4 py-2.5 text-xs font-bold text-muted">
+                <button onClick={() => toggleSort('plPercent')} className="flex items-center gap-1 ml-auto hover:text-text transition-colors">
                   Variación (%) <ArrowUpDown className="h-3 w-3" />
                 </button>
               </th>
@@ -320,103 +320,103 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                 <Fragment key={asset.id}>
                   <tr
                     onClick={() => setExpandedId(isExpanded ? null : asset.id)}
-                    className="border-b border-slate-800/60 hover:bg-slate-800/30 cursor-pointer transition-colors"
+                    className="border-b border-border hover:bg-surface-2 cursor-pointer transition-colors"
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-100">{asset.ticker}</span>
+                        <span className="font-bold text-text">{asset.ticker}</span>
                         <AssetTypeBadge assetType={asset.asset_type} />
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">{asset.name}</p>
+                      <p className="text-xs text-muted mt-0.5">{asset.name}</p>
                     </td>
-                    <td className="px-3 py-3 text-right text-slate-300 font-mono text-xs">
+                    <td className="px-3 py-3 text-right text-text tnum text-xs">
                       {fixedTerm
                         ? fmtCurrency(asset.position, currencyLabel)
                         : fmtNumber(asset.position, 4)}
                     </td>
-                    <td className="px-3 py-3 text-right text-slate-300 font-mono text-xs">
+                    <td className="px-3 py-3 text-right text-text tnum text-xs">
                       {fmtCurrency(asset.investedValue, currencyLabel)}
                     </td>
                     <td className="px-3 py-3 text-right">
                       {fixedTerm ? (
-                        <span className="text-[11px] text-indigo-300 font-medium">
+                        <span className="text-[11px] text-accent font-medium">
                           {tnaLabel(asset.metadata)}
                         </span>
                       ) : (
                         <div className="flex flex-col items-end gap-0.5">
-                          <span className="text-slate-400 font-mono text-xs">
+                          <span className="text-muted tnum text-xs">
                             {fmtNumber(asset.currentPrice, 2)}
                           </span>
                           <div className="flex items-center gap-1.5">
                             <PriceSourceBadge source={asset.source} />
-                            <span className="text-[9px] text-slate-600">
+                            <span className="text-[9px] text-faint">
                               {formatRelativeTime(asset.lastUpdate)}
                             </span>
                           </div>
                           {stale && (
-                            <span className="text-[9px] font-medium text-rose-400 uppercase tracking-wide">
+                            <span className="text-[9px] font-medium text-bad uppercase tracking-wide">
                               Desactualizado
                             </span>
                           )}
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-100 font-mono text-xs">
+                    <td className="px-4 py-3 text-right font-semibold text-text tnum text-xs">
                       {fmtCurrency(asset.currentValue, currencyLabel)}
                     </td>
-                    <td className={cn('px-3 py-3 text-right font-mono text-xs', plColor(asset.unrealizedPL))}>
+                    <td className={cn('px-3 py-3 text-right tnum text-xs', plColor(asset.unrealizedPL))}>
                       {fmtSignedCurrency(asset.unrealizedPL, currencyLabel)}
                     </td>
-                    <td className={cn('px-4 py-3 text-right font-mono text-xs font-semibold', plColor(asset.plPercent))}>
+                    <td className={cn('px-4 py-3 text-right tnum text-xs font-semibold', plColor(asset.plPercent))}>
                       {fmtSignedPercent(asset.plPercent)}
                     </td>
                   </tr>
                   {isExpanded && (
-                    <tr className="bg-slate-900/40">
+                    <tr className="bg-surface-2">
                       <td colSpan={7} className="px-6 py-3 space-y-3">
                         <div className="grid grid-cols-4 gap-3 text-[11px]">
                           <div>
-                            <p className="text-slate-500 uppercase text-[10px]">PPC</p>
-                            <p className="text-slate-200 font-mono">{fmtNumber(asset.ppc, 2)}</p>
+                            <p className="text-muted uppercase text-[10px] font-bold">PPC</p>
+                            <p className="text-text tnum">{fmtNumber(asset.ppc, 2)}</p>
                           </div>
                           <div>
-                            <p className="text-slate-500 uppercase text-[10px]">V. Inicial</p>
-                            <p className="text-slate-200 font-mono">{fmtCurrency(asset.investedValue, currencyLabel)}</p>
+                            <p className="text-muted uppercase text-[10px] font-bold">V. Inicial</p>
+                            <p className="text-text tnum">{fmtCurrency(asset.investedValue, currencyLabel)}</p>
                           </div>
                           <div>
-                            <p className="text-slate-500 uppercase text-[10px]">Realizado</p>
-                            <p className={cn('font-mono', plColor(asset.realizedPL))}>
+                            <p className="text-muted uppercase text-[10px] font-bold">Realizado</p>
+                            <p className={cn('tnum', plColor(asset.realizedPL))}>
                               {fmtSignedCurrency(asset.realizedPL, currencyLabel)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-slate-500 uppercase text-[10px]">Total P/L</p>
-                            <p className={cn('font-mono', plColor(asset.totalPL))}>
+                            <p className="text-muted uppercase text-[10px] font-bold">Total P/L</p>
+                            <p className={cn('tnum', plColor(asset.totalPL))}>
                               {fmtSignedCurrency(asset.totalPL, currencyLabel)}
                             </p>
                           </div>
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase text-slate-500 font-medium mb-2">Transacciones</p>
+                          <p className="text-[10px] uppercase text-muted font-bold mb-2">Transacciones</p>
                           {assetTxs.length === 0 ? (
-                            <p className="text-xs text-slate-600">Sin transacciones registradas</p>
+                            <p className="text-xs text-faint">Sin transacciones registradas</p>
                           ) : (
                             <div className="space-y-1.5">
                               {assetTxs.map((tx) => (
                                 <div key={tx.id} className="flex items-center gap-4 text-xs">
                                   <span className={cn(
                                     'px-1.5 py-0.5 rounded text-[10px] font-medium w-16 text-center',
-                                    tx.type === 'buy' ? 'bg-emerald-500/15 text-emerald-400' :
-                                    tx.type === 'sell' ? 'bg-rose-500/15 text-rose-400' :
-                                    'bg-indigo-500/15 text-indigo-400'
+                                    tx.type === 'buy' ? 'bg-good/10 text-good' :
+                                    tx.type === 'sell' ? 'bg-bad/10 text-bad' :
+                                    'bg-accent/10 text-accent-deep'
                                   )}>
                                     {TRANSACTION_TYPE_LABELS[tx.type] ?? tx.type}
                                   </span>
-                                  <span className="text-slate-500 w-24">{tx.date}</span>
-                                  <span className="text-slate-300">{fmtNumber(tx.quantity, 4)} u</span>
-                                  <span className="text-slate-500">@ {fmtNumber(tx.price_per_unit, 2)}</span>
-                                  {tx.fees > 0 && <span className="text-slate-600">comisión: {fmtNumber(tx.fees, 2)}</span>}
-                                  {tx.notes && <span className="text-slate-600 italic truncate max-w-xs">{tx.notes}</span>}
+                                  <span className="text-muted w-24">{tx.date}</span>
+                                  <span className="text-text tnum">{fmtNumber(tx.quantity, 4)} u</span>
+                                  <span className="text-muted tnum">@ {fmtNumber(tx.price_per_unit, 2)}</span>
+                                  {tx.fees > 0 && <span className="text-faint tnum">comisión: {fmtNumber(tx.fees, 2)}</span>}
+                                  {tx.notes && <span className="text-faint italic truncate max-w-xs">{tx.notes}</span>}
                                 </div>
                               ))}
                             </div>
@@ -425,7 +425,7 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                         {onDeleteAsset && (
                           <button
                             onClick={(e) => { e.stopPropagation(); onDeleteAsset(asset.id) }}
-                            className="text-[10px] text-rose-500/70 hover:text-rose-400 transition-colors"
+                            className="text-[10px] text-bad/70 hover:text-bad transition-colors"
                           >
                             Dar de baja activo
                           </button>

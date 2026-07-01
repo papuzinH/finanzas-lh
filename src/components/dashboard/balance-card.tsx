@@ -17,57 +17,6 @@ interface BalanceCardProps {
   currency?: string
 }
 
-// SVG circular progress ring
-function ProgressRing({
-  percentage,
-  size = 72,
-  strokeWidth = 5,
-}: {
-  percentage: number
-  size?: number
-  strokeWidth?: number
-}) {
-  const radius = (size - strokeWidth) / 2
-  const circumference = 2 * Math.PI * radius
-  const clampedPct = Math.min(Math.max(percentage, 0), 100)
-  const offset = circumference - (clampedPct / 100) * circumference
-
-  const ringColor =
-    clampedPct > 90
-      ? "#f43f5e" // rose-500
-      : clampedPct > 70
-      ? "#f59e0b" // amber-500
-      : "#10b981" // emerald-500
-
-  return (
-    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }} role="img" aria-label={`${Math.round(clampedPct)}% del ingreso gastado`}>
-      {/* Track */}
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke="#1e293b"
-        strokeWidth={strokeWidth}
-      />
-      {/* Progress */}
-      <motion.circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={ringColor}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        initial={{ strokeDashoffset: circumference }}
-        animate={{ strokeDashoffset: offset }}
-        transition={{ duration: 1.2, ease: "easeOut", delay: 0.2 }}
-      />
-    </svg>
-  )
-}
-
 // Count-up animado con requestAnimationFrame
 function useCountUp(target: number, duration = 900) {
   const [value, setValue] = useState(0)
@@ -86,7 +35,6 @@ function useCountUp(target: number, duration = 900) {
       if (startRef.current === null) startRef.current = timestamp
       const elapsed = timestamp - startRef.current
       const progress = Math.min(elapsed / duration, 1)
-      // ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3)
       setValue(from + (target - from) * eased)
       if (progress < 1) {
@@ -125,10 +73,8 @@ export function BalanceCard({
   const balanceAfterCards = monthBalance - pendingCreditTotal
   const isPositive = monthBalance >= 0
 
-  // Porcentaje de gasto vs ingreso
   const spendPercent = monthlyIncome > 0 ? (totalMonthlySpend / monthlyIncome) * 100 : 0
 
-  // Tendencia mes vs mes anterior
   const { percentageChange } = comparison
   const trendUp = percentageChange > 1
   const trendDown = percentageChange < -1
@@ -144,20 +90,19 @@ export function BalanceCard({
       maximumFractionDigits: 0,
     }).format(Math.abs(amount))
 
-  const spendPctLabel =
-    spendPercent > 90 ? "rose" : spendPercent > 70 ? "amber" : "emerald"
-
-  const ringTextColor =
+  // Color de la barra de progreso según porcentaje de gasto
+  const progressColor =
     spendPercent > 90
-      ? "text-rose-400"
+      ? "var(--bad)"
       : spendPercent > 70
-      ? "text-amber-400"
-      : "text-emerald-400"
+      ? "var(--warn)"
+      : "var(--good)"
 
   return (
     <div>
       <motion.div
-        className="card-elevated rounded-2xl bg-[var(--surface-raised)] border border-slate-800 overflow-hidden cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+        className="rounded-2xl bg-hero text-cream overflow-hidden cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft"
+        style={{ boxShadow: '0 18px 36px -18px rgba(28,42,71,0.7)' }}
         onClick={() => setExpanded(!expanded)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(!expanded); } }}
         whileTap={{ scale: 0.99 }}
@@ -171,95 +116,79 @@ export function BalanceCard({
           <div className="flex items-start justify-between gap-4">
             {/* Left: balance + resumen */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-end mb-1">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
+                  Saldo del mes
+                </p>
                 <motion.div
+                  className="ml-auto"
                   animate={{ rotate: expanded ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <ChevronDown className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                  <ChevronDown className="h-4 w-4 text-celeste/70" aria-hidden="true" />
                 </motion.div>
               </div>
 
-              {/* Balance principal con count-up */}
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-4xl font-bold text-white tracking-tight">
+              {/* Balance principal */}
+              <div className="flex items-baseline gap-2 mt-1 overflow-hidden">
+                <span className="font-poster tnum text-[38px] leading-[0.95] text-cream-light min-w-0 truncate">
                   {monthBalance < 0 ? "-" : ""}
                   {formatCurrency(animatedBalance)}
                 </span>
               </div>
 
-              {/* Ingreso / Gasto + badge "este mes" */}
-              <div className="flex items-center gap-3 mt-3 flex-wrap">
-                <div className="flex items-center gap-1">
-                  <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" />
-                  <span className="text-xs text-slate-400">{formatCurrency(monthlyIncome)}</span>
+              {/* Sub-tarjetas ingresos / gastos */}
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2">
+                  <div className="flex items-center gap-1 text-celeste text-[10px] font-bold uppercase tracking-wider mb-0.5">
+                    <ArrowUpRight size={12} strokeWidth={2.6} />
+                    Ingresos
+                  </div>
+                  <p className="font-poster tnum text-[15px] text-good truncate">
+                    {formatCurrency(monthlyIncome)}
+                  </p>
                 </div>
-                <div className="h-3 w-px bg-slate-800" />
-                <div className="flex items-center gap-1">
-                  <ArrowDownRight className="h-3.5 w-3.5 text-rose-400" />
-                  <span className="text-xs text-slate-400">{formatCurrency(totalMonthlySpend)}</span>
+                <div className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2">
+                  <div className="flex items-center gap-1 text-celeste text-[10px] font-bold uppercase tracking-wider mb-0.5">
+                    <ArrowDownRight size={12} strokeWidth={2.6} />
+                    Gastos
+                  </div>
+                  <p className="font-poster tnum text-[15px] text-bad truncate">
+                    {formatCurrency(totalMonthlySpend)}
+                  </p>
                 </div>
+              </div>
 
-                {/* Badge estado tarjetas */}
+              {/* Tendencia + badge tarjetas */}
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-cream-light/12 px-2.5 py-1 text-[11.5px] font-bold text-celeste">
+                  {trendUp && <><TrendingUp size={13} /> +{Math.abs(percentageChange).toFixed(1)}% vs anterior</>}
+                  {trendDown && <><TrendingDown size={13} /> -{Math.abs(percentageChange).toFixed(1)}% vs anterior</>}
+                  {trendNeutral && <><Minus size={13} /> Similar al anterior</>}
+                </span>
+
                 {hasCreditCards && (
-                  <div
+                  <span
                     className={cn(
-                      "ml-auto flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full",
+                      "inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full",
                       allCardsPaid
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                        ? "bg-cream-light/12 text-celeste"
+                        : "bg-warn/20 text-warn"
                     )}
                   >
                     {allCardsPaid
-                      ? <><Check className="h-3 w-3" />Tarjetas al día</>
-                      : <><Clock className="h-3 w-3" />{pendingCards.length === 1 ? "1 tarjeta pendiente" : `${pendingCards.length} tarjetas pendientes`}</>
+                      ? <><Check size={11} />Tarjetas al día</>
+                      : <><Clock size={11} />{pendingCards.length === 1 ? "1 tarjeta pendiente" : `${pendingCards.length} pendientes`}</>
                     }
-                  </div>
+                  </span>
                 )}
-              </div>
-
-              {/* Tendencia vs mes anterior */}
-              <div className="flex items-center gap-1.5 mt-2">
-                {trendUp && (
-                  <>
-                    <TrendingUp className="h-3.5 w-3.5 text-rose-400" />
-                    <span className="text-xs text-rose-400">
-                      +{Math.abs(percentageChange).toFixed(1)}% vs mes anterior
-                    </span>
-                  </>
-                )}
-                {trendDown && (
-                  <>
-                    <TrendingDown className="h-3.5 w-3.5 text-emerald-400" />
-                    <span className="text-xs text-emerald-400">
-                      -{Math.abs(percentageChange).toFixed(1)}% vs mes anterior
-                    </span>
-                  </>
-                )}
-                {trendNeutral && (
-                  <>
-                    <Minus className="h-3.5 w-3.5 text-slate-400" />
-                    <span className="text-xs text-slate-400">Similar al mes anterior</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Right: anillo de progreso */}
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <ProgressRing percentage={spendPercent} size={72} strokeWidth={5} />
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className={cn("text-sm font-bold leading-none", ringTextColor)}>
-                  {Math.min(Math.round(spendPercent), 999)}%
-                </span>
-                <span className="text-[9px] text-slate-400 mt-0.5 leading-none">gastado</span>
               </div>
             </div>
           </div>
 
-          {/* Barra de progreso lineal secundaria */}
+          {/* Barra de progreso */}
           <div
-            className="mt-4 h-1 w-full rounded-full bg-slate-800 overflow-hidden"
+            className="mt-4 h-1.5 w-full rounded-full bg-cream-light/15 overflow-hidden"
             role="progressbar"
             aria-valuenow={Math.round(spendPercent)}
             aria-valuemin={0}
@@ -267,19 +196,16 @@ export function BalanceCard({
             aria-label={`Gasto del mes: ${Math.round(spendPercent)}%`}
           >
             <motion.div
-              className={cn(
-                "h-full rounded-full",
-                spendPctLabel === "rose"
-                  ? "bg-rose-500"
-                  : spendPctLabel === "amber"
-                  ? "bg-amber-500"
-                  : "bg-emerald-500"
-              )}
+              className="h-full rounded-full"
+              style={{ background: progressColor }}
               initial={{ width: "0%" }}
               animate={{ width: `${Math.min(spendPercent, 100)}%` }}
               transition={{ duration: 1.0, ease: "easeOut", delay: 0.3 }}
             />
-          </div> {/* progressbar */}
+          </div>
+          <p className="mt-1.5 text-[10px] text-celeste/70 text-right tnum">
+            {Math.round(spendPercent)}% del ingreso gastado
+          </p>
         </div>
 
         {/* Detalle expandible */}
@@ -292,27 +218,27 @@ export function BalanceCard({
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="border-t border-slate-800 px-5 py-4 space-y-3">
-                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">
+              <div className="border-t border-cream-light/15 px-5 py-4 space-y-3">
+                <p className="text-[10px] text-celeste uppercase tracking-[0.15em] font-extrabold">
                   Efectivo y débito
                 </p>
 
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-emerald-400" />
-                    <span className="text-sm text-slate-300">Ingresos</span>
+                    <div className="h-2 w-2 rounded-full bg-good" />
+                    <span className="text-[13px] text-cream-light/80">Ingresos</span>
                   </div>
-                  <span className="text-sm font-medium text-emerald-400">
+                  <span className="font-poster tnum text-[13px] text-good">
                     +{formatCurrency(monthlyIncome)}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-rose-400" />
-                    <span className="text-sm text-slate-300">Gastos variables</span>
+                    <div className="h-2 w-2 rounded-full bg-bad" />
+                    <span className="text-[13px] text-cream-light/80">Gastos variables</span>
                   </div>
-                  <span className="text-sm font-medium text-rose-400">
+                  <span className="font-poster tnum text-[13px] text-bad">
                     -{formatCurrency(monthlyExpenses)}
                   </span>
                 </div>
@@ -320,10 +246,10 @@ export function BalanceCard({
                 {installments > 0 && (
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-indigo-400" />
-                      <span className="text-sm text-slate-300">Cuotas del mes</span>
+                      <div className="h-2 w-2 rounded-full bg-accent-soft" />
+                      <span className="text-[13px] text-cream-light/80">Cuotas del mes</span>
                     </div>
-                    <span className="text-sm font-medium text-indigo-400">
+                    <span className="font-poster tnum text-[13px] text-accent-soft">
                       -{formatCurrency(installments)}
                     </span>
                   </div>
@@ -332,10 +258,10 @@ export function BalanceCard({
                 {burnRate > 0 && (
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-amber-400" />
-                      <span className="text-sm text-slate-300">Mensualidades</span>
+                      <div className="h-2 w-2 rounded-full bg-warn" />
+                      <span className="text-[13px] text-cream-light/80">Mensualidades</span>
                     </div>
-                    <span className="text-sm font-medium text-amber-400">
+                    <span className="font-poster tnum text-[13px] text-warn">
                       -{formatCurrency(burnRate)}
                     </span>
                   </div>
@@ -344,24 +270,19 @@ export function BalanceCard({
                 {savingsTransfers > 0 && (
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                      <span className="text-sm text-slate-300">Ahorro transferido</span>
+                      <div className="h-2 w-2 rounded-full bg-good" />
+                      <span className="text-[13px] text-cream-light/80">Ahorro transferido</span>
                     </div>
-                    <span className="text-sm font-medium text-emerald-400">
+                    <span className="font-poster tnum text-[13px] text-good">
                       -{formatCurrency(savingsTransfers)}
                     </span>
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-slate-800">
+                <div className="pt-2 border-t border-cream-light/15">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-slate-300">Balance líquido</span>
-                    <span
-                      className={cn(
-                        "text-sm font-bold",
-                        isPositive ? "text-emerald-400" : "text-rose-400"
-                      )}
-                    >
+                    <span className="text-[13px] font-bold text-cream-light/70">Balance líquido</span>
+                    <span className={cn("font-poster tnum text-[15px]", isPositive ? "text-good" : "text-bad")}>
                       {isPositive ? "+" : "-"}{formatCurrency(monthBalance)}
                     </span>
                   </div>
@@ -369,37 +290,37 @@ export function BalanceCard({
 
                 {pendingCards.length > 0 && (
                   <>
-                    <div className="h-px bg-slate-800" />
-                    <p className="text-xs text-slate-400 uppercase tracking-wider font-medium flex items-center gap-1.5">
-                      <CreditCard className="h-3 w-3 text-indigo-400" />
-                      Tarjetas pendientes de pago
+                    <div className="h-px bg-cream-light/15" />
+                    <p className="text-[10px] text-celeste uppercase tracking-[0.15em] font-extrabold flex items-center gap-1.5">
+                      <CreditCard className="h-3 w-3" />
+                      Tarjetas pendientes
                     </p>
                     {pendingCards.map((card) => {
                       const formattedDate = format(card.nextPaymentDate, "d 'de' MMM", { locale: es })
                       return (
                         <div key={card.methodId} className="flex justify-between items-center">
                           <div className="flex flex-col">
-                            <span className="text-sm text-slate-300">{card.name}</span>
-                            <span className="text-xs text-slate-500">vence {formattedDate}</span>
+                            <span className="text-[13px] text-cream-light/80">{card.name}</span>
+                            <span className="text-[11px] text-celeste/60">vence {formattedDate}</span>
                           </div>
                           <div className="flex flex-col items-end gap-0.5">
                             {card.totalARS > 0 && (
-                              <span className="text-sm font-medium text-rose-400">-{formatCurrency(card.totalARS)}</span>
+                              <span className="font-poster tnum text-[13px] text-bad">-{formatCurrency(card.totalARS)}</span>
                             )}
                             {card.totalUSD > 0 && (
-                              <span className="text-sm font-medium text-rose-400">-u$s {card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              <span className="font-poster tnum text-[13px] text-bad">-u$s {card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             )}
                             {card.totalARS === 0 && card.totalUSD === 0 && (
-                              <span className="text-sm font-medium text-rose-400">-{formatCurrency(card.total)}</span>
+                              <span className="font-poster tnum text-[13px] text-bad">-{formatCurrency(card.total)}</span>
                             )}
                           </div>
                         </div>
                       )
                     })}
-                    <div className="pt-2 border-t border-slate-800">
+                    <div className="pt-2 border-t border-cream-light/15">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-slate-300">Balance tras pagar tarjetas</span>
-                        <span className={cn("text-sm font-bold", balanceAfterCards >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                        <span className="text-[13px] font-bold text-cream-light/70">Tras pagar tarjetas</span>
+                        <span className={cn("font-poster tnum text-[15px]", balanceAfterCards >= 0 ? "text-good" : "text-bad")}>
                           {balanceAfterCards >= 0 ? "+" : "-"}{formatCurrency(Math.abs(balanceAfterCards))}
                         </span>
                       </div>

@@ -230,7 +230,9 @@ interface FinanceState {
   };
   getPaymentMethodTransactionsForCurrentMonth: (methodId: number) => ProcessedTransaction[];
   getMonthlyIncome: () => number;
+  getMonthlyIncomeTransactions: () => ProcessedTransaction[];
   getMonthlyVariableExpenses: () => number;
+  getMonthlyVariableExpenseTransactions: () => ProcessedTransaction[];
   getMonthlyExpensesBreakdown: () => {
     variableExpenses: number;
     installmentsTotal: number;
@@ -304,6 +306,9 @@ interface FinanceState {
     month: string;
     income: number;
     expenses: number;
+    variable: number;
+    installments: number;
+    recurring: number;
     net: number;
   }>;
 
@@ -1473,6 +1478,28 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .reduce((acc, t) => acc + Number(t.amount), 0);
   },
 
+  getMonthlyIncomeTransactions: () => {
+    const { transactions } = get();
+    const now = new Date();
+    return transactions.filter((t) => {
+      if (t.type !== 'income') return false;
+      const localTDate = parseLocalDate(t.date);
+      return isSameMonth(localTDate, now);
+    });
+  },
+
+  getMonthlyVariableExpenseTransactions: () => {
+    const { transactions, paymentMethods } = get();
+    const now = new Date();
+    return transactions.filter(
+      (t) =>
+        t.type === 'expense' &&
+        !t.installment_plan_id &&
+        !t.recurring_plan_id &&
+        isExpenseInCurrentMonthScope(t, paymentMethods, now)
+    );
+  },
+
   /**
    * Retorna la suma de gastos VARIABLES del mes actual.
    *
@@ -1898,13 +1925,23 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       const income = monthTxs
         .filter((t) => t.type === 'income')
         .reduce((acc, t) => acc + Number(t.amount), 0);
-      const expenses = monthTxs
-        .filter((t) => t.type === 'expense')
+      const installments = monthTxs
+        .filter((t) => t.type === 'expense' && !!t.installment_plan_id)
         .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+      const recurring = monthTxs
+        .filter((t) => t.type === 'expense' && !!t.recurring_plan_id)
+        .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+      const variable = monthTxs
+        .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id)
+        .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+      const expenses = variable + installments + recurring;
       return {
         month: MONTH_NAMES[ref.getMonth()],
         income,
         expenses,
+        variable,
+        installments,
+        recurring,
         net: income - expenses,
       };
     });
