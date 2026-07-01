@@ -340,6 +340,11 @@ interface FinanceState {
     net: number;
   }>;
 
+  getRealAdjustedTrend: (months?: number) => {
+    available: boolean;
+    rows: Array<{ month: string; nominalExpenses: number; realExpenses: number }>;
+  };
+
   getCategoryComparison: () => Array<{
     category: string;
     emoji: string;
@@ -2055,6 +2060,35 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       net: row.net,
       rate: row.income > 0 ? (row.net / row.income) * 100 : 0,
     }));
+  },
+
+  getRealAdjustedTrend: (months = 6) => {
+    const { getMonthlyTrend, getInflationSeries } = get();
+    const inflation = getInflationSeries();
+    if (inflation.length === 0) return { available: false, rows: [] };
+
+    const now = new Date();
+    const trend = getMonthlyTrend(months);
+    const inflByMonth = new Map(inflation.map((r) => [r.month, r.rate]));
+
+    // factor de deflación: producto de (1 + ipc/100) desde el mes ref+1 hasta hoy
+    const rows = trend.map((row, i) => {
+      const ref = subMonths(now, months - 1 - i);
+      let factor = 1;
+      for (let k = 0; k < months - 1 - i; k++) {
+        const fm = format(subMonths(now, k), 'yyyy-MM');
+        const ipc = inflByMonth.get(fm) ?? 0;
+        factor *= 1 + ipc / 100;
+      }
+      void ref;
+      return {
+        month: row.month,
+        nominalExpenses: row.expenses,
+        realExpenses: row.expenses * factor,
+      };
+    });
+
+    return { available: true, rows };
   },
 
   getCategoryComparison: () => {

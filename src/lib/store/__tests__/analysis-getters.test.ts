@@ -122,3 +122,22 @@ describe('getSavingsRateSeries', () => {
     expect(res[0].rate).toBeCloseTo(40, 1); // (1000-600)/1000
   });
 });
+
+describe('getRealAdjustedTrend', () => {
+  it('available=false sin datos de inflacion', () => {
+    seed({ inflationSeries: [] });
+    expect(useFinanceStore.getState().getRealAdjustedTrend(3).available).toBe(false);
+  });
+
+  it('deflacta gastos usando IPC acumulado a hoy', () => {
+    const thisMonth = format(new Date(), 'yyyy-MM');
+    seed({
+      inflationSeries: [{ month: thisMonth, rate: 0 }],
+      transactions: [{ id: 1, type: 'expense', amount: -1000, date: format(new Date(), 'yyyy-MM-dd'), installment_plan_id: null, recurring_plan_id: null }],
+    });
+    const res = useFinanceStore.getState().getRealAdjustedTrend(1);
+    expect(res.available).toBe(true);
+    // mes actual sin inflación posterior => real == nominal
+    expect(res.rows[0].realExpenses).toBeCloseTo(res.rows[0].nominalExpenses, 0);
+  });
+});
