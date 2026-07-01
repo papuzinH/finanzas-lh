@@ -351,6 +351,14 @@ interface FinanceState {
     hasData: boolean;
   };
 
+  getCurrencyExposure: () => {
+    arsShare: number;
+    usdShare: number;
+    arsAmount: number;
+    usdAmountOriginal: number;
+    totalARS: number;
+  };
+
   getCategoryComparison: () => Array<{
     category: string;
     emoji: string;
@@ -2107,6 +2115,33 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       remainingARS,
       remainingUSD: rate > 0 ? remainingARS / rate : 0,
       hasData: future.length > 0,
+    };
+  },
+
+  getCurrencyExposure: () => {
+    const { transactions, paymentMethods } = get();
+    const now = new Date();
+    let arsAmount = 0, usdAmountARS = 0, usdAmountOriginal = 0;
+
+    transactions
+      .filter((t) => t.type === 'expense' && isExpenseInCurrentMonthScope(t, paymentMethods, now))
+      .forEach((t) => {
+        const ars = Math.abs(Number(t.amount));
+        if (t.original_currency === 'USD') {
+          usdAmountARS += ars;
+          usdAmountOriginal += Math.abs(Number(t.original_amount ?? 0));
+        } else {
+          arsAmount += ars;
+        }
+      });
+
+    const totalARS = arsAmount + usdAmountARS;
+    return {
+      arsAmount,
+      usdAmountOriginal,
+      totalARS,
+      arsShare: totalARS > 0 ? (arsAmount / totalARS) * 100 : 0,
+      usdShare: totalARS > 0 ? (usdAmountARS / totalARS) * 100 : 0,
     };
   },
 

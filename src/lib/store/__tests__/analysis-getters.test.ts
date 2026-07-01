@@ -184,3 +184,22 @@ describe('getInstallmentsRealCost', () => {
     expect(useFinanceStore.getState().getInstallmentsRealCost().hasData).toBe(false);
   });
 });
+
+describe('getCurrencyExposure', () => {
+  it('separa gasto ARS vs dolarizado del mes', () => {
+    const d = format(new Date(), 'yyyy-MM-dd');
+    seed({
+      dolarBlue: { compra: 900, venta: 1000, fechaActualizacion: '' },
+      transactions: [
+        { id: 1, type: 'expense', amount: -80000, date: d, periodDate: d, realPaymentDate: d, original_currency: 'ARS', payment_method_id: null, installment_plan_id: null },
+        { id: 2, type: 'expense', amount: -20000, date: d, periodDate: d, realPaymentDate: d, original_currency: 'USD', original_amount: 20, payment_method_id: null, installment_plan_id: null },
+      ],
+      paymentMethods: [],
+    });
+    const res = useFinanceStore.getState().getCurrencyExposure();
+    expect(res.totalARS).toBe(100000);
+    expect(res.arsShare).toBeCloseTo(80, 1);
+    expect(res.usdShare).toBeCloseTo(20, 1);
+    expect(res.usdAmountOriginal).toBe(20);
+  });
+});
