@@ -109,6 +109,12 @@ interface FinanceState {
   fetchAllData: () => Promise<void>;
   fetchGoalsData: () => Promise<void>;
 
+  // Análisis
+  displayCurrency: 'ARS' | 'USD';
+  setDisplayCurrency: (c: 'ARS' | 'USD') => void;
+  getUsdRate: () => number;
+  toDisplay: (ars: number) => number;
+
   // Computed Getters (Logic)
   getPortfolioStatus: (displayCurrency?: 'ARS' | 'USD_MEP' | 'USD_CCL' | 'USDT') => {
     assets: Array<{
@@ -432,6 +438,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   savingsGoalContributions: [],
   categoryBudgets: [],
   dolarBlue: null,
+  displayCurrency: 'ARS',
+  inflationSeries: [],
   exchangeRates: [],
   user: null,
   authEmail: null,
@@ -981,6 +989,22 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   getExchangeRate: (pair: string) => {
     const { exchangeRates, dolarBlue } = get();
     return resolveRate(pair, exchangeRates, dolarBlue);
+  },
+
+  setDisplayCurrency: (c) => set({ displayCurrency: c }),
+
+  getUsdRate: () => {
+    const { exchangeRates, dolarBlue } = get();
+    return resolveRate('USD_ARS_MEP', exchangeRates, dolarBlue);
+  },
+
+  toDisplay: (ars) => {
+    const { displayCurrency, getUsdRate } = get();
+    if (displayCurrency === 'USD') {
+      const rate = getUsdRate();
+      return rate > 0 ? ars / rate : ars;
+    }
+    return ars;
   },
 
   getGlobalBalance: () => {
