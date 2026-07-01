@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useFinanceStore } from '@/lib/store/financeStore';
+import { useFinanceStore, parseInflation } from '@/lib/store/financeStore';
 
 // Helper: setear estado crudo del store en cada test
 function seed(partial: Record<string, unknown>) {
@@ -36,5 +36,23 @@ describe('displayCurrency slice', () => {
   it('toDisplay convierte a USD cuando displayCurrency=USD', () => {
     seed({ dolarBlue: { compra: 900, venta: 1000, fechaActualizacion: '' }, displayCurrency: 'USD' });
     expect(useFinanceStore.getState().toDisplay(100000)).toBe(100);
+  });
+});
+
+describe('parseInflation', () => {
+  it('mapea fecha->yyyy-MM y valor->rate', () => {
+    const out = parseInflation([
+      { fecha: '2026-05-31', valor: 5.2 },
+      { fecha: '2026-06-30', valor: 4.8 },
+    ]);
+    expect(out).toEqual([
+      { month: '2026-05', rate: 5.2 },
+      { month: '2026-06', rate: 4.8 },
+    ]);
+  });
+
+  it('getInflationSeries devuelve lo seteado en estado', () => {
+    seed({ inflationSeries: [{ month: '2026-06', rate: 4.8 }] });
+    expect(useFinanceStore.getState().getInflationSeries()).toEqual([{ month: '2026-06', rate: 4.8 }]);
   });
 });

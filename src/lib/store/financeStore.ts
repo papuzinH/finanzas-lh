@@ -67,6 +67,12 @@ export function resolveRate(
   return 1;
 }
 
+export function parseInflation(
+  raw: Array<{ fecha: string; valor: number }>,
+): Array<{ month: string; rate: number }> {
+  return raw.map((r) => ({ month: r.fecha.slice(0, 7), rate: r.valor }));
+}
+
 export type CreditCardCycleSummary = {
   methodId: number
   name: string
@@ -96,6 +102,7 @@ interface FinanceState {
   categoryBudgets: CategoryBudget[];
   dolarBlue: DolarBlue | null;
   exchangeRates: ExchangeRate[];
+  inflationSeries: Array<{ month: string; rate: number }>;
   user: User | null;
   authEmail: string | null;
   authAvatarUrl: string | null;
@@ -114,6 +121,7 @@ interface FinanceState {
   setDisplayCurrency: (c: 'ARS' | 'USD') => void;
   getUsdRate: () => number;
   toDisplay: (ars: number) => number;
+  getInflationSeries: () => Array<{ month: string; rate: number }>;
 
   // Computed Getters (Logic)
   getPortfolioStatus: (displayCurrency?: 'ARS' | 'USD_MEP' | 'USD_CCL' | 'USDT') => {
@@ -579,6 +587,20 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         // Dolar API is optional, don't fail the whole fetch
       }
 
+      // Fetch inflación IPC (non-blocking, opcional)
+      let inflationSeries: Array<{ month: string; rate: number }> = [];
+      try {
+        const ipcRes = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/inflacion', {
+          signal: AbortSignal.timeout(5000),
+        });
+        if (ipcRes.ok) {
+          const ipcData = (await ipcRes.json()) as Array<{ fecha: string; valor: number }>;
+          inflationSeries = parseInflation(ipcData).slice(-24); // últimos 24 meses
+        }
+      } catch {
+        // API de inflación es opcional, no rompe el fetch
+      }
+
       if (txError) throw txError;
       if (instError) throw instError;
       if (pmError) throw pmError;
@@ -661,6 +683,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         savingsGoalContributions: (contributionsData as SavingsGoalContribution[]) || [],
         categoryBudgets: (budgetsData as CategoryBudget[]) || [],
         dolarBlue,
+        inflationSeries,
         exchangeRates: (exchangeRatesData as ExchangeRate[]) || [],
         user: (userData as User) || null,
         authEmail: authUser.email ?? null,
@@ -1006,6 +1029,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
     return ars;
   },
+
+  getInflationSeries: () => get().inflationSeries,
 
   getGlobalBalance: () => {
     const { transactions, paymentMethods, getMonthlyBurnRate, internalTransfers } = get();
