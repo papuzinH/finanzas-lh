@@ -167,6 +167,105 @@ export default function MovimientosPage() {
     }
   };
 
+  const netBalance = monthlyIncome - monthlyExpense;
+  const hasActiveFilters = selectedPaymentMethodId !== 'all' || selectedCategoryId !== 'all';
+
+  const clearFilters = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('paymentMethod');
+    params.delete('category');
+    router.replace(`${pathname}?${params.toString()}`);
+  };
+
+  // Chips de filtro reutilizables: 'scroll' (mobile, scroll horizontal) | 'wrap' (rail desktop)
+  const renderFilters = (variant: 'scroll' | 'wrap') => {
+    const rowClass = variant === 'scroll'
+      ? 'flex gap-2 overflow-x-auto -mx-5 px-5 pb-1 scrollbar-hide'
+      : 'flex flex-wrap gap-2';
+    const groupLabel = (text: string) =>
+      variant === 'wrap' ? (
+        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.14em] text-faint mb-1.5">{text}</p>
+      ) : null;
+
+    return (
+      <div className={variant === 'wrap' ? 'space-y-3.5' : 'space-y-2'}>
+        <div>
+          {groupLabel('Medio de pago')}
+          <div className={rowClass}>
+            <Chip
+              active={selectedPaymentMethodId === 'all'}
+              onClick={() => handleFilterChange('paymentMethod', 'all')}
+              icon="wallet"
+            >
+              Todos
+            </Chip>
+            {paymentMethods.map((pm) => (
+              <Chip
+                key={pm.id}
+                active={selectedPaymentMethodId === pm.id.toString()}
+                onClick={() => handleFilterChange('paymentMethod', pm.id.toString())}
+                icon={pm.type === 'credit' ? 'credit-card' : 'wallet'}
+              >
+                {pm.name}
+              </Chip>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          {groupLabel('Categoría')}
+          <div className={rowClass}>
+            <Chip
+              active={selectedCategoryId === 'all'}
+              onClick={() => handleFilterChange('category', 'all')}
+              icon="tag"
+            >
+              Todas
+            </Chip>
+            {categories.map((cat) => (
+              <Chip
+                key={cat.id}
+                active={selectedCategoryId === cat.id}
+                onClick={() => handleFilterChange('category', cat.id)}
+              >
+                <span aria-hidden="true">{cat.emoji}</span> {cat.name}
+              </Chip>
+            ))}
+          </div>
+        </div>
+
+        {hasActiveFilters && (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="text-[11px] uppercase font-bold text-accent hover:text-accent-deep px-2"
+            >
+              Limpiar filtros
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const ratesButton = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={handleRefreshRates}
+      disabled={isRefreshingRates}
+      className="text-muted hover:text-text gap-1.5 text-xs"
+      aria-label="Actualizar cotización del dólar"
+    >
+      <RefreshCw className={cn('h-3.5 w-3.5', isRefreshingRates && 'animate-spin')} />
+      Actualizar cotización
+    </Button>
+  );
+
   // Helper de renderizado
   const renderSection = (
     title: string,
@@ -174,7 +273,8 @@ export default function MovimientosPage() {
     colorClass: string = "text-muted",
     collapsible: boolean = false,
     isOpen: boolean = true,
-    onToggle?: () => void
+    onToggle?: () => void,
+    showItemDate: boolean = false
   ) => {
     if (items.length === 0) return null;
 
@@ -213,6 +313,7 @@ export default function MovimientosPage() {
                     transaction={t}
                     paymentMethodName={paymentMethod?.name}
                     paymentMethodType={paymentMethod?.type}
+                    showDate={showItemDate}
                     grouped
                   />
                 </div>
@@ -232,30 +333,36 @@ export default function MovimientosPage() {
     <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
       {/* Header Sticky */}
       <header className="sticky top-0 z-20 bg-bg-2/95 backdrop-blur-md border-b-[1.5px] border-border">
-        <div className="mx-auto max-w-[1440px]">
-          {/* Row 1: Título + Plus */}
-          <div className="px-5 pt-4 pb-1.5 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-sans text-[10px] font-extrabold uppercase tracking-[0.22em] text-accent-deep mb-0.5">
-                Tus mangos
-              </p>
-              <h1 className="font-poster text-text text-[26px] leading-none">Movimientos</h1>
+        <div className="mx-auto max-w-[1160px]">
+          {/* Fila título + selector + plus: una sola línea en desktop; en mobile el selector
+              baja a su propia fila (basis-full). Un único MonthSelector → data-tour intacto. */}
+          <div className="px-5 pt-3 md:pt-4 pb-2.5 md:pb-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
+              <div className="min-w-0 mr-auto order-1">
+                <p className="font-sans text-[10px] font-extrabold uppercase tracking-[0.22em] text-accent-deep mb-0.5">
+                  Tus mangos
+                </p>
+                <h1 className="font-poster text-text text-[24px] md:text-[26px] leading-none">Movimientos</h1>
+              </div>
+              {/* Crear: solo mobile (en desktop va a la derecha del buscador) */}
+              <div className="order-2 md:hidden">
+                <AnimatedPlusButton
+                  label="Crear transacción"
+                  onClick={() => setIsCreateOpen(true)}
+                  ariaLabel="Nueva transacción"
+                />
+              </div>
+              {/* Selector de mes: mobile fila propia (basis-full); desktop pill al extremo derecho con badge arriba */}
+              <div className="order-3 md:order-2 basis-full md:basis-auto">
+                <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" compact />
+              </div>
             </div>
-            <AnimatedPlusButton
-              label="Crear transacción"
-              onClick={() => setIsCreateOpen(true)}
-              ariaLabel="Nueva transacción"
-            />
           </div>
 
-          {/* Row 2: Month selector */}
-          <div className="px-5 pb-2">
-            <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
-          </div>
-
-          {/* Row 3: Search */}
-          <div className="px-5 pb-3">
-            <div className="relative">
+          {/* Search + crear (desktop: botón a la derecha del input) */}
+          <div className="px-5 pb-2.5 md:pb-3">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 md:flex-none md:w-[420px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
               <input
                 type="text"
@@ -273,6 +380,14 @@ export default function MovimientosPage() {
                   <X className="h-4 w-4" />
                 </button>
               )}
+              </div>
+              <div className="hidden md:block">
+                <AnimatedPlusButton
+                  label="Crear transacción"
+                  onClick={() => setIsCreateOpen(true)}
+                  ariaLabel="Nueva transacción"
+                />
+              </div>
             </div>
             {debouncedQuery && (
               <p className="text-[11px] text-muted mt-1.5 px-1">
@@ -286,150 +401,143 @@ export default function MovimientosPage() {
 
       <CreateTransactionDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
-      <main className="mx-auto max-w-[1440px] px-5 py-6">
+      <main className="mx-auto max-w-[1160px] px-5 py-6">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start">
+          {/* ===================== Columna ledger ===================== */}
+          <div className="min-w-0">
+            {/* Resumen + cotización + filtros: solo mobile/tablet (en desktop viven en el rail) */}
+            <div className="lg:hidden">
+              {/* Resumen del mes */}
+              <div className="grid grid-cols-2 gap-2.5 mb-4">
+                <Card className="p-3.5">
+                  <div className="flex items-center gap-1.5 text-good text-[10.5px] font-bold uppercase tracking-wider mb-1">
+                    <ArrowDownLeft className="h-3 w-3" aria-hidden="true" />
+                    Ingresos
+                  </div>
+                  <p className="font-poster text-good text-[20px] tnum leading-none">
+                    {formatCurrency(monthlyIncome)}
+                  </p>
+                </Card>
+                <Card className="p-3.5">
+                  <div className="flex items-center gap-1.5 text-bad text-[10.5px] font-bold uppercase tracking-wider mb-1">
+                    <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+                    Gastos
+                  </div>
+                  <p className="font-poster text-bad text-[20px] tnum leading-none">
+                    {formatCurrency(monthlyExpense)}
+                  </p>
+                </Card>
+              </div>
 
-        {/* Resumen del mes */}
-        <div className="grid grid-cols-2 gap-2.5 mb-4">
-          <Card className="p-3.5">
-            <div className="flex items-center gap-1.5 text-good text-[10.5px] font-bold uppercase tracking-wider mb-1">
-              <ArrowDownLeft className="h-3 w-3" aria-hidden="true" />
-              Ingresos
+              {/* Botón de actualizar cotización */}
+              <div className="flex justify-end mb-3">
+                {ratesButton}
+              </div>
+
+              {/* Filtros */}
+              <div className="mb-5">
+                {renderFilters('scroll')}
+              </div>
             </div>
-            <p className="font-poster text-good text-[20px] tnum leading-none">
-              {formatCurrency(monthlyIncome)}
-            </p>
-          </Card>
-          <Card className="p-3.5">
-            <div className="flex items-center gap-1.5 text-bad text-[10.5px] font-bold uppercase tracking-wider mb-1">
-              <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
-              Gastos
-            </div>
-            <p className="font-poster text-bad text-[20px] tnum leading-none">
-              {formatCurrency(monthlyExpense)}
-            </p>
-          </Card>
-        </div>
 
-        {/* Botón de actualizar cotización */}
-        <div className="flex justify-end mb-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleRefreshRates}
-            disabled={isRefreshingRates}
-            className="text-muted hover:text-text gap-1.5 text-xs"
-            aria-label="Actualizar cotización del dólar"
-          >
-            <RefreshCw className={cn('h-3.5 w-3.5', isRefreshingRates && 'animate-spin')} />
-            Actualizar cotización
-          </Button>
-        </div>
+            {/* Lista de movimientos */}
+            {filteredTransactions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
+                <Receipt className="h-16 w-16 text-faint mb-4" />
+                <h3 className="font-sans font-bold text-text text-lg mb-2">Registrá tus movimientos</h3>
+                <p className="text-sm text-muted max-w-xs mb-6">
+                  Llevá un registro de tus ingresos y gastos para saber exactamente a dónde va tu plata cada mes.
+                </p>
+                <AnimatedPlusButton
+                  label="Agregar movimiento"
+                  onClick={() => setIsCreateOpen(true)}
+                />
+              </div>
+            ) : searchFilteredTransactions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
+                <Search className="h-16 w-16 text-faint mb-4" />
+                <h3 className="font-sans font-bold text-text text-base mb-1">Sin resultados para &ldquo;{debouncedQuery}&rdquo;</h3>
+                <p className="text-sm text-muted">Probá con otra descripción, categoría o monto.</p>
+              </div>
+            ) : (
+              <>
+                {renderSection('Hoy', groups.hoy, "text-good")}
 
-        {/* Filtros siempre visibles */}
-        <div className="mb-5 space-y-2">
-          {/* Medios de pago */}
-          <div className="flex gap-2 overflow-x-auto -mx-5 px-5 pb-1 scrollbar-hide">
-            <Chip
-              active={selectedPaymentMethodId === 'all'}
-              onClick={() => handleFilterChange('paymentMethod', 'all')}
-              icon="wallet"
-            >
-              Todos
-            </Chip>
-            {paymentMethods.map((pm) => (
-              <Chip
-                key={pm.id}
-                active={selectedPaymentMethodId === pm.id.toString()}
-                onClick={() => handleFilterChange('paymentMethod', pm.id.toString())}
-                icon={pm.type === 'credit' ? 'credit-card' : 'wallet'}
-              >
-                {pm.name}
-              </Chip>
-            ))}
+                {pastDates.map(dateKey => {
+                  // Parsear la fecha string como LOCAL
+                  const localDate = parseLocalDate(dateKey);
+                  const title = new Intl.DateTimeFormat('es-AR', {
+                    day: 'numeric',
+                    month: 'long'
+                  }).format(localDate);
+
+                  return (
+                    <div key={dateKey}>
+                      {renderSection(title, groups[dateKey])}
+                    </div>
+                  );
+                })}
+
+                {renderSection('Proyección Futura', groups.futuro, "text-warn", true, isFutureOpen, () => setIsFutureOpen(!isFutureOpen), true)}
+              </>
+            )}
           </div>
 
-          {/* Categorías */}
-          <div className="flex gap-2 overflow-x-auto -mx-5 px-5 pb-1 scrollbar-hide">
-            <Chip
-              active={selectedCategoryId === 'all'}
-              onClick={() => handleFilterChange('category', 'all')}
-              icon="tag"
-            >
-              Todas
-            </Chip>
-            {categories.map((cat) => (
-              <Chip
-                key={cat.id}
-                active={selectedCategoryId === cat.id}
-                onClick={() => handleFilterChange('category', cat.id)}
-              >
-                <span aria-hidden="true">{cat.emoji}</span> {cat.name}
-              </Chip>
-            ))}
-          </div>
-
-          {/* Limpiar filtros activos */}
-          {(selectedPaymentMethodId !== 'all' || selectedCategoryId !== 'all') && (
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  const params = new URLSearchParams(searchParams);
-                  params.delete('paymentMethod');
-                  params.delete('category');
-                  router.replace(`${pathname}?${params.toString()}`);
-                }}
-                className="text-[11px] uppercase font-bold text-accent hover:text-accent-deep px-2"
-              >
-                Limpiar filtros
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {filteredTransactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
-            <Receipt className="h-16 w-16 text-faint mb-4" />
-            <h3 className="font-sans font-bold text-text text-lg mb-2">Registrá tus movimientos</h3>
-            <p className="text-sm text-muted max-w-xs mb-6">
-              Llevá un registro de tus ingresos y gastos para saber exactamente a dónde va tu plata cada mes.
-            </p>
-            <AnimatedPlusButton
-              label="Agregar movimiento"
-              onClick={() => setIsCreateOpen(true)}
-            />
-          </div>
-        ) : searchFilteredTransactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
-            <Search className="h-16 w-16 text-faint mb-4" />
-            <h3 className="font-sans font-bold text-text text-base mb-1">Sin resultados para &ldquo;{debouncedQuery}&rdquo;</h3>
-            <p className="text-sm text-muted">Probá con otra descripción, categoría o monto.</p>
-          </div>
-        ) : (
-          <>
-            {renderSection('Hoy', groups.hoy, "text-good")}
-            
-            {pastDates.map(dateKey => {
-              // Parsear la fecha string como LOCAL
-              const localDate = parseLocalDate(dateKey);
-              const title = new Intl.DateTimeFormat('es-AR', { 
-                day: 'numeric', 
-                month: 'long' 
-              }).format(localDate);
-              
-              return (
-                <div key={dateKey}>
-                  {renderSection(title, groups[dateKey])}
+          {/* ===================== Rail (solo desktop) ===================== */}
+          <aside className="hidden lg:flex lg:flex-col gap-4">
+            {/* Resumen del mes */}
+            <Card className="p-4">
+              <p className="font-sans text-[10px] font-extrabold uppercase tracking-[0.2em] text-accent-deep mb-3">
+                Resumen del mes
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-1.5 text-good text-[11px] font-bold uppercase tracking-wider">
+                    <ArrowDownLeft className="h-3 w-3" aria-hidden="true" />
+                    Ingresos
+                  </span>
+                  <span className="font-poster text-good text-[16px] tnum leading-none">
+                    {formatCurrency(monthlyIncome)}
+                  </span>
                 </div>
-              );
-            })}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-1.5 text-bad text-[11px] font-bold uppercase tracking-wider">
+                    <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+                    Gastos
+                  </span>
+                  <span className="font-poster text-bad text-[16px] tnum leading-none">
+                    {formatCurrency(monthlyExpense)}
+                  </span>
+                </div>
+                <div className="h-px bg-border" />
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                    Neto
+                  </span>
+                  <span className={cn(
+                    "font-poster text-[18px] tnum leading-none",
+                    netBalance >= 0 ? "text-good" : "text-bad"
+                  )}>
+                    {netBalance >= 0 ? '+' : ''}{formatCurrency(netBalance)}
+                  </span>
+                </div>
+              </div>
+            </Card>
 
-            {renderSection('Proyección Futura', groups.futuro, "text-warn", true, isFutureOpen, () => setIsFutureOpen(!isFutureOpen))}
-          </>
-        )}
+            {/* Filtros */}
+            <Card className="p-4">
+              <p className="font-sans text-[10px] font-extrabold uppercase tracking-[0.2em] text-accent-deep mb-3">
+                Filtros
+              </p>
+              {renderFilters('wrap')}
+            </Card>
+
+            {/* Cotización */}
+            <div className="flex justify-center">
+              {ratesButton}
+            </div>
+          </aside>
+        </div>
       </main>
     </div>
   );

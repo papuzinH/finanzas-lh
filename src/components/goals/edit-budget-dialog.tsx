@@ -55,18 +55,18 @@ export function EditBudgetDialog({ budget, categoryName, categoryEmoji }: Props)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Editar presupuesto" className="h-11 w-11 text-slate-400 hover:text-slate-100 hover:bg-slate-800">
+        <Button variant="ghost" size="icon" aria-label="Editar presupuesto" className="h-11 w-11 text-muted hover:text-text hover:bg-surface-2">
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[420px] bg-surface-overlay border-slate-800 text-slate-50">
+      <DialogContent className="sm:max-w-[420px] bg-surface border-border text-text">
         <form onSubmit={handleSubmit}>
           <input type="hidden" name="category_id" value={budget.category_id} />
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-slate-100">
+            <DialogTitle className="text-lg font-bold text-text">
               Editar presupuesto de {categoryEmoji} {categoryName}
             </DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-muted">
               Modificá el límite mensual de gasto.
             </DialogDescription>
           </DialogHeader>
@@ -74,7 +74,7 @@ export function EditBudgetDialog({ budget, categoryName, categoryEmoji }: Props)
           <div className="grid gap-4 py-5">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="amount" className="text-slate-300">Nuevo límite</Label>
+                <Label htmlFor="amount" className="text-text">Nuevo límite</Label>
                 <Input
                   id="amount"
                   name="amount"
@@ -82,17 +82,17 @@ export function EditBudgetDialog({ budget, categoryName, categoryEmoji }: Props)
                   min="1"
                   step="0.01"
                   defaultValue={budget.amount}
-                  className="bg-surface-raised border-slate-800 focus:border-indigo-500/50"
+                  className="bg-surface-2 border-border focus:border-accent"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-300">Moneda</Label>
+                <Label className="text-text">Moneda</Label>
                 <Select name="currency" value={currency} onValueChange={(v) => setCurrency(v as 'ARS' | 'USD')}>
-                  <SelectTrigger className="bg-surface-raised border-slate-800">
+                  <SelectTrigger className="bg-surface-2 border-border">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-surface-overlay border-slate-800">
+                  <SelectContent className="bg-surface border-border">
                     <SelectItem value="ARS">🇦🇷 ARS</SelectItem>
                     <SelectItem value="USD">🇺🇸 USD</SelectItem>
                   </SelectContent>
@@ -106,14 +106,14 @@ export function EditBudgetDialog({ budget, categoryName, categoryEmoji }: Props)
               type="button"
               variant="ghost"
               onClick={() => setOpen(false)}
-              className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+              className="w-full sm:w-auto h-11 sm:h-9 text-muted hover:text-text hover:bg-surface-2"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={loading}
-              className="w-full sm:w-auto h-11 sm:h-9 bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="w-full sm:w-auto h-11 sm:h-9 bg-accent hover:bg-accent-deep text-accent-ink"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {loading ? 'Guardando...' : 'Guardar'}

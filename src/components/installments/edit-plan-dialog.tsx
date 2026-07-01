@@ -89,11 +89,11 @@ export function EditInstallmentPlanDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton
-        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-border text-text"
       >
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle className="text-xl font-bold text-indigo-300">
+          <DialogTitle className="text-xl font-bold text-accent-deep">
             Editar Plan de Cuotas
           </DialogTitle>
         </DialogHeader>
@@ -104,20 +104,20 @@ export function EditInstallmentPlanDialog({
 
               {/* ── Readonly Amount Display ── */}
               <div className="flex flex-col items-center gap-1 pt-2">
-                <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                <span className="text-[10px] font-medium uppercase tracking-widest text-muted">
                   Monto Total
                 </span>
-                <span className="text-4xl sm:text-5xl font-semibold text-slate-50/60 tabular-nums">
+                <span className="text-4xl sm:text-5xl font-semibold text-text/60 tabular-nums">
                   {formatCurrency(plan.total_amount)}
                 </span>
               </div>
 
               {/* ── Readonly Installments Info ── */}
               <div className="flex justify-center">
-                <div className="rounded-full bg-slate-800/60 border border-slate-700/50 px-4 py-2 text-center">
-                  <span className="text-sm text-slate-400">
+                <div className="rounded-full bg-surface-2 border border-border px-4 py-2 text-center">
+                  <span className="text-sm text-muted">
                     {plan.installments_count} cuotas de{' '}
-                    <span className="font-semibold text-slate-300">
+                    <span className="font-semibold text-text">
                       {formatCurrency(installmentValue)}
                     </span>
                   </span>
@@ -142,7 +142,7 @@ export function EditInstallmentPlanDialog({
                 type="submit"
                 form="edit-plan-form"
                 disabled={isPending}
-                className="w-full min-h-[52px] rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(129,140,248,0.25)] transition-all active:scale-[0.98]"
+                className="w-full min-h-[52px] rounded-xl bg-accent hover:bg-accent-deep text-accent-ink text-base font-semibold shadow-offset transition-all active:scale-[0.98]"
               >
                 {isPending ? (
                   <>

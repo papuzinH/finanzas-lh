@@ -9,13 +9,13 @@ import { getAssetTypeLabel } from './asset-type-badge'
 import { cn } from '@/lib/utils'
 
 const PIE_COLORS = [
-  '#6366f1', '#8b5cf6', '#a78bfa', '#10b981',
-  '#06b6d4', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6',
+  'var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)',
+  'var(--chart-5)', 'var(--chart-6)', 'var(--chart-7)', 'var(--chart-8)', 'var(--chart-9)',
 ]
 
 const CURRENCY_COLORS: Record<string, string> = {
-  ARS: '#10b981',
-  USD: '#6366f1',
+  ARS: 'var(--chart-ars)',
+  USD: 'var(--chart-usd)',
 }
 
 function computeDiversificationScore(typeCount: number, percentages: number[]): number {
@@ -158,9 +158,9 @@ export function RiskAnalysis() {
                 </Pie>
                 <Tooltip
                   formatter={(value: number, name: string) => [fmtCurrency(value), name]}
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px', fontSize: '11px', color: '#e2e8f0' }}
+                  contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '8px', fontSize: '11px', color: 'var(--text)' }}
                 />
-                <Legend wrapperStyle={{ color: '#94a3b8', fontSize: '11px' }} />
+                <Legend wrapperStyle={{ color: 'var(--muted)', fontSize: '11px' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -191,9 +191,9 @@ export function RiskAnalysis() {
                 </Pie>
                 <Tooltip
                   formatter={(value: number, name: string) => [fmtCurrency(value), name]}
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '8px', fontSize: '11px', color: '#e2e8f0' }}
+                  contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '8px', fontSize: '11px', color: 'var(--text)' }}
                 />
-                <Legend wrapperStyle={{ color: '#94a3b8', fontSize: '11px' }} />
+                <Legend wrapperStyle={{ color: 'var(--muted)', fontSize: '11px' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>

@@ -1,5 +1,13 @@
 /* ============================================================
-   Chanchito · Tailwind theme tokens
+   ⚠️ DEPRECADO — NO EDITAR NI COPIAR.
+   La fuente de verdad de tokens es `src/app/globals.css`, que usa
+   Tailwind v4 `@theme inline` (no hay tailwind.config.ts). Este
+   archivo quedó como referencia histórica del handoff.
+   Ver design-system-plan.md.
+   ============================================================ */
+
+/* ============================================================
+   Chanchito · Tailwind theme tokens (histórico)
    Mergeá esto dentro de theme.extend en tu tailwind.config.ts.
    Los colores semánticos apuntan a las CSS vars de tokens.css,
    así heredan el tema claro/oscuro y el acento automáticamente.

@@ -1,6 +1,13 @@
 /* ============================================================
-   Chanchito · Design Tokens
-   Pegá este archivo en tu globals.css (o impórtalo desde él).
+   ⚠️ DEPRECADO — NO EDITAR NI COPIAR.
+   La fuente de verdad de tokens es `src/app/globals.css`
+   (sistema en 3 capas: primitivos → semánticos → componente).
+   Este archivo quedó como referencia histórica del handoff y
+   YA DIVERGIÓ del proyecto (ej. --hero). Ver design-system-plan.md.
+   ============================================================ */
+
+/* ============================================================
+   Chanchito · Design Tokens (histórico)
    El acento por defecto es CELESTE. Para cambiar el acento del
    producto, reescribí solo las 4 vars --accent* .
    ============================================================ */

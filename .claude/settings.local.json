@@ -29,7 +29,21 @@
       "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('vitest:', \\(p.devDependencies&&p.devDependencies.vitest\\)||'none'\\)\")",
       "mcp__claude_ai_Supabase__apply_migration",
       "mcp__claude_ai_Supabase__execute_sql",
-      "PowerShell(New-Item *)"
+      "PowerShell(New-Item *)",
+      "Read(//c/Users/lauta/AppData/Local/Temp/claude/C--Users-lauta-Documents-Proyectos-finanzas-lh/b2d9d6a3-1bc7-4547-bbae-57b1fce2b9ce/scratchpad/**)",
+      "Bash(break)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(npm *)",
+      "Bash(npm test *)",
+      "PowerShell(npm ci *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(node node_modules/vitest/vitest.mjs run src/lib/store/__tests__/analysis-getters.test.ts)",
+      "Bash(npm -v)",
+      "Bash(echo \"npm: $\\(npm -v\\)\")"
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
   }
 }

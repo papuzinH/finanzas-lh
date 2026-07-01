@@ -1,35 +1,73 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Chanchito · Design Tokens
-   El acento por defecto es CELESTE. Para cambiar el acento del
-   producto, reescribí solo las 4 vars --accent* .
+   Chanchito · Design System — tokens en 3 capas
+   ------------------------------------------------------------
+   CAPA 1 · PRIMITIVOS   paleta cruda + escalas. NUNCA usar en UI.
+   CAPA 2 · SEMÁNTICOS   roles (bg, text, accent, good…). Lo que usa la UI.
+   CAPA 3 · COMPONENTE   tokens propios de un componente (hero, banner, fab).
+   Regla: cada capa solo referencia la de ARRIBA.
+   Fuente de verdad única de tokens (ver design-system-plan.md).
    ============================================================ */
 
+/* ============================================================
+   CAPA 1 · PRIMITIVOS  (no usar directo en componentes)
+   ============================================================ */
 :root {
-  /* ---- Acento (celeste · default) ---- */
-  --accent:       #5E98BC;
-  --accent-deep:  #3C708F;
-  --accent-soft:  #A9CFE0;
-  --accent-ink:   #FBF7EC;
+  /* ---- Paleta: Celeste ---- */
+  --celeste-100: #E4F0F6;   /* tiza */
+  --celeste-200: #CBE2EE;
+  --celeste-300: #A9CFE0;
+  --celeste-500: #5E98BC;
+  --celeste-700: #3C708F;
 
-  /* ---- Superficies / texto (tema claro) ---- */
-  --bg:            #F4EDDC;  /* fondo de pantalla (papel crema) */
-  --bg-2:          #FBF7EC;  /* barras, bottom-nav */
-  --surface:       #FFFFFF;  /* cards */
-  --surface-2:     #FBF7EC;  /* inputs, tracks, fondos sutiles */
-  --text:          #1C2A47;
-  --muted:         #5b6577;
-  --faint:         rgba(28, 42, 71, 0.50);
-  --border:        rgba(28, 42, 71, 0.16);
-  --border-strong: #1C2A47;
-  --hero:          #292e3a;  /* tarjeta de saldo / portfolio */
-  --hero-text:     #F4EDDC;
+  /* ---- Paleta: Cream / papel ---- */
+  --cream-50:  #FBF7EC;
+  --cream-100: #F4EDDC;
+  --cream-200: #EAE0C6;
 
-  /* ---- Semánticos financieros (no cambian con el acento) ---- */
-  --good: #2E7D5B;  /* ingresos / positivo */
-  --warn: #E3A938;  /* atención */
-  --bad:  #C2403A;  /* gastos / negativo */
+  /* ---- Paleta: Navy ---- */
+  --navy-400: #34466A;
+  --navy-500: #22315A;
+  --navy-700: #1C2A47;
+  --navy-800: #292E3A;   /* más desaturado; hero del producto */
+  --navy-900: #14203A;
+
+  /* ---- Paleta: Gold ---- */
+  --gold-100: #F7E4B6;
+  --gold-300: #F2CB6E;
+  --gold-500: #E3A938;
+  --gold-700: #B97E16;
+
+  /* ---- Paleta: Rojo ---- */
+  --rojo-200: #E7A9A4;
+  --rojo-500: #C2403A;
+  --rojo-700: #9B2F2A;
+
+  /* ---- Paleta: Verde ---- */
+  --green-400: #5FBE8C;
+  --green-600: #2E7D5B;
+
+  /* ---- Neutro de texto ---- */
+  --slate-500: #5B6577;
+
+  /* ---- Base ---- */
+  --white: #FFFFFF;
+  --black: #000000;
+
+  /* ---- Canales RGB (para composición con alpha) ---- */
+  --navy-700-rgb:   28 42 71;
+  --cream-100-rgb:  244 237 220;
+  --celeste-300-rgb: 169 207 224;
+
+  /* ---- Escala de espaciado (grid 4px) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;   /* margen lateral de pantalla */
+  --space-6: 24px;
+  --space-8: 32px;
 
   /* ---- Radios ---- */
   --radius-sm:   8px;
@@ -39,105 +77,238 @@
   --radius-2xl:  26px;
   --radius-full: 999px;
 
-  /* ---- Espaciado (grid 4px) ---- */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;   /* margen lateral de pantalla */
-  --space-6: 24px;
+  /* ---- Bordes ---- */
+  --border-width: 1.5px;
 
-  /* ---- Elevación ---- */
-  --border-width:  1.5px;
+  /* ---- z-index ---- */
+  --z-base:     0;
+  --z-sticky:   10;
+  --z-dropdown: 20;
+  --z-overlay:  30;
+  --z-modal:    40;
+  --z-fab:      45;
+  --z-toast:    50;
+
+  /* ---- Motion ---- */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:      cubic-bezier(0, 0, 0.2, 1);
+  --ease-in:       cubic-bezier(0.4, 0, 1, 1);
+
+  /* ---- Textura vintage (intensidad conmutable) ---- */
+  --grain-opacity: 0.05;
+}
+
+/* ============================================================
+   CAPA 2 · SEMÁNTICOS — tema claro (default)
+   El acento por defecto es CELESTE. Para cambiar el acento del
+   producto, reescribí solo las 4 vars --accent* (ver acentos alternos).
+   ============================================================ */
+:root {
+  /* ---- Acento ---- */
+  --accent:       var(--celeste-500);
+  --accent-deep:  var(--celeste-700);
+  --accent-soft:  var(--celeste-300);
+  --accent-ink:   var(--cream-50);
+
+  /* ---- Superficies / texto ---- */
+  --bg:            var(--cream-100);   /* fondo de pantalla (papel crema) */
+  --bg-2:          var(--cream-50);    /* barras, bottom-nav */
+  --surface:       var(--white);       /* cards */
+  --surface-2:     var(--cream-50);    /* inputs, tracks, fondos sutiles */
+  --text:          var(--navy-700);
+  --muted:         var(--slate-500);
+  --faint:         rgb(var(--navy-700-rgb) / 0.50);
+  --border:        rgb(var(--navy-700-rgb) / 0.16);
+  --border-strong: var(--navy-700);
+
+  /* ---- Semánticos financieros (no cambian con el acento) ---- */
+  --good: var(--green-600);  /* ingresos / positivo */
+  --warn: var(--gold-500);   /* atención */
+  --bad:  var(--rojo-500);   /* gastos / negativo */
+}
+
+/* ============================================================
+   CAPA 3 · COMPONENTE — tokens propios de componentes
+   ============================================================ */
+:root {
+  /* Hero card (saldo / portfolio) */
+  --hero:      var(--navy-800);
+  --hero-text: var(--cream-100);
+
+  /* Banner por tono */
+  --banner-accent-bg:     var(--accent-soft);
+  --banner-accent-border: var(--accent-deep);
+  --banner-warn-bg:       var(--gold-100);
+  --banner-warn-border:   var(--gold-700);
+  --banner-info-bg:       var(--celeste-200);
+  --banner-info-border:   var(--celeste-700);
+
+  /* Botón destructivo */
+  --btn-destructive-bg:     var(--bad);
+  --btn-destructive-border: var(--rojo-700);
+
+  /* Data-viz (charts) — escala categórica derivada de la marca.
+     Usar en recharts vía var(--chart-N). ars/usd son roles fijos. */
+  --chart-1: var(--celeste-500);
+  --chart-2: var(--green-600);
+  --chart-3: var(--gold-500);
+  --chart-4: var(--rojo-500);
+  --chart-5: var(--celeste-700);
+  --chart-6: var(--celeste-300);
+  --chart-7: var(--navy-700);
+  --chart-8: var(--slate-500);
+  --chart-9: var(--navy-800);
+  --chart-ars: var(--good);
+  --chart-usd: var(--accent);
+
+  /* Elevación */
   --shadow-card:   0 1px 0 0 var(--border);
-  --shadow-float:  0 18px 36px -18px rgba(28, 42, 71, 0.70);
+  --shadow-float:  0 18px 36px -18px rgb(var(--navy-700-rgb) / 0.70);
   --shadow-offset: 3px 3px 0 0 var(--accent-deep);   /* botones */
   --shadow-fab:    4px 5px 0 0 var(--accent-deep);   /* FAB chat */
 }
 
 /* ============================================================
    Tema oscuro · aplicá .dark en <html> o data-theme="dark"
+   Solo overridea la CAPA 2 (roles) → primitivos.
    ============================================================ */
 .dark,
 [data-theme="dark"] {
-  --bg:            #14203A;
-  --bg-2:          #1C2A47;
-  --surface:       #1C2A47;
-  --surface-2:     #22315A;
-  --text:          #F4EDDC;
-  --muted:         #A9CFE0;
-  --faint:         rgba(169, 207, 224, 0.55);
-  --border:        rgba(244, 237, 220, 0.16);
-  --border-strong: rgba(244, 237, 220, 0.35);
-  --good:          #5FBE8C;
+  --bg:            var(--navy-900);
+  --bg-2:          var(--navy-700);
+  --surface:       var(--navy-700);
+  --surface-2:     var(--navy-500);
+  --text:          var(--cream-100);
+  --muted:         var(--celeste-300);
+  --faint:         rgb(var(--celeste-300-rgb) / 0.55);
+  --border:        rgb(var(--cream-100-rgb) / 0.16);
+  --border-strong: rgb(var(--cream-100-rgb) / 0.35);
+  --good:          var(--green-400);
 }
 
 /* ============================================================
    Acentos alternativos (opcional)
    Aplicá .accent-gold / .accent-rojo en un ancestro.
+   Solo reescriben los roles de acento (CAPA 2).
    ============================================================ */
 .accent-gold {
-  --accent: #E3A938; --accent-deep: #B97E16; --accent-soft: #F2CB6E; --accent-ink: #1C2A47;
+  --accent:      var(--gold-500);
+  --accent-deep: var(--gold-700);
+  --accent-soft: var(--gold-300);
+  --accent-ink:  var(--navy-700);
 }
 .accent-rojo {
-  --accent: #C2403A; --accent-deep: #9B2F2A; --accent-soft: #E7A9A4; --accent-ink: #FBF7EC;
+  --accent:      var(--rojo-500);
+  --accent-deep: var(--rojo-700);
+  --accent-soft: var(--rojo-200);
+  --accent-ink:  var(--cream-50);
 }
 
 /* ============================================================
-   Utilidades de textura (vintage). Intensidad conmutable.
+   Utilidades
    ============================================================ */
 .tnum { font-variant-numeric: tabular-nums; }
 
 .paper-grain::before {
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: 0.05;
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  opacity: var(--grain-opacity);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 .no-sb { scrollbar-width: none; -ms-overflow-style: none; }
 .no-sb::-webkit-scrollbar { display: none; }
 
+/* Skeleton con barrido (shimmer). Colores por token → adapta claro/oscuro. */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  animation: skeleton-shimmer 1.5s infinite;
+}
+@keyframes skeleton-shimmer { 100% { transform: translateX(100%); } }
+
+/* Color de borde por defecto = token semántico (compat shadcn / Tailwind v4).
+   Hace que un `border` pelado use --border en vez de currentColor. */
+@layer base {
+  *, ::before, ::after { border-color: var(--border); }
+}
+
 /* ============================================================
    Tailwind v4 · @theme inline: mapea CSS vars → utilities
-   bg-bg, text-text, font-poster, shadow-card, etc.
+   bg-bg, text-text, font-poster, shadow-card, rounded-xl, etc.
+   Solo se exponen las capas 2 y 3 (nunca los primitivos crudos).
    ============================================================ */
 @theme inline {
   /* Colores semánticos (siguen dark mode y acento automáticamente) */
-  --color-bg:           var(--bg);
-  --color-bg-2:         var(--bg-2);
-  --color-surface:      var(--surface);
-  --color-surface-2:    var(--surface-2);
-  --color-text:         var(--text);
-  --color-muted:        var(--muted);
-  --color-faint:        var(--faint);
-  --color-border:       var(--border);
-  --color-hero:         var(--hero);
-  --color-accent:       var(--accent);
-  --color-accent-deep:  var(--accent-deep);
-  --color-accent-soft:  var(--accent-soft);
-  --color-accent-ink:   var(--accent-ink);
-  --color-good:         var(--good);
-  --color-warn:         var(--warn);
-  --color-bad:          var(--bad);
-  /* Paleta fija de marca */
-  --color-cream:        #F4EDDC;
-  --color-cream-light:  #FBF7EC;
-  --color-navy:         #1C2A47;
-  --color-navy-deep:    #14203A;
-  --color-celeste:      #5E98BC;
-  /* Tipografías — usan las vars CSS que inyecta next/font en <html> */
+  --color-bg:            var(--bg);
+  --color-bg-2:          var(--bg-2);
+  --color-surface:       var(--surface);
+  --color-surface-2:     var(--surface-2);
+  --color-text:          var(--text);
+  --color-muted:         var(--muted);
+  --color-faint:         var(--faint);
+  --color-border:        var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent:        var(--accent);
+  --color-accent-deep:   var(--accent-deep);
+  --color-accent-soft:   var(--accent-soft);
+  --color-accent-ink:    var(--accent-ink);
+  --color-good:          var(--good);
+  --color-warn:          var(--warn);
+  --color-bad:           var(--bad);
+  /* Componente */
+  --color-hero:          var(--hero);
+  --color-hero-text:     var(--hero-text);
+  /* Alias de compatibilidad shadcn → tokens semánticos (capa 2).
+     Permite que las primitivas shadcn crudas consuman nuestro sistema.
+     Nota: shadcn conflaciona `muted` (fondo) con nuestro `muted` (texto);
+     acá gana el rol de texto. Para fondos sutiles usá `surface-2`. */
+  --color-background:             var(--surface);
+  --color-foreground:             var(--text);
+  --color-card:                   var(--surface);
+  --color-card-foreground:        var(--text);
+  --color-popover:                var(--surface);
+  --color-popover-foreground:     var(--text);
+  --color-primary:                var(--accent);
+  --color-primary-foreground:     var(--accent-ink);
+  --color-secondary:              var(--surface-2);
+  --color-secondary-foreground:   var(--text);
+  --color-muted-foreground:       var(--muted);
+  --color-accent-foreground:      var(--accent-ink);
+  --color-destructive:            var(--bad);
+  --color-destructive-foreground: var(--cream-50);
+  --color-input:                  var(--border);
+  --color-ring:                   var(--accent);
+  /* Marca (literales, por si se necesita un valor fijo) */
+  --color-cream:         var(--cream-100);
+  --color-cream-light:   var(--cream-50);
+  --color-navy:          var(--navy-700);
+  --color-navy-deep:     var(--navy-900);
+  --color-celeste:       var(--celeste-500);
+  /* Tipografías — usan las vars que inyecta next/font en <html> */
   --font-poster: var(--font-poster);
   --font-serifd: var(--font-serifd);
   --font-script: var(--font-script);
   --font-sans:   var(--font-sans);
   /* Radios */
-  --radius-sm:   8px;
-  --radius-md:   12px;
-  --radius-lg:   16px;
-  --radius-xl:   22px;
-  --radius-2xl:  26px;
-  --radius-full: 999px;
+  --radius-sm:   var(--radius-sm);
+  --radius-md:   var(--radius-md);
+  --radius-lg:   var(--radius-lg);
+  --radius-xl:   var(--radius-xl);
+  --radius-2xl:  var(--radius-2xl);
+  --radius-full: var(--radius-full);
   /* Sombras */
-  --shadow-card:   0 1px 0 0 var(--border);
-  --shadow-float:  0 18px 36px -18px rgba(28,42,71,0.70);
-  --shadow-offset: 3px 3px 0 0 var(--accent-deep);
-  --shadow-fab:    4px 5px 0 0 var(--accent-deep);
+  --shadow-card:   var(--shadow-card);
+  --shadow-float:  var(--shadow-float);
+  --shadow-offset: var(--shadow-offset);
+  --shadow-fab:    var(--shadow-fab);
 }

@@ -14,8 +14,8 @@ export function ToggleDS({ on, onClick }: { on?: boolean; onClick?: () => void }
     >
       <span
         className={cn(
-          "absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] rounded-full bg-white",
-          "border border-black/20 transition-all",
+          "absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] rounded-full bg-cream-light",
+          "border border-border transition-all",
           on ? "left-[22px]" : "left-[3px]",
         )}
         style={{ boxShadow: "0 1px 2px rgba(0,0,0,.2)" }}

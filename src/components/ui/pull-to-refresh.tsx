@@ -90,13 +90,13 @@ export function PullToRefresh({ onRefresh, children, threshold = 80 }: PullToRef
         }}
       >
         <div className={cn(
-          "bg-slate-800 border border-slate-700 rounded-full p-2 shadow-lg",
-          isTriggered && "border-emerald-500"
+          "bg-surface border border-border rounded-full p-2 shadow-lg",
+          isTriggered && "border-good"
         )}>
           <RefreshCw
             className={cn(
               "h-4 w-4 transition-colors",
-              isTriggered ? "text-emerald-400" : "text-slate-400",
+              isTriggered ? "text-good" : "text-muted",
               isRefreshing && "animate-spin"
             )}
             style={{

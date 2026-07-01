@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { useOnboardingStore } from '@/lib/store/onboardingStore';
 import { MainNav } from '@/components/layout/main-nav';
-import { UserProfileSheet } from '@/components/layout/user-profile-sheet';
 import { FullPageLoader } from '@/components/shared/loader';
 import { ChatWidgetWrapper } from '@/components/chat/ChatWidgetWrapper';
 
@@ -23,7 +22,6 @@ const ONBOARDING_ROUTES = ['/onboarding'];
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isInitialized, fetchAllData, user } = useFinanceStore();
   const syncTourFromSupabase = useOnboardingStore((s) => s.syncTourFromSupabase);
-  const [profileOpen, setProfileOpen] = useState(false);
   const pathname = usePathname();
   const tourSynced = useRef(false);
 
@@ -55,7 +53,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <MainNav />
-      <UserProfileSheet open={profileOpen} onOpenChange={setProfileOpen} />
       <main className="min-h-screen pb-20 md:pb-0 md:pl-64">
         {children}
       </main>

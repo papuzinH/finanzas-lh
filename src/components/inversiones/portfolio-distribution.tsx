@@ -8,15 +8,15 @@ interface PortfolioDistributionProps {
 }
 
 const COLORS = [
-  '#5E98BC', // accent/celeste
-  '#2E7D5B', // good
-  '#E3A938', // warn
-  '#C2403A', // bad
-  '#3C708F', // accent-deep
-  '#A9CFE0', // accent-soft
-  '#1C2A47', // navy
-  '#5b6577', // muted
-  '#292e3a', // hero
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+  'var(--chart-6)',
+  'var(--chart-7)',
+  'var(--chart-8)',
+  'var(--chart-9)',
 ];
 
 export function PortfolioDistribution({ data }: PortfolioDistributionProps) {
@@ -56,11 +56,11 @@ export function PortfolioDistribution({ data }: PortfolioDistributionProps) {
                 const currency = props.payload?.currency;
                 return formatTickerCurrency(value, ticker, currency);
               }}
-              contentStyle={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(28,42,71,0.16)', borderRadius: '8px', fontSize: '11px', color: '#1C2A47' }}
-              itemStyle={{ color: '#1C2A47' }}
+              contentStyle={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderRadius: '8px', fontSize: '11px', color: 'var(--text)' }}
+              itemStyle={{ color: 'var(--text)' }}
             />
             <Legend
-              wrapperStyle={{ color: '#5b6577', fontSize: '11px' }}
+              wrapperStyle={{ color: 'var(--muted)', fontSize: '11px' }}
             />
           </PieChart>
         </ResponsiveContainer>

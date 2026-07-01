@@ -2073,14 +2073,12 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     // factor de deflación: producto de (1 + ipc/100) desde el mes ref+1 hasta hoy
     const rows = trend.map((row, i) => {
-      const ref = subMonths(now, months - 1 - i);
       let factor = 1;
       for (let k = 0; k < months - 1 - i; k++) {
         const fm = format(subMonths(now, k), 'yyyy-MM');
         const ipc = inflByMonth.get(fm) ?? 0;
         factor *= 1 + ipc / 100;
       }
-      void ref;
       return {
         month: row.month,
         nominalExpenses: row.expenses,

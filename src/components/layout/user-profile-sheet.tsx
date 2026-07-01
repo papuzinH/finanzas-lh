@@ -43,27 +43,6 @@ export function UserProfileSheet({ open, onOpenChange }: UserProfileSheetProps) 
 
   return (
     <>
-      {/* Botón avatar fijo en la esquina superior derecha */}
-      <button
-        onClick={() => onOpenChange(true)}
-        className="fixed top-3 right-3 z-50 hidden md:flex h-11 w-11 items-center justify-center rounded-full ring-2 ring-slate-700 hover:ring-emerald-500/60 transition-all focus-visible:outline-none focus-visible:ring-indigo-500"
-        aria-label="Abrir perfil"
-      >
-        {authAvatarUrl ? (
-          <Image
-            src={authAvatarUrl}
-            alt="Foto de perfil"
-            width={36}
-            height={36}
-            className="rounded-full object-cover"
-          />
-        ) : (
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800">
-            <User className="h-5 w-5 text-slate-400" />
-          </div>
-        )}
-      </button>
-
       {/* Panel lateral desde la derecha */}
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent

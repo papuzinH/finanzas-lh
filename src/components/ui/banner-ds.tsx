@@ -2,9 +2,9 @@
 import { Icon } from "@/components/ui/icon";
 
 const BANNER: Record<string, { bg: string; bd: string }> = {
-  accent: { bg: "var(--accent-soft)", bd: "var(--accent-deep)" },
-  warn:   { bg: "#F7E4B6",            bd: "#B97E16" },
-  info:   { bg: "#CBE2EE",            bd: "#3C708F" },
+  accent: { bg: "var(--banner-accent-bg)", bd: "var(--banner-accent-border)" },
+  warn:   { bg: "var(--banner-warn-bg)",   bd: "var(--banner-warn-border)" },
+  info:   { bg: "var(--banner-info-bg)",   bd: "var(--banner-info-border)" },
 };
 
 export function BannerDS({
@@ -30,7 +30,7 @@ export function BannerDS({
     >
       <div className="flex items-start gap-3">
         <div
-          className="grid place-items-center w-9 h-9 rounded-xl shrink-0 bg-white/60 border border-navy/15"
+          className="grid place-items-center w-9 h-9 rounded-xl shrink-0 bg-cream-light/60 border border-navy/15"
           style={{ color: tn.bd }}
         >
           <Icon name={icon} size={18} />

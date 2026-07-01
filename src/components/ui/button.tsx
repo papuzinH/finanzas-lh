@@ -14,7 +14,7 @@ const buttonVariants = cva(
         navy:        "bg-hero text-cream-light border-hero shadow-offset",
         soft:        "bg-surface-2 text-text border-border hover:bg-surface",
         ghost:       "bg-transparent text-muted border-transparent hover:bg-surface-2 active:translate-y-0",
-        destructive: "bg-bad text-white border-red-900 shadow-offset",
+        destructive: "bg-bad text-cream-light border-[color:var(--btn-destructive-border)] shadow-offset",
         outline:     "bg-surface-2 text-text border-border hover:bg-surface",
         secondary:   "bg-surface-2 text-text border-border",
         link:        "bg-transparent text-accent border-transparent underline-offset-4 hover:underline active:translate-y-0",

@@ -17,7 +17,7 @@ function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>)
 
 function PageHeaderSkeleton({ titleWidth = "w-32" }: { titleWidth?: string }) {
   return (
-    <header className="sticky top-0 z-10 border-b border-slate-800 bg-[var(--surface)]/80 backdrop-blur-md">
+    <header className="sticky top-0 z-10 border-b border-border bg-bg/80 backdrop-blur-md">
       <div className="mx-auto max-w-[1440px] pl-4 pr-14 md:pl-6 md:pr-14 py-3 md:py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Skeleton className={cn("h-6", titleWidth)} />
@@ -32,7 +32,7 @@ function PageHeaderSkeleton({ titleWidth = "w-32" }: { titleWidth?: string }) {
 
 function BalanceCardSkeleton() {
   return (
-    <div className="col-span-2 lg:col-span-4 rounded-2xl bg-[var(--surface-raised)] border border-slate-800 p-6">
+    <div className="col-span-2 lg:col-span-4 rounded-2xl bg-surface border border-border p-6">
       <div className="flex justify-between items-start">
         <div className="space-y-4 flex-1">
           <div className="flex items-center gap-2">
@@ -55,7 +55,7 @@ function BalanceCardSkeleton() {
 function InsightsCarouselSkeleton() {
   return (
     <div className="col-span-2 lg:col-span-4 flex flex-col gap-2">
-      <div className="rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/50 px-4 py-3 space-y-2">
+      <div className="rounded-2xl border border-border bg-surface/50 px-4 py-3 space-y-2">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-1/2" />
       </div>
@@ -70,7 +70,7 @@ function InsightsCarouselSkeleton() {
 
 function MetricCardSkeleton() {
   return (
-    <div className="rounded-xl bg-[var(--surface-raised)]/50 border border-slate-800 p-3.5 space-y-2">
+    <div className="rounded-xl bg-surface/50 border border-border p-3.5 space-y-2">
       <Skeleton className="h-3 w-20" />
       <div className="flex items-center justify-between">
         <Skeleton className="h-5 w-24" />
@@ -84,7 +84,7 @@ function MetricCardSkeleton() {
 
 function BudgetStripSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-4 space-y-3">
+    <div className="rounded-2xl border border-border bg-surface/30 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-5 w-16 rounded-full" />
@@ -106,7 +106,7 @@ function BudgetStripSkeleton() {
 
 function TrendChartSkeleton() {
   return (
-    <div className="col-span-full rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-5 space-y-3">
+    <div className="col-span-full rounded-2xl border border-border bg-surface/30 p-5 space-y-3">
       <Skeleton className="h-4 w-40" />
       <Skeleton className="h-[200px] w-full rounded-lg" />
     </div>
@@ -115,7 +115,7 @@ function TrendChartSkeleton() {
 
 function PieChartSkeleton() {
   return (
-    <div className="rounded-2xl bg-[var(--surface-raised)]/30 border border-slate-800 p-5 space-y-3">
+    <div className="rounded-2xl bg-surface/30 border border-border p-5 space-y-3">
       <Skeleton className="h-4 w-32" />
       <div className="flex items-center h-40">
         <div className="w-1/2 flex justify-center">
@@ -137,7 +137,7 @@ function PieChartSkeleton() {
 
 function CategoryComparisonSkeleton() {
   return (
-    <div className="col-span-1 md:col-span-2 lg:col-span-2 rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/30 p-5 space-y-3">
+    <div className="col-span-1 md:col-span-2 lg:col-span-2 rounded-2xl border border-border bg-surface/30 p-5 space-y-3">
       <Skeleton className="h-4 w-44" />
       <Skeleton className="h-52 w-full rounded-lg" />
     </div>
@@ -146,7 +146,7 @@ function CategoryComparisonSkeleton() {
 
 export function TransactionItemSkeleton() {
   return (
-    <div className="rounded-xl border border-slate-800/40 bg-[var(--surface-raised)]/20 p-3">
+    <div className="rounded-xl border border-border/40 bg-surface/20 p-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 overflow-hidden flex-1">
           <Skeleton className="h-10 w-10 min-w-[2.5rem] rounded-full flex-shrink-0" />
@@ -166,8 +166,8 @@ export function TransactionItemSkeleton() {
 
 export function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-[var(--surface)] text-slate-50 pb-24">
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-[var(--surface)]/80 backdrop-blur-md">
+    <div className="min-h-screen bg-bg text-text pb-24">
+      <header className="sticky top-0 z-10 border-b border-border bg-bg/80 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-4 flex justify-between items-center">
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-8 w-8 rounded-full" />
@@ -222,8 +222,8 @@ export function DashboardSkeleton() {
 
 export function TransactionListSkeleton() {
   return (
-    <div className="min-h-screen bg-[var(--surface)] text-slate-50 font-sans pb-24">
-      <header className="sticky top-0 z-20 border-b border-slate-800 bg-[var(--surface)]/80 backdrop-blur-md">
+    <div className="min-h-screen bg-bg text-text font-sans pb-24">
+      <header className="sticky top-0 z-20 border-b border-border bg-bg/80 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-4">
           <div className="py-2 flex flex-col md:flex-row justify-between items-center gap-2 md:gap-0">
             <div className="flex items-center gap-3">
@@ -285,7 +285,7 @@ export function TransactionListSkeleton() {
 
 function InstallmentPlanCardSkeleton() {
   return (
-    <div className="rounded-xl border border-slate-800 bg-[var(--surface-raised)]/50 p-5 flex flex-col justify-between">
+    <div className="rounded-xl border border-border bg-surface/50 p-5 flex flex-col justify-between">
       <div className="flex items-start justify-between mb-4">
         <div className="min-w-0 flex-1 space-y-1.5">
           <Skeleton className="h-5 w-2/3" />
@@ -317,13 +317,13 @@ function InstallmentPlanCardSkeleton() {
 
 export function InstallmentsSkeleton() {
   return (
-    <div className="min-h-screen bg-[var(--surface)] text-slate-50 font-sans pb-24">
+    <div className="min-h-screen bg-bg text-text font-sans pb-24">
       <PageHeaderSkeleton titleWidth="w-28" />
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           {[1, 2].map(i => (
-            <div key={i} className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-6 flex flex-col items-center gap-2">
+            <div key={i} className="rounded-xl border border-accent/20 bg-accent/5 p-6 flex flex-col items-center gap-2">
               <Skeleton className="h-3 w-24" />
               <Skeleton className="h-8 w-32" />
               <Skeleton className="h-3 w-20" />
@@ -345,7 +345,7 @@ export function InstallmentsSkeleton() {
 
 function SubscriptionCardSkeleton() {
   return (
-    <div className="rounded-xl border border-slate-800 bg-[var(--surface-raised)]/40 p-4 flex flex-col justify-between">
+    <div className="rounded-xl border border-border bg-surface/40 p-4 flex flex-col justify-between">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-4">
           <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
@@ -363,7 +363,7 @@ function SubscriptionCardSkeleton() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-3 border-t border-slate-800/50">
+      <div className="flex items-center justify-between pt-3 border-t border-border/50">
         <Skeleton className="h-5 w-24 rounded-md" />
         <Skeleton className="h-6 w-6 rounded-md" />
       </div>
@@ -373,11 +373,11 @@ function SubscriptionCardSkeleton() {
 
 export function SubscriptionsSkeleton() {
   return (
-    <div className="min-h-screen bg-[var(--surface)] text-slate-50 font-sans pb-24">
+    <div className="min-h-screen bg-bg text-text font-sans pb-24">
       <PageHeaderSkeleton titleWidth="w-36" />
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8">
-        <div className="mb-8 rounded-2xl border border-slate-800 bg-[var(--surface-raised)]/50 p-8">
+        <div className="mb-8 rounded-2xl border border-border bg-surface/50 p-8">
           <div className="text-center space-y-3">
             <Skeleton className="h-4 w-40 mx-auto" />
             <Skeleton className="h-10 w-48 mx-auto" />

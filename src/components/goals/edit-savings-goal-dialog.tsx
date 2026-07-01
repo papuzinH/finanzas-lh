@@ -82,17 +82,17 @@ export function EditSavingsGoalDialog({ goal }: Props) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Editar meta" className="h-11 w-11 text-slate-400 hover:text-slate-100 hover:bg-slate-800">
+        <Button variant="ghost" size="icon" aria-label="Editar meta" className="h-11 w-11 text-muted hover:text-text hover:bg-surface-2">
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
       <DialogContent
         showCloseButton
-        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+        className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-border/50 text-text"
       >
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle className="text-xl font-bold text-emerald-300">
+          <DialogTitle className="text-xl font-bold text-accent-deep">
             Editar Meta
           </DialogTitle>
         </DialogHeader>
@@ -115,16 +115,16 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-muted">
                       Nombre de la meta
                     </span>
                     <FormControl>
                       <div className="relative">
-                        <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
+                        <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
                         <Input
                           placeholder="Ej: Vacaciones en Brasil..."
                           {...field}
-                          className="pl-10 bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-emerald-500"
+                          className="pl-10 bg-surface-2 border-0 rounded-xl min-h-11 text-text placeholder:text-faint focus-visible:ring-2 focus-visible:ring-accent"
                         />
                       </div>
                     </FormControl>
@@ -139,10 +139,10 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                 name="type"
                 render={({ field }) => (
                   <FormItem>
-                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-muted">
                       Tipo de meta
                     </span>
-                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-900/80 p-1">
+                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
                       {([
                         { value: 'one_time' as const, label: 'Con fecha' },
                         { value: 'monthly' as const, label: 'Mensual' },
@@ -153,10 +153,10 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                           onClick={() => field.onChange(opt.value)}
                           className={cn(
                             'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
-                            'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none',
+                            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
                             field.value === opt.value
-                              ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]'
-                              : 'text-slate-500 hover:text-slate-300'
+                              ? 'bg-accent text-accent-ink shadow-offset'
+                              : 'text-muted hover:text-text'
                           )}
                         >
                           {opt.label}
@@ -174,10 +174,10 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                 name="currency"
                 render={({ field }) => (
                   <FormItem>
-                    <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-muted">
                       Moneda
                     </span>
-                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-900/80 p-1">
+                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
                       {([
                         { value: 'ARS' as const, label: '🇦🇷 ARS' },
                         { value: 'USD' as const, label: '🇺🇸 USD' },
@@ -188,10 +188,10 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                           onClick={() => field.onChange(opt.value)}
                           className={cn(
                             'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
-                            'focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none',
+                            'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
                             field.value === opt.value
-                              ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50'
-                              : 'text-slate-500 hover:text-slate-300'
+                              ? 'bg-accent/15 text-accent-deep ring-1 ring-accent/50'
+                              : 'text-muted hover:text-text'
                           )}
                         >
                           {opt.label}
@@ -210,7 +210,7 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                   name="target_date"
                   render={({ field }) => (
                     <FormItem>
-                      <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                      <span className="text-[10px] font-medium uppercase tracking-widest text-muted">
                         Fecha objetivo
                       </span>
                       <FormControl>
@@ -218,7 +218,7 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                           type="date"
                           value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
                           onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : null)}
-                          className="bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 block w-full"
+                          className="bg-surface-2 border-0 rounded-xl min-h-11 text-text focus-visible:ring-2 focus-visible:ring-accent block w-full"
                         />
                       </FormControl>
                       <FormMessage />
@@ -234,7 +234,7 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                 type="submit"
                 form="edit-savings-goal-form"
                 disabled={isPending}
-                className="w-full min-h-[52px] rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(16,185,129,0.25)] transition-all active:scale-[0.98]"
+                className="w-full min-h-[52px] rounded-xl bg-accent hover:bg-accent-deep text-accent-ink text-base font-semibold shadow-offset transition-all active:scale-[0.98]"
               >
                 {isPending ? (
                   <>

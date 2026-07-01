@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { format } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { useFinanceStore, parseInflation } from '@/lib/store/financeStore';
 
 // Helper: setear estado crudo del store en cada test
@@ -139,5 +139,27 @@ describe('getRealAdjustedTrend', () => {
     expect(res.available).toBe(true);
     // mes actual sin inflación posterior => real == nominal
     expect(res.rows[0].realExpenses).toBeCloseTo(res.rows[0].nominalExpenses, 0);
+  });
+
+  it('deflacta múltiples meses componiendo solo la inflación posterior al mes', () => {
+    const now = new Date();
+    const curMonth = format(now, 'yyyy-MM');
+    const prevMonth = format(subMonths(now, 1), 'yyyy-MM');
+    const dPrev = format(subMonths(now, 1), 'yyyy-MM-dd');
+    seed({
+      inflationSeries: [
+        { month: prevMonth, rate: 5 },   // debe IGNORARSE para el factor del mes previo
+        { month: curMonth, rate: 10 },   // única inflación posterior al mes previo
+      ],
+      transactions: [
+        { id: 1, type: 'expense', amount: -1000, date: dPrev, installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+    const res = useFinanceStore.getState().getRealAdjustedTrend(2);
+    expect(res.available).toBe(true);
+    const prevRow = res.rows[0];
+    // gasto del mes previo deflactado a hoy: 1000 * (1 + 10/100) = 1100 (NO 1000*1.10*1.05)
+    expect(prevRow.realExpenses).toBeCloseTo(prevRow.nominalExpenses * 1.1, 2);
+    expect(prevRow.realExpenses).toBeCloseTo(1100, 0);
   });
 });
