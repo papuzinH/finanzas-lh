@@ -28,16 +28,16 @@ export default function AjustesPerfilPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface text-slate-50 font-sans pb-24">
+    <div className="min-h-screen bg-bg text-text font-sans pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-surface/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-border bg-surface/80 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-4 flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-slate-800">
-            <Settings className="h-5 w-5 text-slate-300" />
+          <div className="p-2 rounded-xl bg-surface-2">
+            <Settings className="h-5 w-5 text-text" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">Perfil</h1>
-            <p className="text-xs text-slate-400 mt-0.5">Tu cuenta y sesión</p>
+            <h1 className="text-xl font-bold tracking-tight text-text">Perfil</h1>
+            <p className="text-xs text-muted mt-0.5">Tu cuenta y sesión</p>
           </div>
         </div>
       </header>
@@ -51,56 +51,56 @@ export default function AjustesPerfilPage() {
               alt="Foto de perfil"
               width={88}
               height={88}
-              className="rounded-full ring-2 ring-emerald-500/40"
+              className="rounded-full ring-2 ring-accent/40"
             />
           ) : (
-            <div className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-slate-800 ring-2 ring-emerald-500/40">
-              <User className="h-10 w-10 text-slate-400" />
+            <div className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-surface-2 ring-2 ring-accent/40">
+              <User className="h-10 w-10 text-muted" />
             </div>
           )}
           <div className="text-center">
             <p className="text-xl font-bold">{user?.first_name || 'Usuario'}</p>
-            {authEmail && <p className="text-sm text-slate-400">{authEmail}</p>}
+            {authEmail && <p className="text-sm text-muted">{authEmail}</p>}
           </div>
         </div>
 
         {/* Info de la cuenta */}
-        <Card className="border-slate-800 bg-[var(--surface-raised)]">
+        <Card className="border-border bg-surface-2">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-slate-200">Información de la cuenta</CardTitle>
+            <CardTitle className="text-sm text-text">Información de la cuenta</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {authEmail && (
               <div className="flex items-center gap-3">
-                <Mail className="h-4 w-4 text-slate-400 shrink-0" />
+                <Mail className="h-4 w-4 text-muted shrink-0" />
                 <div>
-                  <p className="text-xs text-slate-400">Email</p>
-                  <p className="text-sm text-slate-200 break-all">{authEmail}</p>
+                  <p className="text-xs text-muted">Email</p>
+                  <p className="text-sm text-text break-all">{authEmail}</p>
                 </div>
               </div>
             )}
             <div className="flex items-center gap-3">
-              <ShieldCheck className="h-4 w-4 text-slate-400 shrink-0" />
+              <ShieldCheck className="h-4 w-4 text-muted shrink-0" />
               <div>
-                <p className="text-xs text-slate-400">Autenticación</p>
-                <p className="text-sm text-slate-200">Google OAuth</p>
+                <p className="text-xs text-muted">Autenticación</p>
+                <p className="text-sm text-text">Google OAuth</p>
               </div>
             </div>
             {user?.telegram_chat_id && (
               <div className="flex items-center gap-3">
-                <MessageCircle className="h-4 w-4 text-slate-400 shrink-0" />
+                <MessageCircle className="h-4 w-4 text-muted shrink-0" />
                 <div>
-                  <p className="text-xs text-slate-400">Telegram Chat ID</p>
-                  <p className="text-sm text-slate-200">{user.telegram_chat_id}</p>
+                  <p className="text-xs text-muted">Telegram Chat ID</p>
+                  <p className="text-sm text-text">{user.telegram_chat_id}</p>
                 </div>
               </div>
             )}
             {createdAt && (
               <div className="flex items-center gap-3">
-                <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
+                <Calendar className="h-4 w-4 text-muted shrink-0" />
                 <div>
-                  <p className="text-xs text-slate-400">Miembro desde</p>
-                  <p className="text-sm text-slate-200">{createdAt}</p>
+                  <p className="text-xs text-muted">Miembro desde</p>
+                  <p className="text-sm text-text">{createdAt}</p>
                 </div>
               </div>
             )}
@@ -110,7 +110,7 @@ export default function AjustesPerfilPage() {
         {/* Reiniciar tour guiado */}
         <Button
           variant="outline"
-          className="w-full border-slate-700 text-slate-200 bg-slate-800"
+          className="w-full border-border text-text bg-surface-2"
           onClick={() => {
             resetTour();
             router.push('/');

@@ -47,7 +47,7 @@ export default function AjustesMediosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface text-slate-50 font-sans pb-24">
+    <div className="min-h-screen bg-bg text-text font-sans pb-24">
       <PageHeader
         title="Medios de Pago"
         icon={<Wallet className="h-5 w-5" />}
@@ -58,7 +58,7 @@ export default function AjustesMediosPage() {
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8 space-y-8 md:space-y-10">
         <section>
-          <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 px-1">
+          <h2 className="text-sm font-medium text-muted uppercase tracking-wider mb-4 px-1">
             Billetera y Bancos
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -66,14 +66,14 @@ export default function AjustesMediosPage() {
               <InstitutionalCard key={pm.id} data={pm} />
             ))}
             {institutionalMethods.length === 0 && (
-              <p className="text-sm text-slate-500 italic px-1">No hay medios de pago registrados.</p>
+              <p className="text-sm text-muted italic px-1">No hay medios de pago registrados.</p>
             )}
           </div>
         </section>
 
         {personalMethods.length > 0 && (
           <section>
-            <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4 px-1">
+            <h2 className="text-sm font-medium text-muted uppercase tracking-wider mb-4 px-1">
               Compromisos Personales
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

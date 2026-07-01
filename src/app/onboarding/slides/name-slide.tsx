@@ -56,8 +56,8 @@ export function NameSlide({ initialName = '', onNext }: NameSlideProps) {
     >
       <div className="text-center space-y-2">
         <div className="text-5xl mb-4">👋</div>
-        <h2 className="text-2xl font-bold text-white">¿Cómo te llamás?</h2>
-        <p className="text-sm text-slate-400">Lo vamos a usar para saludarte y nada más</p>
+        <h2 className="text-2xl font-bold text-text">¿Cómo te llamás?</h2>
+        <p className="text-sm text-muted">Lo vamos a usar para saludarte y nada más</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -69,7 +69,7 @@ export function NameSlide({ initialName = '', onNext }: NameSlideProps) {
           maxLength={50}
           autoFocus
           disabled={isPending}
-          className="h-12 bg-surface-raised border-slate-700 text-base text-slate-100 placeholder-slate-500 focus:border-indigo-500"
+          className="h-12 bg-surface-2 border-border text-base text-text placeholder:text-faint focus:border-accent"
         />
 
         <div className="flex flex-col gap-2">
@@ -77,7 +77,7 @@ export function NameSlide({ initialName = '', onNext }: NameSlideProps) {
             type="submit"
             size="lg"
             disabled={isPending}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-12 text-base font-medium shadow-lg shadow-indigo-600/25"
+            className="w-full bg-accent hover:bg-accent-deep text-accent-ink h-12 text-base font-medium shadow-offset"
           >
             {isPending ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -93,7 +93,7 @@ export function NameSlide({ initialName = '', onNext }: NameSlideProps) {
             variant="ghost"
             onClick={handleSkip}
             disabled={isPending}
-            className="text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+            className="text-muted hover:text-text hover:bg-surface-2/50"
           >
             Saltar este paso
           </Button>

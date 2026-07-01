@@ -36,10 +36,10 @@ export function ConfirmationModal({
 }: ConfirmationModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-surface-overlay border-slate-800 text-slate-200">
+      <DialogContent className="sm:max-w-[425px] bg-surface border-border text-text">
         <DialogHeader>
-          <DialogTitle className="text-white">{title}</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogTitle className="text-text">{title}</DialogTitle>
+          <DialogDescription className="text-muted">
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -48,7 +48,7 @@ export function ConfirmationModal({
             variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
-            className="w-full sm:w-auto h-11 sm:h-9 text-slate-400 hover:text-white hover:bg-slate-800"
+            className="w-full sm:w-auto h-11 sm:h-9 text-muted hover:text-text hover:bg-surface-2"
           >
             {cancelText}
           </Button>
@@ -58,7 +58,7 @@ export function ConfirmationModal({
             disabled={isLoading}
             className={
               variant === "destructive"
-                ? "w-full sm:w-auto h-11 sm:h-9 bg-red-600 text-white hover:bg-red-700 border-0"
+                ? "w-full sm:w-auto h-11 sm:h-9 bg-bad text-accent-ink hover:bg-[color:var(--btn-destructive-border)] border-0"
                 : "w-full sm:w-auto h-11 sm:h-9"
             }
           >

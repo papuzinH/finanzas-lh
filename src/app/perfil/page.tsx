@@ -46,11 +46,11 @@ export default function PerfilPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface text-slate-50 pb-24">
+    <div className="min-h-screen bg-bg text-text pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-surface/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-border bg-surface/80 backdrop-blur-md">
         <div className="mx-auto max-w-[1440px] px-4 md:px-6 py-4">
-          <h1 className="text-xl font-bold tracking-tight text-white">Mi perfil</h1>
+          <h1 className="text-xl font-bold tracking-tight text-text">Mi perfil</h1>
         </div>
       </header>
 
@@ -63,61 +63,61 @@ export default function PerfilPage() {
               alt="Foto de perfil"
               width={96}
               height={96}
-              className="rounded-full ring-2 ring-emerald-500/40"
+              className="rounded-full ring-2 ring-accent/40"
             />
           ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-slate-800 ring-2 ring-emerald-500/40">
-              <User className="h-10 w-10 text-slate-400" />
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-surface-2 ring-2 ring-accent/40">
+              <User className="h-10 w-10 text-muted" />
             </div>
           )}
           <div className="text-center">
             <p className="text-2xl font-bold">{user?.first_name || 'Usuario'}</p>
             {authEmail && (
-              <p className="text-sm text-slate-400">{authEmail}</p>
+              <p className="text-sm text-muted">{authEmail}</p>
             )}
           </div>
         </div>
 
         {/* Info de la cuenta */}
-        <Card className="border-slate-800 bg-surface-raised">
+        <Card className="border-border bg-surface-2">
           <CardHeader>
-            <CardTitle className="text-base text-slate-200">Información de la cuenta</CardTitle>
+            <CardTitle className="text-base text-text">Información de la cuenta</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {authEmail && (
               <div className="flex items-center gap-3">
-                <Mail className="h-5 w-5 text-slate-400" />
+                <Mail className="h-5 w-5 text-muted" />
                 <div>
-                  <p className="text-xs text-slate-400">Email</p>
-                  <p className="text-sm text-slate-200">{authEmail}</p>
+                  <p className="text-xs text-muted">Email</p>
+                  <p className="text-sm text-text">{authEmail}</p>
                 </div>
               </div>
             )}
 
             <div className="flex items-center gap-3">
-              <ShieldCheck className="h-5 w-5 text-slate-400" />
+              <ShieldCheck className="h-5 w-5 text-muted" />
               <div>
-                <p className="text-xs text-slate-400">Autenticación</p>
-                <p className="text-sm text-slate-200">Google OAuth</p>
+                <p className="text-xs text-muted">Autenticación</p>
+                <p className="text-sm text-text">Google OAuth</p>
               </div>
             </div>
 
             {user?.telegram_chat_id && (
               <div className="flex items-center gap-3">
-                <MessageCircle className="h-5 w-5 text-slate-400" />
+                <MessageCircle className="h-5 w-5 text-muted" />
                 <div>
-                  <p className="text-xs text-slate-400">Telegram Chat ID</p>
-                  <p className="text-sm text-slate-200">{user.telegram_chat_id}</p>
+                  <p className="text-xs text-muted">Telegram Chat ID</p>
+                  <p className="text-sm text-text">{user.telegram_chat_id}</p>
                 </div>
               </div>
             )}
 
             {createdAt && (
               <div className="flex items-center gap-3">
-                <Calendar className="h-5 w-5 text-slate-400" />
+                <Calendar className="h-5 w-5 text-muted" />
                 <div>
-                  <p className="text-xs text-slate-400">Miembro desde</p>
-                  <p className="text-sm text-slate-200">{createdAt}</p>
+                  <p className="text-xs text-muted">Miembro desde</p>
+                  <p className="text-sm text-text">{createdAt}</p>
                 </div>
               </div>
             )}

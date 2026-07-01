@@ -47,10 +47,10 @@ export function UserProfileSheet({ open, onOpenChange }: UserProfileSheetProps) 
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
-          className="w-80 border-slate-800 bg-[var(--surface)] text-slate-50 p-0 overflow-y-auto"
+          className="w-80 border-border bg-surface text-text p-0 overflow-y-auto"
         >
-          <SheetHeader className="px-6 pt-6 pb-4 border-b border-slate-800">
-            <SheetTitle className="text-slate-50">Mi perfil</SheetTitle>
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-border">
+            <SheetTitle className="text-text">Mi perfil</SheetTitle>
           </SheetHeader>
 
           <div className="px-6 py-6 space-y-6">
@@ -62,61 +62,61 @@ export function UserProfileSheet({ open, onOpenChange }: UserProfileSheetProps) 
                   alt="Foto de perfil"
                   width={80}
                   height={80}
-                  className="rounded-full ring-2 ring-emerald-500/40"
+                  className="rounded-full ring-2 ring-accent/40"
                 />
               ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-800 ring-2 ring-emerald-500/40">
-                  <User className="h-9 w-9 text-slate-400" />
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-surface-2 ring-2 ring-accent/40">
+                  <User className="h-9 w-9 text-muted" />
                 </div>
               )}
               <div className="text-center">
                 <p className="text-lg font-bold">{user?.first_name || 'Usuario'}</p>
                 {authEmail && (
-                  <p className="text-xs text-slate-400">{authEmail}</p>
+                  <p className="text-xs text-muted">{authEmail}</p>
                 )}
               </div>
             </div>
 
             {/* Info de la cuenta */}
-            <Card className="border-slate-800 bg-[var(--surface-raised)]">
+            <Card className="border-border bg-surface-2">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm text-slate-200">Información de la cuenta</CardTitle>
+                <CardTitle className="text-sm text-text">Información de la cuenta</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {authEmail && (
                   <div className="flex items-center gap-3">
-                    <Mail className="h-4 w-4 text-slate-400 shrink-0" />
+                    <Mail className="h-4 w-4 text-muted shrink-0" />
                     <div>
-                      <p className="text-xs text-slate-400">Email</p>
-                      <p className="text-sm text-slate-200 break-all">{authEmail}</p>
+                      <p className="text-xs text-muted">Email</p>
+                      <p className="text-sm text-text break-all">{authEmail}</p>
                     </div>
                   </div>
                 )}
 
                 <div className="flex items-center gap-3">
-                  <ShieldCheck className="h-4 w-4 text-slate-400 shrink-0" />
+                  <ShieldCheck className="h-4 w-4 text-muted shrink-0" />
                   <div>
-                    <p className="text-xs text-slate-400">Autenticación</p>
-                    <p className="text-sm text-slate-200">Google OAuth</p>
+                    <p className="text-xs text-muted">Autenticación</p>
+                    <p className="text-sm text-text">Google OAuth</p>
                   </div>
                 </div>
 
                 {user?.telegram_chat_id && (
                   <div className="flex items-center gap-3">
-                    <MessageCircle className="h-4 w-4 text-slate-400 shrink-0" />
+                    <MessageCircle className="h-4 w-4 text-muted shrink-0" />
                     <div>
-                      <p className="text-xs text-slate-400">Telegram Chat ID</p>
-                      <p className="text-sm text-slate-200">{user.telegram_chat_id}</p>
+                      <p className="text-xs text-muted">Telegram Chat ID</p>
+                      <p className="text-sm text-text">{user.telegram_chat_id}</p>
                     </div>
                   </div>
                 )}
 
                 {createdAt && (
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
+                    <Calendar className="h-4 w-4 text-muted shrink-0" />
                     <div>
-                      <p className="text-xs text-slate-400">Miembro desde</p>
-                      <p className="text-sm text-slate-200">{createdAt}</p>
+                      <p className="text-xs text-muted">Miembro desde</p>
+                      <p className="text-sm text-text">{createdAt}</p>
                     </div>
                   </div>
                 )}

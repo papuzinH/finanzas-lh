@@ -60,11 +60,11 @@ CAPA 3 · Componente   →  --btn-accent-bg: var(--accent)  (solo cuando un comp
 > ⛔ **BLOQUEO (2026-07-01):** el usuario está rearmando la home. NO tocar el Lote A
 > (`/inicio` + `components/dashboard/*`) hasta que avise que terminó. Migrarlo recién ahí.
 - [ ] **Lote A** — Dashboard (`/inicio`, `components/dashboard/*`, `balance-card`, `trend-chart`, `expenses-chart`, **+ `components/goals/budget-overview-strip.tsx`** diferido del Lote D). ⛔ EN PAUSA (rediseño de home en curso).
-- [ ] **Lote B** — Movimientos y transacciones.
+- [x] **Lote B** — Movimientos y transacciones ✅ (3 archivos: `transactions/edit-transaction-dialog`, `transactions/quick-add`, `shared/transaction-item`). Build verde, 0 fugas. `movimientos/page`, `transaction-form-fields` y `create-transaction-dialog` ya estaban limpios. `text-white` del swipe "Eliminar" (sobre `bg-bad`) → `text-accent-ink`.
 - [x] **Lote C** — Compromisos / cuotas / suscripciones / medios de pago ✅ (7 archivos: `installments/edit-plan-dialog`, `subscriptions/edit-subscription-dialog`, `medios-pago/{personal-debt-card,delete,edit,detail-modal,institutional-card}`). Build verde, 0 fugas. Tokens indefinidos `surface-raised`/`surface-overlay` reemplazados por `surface`/`surface-2`. **A confirmar:** tipo de tarjeta (crédito=violeta / débito=azul) colapsó a `accent` único; distinción queda por ícono+label. ¿Querés esquema de dos tonos con tokens?.
 - [~] **Lote D** — Objetivos / presupuestos / metas. Migrados 3 diálogos (`edit-budget-dialog`, `edit-savings-goal-dialog`, `add-contribution-dialog`); build verde, 0 fugas. **`budget-overview-strip.tsx` DIFERIDO al Lote A** (se renderiza en `page.tsx`/home y está en el spec de rediseño del dashboard). Emerald mapeado role-aware: CTA/foco/toggle → `accent` (confirmado en prototipo `variant="accent"`), éxito/celebración → `good`.
-- [ ] **Lote E** — Inversiones (bimonetario, badges P&L, donut).
-- [ ] **Lote F** — Onboarding, ajustes, login, chat, shared.
+- [x] **Lote E** — Inversiones ✅ (3 archivos: `portfolio-distribution`, `risk-analysis`, `payment-calendar`). Build verde, 0 fugas. **Se agregó escala de datos categórica** `--chart-1..9` + `--chart-ars`/`--chart-usd` en `globals.css` (derivada de primitivos). Charts recharts consumen `var(--chart-N)` en `fill` y `var(--surface/border/text/muted)` en tooltips/legend. Categorías payment-calendar: cupón→accent, dividendo→good, vencimiento→warn. ⚠️ **Verificar visualmente**: `var()` en `fill` de recharts `<Cell>` (patrón shadcn; debería resolver en navegadores modernos).
+- [x] **Lote F** — Onboarding, ajustes, login, perfil, categorías, shared genéricos ✅ (16 archivos). Build verde, 0 fugas. Chat ya estaba limpio. **Diferidos a otros lotes:** `transactions/*` + `shared/transaction-item` → Lote B; `page.tsx` + `dashboard/*` + `budget-overview-strip` → Lote A. Decisiones: indigo/violet/blue → `accent`; emerald → `good` (acá NO es CTA); onboarding-tour tooltip = superficie `accent` (texto `accent-ink`); `confetti` lee primitivos en runtime (canvas no usa CSS vars); íconos decorativos de features/tipos colapsaron a `accent`. **Nota:** los wrappers de página usan `bg-surface` (blanco) en vez de `bg-bg` (crema) — es token válido, no fuga; corregir a `bg-bg` es decisión de diseño aparte.
 - Por lote: aplicar tabla de reemplazo → `npm run lint` + `npm run build` → verificación visual contra prototipo.
 
 ## Fase 4 — Guardarraíles y documentación
@@ -72,6 +72,15 @@ CAPA 3 · Componente   →  --btn-accent-bg: var(--accent)  (solo cuando un comp
 - [ ] Actualizar `CLAUDE.md` con sección de 3 capas + tabla token→uso.
 - [ ] Actualizar/archivar `design_handoff_chanchito/` (README → `globals.css` como SoT).
 - [ ] (Opcional) Página `/dev/tokens` living styleguide.
+
+## Pendientes sueltos (fixes fuera de los lotes)
+- [x] **Toasts (sonner)** ✅ — `theme="dark"` hardcodeado → `light`; `--popover`/`--radius` (indefinidos) → `--surface`/`--text`/`--border`/`--radius-lg`; el layout usa `richColors`, así que se definieron `--success/error/warning/info-*` como tintes suaves (`color-mix`) de `good/bad/warn/accent` con texto legible + íconos coloreados. Build verde.
+- [x] **Fondos de página → `bg-bg` (crema)** ✅ — `ajustes/perfil`, `ajustes/categorias`, `ajustes/medios`, `perfil`, `login` usaban `bg-surface`/`bg-[var(--surface)]` (blanco) → `bg-bg`.
+- [x] **Login: fallback de Suspense** ✅ — `<div>Cargando...</div>` pelado → `<Loader size="lg" centered text />`.
+- [x] **MainNav** ✅ — sombra `rgba(28,42,71,.4)` hardcodeada → `rgb(var(--navy-700-rgb)/.4)`. Nav/app-shell ya estaban 100% tokenizados.
+- [x] **Loadings revisados** ✅ — `loading.tsx` global, `FullPageLoader`, `Loader`, skeletons: todos tokenizados. Único ad-hoc era el fallback del login (arreglado).
+- [x] **Modales / transiciones (bug de raíz)** ✅ — `tw-animate-css` estaba instalado pero **nunca importado** en `globals.css` → TODAS las animaciones Radix (dialog/sheet/dropdown/popover/select) eran no-op ("sin transición de nada"). Se agregó `@import "tw-animate-css";`. Además, rediseño DS de modales: `DialogContent`/`AlertDialogContent` → `bg-surface text-text border-[1.5px] border-border shadow-float rounded-2xl`, transición desktop más ágil (`sm:duration-200 ease-out` zoom+fade); overlays unificados a `bg-text/40 backdrop-blur-sm`; espaciado header/footer y tipografía de título/descr. afinados; `Sheet` a `shadow-float` + bordes 1.5px. Build verde.
+- [ ] Confirmar esquema de color crédito/débito (Lote C): hoy ambos = `accent`.
 
 ---
 
@@ -83,6 +92,12 @@ CAPA 3 · Componente   →  --btn-accent-bg: var(--accent)  (solo cuando un comp
 | 2026-07-01 | 2 | Alias shadcn en `globals.css`; primitivas y legacy dark saneados; `.skeleton-shimmer` agregado; build verde. | Fase 3 Lote A (Dashboard) |
 | 2026-07-01 | 3-C | Duplicados del handoff resueltos (components borrado, tokens deprecados). Lote C migrado (7 archivos) a tokens; build verde, 0 fugas. | Lote D u otro (A sigue en pausa) |
 | 2026-07-01 | 3-D | Lote D: 3 diálogos de objetivos migrados (emerald role-aware accent/good); build verde, 0 fugas. `budget-overview-strip` diferido al Lote A (vive en home). | Lote E o F (A en pausa) |
+| 2026-07-01 | 3-E | Lote E: inversiones (3 archivos). Escala de datos `--chart-*` agregada a globals.css; charts a tokens; build verde, 0 fugas. Falta verificar visualmente var() en fill. | Lote F (A en pausa) |
+| 2026-07-01 | 3-F | Lote F: 16 archivos (onboarding, ajustes, login, perfil, categorías, shared). Build verde, 0 fugas. Quedan Lote A (home, en pausa) y Lote B (movimientos/transactions). | Lote B, o Lote A cuando termine la home |
+| 2026-07-01 | 3-B | Lote B: movimientos/transacciones (3 archivos). Build verde, 0 fugas. Único lote pendiente: A (home, en pausa). | Lote A cuando termine la home; luego Fase 4 |
+| 2026-07-01 | pend | Fix toasts (sonner) → tema claro + tokens reales + richColors on-brand con color-mix. Build verde. | Más pendientes sueltos o Lote A |
+| 2026-07-01 | pend | Fondos de página → bg-bg (5 pantallas); login fallback → Loader; sombra MainNav tokenizada; loadings revisados. Build verde. | Lote A cuando termine la home; luego Fase 4 |
+| 2026-07-01 | pend | **Fix raíz: `@import "tw-animate-css"` faltante** (animaciones Radix no funcionaban). Rediseño DS de modales (dialog/alert/sheet): superficie/borde/shadow-float/rounded-2xl, transición desktop, overlays con blur, espaciado. Build verde. | Verificar visualmente; Lote A cuando termine la home |
 
 ---
 

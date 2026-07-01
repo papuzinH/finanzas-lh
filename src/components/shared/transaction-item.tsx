@@ -291,8 +291,8 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
             style={{ opacity: deleteBgOpacity }}
             aria-hidden
           >
-            <span className="mr-2 text-sm font-bold text-white">Eliminar</span>
-            <Trash2 className="h-5 w-5 text-white" />
+            <span className="mr-2 text-sm font-bold text-accent-ink">Eliminar</span>
+            <Trash2 className="h-5 w-5 text-accent-ink" />
           </motion.div>
 
           <motion.div

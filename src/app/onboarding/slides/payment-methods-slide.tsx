@@ -25,9 +25,9 @@ type PaymentMethod = {
 }
 
 const TYPE_META: Record<PaymentType, { label: string; icon: typeof CreditCard; bg: string; ring: string; iconColor: string }> = {
-  credit: { label: 'Crédito', icon: CreditCard, bg: 'bg-violet-500/10', ring: 'ring-violet-500/30', iconColor: 'text-violet-400' },
-  debit:  { label: 'Débito / Billetera', icon: Wallet, bg: 'bg-blue-500/10', ring: 'ring-blue-500/30', iconColor: 'text-blue-400' },
-  cash:   { label: 'Efectivo', icon: Banknote, bg: 'bg-emerald-500/10', ring: 'ring-emerald-500/30', iconColor: 'text-emerald-400' },
+  credit: { label: 'Crédito', icon: CreditCard, bg: 'bg-accent/10', ring: 'ring-accent/30', iconColor: 'text-accent-deep' },
+  debit:  { label: 'Débito / Billetera', icon: Wallet, bg: 'bg-accent/10', ring: 'ring-accent/30', iconColor: 'text-accent-deep' },
+  cash:   { label: 'Efectivo', icon: Banknote, bg: 'bg-good/10', ring: 'ring-good/30', iconColor: 'text-good' },
 }
 
 interface PaymentMethodsSlideProps {
@@ -107,8 +107,8 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
     >
       <div className="text-center space-y-2">
         <div className="text-5xl mb-3">💳</div>
-        <h2 className="text-2xl font-bold text-white">¿Con qué pagás?</h2>
-        <p className="text-sm text-slate-400">
+        <h2 className="text-2xl font-bold text-text">¿Con qué pagás?</h2>
+        <p className="text-sm text-muted">
           Tocá un tipo para agregar un medio de pago
         </p>
       </div>
@@ -125,12 +125,12 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
               onClick={() => setOpenAddType(type)}
               disabled={isPending}
               className={cn(
-                'flex flex-col items-center gap-2 rounded-xl border border-slate-800 bg-surface-raised/40 px-3 py-4 transition-all hover:border-slate-700 hover:bg-surface-raised',
+                'flex flex-col items-center gap-2 rounded-xl border border-border bg-surface-2/40 px-3 py-4 transition-all hover:border-border hover:bg-surface-2',
                 meta.bg
               )}
             >
               <Icon className={cn('h-6 w-6', meta.iconColor)} />
-              <span className="text-xs font-medium text-slate-200 text-center leading-tight">
+              <span className="text-xs font-medium text-text text-center leading-tight">
                 {meta.label}
               </span>
             </button>
@@ -156,7 +156,7 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
                 exit={{ opacity: 0, x: 10 }}
                 className={cn(
                   'flex items-center gap-3 rounded-xl border p-3 transition-colors',
-                  isDefault ? 'border-indigo-500/40 bg-indigo-500/5' : 'border-slate-800 bg-surface-raised/30'
+                  isDefault ? 'border-accent/40 bg-accent/5' : 'border-border bg-surface-2/30'
                 )}
               >
                 <div className={cn('rounded-lg p-2', meta.bg)}>
@@ -164,15 +164,15 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-100 truncate">{m.name}</span>
+                    <span className="text-sm font-medium text-text truncate">{m.name}</span>
                     {isDefault && (
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-deep bg-accent/10 px-1.5 py-0.5 rounded">
                         Principal
                       </span>
                     )}
                   </div>
                   {m.type === 'credit' && (
-                    <p className={cn('text-xs', isIncomplete ? 'text-amber-400' : 'text-slate-500')}>
+                    <p className={cn('text-xs', isIncomplete ? 'text-warn' : 'text-muted')}>
                       {isIncomplete
                         ? '⚠ Falta cierre y vencimiento'
                         : `Cierra ${m.closingDay} · Vence ${m.paymentDay}`}
@@ -184,7 +184,7 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
                     <button
                       type="button"
                       onClick={() => setDefaultName(m.name)}
-                      className="text-[10px] text-slate-400 hover:text-indigo-400 px-2 py-1 rounded hover:bg-slate-800/50 transition-colors"
+                      className="text-[10px] text-muted hover:text-accent-deep px-2 py-1 rounded hover:bg-surface-2/50 transition-colors"
                       title="Marcar como principal"
                     >
                       Hacer principal
@@ -193,7 +193,7 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
                   <button
                     type="button"
                     onClick={() => setEditingIdx(idx)}
-                    className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+                    className="p-1.5 rounded hover:bg-surface-2 text-muted hover:text-text transition-colors"
                     aria-label={`Editar ${m.name}`}
                   >
                     <Pencil className="h-3.5 w-3.5" />
@@ -201,7 +201,7 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
                   <button
                     type="button"
                     onClick={() => removeMethod(idx)}
-                    className="p-1.5 rounded hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-colors"
+                    className="p-1.5 rounded hover:bg-bad/10 text-muted hover:text-bad transition-colors"
                     aria-label={`Eliminar ${m.name}`}
                   >
                     <X className="h-3.5 w-3.5" />
@@ -213,7 +213,7 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
         </AnimatePresence>
 
         {methods.length === 0 && (
-          <div className="text-center py-6 text-sm text-slate-500">
+          <div className="text-center py-6 text-sm text-muted">
             Todavía no agregaste medios de pago
           </div>
         )}
@@ -221,9 +221,9 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
 
       {/* Banner de tarjetas incompletas */}
       {incompleteCreditCount > 0 && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs">
-          <Info className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-          <div className="text-amber-200/90">
+        <div className="flex items-start gap-2 rounded-lg border border-warn/30 bg-warn/5 p-3 text-xs">
+          <Info className="h-4 w-4 text-warn shrink-0 mt-0.5" />
+          <div className="text-warn">
             Tenés {incompleteCreditCount} {incompleteCreditCount === 1 ? 'tarjeta' : 'tarjetas'} sin fechas.
             Te las vamos a recordar después en el dashboard así podés cargarlas cuando quieras.
           </div>
@@ -236,7 +236,7 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
         size="lg"
         onClick={handleFinish}
         disabled={isPending || methods.length === 0}
-        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-12 text-base font-medium shadow-lg shadow-indigo-600/25"
+        className="w-full bg-accent hover:bg-accent-deep text-accent-ink h-12 text-base font-medium shadow-offset"
       >
         {isPending ? (
           <Loader2 className="h-5 w-5 animate-spin" />
@@ -250,9 +250,9 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
 
       {/* Modal: agregar medio */}
       <Dialog open={openAddType !== null} onOpenChange={(o) => !o && setOpenAddType(null)}>
-        <DialogContent className="sm:max-w-md bg-surface-raised border-slate-800">
+        <DialogContent className="sm:max-w-md bg-surface-2 border-border">
           <DialogHeader>
-            <DialogTitle className="text-slate-100">
+            <DialogTitle className="text-text">
               Nuevo medio de pago
             </DialogTitle>
           </DialogHeader>
@@ -271,9 +271,9 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
 
       {/* Modal: editar */}
       <Dialog open={editingIdx !== null} onOpenChange={(o) => !o && setEditingIdx(null)}>
-        <DialogContent className="sm:max-w-md bg-surface-raised border-slate-800">
+        <DialogContent className="sm:max-w-md bg-surface-2 border-border">
           <DialogHeader>
-            <DialogTitle className="text-slate-100">Editar medio de pago</DialogTitle>
+            <DialogTitle className="text-text">Editar medio de pago</DialogTitle>
           </DialogHeader>
           {editingIdx !== null && methods[editingIdx] && (
             <PaymentMethodForm
@@ -367,11 +367,11 @@ function PaymentMethodForm({
       {/* Header con icon de tipo */}
       <div className={cn('flex items-center gap-3 rounded-lg p-3', meta.bg)}>
         <meta.icon className={cn('h-5 w-5', meta.iconColor)} />
-        <span className="text-sm font-medium text-slate-100">{meta.label}</span>
+        <span className="text-sm font-medium text-text">{meta.label}</span>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-slate-300">Nombre</label>
+        <label className="text-xs font-medium text-text">Nombre</label>
         <Input
           type="text"
           value={name}
@@ -383,7 +383,7 @@ function PaymentMethodForm({
           }
           maxLength={50}
           autoFocus
-          className="bg-surface border-slate-700 text-slate-100"
+          className="bg-surface border-border text-text"
         />
       </div>
 
@@ -391,7 +391,7 @@ function PaymentMethodForm({
         <>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Día de cierre</label>
+              <label className="text-xs font-medium text-text">Día de cierre</label>
               <Input
                 type="number"
                 min={1}
@@ -399,11 +399,11 @@ function PaymentMethodForm({
                 value={closingDay}
                 onChange={(e) => setClosingDay(e.target.value)}
                 placeholder="24"
-                className="bg-surface border-slate-700 text-slate-100"
+                className="bg-surface border-border text-text"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-300">Día de vencimiento</label>
+              <label className="text-xs font-medium text-text">Día de vencimiento</label>
               <Input
                 type="number"
                 min={1}
@@ -411,16 +411,16 @@ function PaymentMethodForm({
                 value={paymentDay}
                 onChange={(e) => setPaymentDay(e.target.value)}
                 placeholder="6"
-                className="bg-surface border-slate-700 text-slate-100"
+                className="bg-surface border-border text-text"
               />
             </div>
           </div>
 
           {/* Persuasión: por qué importan las fechas */}
-          <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-3 space-y-2">
+          <div className="rounded-lg border border-accent/20 bg-accent/5 p-3 space-y-2">
             <div className="flex items-start gap-2">
-              <Check className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-violet-100/90 leading-relaxed">
+              <Check className="h-4 w-4 text-accent-deep shrink-0 mt-0.5" />
+              <p className="text-xs text-accent-deep leading-relaxed">
                 <span className="font-semibold">¿Por qué importan estas fechas?</span> Con ellas Chanchito
                 calcula automáticamente cuándo te vence cada gasto y cuotas, te avisa antes
                 de cada vencimiento y agrupa correctamente los consumos por mes.
@@ -429,7 +429,7 @@ function PaymentMethodForm({
             <button
               type="button"
               onClick={() => setShowDateHelp((v) => !v)}
-              className="text-xs text-violet-400 hover:text-violet-300 underline-offset-2 hover:underline ml-6"
+              className="text-xs text-accent-deep hover:text-accent underline-offset-2 hover:underline ml-6"
             >
               {showDateHelp ? 'Ocultar ayuda' : '¿Cómo encuentro estas fechas?'}
             </button>
@@ -441,7 +441,7 @@ function PaymentMethodForm({
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <ul className="text-xs text-slate-300 space-y-1 pl-6 list-disc">
+                  <ul className="text-xs text-text space-y-1 pl-6 list-disc">
                     <li>Mirá el último resumen de tu tarjeta (físico o en home banking).</li>
                     <li><span className="font-medium">Cierre:</span> el día hasta donde cuentan los consumos del mes.</li>
                     <li><span className="font-medium">Vencimiento:</span> el día límite para pagar el resumen.</li>
@@ -453,9 +453,9 @@ function PaymentMethodForm({
           </div>
 
           {incomplete && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5">
-              <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-200/90">
+            <div className="flex items-start gap-2 rounded-lg border border-warn/30 bg-warn/5 p-2.5">
+              <AlertCircle className="h-3.5 w-3.5 text-warn shrink-0 mt-0.5" />
+              <p className="text-xs text-warn">
                 Podés guardarla sin fechas y completarlas después.
                 Te las vamos a recordar en el dashboard.
               </p>
@@ -465,13 +465,13 @@ function PaymentMethodForm({
       )}
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-400 hover:text-slate-200">
+        <Button type="button" variant="ghost" onClick={onCancel} className="text-muted hover:text-text">
           Cancelar
         </Button>
         <Button
           type="submit"
           disabled={!name.trim()}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white"
+          className="bg-accent hover:bg-accent-deep text-accent-ink"
         >
           <Plus className="h-4 w-4 mr-1" />
           {initial ? 'Guardar' : 'Agregar'}

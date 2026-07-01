@@ -77,14 +77,14 @@ export function RiskAnalysis() {
   const score = computeDiversificationScore(typeCount, typePercentages)
 
   const scoreColor =
-    score >= 7 ? 'text-emerald-400' :
-    score >= 4 ? 'text-amber-400' :
-    'text-rose-400'
+    score >= 7 ? 'text-good' :
+    score >= 4 ? 'text-warn' :
+    'text-bad'
 
   const scoreBarColor =
-    score >= 7 ? 'bg-emerald-500' :
-    score >= 4 ? 'bg-amber-500' :
-    'bg-rose-500'
+    score >= 7 ? 'bg-good' :
+    score >= 4 ? 'bg-warn' :
+    'bg-bad'
 
   const scoreLabel =
     score >= 7 ? 'Cartera bien diversificada' :
@@ -93,8 +93,8 @@ export function RiskAnalysis() {
 
   if (portfolio.assets.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-800 py-16 text-center flex flex-col items-center gap-3">
-        <p className="text-slate-500 text-sm">Sin activos para analizar</p>
+      <div className="rounded-2xl border border-dashed border-border py-16 text-center flex flex-col items-center gap-3">
+        <p className="text-muted text-sm">Sin activos para analizar</p>
       </div>
     )
   }
@@ -103,12 +103,12 @@ export function RiskAnalysis() {
     <div className="space-y-5">
       {/* Concentration warning */}
       {concentratedAsset && (
-        <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
-          <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-warn/20 bg-warn/5">
+          <AlertTriangle className="h-5 w-5 text-warn shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-amber-300">Alta concentración detectada</p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              <span className="font-bold text-amber-400">{concentratedAsset.ticker}</span> representa el{' '}
+            <p className="text-sm font-semibold text-warn">Alta concentración detectada</p>
+            <p className="text-xs text-muted mt-0.5">
+              <span className="font-bold text-warn">{concentratedAsset.ticker}</span> representa el{' '}
               {((concentratedAsset.currentValue / totalValue) * 100).toFixed(1)}% de tu portfolio (
               {fmtCurrency(concentratedAsset.currentValue)}). Considerá diversificar.
             </p>
@@ -117,20 +117,20 @@ export function RiskAnalysis() {
       )}
 
       {/* Diversification score */}
-      <Card className="bg-slate-900/40 border-slate-800 p-4">
+      <Card className="bg-surface-2 border-border p-4">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] uppercase font-medium text-slate-500 tracking-wider">Score de Diversificación</p>
+          <p className="text-[10px] uppercase font-medium text-muted tracking-wider">Score de Diversificación</p>
           <span className={cn('text-2xl font-bold font-mono', scoreColor)}>
-            {score}<span className="text-sm text-slate-500">/10</span>
+            {score}<span className="text-sm text-muted">/10</span>
           </span>
         </div>
-        <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+        <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
           <div
             className={cn('h-full rounded-full transition-all', scoreBarColor)}
             style={{ width: `${score * 10}%` }}
           />
         </div>
-        <p className="text-[11px] text-slate-500 mt-2">
+        <p className="text-[11px] text-muted mt-2">
           {typeCount} {typeCount === 1 ? 'tipo de activo' : 'tipos de activos'} · {scoreLabel}
         </p>
       </Card>
@@ -138,8 +138,8 @@ export function RiskAnalysis() {
       {/* Two pie charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* By asset type */}
-        <Card className="bg-slate-900/40 border-slate-800 p-4">
-          <p className="text-xs font-semibold text-slate-300 mb-3">Por tipo de activo</p>
+        <Card className="bg-surface-2 border-border p-4">
+          <p className="text-xs font-semibold text-text mb-3">Por tipo de activo</p>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -167,8 +167,8 @@ export function RiskAnalysis() {
         </Card>
 
         {/* By currency */}
-        <Card className="bg-slate-900/40 border-slate-800 p-4">
-          <p className="text-xs font-semibold text-slate-300 mb-3">Por moneda original</p>
+        <Card className="bg-surface-2 border-border p-4">
+          <p className="text-xs font-semibold text-text mb-3">Por moneda original</p>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>

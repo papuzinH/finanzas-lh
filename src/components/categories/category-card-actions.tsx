@@ -187,7 +187,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
             variant="ghost"
             size="icon"
             aria-label="Opciones de categoría"
-            className="h-7 w-7 min-h-11 min-w-11 text-slate-400 hover:text-slate-200 hover:bg-slate-800 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            className="h-7 w-7 min-h-11 min-w-11 text-muted hover:text-text hover:bg-surface-2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
             onClick={(e) => e.preventDefault()}
           >
             {isWorking ? (
@@ -199,18 +199,18 @@ export function CategoryCardActions({ category, allCategories }: Props) {
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"
-          className="bg-surface-raised border-slate-800 text-slate-200"
+          className="bg-surface-2 border-border text-text"
         >
           <DropdownMenuItem
-            className="gap-2 cursor-pointer hover:bg-slate-800 focus:bg-slate-800"
+            className="gap-2 cursor-pointer hover:bg-surface-2 focus:bg-surface-2"
             onSelect={() => setEditOpen(true)}
           >
-            <Pencil className="h-4 w-4 text-slate-400" />
+            <Pencil className="h-4 w-4 text-muted" />
             Editar
           </DropdownMenuItem>
-          <DropdownMenuSeparator className="bg-slate-800" />
+          <DropdownMenuSeparator className="bg-surface-2" />
           <DropdownMenuItem
-            className="gap-2 cursor-pointer text-red-400 hover:text-red-300 hover:bg-red-500/10 focus:bg-red-500/10 focus:text-red-300"
+            className="gap-2 cursor-pointer text-bad hover:text-bad hover:bg-bad/10 focus:bg-bad/10 focus:text-bad"
             onSelect={handleDeleteClick}
             disabled={isWorking}
           >
@@ -224,13 +224,13 @@ export function CategoryCardActions({ category, allCategories }: Props) {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent
           showCloseButton
-          className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-slate-800/50 text-slate-50"
+          className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-border/50 text-text"
         >
           <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-            <DialogTitle className="text-xl font-bold text-indigo-300">
+            <DialogTitle className="text-xl font-bold text-accent-deep">
               Editar Categoría
             </DialogTitle>
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="text-sm text-muted mt-1">
               Modificá el nombre, emoji o descripción de la categoría.
             </p>
           </DialogHeader>
@@ -251,13 +251,13 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                             <Button
                               type="button"
                               variant="outline"
-                              className="w-14 h-14 text-2xl p-0 border-0 bg-surface-raised rounded-xl hover:bg-slate-800 transition-all"
+                              className="w-14 h-14 text-2xl p-0 border-0 bg-surface-2 rounded-xl hover:bg-surface-2 transition-all"
                               aria-label="Seleccionar emoji"
                             >
                               {field.value}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-64 p-2 bg-surface-overlay border-slate-800 shadow-2xl">
+                          <PopoverContent className="w-64 p-2 bg-surface border-border shadow-2xl">
                             <div className="grid grid-cols-5 gap-1">
                               {COMMON_EMOJIS.map((e) => (
                                 <button
@@ -265,7 +265,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                                   type="button"
                                   onClick={() => field.onChange(e)}
                                   aria-label={`Seleccionar emoji ${e}`}
-                                  className="w-10 h-10 min-h-11 min-w-11 flex items-center justify-center text-xl hover:bg-slate-800 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                  className="w-10 h-10 min-h-11 min-w-11 flex items-center justify-center text-xl hover:bg-surface-2 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                 >
                                   {e}
                                 </button>
@@ -282,15 +282,15 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                     name="name"
                     render={({ field }) => (
                       <FormItem className="flex-1">
-                        <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                        <span className="text-[10px] font-medium uppercase tracking-widest text-muted">
                           Nombre
                         </span>
                         <FormControl>
                           <div className="relative">
-                            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
+                            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
                             <Input
                               placeholder="Ej: Comida Rápida, Gimnasio..."
-                              className="pl-10 bg-surface-raised border-0 rounded-xl min-h-11 text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-indigo-500"
+                              className="pl-10 bg-surface-2 border-0 rounded-xl min-h-11 text-text placeholder:text-faint focus-visible:ring-2 focus-visible:ring-accent"
                               {...field}
                             />
                           </div>
@@ -308,7 +308,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                   render={({ field }) => (
                     <FormItem className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+                        <span className="text-[10px] font-medium uppercase tracking-widest text-muted">
                           Descripción (para la IA)
                         </span>
                         <Button
@@ -317,7 +317,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                           size="sm"
                           onClick={handleGenerateDescription}
                           disabled={generatingAi || !watchedEditName}
-                          className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+                          className="text-accent-deep hover:text-accent hover:bg-accent/10 transition-colors"
                         >
                           {generatingAi ? (
                             <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -331,7 +331,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                         <FormControl>
                           <Textarea
                             placeholder="Explica qué gastos entran acá..."
-                            className="bg-surface-raised border-0 rounded-xl min-h-[100px] resize-none text-slate-50 placeholder:text-slate-600 focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            className="bg-surface-2 border-0 rounded-xl min-h-[100px] resize-none text-text placeholder:text-faint focus-visible:ring-2 focus-visible:ring-accent"
                             {...field}
                           />
                         </FormControl>
@@ -341,9 +341,9 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               exit={{ opacity: 0 }}
-                              className="absolute inset-0 bg-surface-raised/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl"
+                              className="absolute inset-0 bg-surface-2/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl"
                             >
-                              <div className="flex items-center gap-2 text-indigo-400 font-medium">
+                              <div className="flex items-center gap-2 text-accent-deep font-medium">
                                 <Sparkles className="w-4 h-4 animate-pulse" />
                                 <span>Chanchito está pensando...</span>
                               </div>
@@ -364,7 +364,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                   type="submit"
                   form="edit-category-form"
                   disabled={editLoading}
-                  className="w-full min-h-[52px] rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-base font-semibold shadow-[0_0_24px_rgba(129,140,248,0.25)] transition-all active:scale-[0.98]"
+                  className="w-full min-h-[52px] rounded-xl bg-accent hover:bg-accent-deep text-accent-ink text-base font-semibold shadow-offset transition-all active:scale-[0.98]"
                 >
                   {editLoading ? (
                     <>
@@ -389,20 +389,20 @@ export function CategoryCardActions({ category, allCategories }: Props) {
         open={deleteState.step === 'confirm-simple'}
         onOpenChange={(open) => !open && setDeleteState({ step: 'idle' })}
       >
-        <AlertDialogContent className="bg-surface-overlay border-slate-800 text-slate-50">
+        <AlertDialogContent className="bg-surface border-border text-text">
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar &ldquo;{category.name}&rdquo;?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
+            <AlertDialogDescription className="text-muted">
               Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800 hover:text-slate-100">
+            <AlertDialogCancel className="border-border bg-transparent text-text hover:bg-surface-2 hover:text-text">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteSimple}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-bad hover:bg-[color:var(--btn-destructive-border)] text-accent-ink"
             >
               Eliminar
             </AlertDialogAction>
@@ -415,14 +415,14 @@ export function CategoryCardActions({ category, allCategories }: Props) {
         open={deleteState.step === 'resolve-conflict' || deleteState.step === 'working'}
         onOpenChange={(open) => !open && deleteState.step !== 'working' && setDeleteState({ step: 'idle' })}
       >
-        <DialogContent className="sm:max-w-[480px] bg-surface-overlay border-slate-800 text-slate-50">
+        <DialogContent className="sm:max-w-[480px] bg-surface border-border text-text">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              <AlertTriangle className="h-5 w-5 text-warn" />
               Categoría con elementos asociados
             </DialogTitle>
-            <DialogDescription className="text-slate-400">
-              La categoría <strong className="text-slate-200">&ldquo;{category.name}&rdquo;</strong> tiene{' '}
+            <DialogDescription className="text-muted">
+              La categoría <strong className="text-text">&ldquo;{category.name}&rdquo;</strong> tiene{' '}
               {deps && (
                 <span>
                   {deps.transactions > 0 && `${deps.transactions} transacción${deps.transactions !== 1 ? 'es' : ''}`}
@@ -435,16 +435,16 @@ export function CategoryCardActions({ category, allCategories }: Props) {
 
           <div className="space-y-4 py-2">
             {/* Option 1: Reassign */}
-            <div className="rounded-xl border border-slate-800 bg-surface-raised/50 p-4 space-y-3">
-              <p className="text-sm font-medium text-slate-200">Opción 1 — Reasignar a otra categoría</p>
-              <p className="text-xs text-slate-400">Todos los elementos pasarán a la categoría que elijas.</p>
+            <div className="rounded-xl border border-border bg-surface-2/50 p-4 space-y-3">
+              <p className="text-sm font-medium text-text">Opción 1 — Reasignar a otra categoría</p>
+              <p className="text-xs text-muted">Todos los elementos pasarán a la categoría que elijas.</p>
               <Select value={reassignTo} onValueChange={setReassignTo}>
-                <SelectTrigger className="bg-surface-raised border-slate-700 text-slate-200">
+                <SelectTrigger className="bg-surface-2 border-border text-text">
                   <SelectValue placeholder="Elegí una categoría..." />
                 </SelectTrigger>
-                <SelectContent className="bg-surface-overlay border-slate-800 text-slate-200">
+                <SelectContent className="bg-surface border-border text-text">
                   {otherCategories.map((c) => (
-                    <SelectItem key={c.id} value={c.id} className="focus:bg-slate-800 focus:text-slate-100">
+                    <SelectItem key={c.id} value={c.id} className="focus:bg-surface-2 focus:text-text">
                       {c.emoji} {c.name}
                     </SelectItem>
                   ))}
@@ -453,7 +453,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
               <Button
                 onClick={handleReassign}
                 disabled={!reassignTo || deleteState.step === 'working'}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="w-full bg-accent hover:bg-accent-deep text-accent-ink"
               >
                 {deleteState.step === 'working' ? (
                   <><Loader2 className="h-4 w-4 animate-spin mr-2" />Procesando...</>
@@ -464,9 +464,9 @@ export function CategoryCardActions({ category, allCategories }: Props) {
             </div>
 
             {/* Option 2: Unlink */}
-            <div className="rounded-xl border border-slate-800 bg-surface-raised/50 p-4 space-y-3">
-              <p className="text-sm font-medium text-slate-200">Opción 2 — Quitar la categoría de los elementos</p>
-              <p className="text-xs text-slate-400">
+            <div className="rounded-xl border border-border bg-surface-2/50 p-4 space-y-3">
+              <p className="text-sm font-medium text-text">Opción 2 — Quitar la categoría de los elementos</p>
+              <p className="text-xs text-muted">
                 Los elementos quedarán sin categoría asignada. Podrás reclasificarlos luego.
               </p>
               <Button
@@ -489,7 +489,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
               variant="ghost"
               onClick={() => setDeleteState({ step: 'idle' })}
               disabled={deleteState.step === 'working'}
-              className="text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+              className="text-muted hover:text-text hover:bg-surface-2"
             >
               Cancelar
             </Button>

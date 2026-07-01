@@ -29,14 +29,14 @@ export function Loader({
         {/* Background ring */}
         <div 
           className={cn(
-            "rounded-full border-slate-800",
+            "rounded-full border-border",
             sizes[size]
-          )} 
+          )}
         />
         {/* Spinning ring */}
         <motion.div
           className={cn(
-            "absolute inset-0 rounded-full border-t-emerald-500 border-r-transparent border-b-transparent border-l-transparent",
+            "absolute inset-0 rounded-full border-t-accent border-r-transparent border-b-transparent border-l-transparent",
             sizes[size],
             className
           )}
@@ -49,7 +49,7 @@ export function Loader({
         />
       </div>
       {text && (
-        <p className="text-sm text-slate-400 animate-pulse font-medium">
+        <p className="text-sm text-muted animate-pulse font-medium">
           {text}
         </p>
       )}

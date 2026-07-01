@@ -211,7 +211,7 @@ export function OnboardingTour() {
   return (
     <div className="fixed inset-0 z-9999" aria-live="polite">
       <motion.div
-        className="absolute inset-0 bg-black/70"
+        className="absolute inset-0 bg-navy/70"
         style={{ clipPath }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -227,14 +227,14 @@ export function OnboardingTour() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: tooltipPos.arrowSide === 'top' ? 10 : -10 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="absolute w-72 bg-indigo-600 text-white rounded-xl p-4 shadow-2xl"
+            className="absolute w-72 bg-accent text-accent-ink rounded-xl p-4 shadow-2xl"
             style={{
               top: tooltipPos.top,
               left: tooltipPos.left,
             }}
           >
             <div
-              className="absolute w-3 h-3 bg-indigo-600 rotate-45"
+              className="absolute w-3 h-3 bg-accent rotate-45"
               style={{
                 ...(tooltipPos.arrowSide === 'top'
                   ? { top: -6 }
@@ -256,20 +256,20 @@ export function OnboardingTour() {
             </p>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-indigo-200">
+              <span className="text-xs text-accent-ink/80">
                 {globalStep} de {TOUR_TOTAL_STEPS}
               </span>
 
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleSkip}
-                  className="text-xs text-indigo-300 hover:text-white transition-colors underline underline-offset-2"
+                  className="text-xs text-accent-ink/70 hover:text-accent-ink transition-colors underline underline-offset-2"
                 >
                   Saltar tour
                 </button>
                 <button
                   onClick={handleNext}
-                  className="bg-white text-indigo-600 rounded-lg px-4 py-1.5 text-sm font-semibold hover:bg-indigo-50 transition-colors"
+                  className="bg-accent-ink text-accent-deep rounded-lg px-4 py-1.5 text-sm font-semibold hover:bg-cream transition-colors"
                 >
                   {isLastStep ? 'Entendido' : 'Siguiente'}
                 </button>

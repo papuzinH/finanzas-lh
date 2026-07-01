@@ -13,7 +13,7 @@ function GoogleButton() {
     <Button
       type="submit"
       variant="outline"
-      className="w-full border-slate-700 bg-surface hover:bg-surface-raised hover:text-slate-50"
+      className="w-full border-border bg-surface hover:bg-surface-2 hover:text-text"
       disabled={pending}
     >
       {pending ? (
@@ -33,14 +33,14 @@ export function LoginForm() {
   const error = searchParams.get('error')
 
   return (
-    <Card className="w-full max-w-sm border-slate-800 bg-surface-raised text-slate-50">
+    <Card className="w-full max-w-sm border-border bg-surface text-text">
       <CardHeader className="space-y-1 text-center">
         <CardTitle className="text-2xl font-bold">Bienvenido</CardTitle>
-        <CardDescription className="text-slate-400">
+        <CardDescription className="text-muted">
           Ingresa con tu cuenta de Google para continuar
         </CardDescription>
         {error && (
-          <div className="rounded-md bg-red-500/10 p-3 text-sm text-red-500">
+          <div className="rounded-md bg-bad/10 p-3 text-sm text-bad">
             {error === 'auth_callback_failed'
               ? 'Error de conexión. Intenta nuevamente.'
               : error}

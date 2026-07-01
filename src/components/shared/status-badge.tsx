@@ -11,11 +11,11 @@ interface StatusBadgeProps {
 }
 
 const variants = {
-  success: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-  warning: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  error: "bg-rose-500/10 text-rose-500 border-rose-500/20",
-  neutral: "bg-slate-800/50 text-slate-400 border-slate-700/50",
-  info: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+  success: "bg-good/10 text-good border-good/20",
+  warning: "bg-warn/10 text-warn border-warn/20",
+  error: "bg-bad/10 text-bad border-bad/20",
+  neutral: "bg-surface-2 text-muted border-border",
+  info: "bg-accent/10 text-accent-deep border-accent/20",
 };
 
 export function StatusBadge({ variant = 'neutral', children, icon, className }: StatusBadgeProps) {

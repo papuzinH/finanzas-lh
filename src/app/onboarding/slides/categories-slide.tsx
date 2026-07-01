@@ -101,15 +101,15 @@ export function CategoriesSlide({ onNext }: CategoriesSlideProps) {
     >
       <div className="text-center space-y-2">
         <div className="text-5xl mb-3">📂</div>
-        <h2 className="text-2xl font-bold text-white">Tus categorías</h2>
-        <p className="text-sm text-slate-400">
+        <h2 className="text-2xl font-bold text-text">Tus categorías</h2>
+        <p className="text-sm text-muted">
           Las usamos para clasificar tus gastos. Tocá para activar/desactivar.
         </p>
       </div>
 
       {/* Acciones secundarias */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-muted">
           {selectedCount} {selectedCount === 1 ? 'seleccionada' : 'seleccionadas'}
         </span>
         <div className="flex gap-2">
@@ -119,7 +119,7 @@ export function CategoriesSlide({ onNext }: CategoriesSlideProps) {
             size="sm"
             onClick={() => setAiOpen(true)}
             disabled={isPending}
-            className="text-xs h-8 px-3 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
+            className="text-xs h-8 px-3 text-accent-deep hover:text-accent hover:bg-accent/10"
           >
             <Sparkles className="h-3.5 w-3.5 mr-1" />
             Personalizar con IA
@@ -143,14 +143,14 @@ export function CategoriesSlide({ onNext }: CategoriesSlideProps) {
               className={cn(
                 'group relative flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-all',
                 cat.selected
-                  ? 'border-indigo-500/50 bg-indigo-500/10 text-slate-100'
-                  : 'border-slate-800 bg-surface-raised/30 text-slate-500 opacity-60'
+                  ? 'border-accent/50 bg-accent/10 text-text'
+                  : 'border-border bg-surface-2/30 text-muted opacity-60'
               )}
             >
               <span className="text-lg shrink-0">{cat.emoji}</span>
               <span className="text-sm font-medium truncate flex-1">{cat.name}</span>
               {cat.selected && (
-                <Check className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                <Check className="h-3.5 w-3.5 text-accent-deep shrink-0" />
               )}
               {/* Edit mini-button (esquina sup. derecha) */}
               <span
@@ -167,10 +167,10 @@ export function CategoriesSlide({ onNext }: CategoriesSlideProps) {
                     setEditing(idx)
                   }
                 }}
-                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-slate-700/50 transition-opacity cursor-pointer"
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-surface-2 transition-opacity cursor-pointer"
                 aria-label={`Editar ${cat.name}`}
               >
-                <Pencil className="h-3 w-3 text-slate-400" />
+                <Pencil className="h-3 w-3 text-muted" />
               </span>
             </motion.button>
           ))}
@@ -186,7 +186,7 @@ export function CategoriesSlide({ onNext }: CategoriesSlideProps) {
         size="lg"
         onClick={handleContinue}
         disabled={isPending || selectedCount === 0}
-        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-12 text-base font-medium shadow-lg shadow-indigo-600/25"
+        className="w-full bg-accent hover:bg-accent-deep text-accent-ink h-12 text-base font-medium shadow-offset"
       >
         {isPending ? (
           <Loader2 className="h-5 w-5 animate-spin" />
@@ -200,9 +200,9 @@ export function CategoriesSlide({ onNext }: CategoriesSlideProps) {
 
       {/* Modal: editar categoría */}
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="sm:max-w-md bg-surface-raised border-slate-800">
+        <DialogContent className="sm:max-w-md bg-surface-2 border-border">
           <DialogHeader>
-            <DialogTitle className="text-slate-100">Editar categoría</DialogTitle>
+            <DialogTitle className="text-text">Editar categoría</DialogTitle>
           </DialogHeader>
           {editing !== null && categories[editing] && (
             <EditCategoryForm
@@ -222,10 +222,10 @@ export function CategoriesSlide({ onNext }: CategoriesSlideProps) {
 
       {/* Modal: IA */}
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>
-        <DialogContent className="sm:max-w-md bg-surface-raised border-slate-800">
+        <DialogContent className="sm:max-w-md bg-surface-2 border-border">
           <DialogHeader>
-            <DialogTitle className="text-slate-100 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-violet-400" />
+            <DialogTitle className="text-text flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-accent-deep" />
               Sugerir con IA
             </DialogTitle>
           </DialogHeader>
@@ -272,12 +272,12 @@ function AddCategoryForm({
             type="button"
             variant="outline"
             disabled={disabled}
-            className="h-11 w-11 shrink-0 p-0 text-xl bg-surface-raised border-slate-700 hover:bg-slate-800"
+            className="h-11 w-11 shrink-0 p-0 text-xl bg-surface-2 border-border hover:bg-surface-2"
           >
             {emoji}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64 p-2 bg-surface-raised border-slate-800">
+        <PopoverContent className="w-64 p-2 bg-surface-2 border-border">
           <div className="grid grid-cols-8 gap-1">
             {COMMON_EMOJIS.map((e) => (
               <button
@@ -287,7 +287,7 @@ function AddCategoryForm({
                   setEmoji(e)
                   setEmojiOpen(false)
                 }}
-                className="text-xl p-1.5 rounded hover:bg-slate-800 transition-colors"
+                className="text-xl p-1.5 rounded hover:bg-surface-2 transition-colors"
               >
                 {e}
               </button>
@@ -308,13 +308,13 @@ function AddCategoryForm({
         placeholder="Agregar categoría..."
         maxLength={50}
         disabled={disabled}
-        className="flex-1 h-11 bg-surface-raised border-slate-700 text-sm text-slate-100"
+        className="flex-1 h-11 bg-surface-2 border-border text-sm text-text"
       />
       <Button
         type="button"
         onClick={handleAdd}
         disabled={disabled || !name.trim()}
-        className="h-11 w-11 shrink-0 p-0 bg-slate-700 hover:bg-slate-600"
+        className="h-11 w-11 shrink-0 p-0 bg-surface-2 hover:bg-surface"
       >
         <Plus className="h-4 w-4" />
       </Button>
@@ -348,12 +348,12 @@ function EditCategoryForm({
             <Button
               type="button"
               variant="outline"
-              className="h-11 w-11 shrink-0 p-0 text-xl bg-surface-raised border-slate-700 hover:bg-slate-800"
+              className="h-11 w-11 shrink-0 p-0 text-xl bg-surface-2 border-border hover:bg-surface-2"
             >
               {emoji}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-2 bg-surface-raised border-slate-800">
+          <PopoverContent className="w-64 p-2 bg-surface-2 border-border">
             <div className="grid grid-cols-8 gap-1">
               {COMMON_EMOJIS.map((e) => (
                 <button
@@ -363,7 +363,7 @@ function EditCategoryForm({
                     setEmoji(e)
                     setEmojiOpen(false)
                   }}
-                  className="text-xl p-1.5 rounded hover:bg-slate-800 transition-colors"
+                  className="text-xl p-1.5 rounded hover:bg-surface-2 transition-colors"
                 >
                   {e}
                 </button>
@@ -376,7 +376,7 @@ function EditCategoryForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={50}
-          className="flex-1 h-11 bg-surface-raised border-slate-700 text-slate-100"
+          className="flex-1 h-11 bg-surface-2 border-border text-text"
         />
       </div>
 
@@ -386,7 +386,7 @@ function EditCategoryForm({
         placeholder="Descripción (opcional). Ayuda a la IA a clasificar gastos."
         maxLength={300}
         rows={3}
-        className="bg-surface-raised border-slate-700 text-sm text-slate-100"
+        className="bg-surface-2 border-border text-sm text-text"
       />
 
       <div className="flex justify-between gap-2">
@@ -394,7 +394,7 @@ function EditCategoryForm({
           type="button"
           variant="ghost"
           onClick={onDelete}
-          className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+          className="text-bad hover:text-bad hover:bg-bad/10"
         >
           <X className="h-4 w-4 mr-1" />
           Eliminar
@@ -403,7 +403,7 @@ function EditCategoryForm({
           type="button"
           onClick={() => onSave({ name: name.trim(), emoji, description: description.trim() })}
           disabled={!name.trim()}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white"
+          className="bg-accent hover:bg-accent-deep text-accent-ink"
         >
           Guardar cambios
         </Button>
@@ -443,7 +443,7 @@ function AIDescriptionForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-muted">
         Contame en qué solés gastar y te sugiero categorías personalizadas. Vas a poder editarlas después.
       </p>
       <Textarea
@@ -453,12 +453,12 @@ function AIDescriptionForm({
         rows={5}
         autoFocus
         disabled={isPending}
-        className="bg-surface-raised border-slate-700 text-sm text-slate-100"
+        className="bg-surface-2 border-border text-sm text-text"
       />
       <Button
         type="submit"
         disabled={isPending || text.trim().length < 3}
-        className="w-full bg-violet-600 hover:bg-violet-500 text-white"
+        className="w-full bg-accent hover:bg-accent-deep text-accent-ink"
       >
         {isPending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -469,7 +469,7 @@ function AIDescriptionForm({
           </>
         )}
       </Button>
-      <p className="text-xs text-slate-500 text-center">
+      <p className="text-xs text-muted text-center">
         Las sugerencias van a reemplazar las actuales. Vas a poder editarlas.
       </p>
     </form>

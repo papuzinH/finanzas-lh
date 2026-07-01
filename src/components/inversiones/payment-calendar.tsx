@@ -30,9 +30,9 @@ function resolvePaymentType(assetType: string): PaymentType {
 }
 
 const PAYMENT_CONFIG: Record<PaymentType, { label: string; icon: React.ElementType; color: string; dot: string }> = {
-  coupon:   { label: 'Cupón',       icon: Landmark,          color: 'text-violet-400',  dot: 'bg-violet-500' },
-  dividend: { label: 'Dividendo',   icon: CircleDollarSign,  color: 'text-emerald-400', dot: 'bg-emerald-500' },
-  maturity: { label: 'Vencimiento', icon: Clock,             color: 'text-amber-400',   dot: 'bg-amber-500' },
+  coupon:   { label: 'Cupón',       icon: Landmark,          color: 'text-accent-deep',  dot: 'bg-accent' },
+  dividend: { label: 'Dividendo',   icon: CircleDollarSign,  color: 'text-good', dot: 'bg-good' },
+  maturity: { label: 'Vencimiento', icon: Clock,             color: 'text-warn',   dot: 'bg-warn' },
 }
 
 const fmtCurrency = (n: number, currency = 'ARS') =>
@@ -128,10 +128,10 @@ export function PaymentCalendar() {
 
   if (events.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-800 py-16 text-center flex flex-col items-center gap-3">
-        <Calendar className="h-16 w-16 text-slate-700" />
-        <h3 className="text-base font-semibold text-slate-400">No tenés cobros programados</h3>
-        <p className="text-slate-500 text-sm max-w-xs">
+      <div className="rounded-2xl border border-dashed border-border py-16 text-center flex flex-col items-center gap-3">
+        <Calendar className="h-16 w-16 text-faint" />
+        <h3 className="text-base font-semibold text-muted">No tenés cobros programados</h3>
+        <p className="text-muted text-sm max-w-xs">
           Cargá bonos o plazos fijos para verlos acá.
         </p>
       </div>
@@ -141,23 +141,23 @@ export function PaymentCalendar() {
   return (
     <div className="space-y-4">
       {/* Summary card */}
-      <Card className="bg-slate-900/40 border-slate-800 p-4">
-        <p className="text-[10px] uppercase font-medium text-slate-500 tracking-wider mb-3">Próximos cobros</p>
+      <Card className="bg-surface-2 border-border p-4">
+        <p className="text-[10px] uppercase font-medium text-muted tracking-wider mb-3">Próximos cobros</p>
         <div className="flex gap-6 flex-wrap">
           {thisMonthTotal > 0 && (
             <div>
-              <p className="text-[10px] text-slate-500 mb-0.5">Este mes</p>
-              <p className="text-lg font-bold text-emerald-400 font-mono">{fmtCurrency(thisMonthTotal)}</p>
+              <p className="text-[10px] text-muted mb-0.5">Este mes</p>
+              <p className="text-lg font-bold text-good font-mono">{fmtCurrency(thisMonthTotal)}</p>
             </div>
           )}
           {nextMonthTotal > 0 && (
             <div>
-              <p className="text-[10px] text-slate-500 mb-0.5">Próximo mes</p>
-              <p className="text-lg font-bold text-slate-200 font-mono">{fmtCurrency(nextMonthTotal)}</p>
+              <p className="text-[10px] text-muted mb-0.5">Próximo mes</p>
+              <p className="text-lg font-bold text-text font-mono">{fmtCurrency(nextMonthTotal)}</p>
             </div>
           )}
           {thisMonthTotal === 0 && nextMonthTotal === 0 && (
-            <p className="text-sm text-slate-500">Los cobros están programados en meses posteriores</p>
+            <p className="text-sm text-muted">Los cobros están programados en meses posteriores</p>
           )}
         </div>
       </Card>
@@ -166,26 +166,26 @@ export function PaymentCalendar() {
       <div className="md:hidden space-y-5">
         {Array.from(grouped.entries()).map(([month, monthEvents]) => (
           <div key={month}>
-            <p className="text-[10px] font-semibold uppercase text-slate-500 tracking-widest mb-2 px-1 capitalize">{month}</p>
+            <p className="text-[10px] font-semibold uppercase text-muted tracking-widest mb-2 px-1 capitalize">{month}</p>
             <div className="space-y-2">
               {monthEvents.map((event, i) => {
                 const cfg = PAYMENT_CONFIG[event.paymentType]
                 const Icon = cfg.icon
                 return (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/40 border border-slate-800">
-                    <div className={cn('p-2 rounded-lg bg-slate-800 shrink-0', cfg.color)}>
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-surface-2 border border-border">
+                    <div className={cn('p-2 rounded-lg bg-surface-2 shrink-0', cfg.color)}>
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-bold text-slate-100">{event.ticker}</span>
+                        <span className="text-sm font-bold text-text">{event.ticker}</span>
                         <span className={cn('text-[10px] font-medium', cfg.color)}>{cfg.label}</span>
                       </div>
-                      <p className="text-[11px] text-slate-500 truncate">{event.assetName}</p>
+                      <p className="text-[11px] text-muted truncate">{event.assetName}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-mono font-bold text-slate-100">{fmtCurrency(event.estimatedAmount, event.currency)}</p>
-                      <p className="text-[10px] text-slate-500">{fmtShortDate(event.date)}</p>
+                      <p className="text-sm font-mono font-bold text-text">{fmtCurrency(event.estimatedAmount, event.currency)}</p>
+                      <p className="text-[10px] text-muted">{fmtShortDate(event.date)}</p>
                     </div>
                   </div>
                 )
@@ -199,28 +199,28 @@ export function PaymentCalendar() {
       <div className="hidden md:block space-y-6">
         {Array.from(grouped.entries()).map(([month, monthEvents]) => (
           <div key={month}>
-            <p className="text-[10px] font-semibold uppercase text-slate-500 tracking-widest mb-3 capitalize">{month}</p>
-            <div className="relative pl-6 border-l border-slate-800 space-y-3">
+            <p className="text-[10px] font-semibold uppercase text-muted tracking-widest mb-3 capitalize">{month}</p>
+            <div className="relative pl-6 border-l border-border space-y-3">
               {monthEvents.map((event, i) => {
                 const cfg = PAYMENT_CONFIG[event.paymentType]
                 const Icon = cfg.icon
                 return (
                   <div key={i} className="relative flex items-center gap-4">
-                    <div className={cn('absolute -left-[25px] h-3 w-3 rounded-full border-2 border-slate-950 shrink-0', cfg.dot)} />
-                    <div className="flex items-center gap-4 p-3 rounded-xl bg-slate-900/40 border border-slate-800 flex-1">
-                      <div className={cn('p-2 rounded-lg bg-slate-800 shrink-0', cfg.color)}>
+                    <div className={cn('absolute -left-[25px] h-3 w-3 rounded-full border-2 border-surface shrink-0', cfg.dot)} />
+                    <div className="flex items-center gap-4 p-3 rounded-xl bg-surface-2 border border-border flex-1">
+                      <div className={cn('p-2 rounded-lg bg-surface-2 shrink-0', cfg.color)}>
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-slate-100">{event.ticker}</span>
+                          <span className="text-sm font-bold text-text">{event.ticker}</span>
                           <span className={cn('text-[10px] font-medium', cfg.color)}>{cfg.label}</span>
-                          <span className="text-[11px] text-slate-500 truncate">{event.assetName}</span>
+                          <span className="text-[11px] text-muted truncate">{event.assetName}</span>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-mono font-bold text-slate-100">{fmtCurrency(event.estimatedAmount, event.currency)}</p>
-                        <p className="text-[10px] text-slate-500">{fmtShortDate(event.date)}</p>
+                        <p className="text-sm font-mono font-bold text-text">{fmtCurrency(event.estimatedAmount, event.currency)}</p>
+                        <p className="text-[10px] text-muted">{fmtShortDate(event.date)}</p>
                       </div>
                     </div>
                   </div>

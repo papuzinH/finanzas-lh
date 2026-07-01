@@ -36,7 +36,7 @@ export function MainNav() {
       <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden">
         <div
           className="bg-bg-2/95 backdrop-blur border-t-[1.5px] border-border"
-          style={{ boxShadow: '0 -6px 20px -12px rgba(28,42,71,0.4)' }}
+          style={{ boxShadow: '0 -6px 20px -12px rgb(var(--navy-700-rgb) / 0.4)' }}
         >
           <div className="flex items-stretch justify-between px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+8px)]">
             {mobileItems.map(({ label, href, Icon }) => {

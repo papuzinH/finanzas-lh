@@ -30,29 +30,29 @@ const FEATURES = [
     icon: Mic,
     title: 'Voz o texto',
     description: 'Registra gastos hablando o escribiendo naturalmente',
-    color: 'text-blue-400',
-    bg: 'bg-blue-500/10',
+    color: 'text-accent-deep',
+    bg: 'bg-accent/10',
   },
   {
     icon: BarChart3,
     title: 'Dashboards',
     description: 'Visualiza tus finanzas con graficos inteligentes',
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-500/10',
+    color: 'text-good',
+    bg: 'bg-good/10',
   },
   {
     icon: CreditCard,
     title: 'Ciclos de tarjeta',
     description: 'Cierres y vencimientos calculados automaticamente',
-    color: 'text-violet-400',
-    bg: 'bg-violet-500/10',
+    color: 'text-accent-deep',
+    bg: 'bg-accent/10',
   },
   {
     icon: TrendingUp,
     title: 'Inversiones',
     description: 'Segui tu portafolio con precios en tiempo real',
-    color: 'text-amber-400',
-    bg: 'bg-amber-500/10',
+    color: 'text-warn',
+    bg: 'bg-warn/10',
   },
 ]
 
@@ -99,16 +99,16 @@ export function OnboardingFlow() {
                 🐷
               </motion.div>
               <div className="space-y-3">
-                <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                <h1 className="text-3xl font-bold tracking-tight text-text sm:text-4xl">
                   Bienvenido a Chanchito
                 </h1>
-                <p className="text-slate-400 text-lg">
+                <p className="text-muted text-lg">
                   Tu asistente financiero que entiende lo que le decis
                 </p>
               </div>
               <Button
                 size="lg"
-                className="bg-indigo-600 hover:bg-indigo-500 text-white h-12 px-8 text-base font-medium shadow-lg shadow-indigo-600/25"
+                className="bg-accent hover:bg-accent-deep text-accent-ink h-12 px-8 text-base font-medium shadow-offset"
                 onClick={() => setSlide('features')}
               >
                 Empezar
@@ -122,8 +122,8 @@ export function OnboardingFlow() {
           <SlideWrapper key="features">
             <div className="space-y-8">
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-white">Que podes hacer?</h2>
-                <p className="text-slate-400">Todo lo que necesitas para tus finanzas</p>
+                <h2 className="text-2xl font-bold text-text">Que podes hacer?</h2>
+                <p className="text-muted">Todo lo que necesitas para tus finanzas</p>
               </div>
               <div className="grid gap-3">
                 {FEATURES.map((feat, i) => (
@@ -133,14 +133,14 @@ export function OnboardingFlow() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.1 }}
                   >
-                    <Card className="border-slate-800 bg-surface-raised/50">
+                    <Card className="border-border bg-surface-2/50">
                       <CardContent className="flex items-center gap-4 p-4">
                         <div className={cn('rounded-xl p-2.5', feat.bg)}>
                           <feat.icon className={cn('h-5 w-5', feat.color)} />
                         </div>
                         <div>
-                          <p className="font-medium text-slate-100">{feat.title}</p>
-                          <p className="text-sm text-slate-400">{feat.description}</p>
+                          <p className="font-medium text-text">{feat.title}</p>
+                          <p className="text-sm text-muted">{feat.description}</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -149,7 +149,7 @@ export function OnboardingFlow() {
               </div>
               <Button
                 size="lg"
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-12 text-base font-medium shadow-lg shadow-indigo-600/25"
+                className="w-full bg-accent hover:bg-accent-deep text-accent-ink h-12 text-base font-medium shadow-offset"
                 onClick={() => setSlide('name')}
               >
                 <Sparkles className="mr-2 h-5 w-5" />
@@ -169,10 +169,10 @@ export function OnboardingFlow() {
                     className={cn(
                       'h-2 rounded-full transition-all duration-300',
                       i === stepIndex
-                        ? 'w-6 bg-indigo-500'
+                        ? 'w-6 bg-accent'
                         : i < stepIndex
-                          ? 'w-2 bg-indigo-500/50'
-                          : 'w-2 bg-slate-700'
+                          ? 'w-2 bg-accent/50'
+                          : 'w-2 bg-surface-2'
                     )}
                   />
                 ))}
@@ -217,15 +217,15 @@ export function OnboardingFlow() {
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', delay: 0.2 }}
               >
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10 ring-1 ring-emerald-500/20">
-                  <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-good/10 ring-1 ring-good/20">
+                  <CheckCircle2 className="h-10 w-10 text-good" />
                 </div>
               </motion.div>
               <div className="space-y-3">
-                <h2 className="text-2xl font-bold text-white">
+                <h2 className="text-2xl font-bold text-text">
                   Listo{userName ? `, ${userName}` : ''}!
                 </h2>
-                <p className="text-slate-400">Tu cuenta esta configurada</p>
+                <p className="text-muted">Tu cuenta esta configurada</p>
               </div>
 
               <div className="grid gap-3 text-left">
@@ -247,7 +247,7 @@ export function OnboardingFlow() {
               <Button
                 size="lg"
                 disabled={finishing}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white h-12 text-base font-medium shadow-lg shadow-indigo-600/25"
+                className="w-full bg-accent hover:bg-accent-deep text-accent-ink h-12 text-base font-medium shadow-offset"
                 onClick={handleFinish}
               >
                 {finishing ? (
@@ -282,12 +282,12 @@ function SlideWrapper({ children }: { children: React.ReactNode }) {
 
 function SummaryItem({ emoji, label, value }: { emoji: string; label: string; value: string }) {
   return (
-    <Card className="border-slate-800 bg-surface-raised/50">
+    <Card className="border-border bg-surface-2/50">
       <CardContent className="flex items-center gap-3 p-3">
         <span className="text-xl">{emoji}</span>
         <div>
-          <p className="text-xs text-slate-500">{label}</p>
-          <p className="text-sm font-medium text-slate-200">{value}</p>
+          <p className="text-xs text-muted">{label}</p>
+          <p className="text-sm font-medium text-text">{value}</p>
         </div>
       </CardContent>
     </Card>
