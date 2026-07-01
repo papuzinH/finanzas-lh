@@ -87,3 +87,24 @@ describe('getMonthlySpendingPace', () => {
     }
   });
 });
+
+describe('getCategoryFrequency', () => {
+  it('cuenta transacciones por categoria y mes (no montos)', () => {
+    const now = new Date();
+    const d = (day: number) => format(new Date(now.getFullYear(), now.getMonth(), day), 'yyyy-MM-dd');
+    seed({
+      categories: [{ id: 10, name: 'Comida', emoji: '🍔' }],
+      transactions: [
+        { id: 1, type: 'expense', amount: -100, date: d(3), periodDate: d(3), category_id: 10, installment_plan_id: null, realPaymentDate: d(3), payment_method_id: null },
+        { id: 2, type: 'expense', amount: -200, date: d(5), periodDate: d(5), category_id: 10, installment_plan_id: null, realPaymentDate: d(5), payment_method_id: null },
+        { id: 3, type: 'income', amount: 999, date: d(5), periodDate: d(5), category_id: 10, realPaymentDate: d(5), payment_method_id: null },
+      ],
+    });
+    const res = useFinanceStore.getState().getCategoryFrequency(3);
+    expect(res.months).toHaveLength(3);
+    const comida = res.rows.find((r) => r.category === 'Comida');
+    // 2 gastos este mes (income excluido)
+    expect(comida?.counts[2]).toBe(2);
+    expect(comida?.emoji).toBe('🍔');
+  });
+});

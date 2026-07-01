@@ -342,6 +342,11 @@ interface FinanceState {
     change: number;
   }>;
 
+  getCategoryFrequency: (months?: number) => {
+    months: string[];
+    rows: Array<{ category: string; emoji: string; counts: number[]; max: number }>;
+  };
+
   getBudgetProjection: (budgetId: string) => {
     spent: number;
     projected: number;
@@ -2070,6 +2075,36 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         };
       })
       .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+  },
+
+  getCategoryFrequency: (months = 6) => {
+    const { transactions, categories } = get();
+    const now = new Date();
+    const refs = Array.from({ length: months }, (_, i) => subMonths(now, months - 1 - i));
+    const monthLabels = refs.map((r) => format(r, 'yyyy-MM'));
+
+    const byCat = new Map<string, number[]>();
+    transactions
+      .filter((t) => t.type === 'expense')
+      .forEach((t) => {
+        const dt = parseLocalDate(t.periodDate || t.date);
+        const idx = refs.findIndex((r) => isSameMonth(dt, r));
+        if (idx === -1) return;
+        const name = categories.find((c) => c.id === t.category_id)?.name ?? 'Otros';
+        if (!byCat.has(name)) byCat.set(name, new Array(months).fill(0));
+        byCat.get(name)![idx] += 1;
+      });
+
+    const rows = Array.from(byCat.entries())
+      .map(([category, counts]) => ({
+        category,
+        emoji: categories.find((c) => c.name === category)?.emoji ?? '',
+        counts,
+        max: Math.max(...counts),
+      }))
+      .sort((a, b) => b.counts.reduce((x, y) => x + y, 0) - a.counts.reduce((x, y) => x + y, 0));
+
+    return { months: monthLabels, rows };
   },
 
   /**
