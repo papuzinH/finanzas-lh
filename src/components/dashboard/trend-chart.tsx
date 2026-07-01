@@ -57,8 +57,9 @@ interface TrendChartProps {
 }
 
 export function TrendChart({ onTap }: TrendChartProps) {
-  const { getMonthlyTrend } = useFinanceStore();
-  const data = getMonthlyTrend(6);
+  const { getMonthlyTrend, toDisplay, displayCurrency } = useFinanceStore();
+  const raw = getMonthlyTrend(6);
+  const data = raw.map((p) => ({ ...p, income: toDisplay(p.income), expenses: toDisplay(p.expenses) }));
   const hasData = data.some((point) => point.income > 0 || point.expenses > 0);
 
   return (
@@ -68,6 +69,9 @@ export function TrendChart({ onTap }: TrendChartProps) {
       className="w-full"
     >
       <div className="relative h-[200px] sm:h-[220px] w-full overflow-hidden rounded-xl">
+        {displayCurrency === 'USD' && (
+          <span className="absolute top-1 right-1 text-[9px] font-bold text-good bg-good/10 px-1.5 py-0.5 rounded z-10">USD</span>
+        )}
         {hasData ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
