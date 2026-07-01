@@ -2035,12 +2035,13 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getMonthlySpendingPace: () => {
-    const { transactions, paymentMethods, getMonthlyIncome, toDisplay } = get();
+    const { transactions, paymentMethods, getMonthlyIncome } = get();
     const now = new Date();
     const daysInMonth = endOfMonth(now).getDate();
     const todayDay = now.getDate();
 
-    // gasto por día del mes actual (scope de ciclo)
+    // gasto por día del mes actual (scope de ciclo) — siempre en ARS, conversión a
+    // moneda de visualización se hace en el componente vía toDisplay()
     const perDay = new Array(daysInMonth + 1).fill(0);
     transactions
       .filter((t) => t.type === 'expense' && isExpenseInCurrentMonthScope(t, paymentMethods, now))
@@ -2053,7 +2054,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     let acc = 0;
     for (let day = 1; day <= todayDay; day++) {
       acc += perDay[day];
-      points.push({ day, cumulative: toDisplay(acc) });
+      points.push({ day, cumulative: acc });
     }
 
     const spentSoFar = acc;
@@ -2061,8 +2062,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     return {
       points,
-      projectedTotal: toDisplay(projectedTotal),
-      income: toDisplay(getMonthlyIncome()),
+      projectedTotal,
+      income: getMonthlyIncome(),
       todayDay,
       daysInMonth,
     };

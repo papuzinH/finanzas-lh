@@ -6,8 +6,10 @@ import { useFinanceStore } from '@/lib/store/financeStore';
 import { formatCurrency } from '@/lib/utils';
 
 export function TabEsteMes() {
-  const getMonthlySpendingPace = useFinanceStore((s) => s.getMonthlySpendingPace);
+  const { getMonthlySpendingPace, toDisplay } = useFinanceStore();
   const pace = getMonthlySpendingPace();
+  // pace.projectedTotal e pace.income vienen en ARS: la comparación queda en ARS crudo
+  // (convertir ambos lados no cambiaría el resultado, y convertir uno solo lo rompería).
   const ok = pace.income === 0 ? null : pace.projectedTotal <= pace.income;
 
   return (
@@ -17,7 +19,7 @@ export function TabEsteMes() {
         <SpendingPaceChart />
         {pace.points.length > 0 && (
           <p className="text-[11px] text-warn font-semibold mt-2 bg-warn/10 rounded-lg px-3 py-1.5">
-            A este ritmo terminás en ~{formatCurrency(pace.projectedTotal)}
+            A este ritmo terminás en ~{formatCurrency(toDisplay(pace.projectedTotal))}
             {ok !== null && (ok ? ' · vas OK ✓' : ' · ojo, te pasás del ingreso')}
           </p>
         )}
