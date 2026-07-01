@@ -345,6 +345,12 @@ interface FinanceState {
     rows: Array<{ month: string; nominalExpenses: number; realExpenses: number }>;
   };
 
+  getInstallmentsRealCost: () => {
+    remainingARS: number;
+    remainingUSD: number;
+    hasData: boolean;
+  };
+
   getCategoryComparison: () => Array<{
     category: string;
     emoji: string;
@@ -2087,6 +2093,21 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     });
 
     return { available: true, rows };
+  },
+
+  getInstallmentsRealCost: () => {
+    const { transactions, getUsdRate } = get();
+    const now = new Date();
+    const future = transactions.filter(
+      (t) => t.installment_plan_id && parseLocalDate(t.date) > now,
+    );
+    const remainingARS = future.reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+    const rate = getUsdRate();
+    return {
+      remainingARS,
+      remainingUSD: rate > 0 ? remainingARS / rate : 0,
+      hasData: future.length > 0,
+    };
   },
 
   getCategoryComparison: () => {

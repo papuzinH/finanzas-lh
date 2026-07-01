@@ -163,3 +163,24 @@ describe('getRealAdjustedTrend', () => {
     expect(prevRow.realExpenses).toBeCloseTo(1100, 0);
   });
 });
+
+describe('getInstallmentsRealCost', () => {
+  it('suma cuotas futuras y las valúa en USD', () => {
+    const future = format(subMonths(new Date(), -2), 'yyyy-MM-dd'); // 2 meses adelante
+    seed({
+      dolarBlue: { compra: 900, venta: 1000, fechaActualizacion: '' },
+      transactions: [
+        { id: 1, type: 'expense', amount: -50000, date: future, installment_plan_id: 7, periodDate: future, realPaymentDate: future, payment_method_id: null },
+      ],
+    });
+    const res = useFinanceStore.getState().getInstallmentsRealCost();
+    expect(res.hasData).toBe(true);
+    expect(res.remainingARS).toBe(50000);
+    expect(res.remainingUSD).toBe(50);
+  });
+
+  it('hasData=false sin cuotas futuras', () => {
+    seed({ transactions: [] });
+    expect(useFinanceStore.getState().getInstallmentsRealCost().hasData).toBe(false);
+  });
+});
