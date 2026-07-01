@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { format } from 'date-fns';
 import { useFinanceStore, parseInflation } from '@/lib/store/financeStore';
 
 // Helper: setear estado crudo del store en cada test
@@ -54,5 +55,35 @@ describe('parseInflation', () => {
   it('getInflationSeries devuelve lo seteado en estado', () => {
     seed({ inflationSeries: [{ month: '2026-06', rate: 4.8 }] });
     expect(useFinanceStore.getState().getInflationSeries()).toEqual([{ month: '2026-06', rate: 4.8 }]);
+  });
+});
+
+describe('getMonthlySpendingPace', () => {
+  it('acumula gasto por día y proyecta a fin de mes', () => {
+    // Mock current date to July 2, 2026 to allow testing day 2
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 2)); // July 2, 2026
+
+    try {
+      const now = new Date();
+      const y = now.getFullYear(); const m = now.getMonth();
+      const d = (day: number) => format(new Date(y, m, day), 'yyyy-MM-dd');
+      seed({
+        transactions: [
+          { id: 1, type: 'expense', amount: -1000, date: d(2), periodDate: d(2), realPaymentDate: d(2), payment_method_id: null, installment_plan_id: null },
+          { id: 2, type: 'expense', amount: -500, date: d(2), periodDate: d(2), realPaymentDate: d(2), payment_method_id: null, installment_plan_id: null },
+          { id: 3, type: 'income', amount: 50000, date: d(1), periodDate: d(1), realPaymentDate: d(1), payment_method_id: null, installment_plan_id: null },
+        ],
+        paymentMethods: [],
+      });
+      const res = useFinanceStore.getState().getMonthlySpendingPace();
+      expect(res.income).toBe(50000);
+      // gasto acumulado al día 2 = 1500
+      const day2 = res.points.find((p) => p.day === 2);
+      expect(day2?.cumulative).toBe(1500);
+      expect(res.projectedTotal).toBeGreaterThanOrEqual(1500);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

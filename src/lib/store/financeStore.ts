@@ -326,6 +326,14 @@ interface FinanceState {
     net: number;
   }>;
 
+  getMonthlySpendingPace: () => {
+    points: Array<{ day: number; cumulative: number }>;
+    projectedTotal: number;
+    income: number;
+    todayDay: number;
+    daysInMonth: number;
+  };
+
   getCategoryComparison: () => Array<{
     category: string;
     emoji: string;
@@ -1994,6 +2002,40 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         net: income - expenses,
       };
     });
+  },
+
+  getMonthlySpendingPace: () => {
+    const { transactions, paymentMethods, getMonthlyIncome, toDisplay } = get();
+    const now = new Date();
+    const daysInMonth = endOfMonth(now).getDate();
+    const todayDay = now.getDate();
+
+    // gasto por día del mes actual (scope de ciclo)
+    const perDay = new Array(daysInMonth + 1).fill(0);
+    transactions
+      .filter((t) => t.type === 'expense' && isExpenseInCurrentMonthScope(t, paymentMethods, now))
+      .forEach((t) => {
+        const dt = parseLocalDate(t.periodDate || t.date);
+        if (isSameMonth(dt, now)) perDay[dt.getDate()] += Math.abs(Number(t.amount));
+      });
+
+    const points: Array<{ day: number; cumulative: number }> = [];
+    let acc = 0;
+    for (let day = 1; day <= todayDay; day++) {
+      acc += perDay[day];
+      points.push({ day, cumulative: toDisplay(acc) });
+    }
+
+    const spentSoFar = acc;
+    const projectedTotal = todayDay > 0 ? (spentSoFar / todayDay) * daysInMonth : 0;
+
+    return {
+      points,
+      projectedTotal: toDisplay(projectedTotal),
+      income: toDisplay(getMonthlyIncome()),
+      todayDay,
+      daysInMonth,
+    };
   },
 
   getCategoryComparison: () => {
