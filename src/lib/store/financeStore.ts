@@ -334,6 +334,12 @@ interface FinanceState {
     daysInMonth: number;
   };
 
+  getSavingsRateSeries: (months?: number) => Array<{
+    month: string;
+    rate: number;
+    net: number;
+  }>;
+
   getCategoryComparison: () => Array<{
     category: string;
     emoji: string;
@@ -2041,6 +2047,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       todayDay,
       daysInMonth,
     };
+  },
+
+  getSavingsRateSeries: (months = 6) => {
+    return get().getMonthlyTrend(months).map((row) => ({
+      month: row.month,
+      net: row.net,
+      rate: row.income > 0 ? (row.net / row.income) * 100 : 0,
+    }));
   },
 
   getCategoryComparison: () => {

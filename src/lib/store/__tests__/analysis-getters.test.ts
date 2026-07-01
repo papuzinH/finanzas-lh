@@ -106,5 +106,19 @@ describe('getCategoryFrequency', () => {
     // 2 gastos este mes (income excluido)
     expect(comida?.counts[2]).toBe(2);
     expect(comida?.emoji).toBe('🍔');
+    expect(comida?.max).toBe(2);
+  });
+});
+
+describe('getSavingsRateSeries', () => {
+  it('calcula tasa de ahorro por mes desde getMonthlyTrend', () => {
+    seed({
+      transactions: [
+        { id: 1, type: 'income', amount: 1000, date: format(new Date(), 'yyyy-MM-dd') },
+        { id: 2, type: 'expense', amount: -600, date: format(new Date(), 'yyyy-MM-dd'), installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+    const res = useFinanceStore.getState().getSavingsRateSeries(1);
+    expect(res[0].rate).toBeCloseTo(40, 1); // (1000-600)/1000
   });
 });
