@@ -18,8 +18,9 @@ export function NextMonthCardExposureCard() {
           <CalendarClock className="w-4 h-4 text-muted" />
           Consumo tarjeta próximo mes
           <InfoHint label="Cómo se calcula el consumo del próximo mes">
-            Lo que tu tarjeta va a impactar el mes que viene: cuotas futuras y compras hechas después
-            del cierre del resumen actual. No toca tu plata libre de hoy, solo prepara el terreno.
+            Todos los gastos hechos con tarjeta de crédito que caen en el resumen del mes que viene:
+            cuotas y compras que ya cargaste para el próximo ciclo. No toca tu plata libre de hoy,
+            solo anticipa lo que se te viene.
           </InfoHint>
         </h3>
       </div>
@@ -38,7 +39,7 @@ export function NextMonthCardExposureCard() {
         )}
         {futureInstallments > 0 && (
           <div className="flex items-baseline justify-between">
-            <span className="text-[11px] text-muted">Cuotas futuras</span>
+            <span className="text-[11px] text-muted">Cuotas del próximo mes</span>
             <span className="font-poster tnum text-[13px] text-text/70">{formatCurrency(futureInstallments)}</span>
           </div>
         )}

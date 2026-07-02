@@ -275,39 +275,40 @@ describe('getRecurringBackfillPreview', () => {
 });
 
 describe('getNextMonthCardExposure', () => {
-  it('suma cuotas con periodDate en meses futuros', () => {
+  it('suma TODOS los gastos de credito del mes que viene (cuotas + compras)', () => {
     const now = new Date();
     const nextMonth = format(new Date(now.getFullYear(), now.getMonth() + 1, 10), 'yyyy-MM-dd');
-    const thisMonth = format(new Date(now.getFullYear(), now.getMonth(), 10), 'yyyy-MM-dd');
     seed({
       paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
       transactions: [
         { id: 1, type: 'expense', amount: -8000, date: nextMonth, periodDate: nextMonth, payment_method_id: 1, installment_plan_id: 3, recurring_plan_id: null },
-        { id: 2, type: 'expense', amount: -8000, date: thisMonth, periodDate: thisMonth, payment_method_id: 1, installment_plan_id: 3, recurring_plan_id: null },
+        { id: 2, type: 'expense', amount: -15000, date: nextMonth, periodDate: nextMonth, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
       ],
     });
     const res = useFinanceStore.getState().getNextMonthCardExposure();
-    // solo la cuota del mes que viene cuenta como futura
     expect(res.futureInstallments).toBe(8000);
+    expect(res.nextCyclePurchases).toBe(15000);
+    expect(res.total).toBe(23000);
   });
 
-  it('suma compras de credito (no cuota) con periodDate en el proximo mes', () => {
+  it('NO cuenta cuotas de meses mas lejanos que el proximo (solo el mes que viene)', () => {
     const now = new Date();
     const nextMonth = format(new Date(now.getFullYear(), now.getMonth() + 1, 10), 'yyyy-MM-dd');
+    const inTwoMonths = format(new Date(now.getFullYear(), now.getMonth() + 2, 10), 'yyyy-MM-dd');
     seed({
       paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
       transactions: [
-        { id: 1, type: 'expense', amount: -15000, date: nextMonth, periodDate: nextMonth, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: 1, type: 'expense', amount: -8000, date: nextMonth, periodDate: nextMonth, payment_method_id: 1, installment_plan_id: 3, recurring_plan_id: null },
+        { id: 2, type: 'expense', amount: -8000, date: inTwoMonths, periodDate: inTwoMonths, payment_method_id: 1, installment_plan_id: 3, recurring_plan_id: null },
       ],
     });
     const res = useFinanceStore.getState().getNextMonthCardExposure();
-    expect(res.nextCyclePurchases).toBe(15000);
-    expect(res.total).toBe(15000);
+    // solo la cuota del mes que viene; la de dentro de 2 meses no
+    expect(res.total).toBe(8000);
   });
 
-  it('ignora gastos de debito/efectivo y del mes actual', () => {
+  it('valida por medio de pago credito: ignora cuotas/compras de debito o efectivo', () => {
     const now = new Date();
-    const thisMonth = format(new Date(now.getFullYear(), now.getMonth(), 10), 'yyyy-MM-dd');
     const nextMonth = format(new Date(now.getFullYear(), now.getMonth() + 1, 10), 'yyyy-MM-dd');
     seed({
       paymentMethods: [
@@ -315,8 +316,23 @@ describe('getNextMonthCardExposure', () => {
         { id: 2, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null },
       ],
       transactions: [
-        { id: 1, type: 'expense', amount: -5000, date: thisMonth, periodDate: thisMonth, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        // cuota pagada en efectivo -> NO cuenta
+        { id: 1, type: 'expense', amount: -7000, date: nextMonth, periodDate: nextMonth, payment_method_id: 2, installment_plan_id: 3, recurring_plan_id: null },
+        // compra en efectivo -> NO cuenta
         { id: 2, type: 'expense', amount: -9999, date: nextMonth, periodDate: nextMonth, payment_method_id: 2, installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+    const res = useFinanceStore.getState().getNextMonthCardExposure();
+    expect(res.total).toBe(0);
+  });
+
+  it('ignora gastos del mes actual', () => {
+    const now = new Date();
+    const thisMonth = format(new Date(now.getFullYear(), now.getMonth(), 10), 'yyyy-MM-dd');
+    seed({
+      paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
+      transactions: [
+        { id: 1, type: 'expense', amount: -5000, date: thisMonth, periodDate: thisMonth, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
       ],
     });
     const res = useFinanceStore.getState().getNextMonthCardExposure();

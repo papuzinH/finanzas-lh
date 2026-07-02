@@ -1666,7 +1666,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   getNextMonthCardExposure: () => {
     const { transactions, paymentMethods } = get();
     const now = new Date();
-    const currentMonthKey = format(now, 'yyyy-MM');
     const nextMonthKey = format(new Date(now.getFullYear(), now.getMonth() + 1, 1), 'yyyy-MM');
 
     const creditIds = new Set(
@@ -1676,23 +1675,22 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const monthKey = (t: ProcessedTransaction) =>
       format(parseLocalDate(t.periodDate || t.date), 'yyyy-MM');
 
-    // Cuotas cuyo período visual cae en cualquier mes futuro (posterior al actual).
-    const futureInstallments = transactions
-      .filter(
-        (t) => t.type === 'expense' && !!t.installment_plan_id && monthKey(t) > currentMonthKey,
-      )
+    // Todos los gastos hechos con tarjeta de CRÉDITO cuyo período visual cae en
+    // el mes calendario siguiente: cuotas + compras normales. No toca el número
+    // de hoy; anticipa lo que va a impactar el mes que viene.
+    const nextMonthCardTx = transactions.filter(
+      (t) =>
+        t.type === 'expense' &&
+        creditIds.has(t.payment_method_id ?? -1) &&
+        monthKey(t) === nextMonthKey,
+    );
+
+    const futureInstallments = nextMonthCardTx
+      .filter((t) => !!t.installment_plan_id)
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
-    // Compras de crédito (no cuota) que caen en el próximo ciclo (mes siguiente).
-    const nextCyclePurchases = transactions
-      .filter(
-        (t) =>
-          t.type === 'expense' &&
-          !t.installment_plan_id &&
-          !t.recurring_plan_id &&
-          creditIds.has(t.payment_method_id ?? -1) &&
-          monthKey(t) === nextMonthKey,
-      )
+    const nextCyclePurchases = nextMonthCardTx
+      .filter((t) => !t.installment_plan_id)
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
     return {
