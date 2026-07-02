@@ -1,12 +1,30 @@
 'use client';
 
+import { useState } from 'react';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import { SavingsRateBars } from './charts/savings-rate-bars';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import { cn, formatCurrency } from '@/lib/utils';
+
+const TONE_LABEL: Record<'good' | 'warn' | 'bad', string> = {
+  good: 'Sólido',
+  warn: 'Ajustado',
+  bad: 'Números rojos',
+};
+
+const TONE_CLASS: Record<'good' | 'warn' | 'bad', string> = {
+  good: 'text-good bg-good/10',
+  warn: 'text-warn bg-warn/10',
+  bad: 'text-bad bg-bad/10',
+};
 
 export function TabTendencia() {
   const getRealAdjustedTrend = useFinanceStore((s) => s.getRealAdjustedTrend);
+  const getSavingsRateSeries = useFinanceStore((s) => s.getSavingsRateSeries);
   const real = getRealAdjustedTrend(6);
+  const savingsSeries = getSavingsRateSeries(6);
+  const hasSavingsData = savingsSeries.some((d) => d.net !== 0);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   let realHint: string | null = null;
   if (real.available && real.rows.length >= 2) {
@@ -19,6 +37,10 @@ export function TabTendencia() {
         : `En términos reales gastaste ${deltaReal.toFixed(0)}% más que el mes pasado`;
     }
   }
+
+  const activeEntry = selectedMonth
+    ? savingsSeries.find((s) => s.month === selectedMonth) ?? savingsSeries[savingsSeries.length - 1]
+    : savingsSeries[savingsSeries.length - 1];
 
   return (
     <div className="space-y-4">
@@ -33,7 +55,20 @@ export function TabTendencia() {
       </div>
       <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
         <h3 className="text-sm font-bold text-text mb-2">Tasa de ahorro mensual</h3>
-        <SavingsRateBars />
+        {hasSavingsData && activeEntry && (
+          <>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="font-poster tnum text-3xl text-text">{Math.round(activeEntry.rate)}%</span>
+              <span className={cn('text-[10px] font-bold px-2 py-1 rounded-full', TONE_CLASS[activeEntry.tone])}>
+                {TONE_LABEL[activeEntry.tone]}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted mb-3">
+              {activeEntry.month} · <span className="tnum">{formatCurrency(activeEntry.net)}</span> netos
+            </p>
+          </>
+        )}
+        <SavingsRateBars selectedMonth={selectedMonth} onSelectMonth={setSelectedMonth} />
       </div>
     </div>
   );
