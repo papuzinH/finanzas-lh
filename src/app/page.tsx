@@ -49,7 +49,6 @@ export default function DashboardPage() {
     getMonthlyIncomeTransactions,
     getMonthlyVariableExpenses,
     getMonthlyVariableExpenseTransactions,
-    getMonthlyLiquidityBreakdown,
     getRegistrationStreak,
     user
   } = useFinanceStore();
@@ -76,7 +75,6 @@ export default function DashboardPage() {
   const monthlyIncomeTransactions = getMonthlyIncomeTransactions();
   const monthlyVariableExpenses = getMonthlyVariableExpenses();
   const monthlyVariableExpenseTransactions = getMonthlyVariableExpenseTransactions();
-  const liquidBreakdown = getMonthlyLiquidityBreakdown();
   const streak = getRegistrationStreak();
 
   // Mostrar skeleton mientras carga o si no está inicializado
@@ -132,13 +130,7 @@ export default function DashboardPage() {
 
           {/* Expandible Balance Card */}
           <div data-tour="balance-card" className="col-span-2 lg:col-span-4">
-            <BalanceCard
-              monthlyIncome={liquidBreakdown.income}
-              monthlyExpenses={liquidBreakdown.liquidVariableExpenses}
-              installments={liquidBreakdown.liquidInstallments}
-              burnRate={liquidBreakdown.liquidSubscriptions}
-              savingsTransfers={liquidBreakdown.savingsTransfers}
-            />
+            <BalanceCard />
           </div>
 
           {/* CTA ahorro: debajo de la card principal de balance */}
