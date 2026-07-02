@@ -19,6 +19,7 @@ import { Modal } from '@/components/shared/modal';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { BalanceCard } from '@/components/dashboard/balance-card';
+import { NextMonthCardExposureCard } from '@/components/dashboard/next-month-card-exposure-card';
 import { IncompleteCreditCardsBanner } from '@/components/dashboard/incomplete-credit-cards-banner';
 import { EndOfMonthSavingsBanner } from '@/components/dashboard/end-of-month-savings-banner';
 import { MetricRow } from '@/components/dashboard/metric-row';
@@ -131,6 +132,11 @@ export default function DashboardPage() {
           {/* Expandible Balance Card */}
           <div data-tour="balance-card" className="col-span-2 lg:col-span-4">
             <BalanceCard />
+          </div>
+
+          {/* Nivel 3: Fondo de Ojo — consumo de tarjeta del proximo mes */}
+          <div className="col-span-2 lg:col-span-4">
+            <NextMonthCardExposureCard />
           </div>
 
           {/* CTA ahorro: debajo de la card principal de balance */}
