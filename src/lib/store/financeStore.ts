@@ -1562,61 +1562,27 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getRealAvailableBalance: () => {
-    const {
-      transactions,
-      paymentMethods,
-      internalTransfers,
-      getPendingCreditCardByCard,
-      getPendingFixedExpenses,
-    } = get();
-    const now = new Date();
+    const { getGlobalBalance, getPendingCreditCardByCard, getPendingFixedExpenses } = get();
 
-    // Tarjetas cuyo ciclo actual sigue pendiente de pago.
+    // El TOTAL se ancla a getGlobalBalance(): el patrimonio líquido real,
+    // calculado con UNA sola fórmula consistente (ingresos - gastos históricos
+    // - cuotas del mes/pasadas - mensualidades del mes - ahorro). Es lo que te
+    // queda tras honrar los compromisos ya cargados de este mes.
+    //
+    // El desglose (saldoBruto - pendingFixed - pendingCard) se deriva de ese
+    // total para que SIEMPRE cuadre y ninguna plata se pierda ni se duplique:
+    //   saldoBruto := disponibleReal + pendingFixed + pendingCard
+    // Así "Cuenta total" = plata en cuentas antes de apartar los compromisos, y
+    // pagar la tarjeta / un gasto fijo mueve el bucket sin cambiar el total
+    // (getGlobalBalance es invariante a marcar como pagado).
+    const disponibleReal = getGlobalBalance();
+
     const pendingCardItems = getPendingCreditCardByCard().filter((c) => c.isPending);
-    const pendingCardIds = new Set(pendingCardItems.map((c) => c.methodId));
     const pendingCardTotal = pendingCardItems.reduce((acc, c) => acc + c.total, 0);
-
-    // Una transacción pertenece al ciclo pendiente de su tarjeta cuando el método
-    // está pendiente Y el gasto cae en el scope del mes actual (ciclo de tarjeta).
-    const isInPendingCardCycle = (t: ProcessedTransaction) =>
-      pendingCardIds.has(t.payment_method_id ?? -1) &&
-      isExpenseInCurrentMonthScope(t, paymentMethods, now);
-
-    const totalIncome = transactions
-      .filter((t) => t.type === 'income')
-      .reduce((acc, t) => acc + Number(t.amount), 0);
-
-    const variableExpenses = transactions
-      .filter(
-        (t) =>
-          t.type === 'expense' &&
-          !t.installment_plan_id &&
-          !t.recurring_plan_id &&
-          !isInPendingCardCycle(t),
-      )
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-
-    const installments = transactions
-      .filter(
-        (t) => t.type === 'expense' && !!t.installment_plan_id && !isInPendingCardCycle(t),
-      )
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-
-    const paidFixed = transactions
-      .filter((t) => t.type === 'expense' && !!t.recurring_plan_id && !isInPendingCardCycle(t))
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-
-    const transferredToSavings = internalTransfers.reduce(
-      (acc, transfer) => acc + Math.abs(Number(transfer.amount)),
-      0,
-    );
-
-    const saldoBruto =
-      totalIncome - variableExpenses - installments - paidFixed - transferredToSavings;
 
     const { total: pendingFixedExpenses, items: pendingFixedItems } = getPendingFixedExpenses();
 
-    const disponibleReal = saldoBruto - pendingFixedExpenses - pendingCardTotal;
+    const saldoBruto = disponibleReal + pendingFixedExpenses + pendingCardTotal;
 
     return {
       saldoBruto,

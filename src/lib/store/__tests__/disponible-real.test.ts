@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { format } from 'date-fns';
 import { useFinanceStore } from '@/lib/store/financeStore';
 
@@ -117,6 +117,39 @@ describe('getRealAvailableBalance', () => {
     });
     const despues = useFinanceStore.getState().getRealAvailableBalance().disponibleReal;
     expect(despues).toBe(antes); // 150000 en ambos
+  });
+
+  it('REGRESION: disponibleReal SIEMPRE == getGlobalBalance (tarjeta credito + cuotas)', () => {
+    // Antes del fix, saldoBruto se reimplementaba con una ventana de ciclo
+    // distinta a la de pendingCardTotal -> las cuotas de tarjeta se sacaban del
+    // bruto pero no se restaban en el bucket -> el numero se inflaba. Este test
+    // fija que el total quede anclado a getGlobalBalance en un escenario con
+    // tarjeta de credito y cuotas (donde antes se filtraba la plata).
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 3)); // 3 jul: fecha donde las dos ventanas de ciclo divergen
+    try {
+      const enCiclo = format(new Date(2026, 6, 1), 'yyyy-MM-dd');
+      const cuotaAgo = format(new Date(2026, 7, 5), 'yyyy-MM-dd'); // cuota fechada en agosto
+      seed({
+        paymentMethods: [
+          { id: 1, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null },
+          { id: 2, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 },
+        ],
+        transactions: [
+          { id: 1, type: 'income', amount: 3000000, date: enCiclo, periodDate: enCiclo, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+          { id: 2, type: 'expense', amount: -120000, date: enCiclo, periodDate: enCiclo, payment_method_id: 2, installment_plan_id: null, recurring_plan_id: null },
+          { id: 3, type: 'expense', amount: -80000, date: cuotaAgo, periodDate: cuotaAgo, payment_method_id: 2, installment_plan_id: 7, recurring_plan_id: null },
+        ],
+        installmentPlans: [{ id: 7, description: 'Notebook', total_amount: 240000, installments_count: 3 }],
+      });
+      const state = useFinanceStore.getState();
+      const res = state.getRealAvailableBalance();
+      expect(res.disponibleReal).toBe(state.getGlobalBalance());
+      // el desglose SIEMPRE cuadra con el total
+      expect(res.saldoBruto - res.pendingFixedExpenses - res.pendingCardTotal).toBe(res.disponibleReal);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
