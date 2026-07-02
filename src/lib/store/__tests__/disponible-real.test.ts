@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { format } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { useFinanceStore } from '@/lib/store/financeStore';
 
 function seed(partial: Record<string, unknown>) {
@@ -117,6 +117,30 @@ describe('getRealAvailableBalance', () => {
     });
     const despues = useFinanceStore.getState().getRealAvailableBalance().disponibleReal;
     expect(despues).toBe(antes); // 150000 en ambos
+  });
+
+  it('REGRESION: mensualidades pagadas en meses ANTERIORES restan del saldo', () => {
+    // Bug reportado: los pagos de gastos fijos de meses pasados nunca se
+    // restaban (getGlobalBalance solo restaba el burn rate del mes corriente),
+    // inflando el saldo ~1 burn rate por cada mes de uso.
+    const now = new Date();
+    const today = format(now, 'yyyy-MM-dd');
+    const lastMonth = format(subMonths(now, 1), 'yyyy-MM-dd');
+    seed({
+      paymentMethods: [{ id: 1, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
+      recurringPlans: [
+        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: 1 },
+      ],
+      transactions: [
+        { id: 1, type: 'income', amount: 1000000, date: today, periodDate: today, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        // alquiler del mes pasado, YA PAGADO (transaccion vinculada al plan)
+        { id: 2, type: 'expense', amount: -100000, date: lastMonth, periodDate: lastMonth, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: 9 },
+      ],
+    });
+    const res = useFinanceStore.getState().getRealAvailableBalance();
+    // 1.000.000 - 100.000 (alquiler pagado mes pasado) - 100.000 (pendiente este mes) = 800.000
+    expect(res.disponibleReal).toBe(800000);
+    expect(res.pendingFixedExpenses).toBe(100000);
   });
 
   it('REGRESION: disponibleReal SIEMPRE == getGlobalBalance (tarjeta credito + cuotas)', () => {

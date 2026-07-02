@@ -1097,7 +1097,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   getInflationSeries: () => get().inflationSeries,
 
   getGlobalBalance: () => {
-    const { transactions, paymentMethods, getMonthlyBurnRate, internalTransfers } = get();
+    const { transactions, paymentMethods, getPendingFixedExpenses, internalTransfers } = get();
     const now = new Date();
     const todayStart = startOfDay(now);
 
@@ -1128,10 +1128,15 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       })
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
-    // 3. Mensualidades del mes actual (1×). Como las Mensualidades no
-    //    generan transacciones reales, las restamos una sola vez para
-    //    reflejar el compromiso del mes en curso.
-    const recurringExpense = getMonthlyBurnRate();
+    // 3. Mensualidades: pagos reales históricos (transacciones vinculadas a un
+    //    plan recurrente, de cualquier mes) + el compromiso del mes en curso que
+    //    aún no registra pago. Los meses pasados restan lo realmente pagado; el
+    //    mes actual resta el compromiso completo (pagado o pendiente), así
+    //    marcar una mensualidad como pagada NO mueve el balance.
+    const recurringPaid = transactions
+      .filter((t) => t.type === 'expense' && !!t.recurring_plan_id)
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+    const recurringExpense = recurringPaid + getPendingFixedExpenses().total;
 
     // 4. Ahorros transferidos (tabla separada): dejan de ser saldo gastable.
     const transferredToSavings = internalTransfers.reduce(
