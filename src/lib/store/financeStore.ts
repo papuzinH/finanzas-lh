@@ -234,6 +234,23 @@ interface FinanceState {
   getGlobalEffectiveExpenses: () => number;
   getExpensesByCategory: (scope: 'global' | 'current_month') => Record<string, number>;
   getMonthlyBalance: (monthStr: string, paymentMethodId: string) => number;
+  getPendingFixedExpenses: () => {
+    total: number;
+    items: Array<{ id: number; name: string; amount: number }>;
+  };
+  getRealAvailableBalance: () => {
+    saldoBruto: number;
+    pendingFixedExpenses: number;
+    pendingFixedItems: Array<{ id: number; name: string; amount: number }>;
+    pendingCardTotal: number;
+    pendingCardItems: CreditCardCycleSummary[];
+    disponibleReal: number;
+  };
+  getNextMonthCardExposure: () => {
+    nextCyclePurchases: number;
+    futureInstallments: number;
+    total: number;
+  };
   getCategoryBreakdown: (scope: 'global' | 'current_month') => {
     total: number;
     items: Array<{
@@ -1515,6 +1532,136 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     return transactionsBalance - pendingRecurringAmount;
+  },
+
+  getPendingFixedExpenses: () => {
+    const { recurringPlans, transactions } = get();
+    const currentMonth = format(new Date(), 'yyyy-MM');
+
+    const items = recurringPlans
+      .filter((p) => p.is_active)
+      .filter((plan) => {
+        const hasTransactionThisMonth = transactions.some(
+          (t) =>
+            t.recurring_plan_id === plan.id &&
+            (t.periodDate || t.date)?.slice(0, 7) === currentMonth,
+        );
+        return !hasTransactionThisMonth;
+      })
+      .map((plan) => ({
+        id: plan.id,
+        name: plan.name,
+        amount: Math.abs(Number(plan.amount)),
+      }));
+
+    const total = items.reduce((acc, i) => acc + i.amount, 0);
+    return { total, items };
+  },
+
+  getRealAvailableBalance: () => {
+    const {
+      transactions,
+      paymentMethods,
+      internalTransfers,
+      getPendingCreditCardByCard,
+      getPendingFixedExpenses,
+    } = get();
+    const now = new Date();
+
+    // Tarjetas cuyo ciclo actual sigue pendiente de pago.
+    const pendingCardItems = getPendingCreditCardByCard().filter((c) => c.isPending);
+    const pendingCardIds = new Set(pendingCardItems.map((c) => c.methodId));
+    const pendingCardTotal = pendingCardItems.reduce((acc, c) => acc + c.total, 0);
+
+    // Una transacción pertenece al ciclo pendiente de su tarjeta cuando el método
+    // está pendiente Y el gasto cae en el scope del mes actual (ciclo de tarjeta).
+    const isInPendingCardCycle = (t: ProcessedTransaction) =>
+      pendingCardIds.has(t.payment_method_id ?? -1) &&
+      isExpenseInCurrentMonthScope(t, paymentMethods, now);
+
+    const totalIncome = transactions
+      .filter((t) => t.type === 'income')
+      .reduce((acc, t) => acc + Number(t.amount), 0);
+
+    const variableExpenses = transactions
+      .filter(
+        (t) =>
+          t.type === 'expense' &&
+          !t.installment_plan_id &&
+          !t.recurring_plan_id &&
+          !isInPendingCardCycle(t),
+      )
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+    const installments = transactions
+      .filter(
+        (t) => t.type === 'expense' && !!t.installment_plan_id && !isInPendingCardCycle(t),
+      )
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+    const paidFixed = transactions
+      .filter((t) => t.type === 'expense' && !!t.recurring_plan_id && !isInPendingCardCycle(t))
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+    const transferredToSavings = internalTransfers.reduce(
+      (acc, transfer) => acc + Math.abs(Number(transfer.amount)),
+      0,
+    );
+
+    const saldoBruto =
+      totalIncome - variableExpenses - installments - paidFixed - transferredToSavings;
+
+    const { total: pendingFixedExpenses, items: pendingFixedItems } = getPendingFixedExpenses();
+
+    const disponibleReal = saldoBruto - pendingFixedExpenses - pendingCardTotal;
+
+    return {
+      saldoBruto,
+      pendingFixedExpenses,
+      pendingFixedItems,
+      pendingCardTotal,
+      pendingCardItems,
+      disponibleReal,
+    };
+  },
+
+  getNextMonthCardExposure: () => {
+    const { transactions, paymentMethods } = get();
+    const now = new Date();
+    const currentMonthKey = format(now, 'yyyy-MM');
+    const nextMonthKey = format(new Date(now.getFullYear(), now.getMonth() + 1, 1), 'yyyy-MM');
+
+    const creditIds = new Set(
+      paymentMethods.filter((m) => m.type === 'credit').map((m) => m.id),
+    );
+
+    const monthKey = (t: ProcessedTransaction) =>
+      format(parseLocalDate(t.periodDate || t.date), 'yyyy-MM');
+
+    // Cuotas cuyo período visual cae en cualquier mes futuro (posterior al actual).
+    const futureInstallments = transactions
+      .filter(
+        (t) => t.type === 'expense' && !!t.installment_plan_id && monthKey(t) > currentMonthKey,
+      )
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+    // Compras de crédito (no cuota) que caen en el próximo ciclo (mes siguiente).
+    const nextCyclePurchases = transactions
+      .filter(
+        (t) =>
+          t.type === 'expense' &&
+          !t.installment_plan_id &&
+          !t.recurring_plan_id &&
+          creditIds.has(t.payment_method_id ?? -1) &&
+          monthKey(t) === nextMonthKey,
+      )
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+    return {
+      nextCyclePurchases,
+      futureInstallments,
+      total: nextCyclePurchases + futureInstallments,
+    };
   },
 
   /**
