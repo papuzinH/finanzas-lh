@@ -2005,7 +2005,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getMonthlyTrend: (months = 6) => {
-    const { transactions } = get();
+    const { transactions, recurringPlans } = get();
     const now = new Date();
     const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -2021,9 +2021,20 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       const installments = monthTxs
         .filter((t) => t.type === 'expense' && !!t.installment_plan_id)
         .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-      const recurring = monthTxs
+      const recurringFromTx = monthTxs
         .filter((t) => t.type === 'expense' && !!t.recurring_plan_id)
         .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+      // Compromisos fijos (recurring_plans) no generan transaccion automatica: se proyecta
+      // el monto del plan para los planes activos que ya existian ese mes y que todavia no
+      // tienen una transaccion cargada ese mes (evita duplicar si el usuario ya la registro).
+      const recurringPlanIdsInMonth = new Set(
+        monthTxs.filter((t) => t.recurring_plan_id).map((t) => t.recurring_plan_id as number),
+      );
+      const monthEnd = endOfMonth(ref);
+      const recurringProjected = recurringPlans
+        .filter((p) => p.is_active && !recurringPlanIdsInMonth.has(p.id) && new Date(p.created_at) <= monthEnd)
+        .reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0);
+      const recurring = recurringFromTx + recurringProjected;
       const variable = monthTxs
         .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id)
         .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);

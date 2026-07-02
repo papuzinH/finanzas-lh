@@ -110,6 +110,88 @@ describe('getCategoryFrequency', () => {
   });
 });
 
+describe('getMonthlyTrend', () => {
+  it('suma los planes recurrentes activos como gasto fijo aunque no tengan transaccion cargada ese mes', () => {
+    const now = new Date();
+    const d = format(now, 'yyyy-MM-dd');
+    seed({
+      recurringPlans: [
+        {
+          id: 1, user_id: 1, description: 'Alquiler', amount: 300, currency: 'ARS',
+          frequency: 'monthly', is_active: true, category_id: null,
+          created_at: format(subMonths(now, 3), 'yyyy-MM-dd'),
+          payment_method_id: null, original_amount: null, rate_pair: null, exchange_rate: null,
+        },
+      ],
+      transactions: [
+        { id: 1, type: 'income', amount: 1000, date: d },
+        { id: 2, type: 'expense', amount: -200, date: d, installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+    const res = useFinanceStore.getState().getMonthlyTrend(1);
+    expect(res[0].recurring).toBe(300);
+    expect(res[0].expenses).toBe(500); // 200 variable + 300 fijo proyectado
+    expect(res[0].net).toBe(500); // 1000 - 500
+  });
+
+  it('no duplica el gasto fijo si ya existe una transaccion vinculada al plan ese mes', () => {
+    const now = new Date();
+    const d = format(now, 'yyyy-MM-dd');
+    seed({
+      recurringPlans: [
+        {
+          id: 1, user_id: 1, description: 'Alquiler', amount: 300, currency: 'ARS',
+          frequency: 'monthly', is_active: true, category_id: null,
+          created_at: format(subMonths(now, 3), 'yyyy-MM-dd'),
+          payment_method_id: null, original_amount: null, rate_pair: null, exchange_rate: null,
+        },
+      ],
+      transactions: [
+        { id: 1, type: 'income', amount: 1000, date: d },
+        { id: 2, type: 'expense', amount: -300, date: d, installment_plan_id: null, recurring_plan_id: 1 },
+      ],
+    });
+    const res = useFinanceStore.getState().getMonthlyTrend(1);
+    expect(res[0].recurring).toBe(300);
+    expect(res[0].expenses).toBe(300);
+  });
+
+  it('no proyecta un plan recurrente en meses anteriores a su creacion', () => {
+    const now = new Date();
+    seed({
+      recurringPlans: [
+        {
+          id: 1, user_id: 1, description: 'Plan nuevo', amount: 300, currency: 'ARS',
+          frequency: 'monthly', is_active: true, category_id: null,
+          created_at: format(now, 'yyyy-MM-dd'),
+          payment_method_id: null, original_amount: null, rate_pair: null, exchange_rate: null,
+        },
+      ],
+      transactions: [],
+    });
+    const res = useFinanceStore.getState().getMonthlyTrend(3);
+    expect(res[0].recurring).toBe(0); // 2 meses atras, antes de que el plan existiera
+    expect(res[2].recurring).toBe(300); // mes actual, el plan ya existe
+  });
+
+  it('no suma planes recurrentes inactivos', () => {
+    const now = new Date();
+    seed({
+      recurringPlans: [
+        {
+          id: 1, user_id: 1, description: 'Cancelado', amount: 300, currency: 'ARS',
+          frequency: 'monthly', is_active: false, category_id: null,
+          created_at: format(subMonths(now, 3), 'yyyy-MM-dd'),
+          payment_method_id: null, original_amount: null, rate_pair: null, exchange_rate: null,
+        },
+      ],
+      transactions: [],
+    });
+    const res = useFinanceStore.getState().getMonthlyTrend(1);
+    expect(res[0].recurring).toBe(0);
+  });
+});
+
 describe('getSavingsRateSeries', () => {
   it('calcula tasa de ahorro por mes desde getMonthlyTrend', () => {
     seed({
