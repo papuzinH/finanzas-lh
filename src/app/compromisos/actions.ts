@@ -50,6 +50,7 @@ export async function markRecurringPlanPaid(planId: number): Promise<ActionRespo
       return { success: true };
     }
 
+    const isUsd = plan.currency === 'USD';
     const { error: txError } = await supabase.from('transactions').insert({
       user_id: user.id,
       description: plan.description,
@@ -59,14 +60,14 @@ export async function markRecurringPlanPaid(planId: number): Promise<ActionRespo
       category_id: plan.category_id,
       payment_method_id: plan.payment_method_id,
       recurring_plan_id: plan.id,
-      currency: plan.currency,
-      original_amount: plan.original_amount,
-      rate_pair: plan.rate_pair,
-      exchange_rate: plan.exchange_rate,
+      original_currency: isUsd ? 'USD' : 'ARS',
+      original_amount: isUsd ? plan.original_amount : Math.abs(Number(plan.amount)),
+      rate_pair: isUsd ? plan.rate_pair : null,
+      exchange_rate: isUsd ? plan.exchange_rate : null,
     });
     if (txError) {
       console.error('Error registrando pago de mensualidad:', txError);
-      return { error: 'No se pudo registrar el pago' };
+      return { error: `No se pudo registrar el pago: ${txError.message}` };
     }
 
     revalidatePath('/compromisos');
@@ -166,6 +167,7 @@ export async function backfillRecurringPlansHistory(): Promise<ActionResponse & 
       while (dateToLocalString(cursor).slice(0, 7) < currentMonthKey) {
         const monthKey = dateToLocalString(cursor).slice(0, 7);
         if (!covered.has(monthKey)) {
+          const isUsdPlan = plan.currency === 'USD';
           rows.push({
             user_id: user.id,
             description: plan.description,
@@ -175,10 +177,10 @@ export async function backfillRecurringPlansHistory(): Promise<ActionResponse & 
             category_id: plan.category_id,
             payment_method_id: plan.payment_method_id,
             recurring_plan_id: plan.id,
-            currency: plan.currency,
-            original_amount: plan.original_amount,
-            rate_pair: plan.rate_pair,
-            exchange_rate: plan.exchange_rate,
+            original_currency: isUsdPlan ? 'USD' : 'ARS',
+            original_amount: isUsdPlan ? plan.original_amount : Math.abs(Number(plan.amount)),
+            rate_pair: isUsdPlan ? plan.rate_pair : null,
+            exchange_rate: isUsdPlan ? plan.exchange_rate : null,
           });
         }
         cursor.setMonth(cursor.getMonth() + 1);
@@ -189,7 +191,7 @@ export async function backfillRecurringPlansHistory(): Promise<ActionResponse & 
       const { error: insertError } = await supabase.from('transactions').insert(rows);
       if (insertError) {
         console.error('Error regularizando historial de mensualidades:', insertError);
-        return { error: 'No se pudo regularizar el historial' };
+        return { error: `No se pudo regularizar el historial: ${insertError.message}` };
       }
     }
 
