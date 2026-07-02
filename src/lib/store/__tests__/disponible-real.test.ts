@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { format, subMonths } from 'date-fns';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { format } from 'date-fns';
 import { useFinanceStore } from '@/lib/store/financeStore';
 
 function seed(partial: Record<string, unknown>) {
@@ -18,8 +18,8 @@ describe('getPendingFixedExpenses', () => {
   it('cuenta mensualidad activa sin transacción este mes como pendiente', () => {
     seed({
       recurringPlans: [
-        { id: 1, name: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null },
-        { id: 2, name: 'Internet', amount: 20000, is_active: true, payment_method_id: null },
+        { id: 1, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null },
+        { id: 2, description: 'Internet', amount: 20000, is_active: true, payment_method_id: null },
       ],
       transactions: [],
     });
@@ -33,7 +33,7 @@ describe('getPendingFixedExpenses', () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     seed({
       recurringPlans: [
-        { id: 1, name: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null },
+        { id: 1, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null },
       ],
       transactions: [
         { id: 50, type: 'expense', amount: -100000, date: today, periodDate: today, recurring_plan_id: 1, installment_plan_id: null, payment_method_id: null },
@@ -47,7 +47,7 @@ describe('getPendingFixedExpenses', () => {
   it('ignora mensualidades inactivas', () => {
     seed({
       recurringPlans: [
-        { id: 1, name: 'Viejo', amount: 5000, is_active: false, payment_method_id: null },
+        { id: 1, description: 'Viejo', amount: 5000, is_active: false, payment_method_id: null },
       ],
     });
     expect(useFinanceStore.getState().getPendingFixedExpenses().total).toBe(0);
@@ -82,7 +82,7 @@ describe('getRealAvailableBalance', () => {
         { id: 1, type: 'income', amount: 200000, date: today, periodDate: today, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
       ],
       recurringPlans: [
-        { id: 9, name: 'Alquiler', amount: 50000, is_active: true, payment_method_id: 1 },
+        { id: 9, description: 'Alquiler', amount: 50000, is_active: true, payment_method_id: 1 },
       ],
     });
     const res = useFinanceStore.getState().getRealAvailableBalance();
@@ -97,7 +97,7 @@ describe('getRealAvailableBalance', () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     const base = {
       paymentMethods: [{ id: 1, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
-      recurringPlans: [{ id: 9, name: 'Alquiler', amount: 50000, is_active: true, payment_method_id: 1 }],
+      recurringPlans: [{ id: 9, description: 'Alquiler', amount: 50000, is_active: true, payment_method_id: 1 }],
     };
     // Antes de pagar
     seed({

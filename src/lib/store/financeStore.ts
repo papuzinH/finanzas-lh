@@ -390,10 +390,13 @@ interface FinanceState {
     change: number;
   }>;
 
-  getCategoryFrequency: (months?: number) => {
-    months: string[];
-    rows: Array<{ category: string; emoji: string; counts: number[]; max: number }>;
-  };
+  getCategoryFrequencyRanking: (scope: 'global' | 'current_month') => Array<{
+    category: string;
+    emoji: string;
+    count: number;
+    total: number;
+    avg: number;
+  }>;
 
   getBudgetProjection: (budgetId: string) => {
     spent: number;
@@ -1550,7 +1553,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       })
       .map((plan) => ({
         id: plan.id,
-        name: plan.name,
+        name: plan.description,
         amount: Math.abs(Number(plan.amount)),
       }));
 
@@ -2370,34 +2373,37 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
   },
 
-  getCategoryFrequency: (months = 6) => {
-    const { transactions, categories } = get();
+  getCategoryFrequencyRanking: (scope) => {
+    const { transactions, categories, paymentMethods } = get();
     const now = new Date();
-    const refs = Array.from({ length: months }, (_, i) => subMonths(now, months - 1 - i));
-    const monthLabels = refs.map((r) => format(r, 'yyyy-MM'));
 
-    const byCat = new Map<string, number[]>();
+    const acc = new Map<string, { count: number; total: number; emoji: string }>();
     transactions
-      .filter((t) => t.type === 'expense')
+      .filter((t) => {
+        if (t.type !== 'expense') return false;
+        if (scope === 'current_month') {
+          return isExpenseInCurrentMonthScope(t, paymentMethods, now);
+        }
+        return true;
+      })
       .forEach((t) => {
-        const dt = parseLocalDate(t.periodDate || t.date);
-        const idx = refs.findIndex((r) => isSameMonth(dt, r));
-        if (idx === -1) return;
-        const name = categories.find((c) => c.id === t.category_id)?.name ?? 'Otros';
-        if (!byCat.has(name)) byCat.set(name, new Array(months).fill(0));
-        byCat.get(name)![idx] += 1;
+        const cat = categories.find((c) => c.id === t.category_id);
+        const name = cat?.name ?? 'Otros';
+        const entry = acc.get(name) ?? { count: 0, total: 0, emoji: cat?.emoji ?? '' };
+        entry.count += 1;
+        entry.total += Math.abs(Number(t.amount));
+        acc.set(name, entry);
       });
 
-    const rows = Array.from(byCat.entries())
-      .map(([category, counts]) => ({
+    return Array.from(acc.entries())
+      .map(([category, { count, total, emoji }]) => ({
         category,
-        emoji: categories.find((c) => c.name === category)?.emoji ?? '',
-        counts,
-        max: Math.max(...counts),
+        emoji,
+        count,
+        total,
+        avg: count > 0 ? total / count : 0,
       }))
-      .sort((a, b) => b.counts.reduce((x, y) => x + y, 0) - a.counts.reduce((x, y) => x + y, 0));
-
-    return { months: monthLabels, rows };
+      .sort((a, b) => b.count - a.count);
   },
 
   /**
