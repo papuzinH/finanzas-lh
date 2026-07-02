@@ -134,29 +134,64 @@ export async function backfillRecurringPlansHistory(): Promise<ActionResponse & 
       return { error: 'No autorizado' };
     }
 
-    const [{ data: plans, error: plansError }, { data: existingTxs, error: txReadError }] =
-      await Promise.all([
-        supabase.from('recurring_plans').select('*').eq('user_id', user.id).eq('is_active', true),
-        supabase
-          .from('transactions')
-          .select('recurring_plan_id, date')
-          .eq('user_id', user.id)
-          .not('recurring_plan_id', 'is', null),
-      ]);
-    if (plansError || txReadError) {
+    const [
+      { data: plans, error: plansError },
+      { data: existingTxs, error: txReadError },
+      { data: firstRealTx, error: firstTxError },
+    ] = await Promise.all([
+      supabase.from('recurring_plans').select('*').eq('user_id', user.id).eq('is_active', true),
+      supabase
+        .from('transactions')
+        .select('recurring_plan_id, date')
+        .eq('user_id', user.id)
+        .not('recurring_plan_id', 'is', null),
+      supabase
+        .from('transactions')
+        .select('date')
+        .eq('user_id', user.id)
+        .is('recurring_plan_id', null)
+        .order('date', { ascending: true })
+        .limit(1),
+    ]);
+    if (plansError || txReadError || firstTxError) {
       return { error: 'No se pudo leer el historial' };
-    }
-
-    // Meses ya cubiertos por plan: { planId: Set<'yyyy-MM'> }
-    const coveredMonths = new Map<number, Set<string>>();
-    for (const t of existingTxs ?? []) {
-      if (!t.recurring_plan_id) continue;
-      if (!coveredMonths.has(t.recurring_plan_id)) coveredMonths.set(t.recurring_plan_id, new Set());
-      coveredMonths.get(t.recurring_plan_id)!.add(String(t.date).slice(0, 7));
     }
 
     const now = new Date();
     const currentMonthKey = dateToLocalString(now).slice(0, 7);
+
+    // Piso del historial: mes de la primera transacción REAL del usuario.
+    // Antes de ese mes la app no tiene ingresos registrados; backfillear ahí
+    // resta gastos sin contrapartida y hunde el saldo. Sin transacciones
+    // reales, no hay nada que backfillear.
+    const floorMonth = firstRealTx?.[0]?.date
+      ? String(firstRealTx[0].date).slice(0, 7)
+      : currentMonthKey;
+
+    // Limpieza: pagos generados por backfills previos en meses anteriores al
+    // piso. Seguro de borrar: solo esta feature crea transacciones con
+    // recurring_plan_id (nada más las escribe en la app).
+    const { error: cleanupError } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('user_id', user.id)
+      .not('recurring_plan_id', 'is', null)
+      .lt('date', `${floorMonth}-01`);
+    if (cleanupError) {
+      console.error('Error limpiando exceso de backfill:', cleanupError);
+      return { error: `No se pudo corregir el historial: ${cleanupError.message}` };
+    }
+
+    // Meses ya cubiertos por plan: { planId: Set<'yyyy-MM'> } (solo desde el piso)
+    const coveredMonths = new Map<number, Set<string>>();
+    for (const t of existingTxs ?? []) {
+      if (!t.recurring_plan_id) continue;
+      const m = String(t.date).slice(0, 7);
+      if (m < floorMonth) continue; // recién borrados
+      if (!coveredMonths.has(t.recurring_plan_id)) coveredMonths.set(t.recurring_plan_id, new Set());
+      coveredMonths.get(t.recurring_plan_id)!.add(m);
+    }
+
     const rows: Record<string, unknown>[] = [];
 
     for (const plan of plans ?? []) {
@@ -166,7 +201,7 @@ export async function backfillRecurringPlansHistory(): Promise<ActionResponse & 
 
       while (dateToLocalString(cursor).slice(0, 7) < currentMonthKey) {
         const monthKey = dateToLocalString(cursor).slice(0, 7);
-        if (!covered.has(monthKey)) {
+        if (monthKey >= floorMonth && !covered.has(monthKey)) {
           const isUsdPlan = plan.currency === 'USD';
           rows.push({
             user_id: user.id,

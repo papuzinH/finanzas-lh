@@ -590,20 +590,32 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
         {/* Tab: Mensualidades */}
         {activeTab === 'mensualidades' && (
           <div className="px-5 space-y-4">
-            {backfillPreview.missingMonths > 0 && (
+            {(backfillPreview.missingMonths > 0 || backfillPreview.excessMonths > 0) && (
               <div className="rounded-2xl bg-warn/10 border-[1.5px] border-warn/40 p-4">
                 <p className="font-sans font-bold text-[13px] text-text">
-                  Meses sin registrar
+                  {backfillPreview.excessMonths > 0 ? 'Historial a corregir' : 'Meses sin registrar'}
                 </p>
                 <p className="text-[12px] text-muted mt-0.5">
-                  Tus mensualidades tienen {backfillPreview.missingMonths}{' '}
-                  {backfillPreview.missingMonths === 1 ? 'pago' : 'pagos'} de meses anteriores sin
-                  registrar (≈ {formatCurrency(backfillPreview.totalAmount)}). Regularizalos para
-                  que tu Disponible Real refleje lo que realmente gastaste.
+                  {backfillPreview.excessMonths > 0 && (
+                    <>
+                      Detectamos {backfillPreview.excessMonths}{' '}
+                      {backfillPreview.excessMonths === 1 ? 'pago generado' : 'pagos generados'} antes
+                      de tu historial real (≈ {formatCurrency(backfillPreview.excessAmount)}) que
+                      inflan tus gastos.{' '}
+                    </>
+                  )}
+                  {backfillPreview.missingMonths > 0 && (
+                    <>
+                      Tus mensualidades tienen {backfillPreview.missingMonths}{' '}
+                      {backfillPreview.missingMonths === 1 ? 'pago' : 'pagos'} de meses anteriores sin
+                      registrar (≈ {formatCurrency(backfillPreview.totalAmount)}).{' '}
+                    </>
+                  )}
+                  Corregilo con un click para que tu Disponible Real refleje lo que realmente gastaste.
                 </p>
                 <Button variant="soft" onClick={handleBackfill} disabled={isBackfilling} className="mt-3">
                   {isBackfilling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Regularizar historial
+                  {backfillPreview.excessMonths > 0 ? 'Corregir historial' : 'Regularizar historial'}
                 </Button>
               </div>
             )}

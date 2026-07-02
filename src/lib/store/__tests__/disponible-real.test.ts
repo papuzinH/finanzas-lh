@@ -181,16 +181,53 @@ describe('getRecurringBackfillPreview', () => {
   it('cuenta meses pasados sin transaccion desde la creacion del plan', () => {
     const now = new Date();
     const createdAt = subMonths(now, 2).toISOString(); // plan creado hace 2 meses
+    const twoMonthsAgo = format(subMonths(now, 2), 'yyyy-MM-dd');
     seed({
       recurringPlans: [
         { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
       ],
-      transactions: [],
+      transactions: [
+        // primera transaccion REAL fija el piso del historial hace 2 meses
+        { id: 1, type: 'income', amount: 500000, date: twoMonthsAgo, periodDate: twoMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
+      ],
     });
     const res = useFinanceStore.getState().getRecurringBackfillPreview();
     // mes de creacion + mes pasado = 2 meses faltantes (el actual no cuenta)
     expect(res.missingMonths).toBe(2);
     expect(res.totalAmount).toBe(200000);
+    expect(res.excessMonths).toBe(0);
+  });
+
+  it('no backfillea meses anteriores a la primera transaccion real (piso del historial)', () => {
+    const now = new Date();
+    const createdAt = subMonths(now, 6).toISOString(); // plan creado hace 6 meses...
+    const twoMonthsAgo = format(subMonths(now, 2), 'yyyy-MM-dd');
+    seed({
+      recurringPlans: [
+        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
+      ],
+      transactions: [
+        // ...pero el historial real arranca hace 2 meses
+        { id: 1, type: 'income', amount: 500000, date: twoMonthsAgo, periodDate: twoMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+    const res = useFinanceStore.getState().getRecurringBackfillPreview();
+    // solo los 2 meses dentro del historial, NO los 6 desde created_at
+    expect(res.missingMonths).toBe(2);
+    expect(res.totalAmount).toBe(200000);
+  });
+
+  it('sin transacciones reales no hay nada que backfillear', () => {
+    const now = new Date();
+    seed({
+      recurringPlans: [
+        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: subMonths(now, 4).toISOString() },
+      ],
+      transactions: [],
+    });
+    const res = useFinanceStore.getState().getRecurringBackfillPreview();
+    expect(res.missingMonths).toBe(0);
+    expect(res.excessMonths).toBe(0);
   });
 
   it('no cuenta meses ya cubiertos por una transaccion vinculada', () => {
@@ -202,12 +239,38 @@ describe('getRecurringBackfillPreview', () => {
         { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
       ],
       transactions: [
-        { id: 1, type: 'expense', amount: -100000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: 9 },
+        // piso del historial: income real el mes pasado
+        { id: 1, type: 'income', amount: 500000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
+        { id: 2, type: 'expense', amount: -100000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: 9 },
       ],
     });
     const res = useFinanceStore.getState().getRecurringBackfillPreview();
     expect(res.missingMonths).toBe(0);
     expect(res.totalAmount).toBe(0);
+    expect(res.excessMonths).toBe(0);
+  });
+
+  it('detecta como exceso los pagos generados antes del historial real', () => {
+    const now = new Date();
+    const lastMonth = format(subMonths(now, 1), 'yyyy-MM-dd');
+    const threeMonthsAgo = format(subMonths(now, 3), 'yyyy-MM-dd');
+    seed({
+      recurringPlans: [
+        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: subMonths(now, 3).toISOString() },
+      ],
+      transactions: [
+        // piso: primera transaccion real hace 1 mes
+        { id: 1, type: 'income', amount: 500000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
+        // pago backfilleado ANTES del piso -> exceso a limpiar
+        { id: 2, type: 'expense', amount: -100000, date: threeMonthsAgo, periodDate: threeMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: 9 },
+        // pago dentro del historial -> cubre su mes, no es exceso
+        { id: 3, type: 'expense', amount: -100000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: 9 },
+      ],
+    });
+    const res = useFinanceStore.getState().getRecurringBackfillPreview();
+    expect(res.excessMonths).toBe(1);
+    expect(res.excessAmount).toBe(100000);
+    expect(res.missingMonths).toBe(0);
   });
 });
 

@@ -242,6 +242,8 @@ interface FinanceState {
   getRecurringBackfillPreview: () => {
     missingMonths: number;
     totalAmount: number;
+    excessMonths: number;
+    excessAmount: number;
   };
   getRealAvailableBalance: () => {
     saldoBruto: number;
@@ -1581,12 +1583,32 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const { recurringPlans, transactions } = get();
     const currentMonth = format(new Date(), 'yyyy-MM');
 
-    // Meses ya cubiertos por plan (por fecha real de la transacción)
+    // Piso del historial: mes de la primera transacción REAL del usuario
+    // (excluye las vinculadas a mensualidades, que genera esta misma feature).
+    // Antes de ese mes la app no tiene ingresos registrados, así que backfillear
+    // ahí distorsiona el saldo.
+    let floorMonth = currentMonth;
+    for (const t of transactions) {
+      if (t.recurring_plan_id) continue;
+      const m = String(t.date).slice(0, 7);
+      if (m < floorMonth) floorMonth = m;
+    }
+
+    // Meses ya cubiertos por plan (por fecha real de la transacción) y
+    // exceso: pagos generados en meses anteriores al piso.
     const covered = new Map<number, Set<string>>();
+    let excessMonths = 0;
+    let excessAmount = 0;
     for (const t of transactions) {
       if (!t.recurring_plan_id) continue;
+      const m = String(t.date).slice(0, 7);
+      if (m < floorMonth) {
+        excessMonths += 1;
+        excessAmount += Math.abs(Number(t.amount));
+        continue;
+      }
       if (!covered.has(t.recurring_plan_id)) covered.set(t.recurring_plan_id, new Set());
-      covered.get(t.recurring_plan_id)!.add(String(t.date).slice(0, 7));
+      covered.get(t.recurring_plan_id)!.add(m);
     }
 
     let missingMonths = 0;
@@ -1597,14 +1619,15 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
       const coveredSet = covered.get(plan.id) ?? new Set<string>();
       while (format(cursor, 'yyyy-MM') < currentMonth) {
-        if (!coveredSet.has(format(cursor, 'yyyy-MM'))) {
+        const monthKey = format(cursor, 'yyyy-MM');
+        if (monthKey >= floorMonth && !coveredSet.has(monthKey)) {
           missingMonths += 1;
           totalAmount += Math.abs(Number(plan.amount));
         }
         cursor.setMonth(cursor.getMonth() + 1);
       }
     }
-    return { missingMonths, totalAmount };
+    return { missingMonths, totalAmount, excessMonths, excessAmount };
   },
 
   getRealAvailableBalance: () => {
