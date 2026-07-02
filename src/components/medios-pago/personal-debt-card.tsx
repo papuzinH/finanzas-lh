@@ -2,7 +2,7 @@
 
 import { User, ArrowRight, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency, formatUsd } from '@/lib/utils';
 import { PaymentCardProps } from './institutional-card';
 import { PaymentMethodDetailModal } from './payment-method-detail-modal';
 import { EditPaymentMethodDialog } from './edit-payment-method-dialog';
@@ -27,7 +27,7 @@ export function PersonalDebtCard({ data }: PaymentCardProps) {
     <>
       <div
         onClick={() => setIsDetailOpen(true)}
-        className="rounded-xl border border-border bg-surface p-4 flex flex-col justify-between hover:border-border-strong transition-colors cursor-pointer active:scale-[0.98]"
+        className="rounded-xl border-[1.5px] border-border bg-surface p-4 flex flex-col justify-between hover:border-border-strong transition-colors cursor-pointer active:scale-[0.98]"
       >
         <div>
           <div className="flex items-start justify-between mb-3">
@@ -51,7 +51,7 @@ export function PersonalDebtCard({ data }: PaymentCardProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="bg-surface border-border text-text"
+                className="bg-surface border-[1.5px] border-border text-text"
                 onClick={(e) => e.stopPropagation()}
               >
                 <DropdownMenuItem
@@ -76,13 +76,13 @@ export function PersonalDebtCard({ data }: PaymentCardProps) {
             <p className="text-xs text-muted mb-0.5">
               {isDebt ? 'Le debes' : 'A favor'}
             </p>
-            <p className={cn("text-xl font-bold font-mono tracking-tight", isDebt ? "text-bad" : "text-good")}>
+            <p className={cn("font-poster tnum text-xl leading-none", isDebt ? "text-bad" : "text-good")}>
               {formatCurrency(amount)}
             </p>
           </div>
 
           {/* Movimientos del mes */}
-          <div className="space-y-2 mb-4 pt-3 border-t border-border">
+          <div className="space-y-2 mb-4 pt-3 border-t-[1.5px] border-border">
             <p className="text-[9px] font-medium text-muted uppercase tracking-wider mb-1">Movimientos del mes</p>
             {history.length > 0 ? (
               history.map((t, i) => (
@@ -95,10 +95,13 @@ export function PersonalDebtCard({ data }: PaymentCardProps) {
                     <span className="text-muted truncate max-w-[100px]">{t.description}</span>
                   </div>
                   <span className={cn(
-                    "font-mono",
+                    "tnum",
                     t.type === 'income' ? "text-good" : "text-muted"
                   )}>
-                    {t.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(t.amount))}
+                    {t.type === 'income' ? '+' : '-'}
+                    {t.original_currency === 'USD' && t.original_amount
+                      ? formatUsd(Math.abs(Number(t.original_amount)))
+                      : formatCurrency(Math.abs(Number(t.amount)))}
                   </span>
                 </div>
               ))
@@ -108,7 +111,7 @@ export function PersonalDebtCard({ data }: PaymentCardProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-[10px] text-muted bg-surface-2 py-1.5 px-2 rounded border border-border">
+        <div className="flex items-center gap-2 text-[10px] text-muted bg-surface-2 py-1.5 px-2 rounded border-[1.5px] border-border">
           <ArrowRight className="h-3 w-3" />
           <span>
             {data.default_payment_day

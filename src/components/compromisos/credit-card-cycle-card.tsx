@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { CreditCard, Check, Clock, Loader2, Undo2 } from 'lucide-react';
 import {
   AlertDialog,
@@ -14,8 +16,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { useFinanceStore, CreditCardCycleSummary } from '@/lib/store/financeStore';
+import { payCreditCardCycle, undoCreditCardPayment } from '@/app/compromisos/actions';
 import { formatCurrency } from '@/lib/utils';
 
 interface CreditCardCycleChipProps {
@@ -26,7 +36,8 @@ interface CreditCardCycleChipProps {
 export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChipProps) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const { markCreditCardCyclePaid, unmarkCreditCardCyclePaid, getPaymentMethodStatus } = useFinanceStore();
+  const router = useRouter();
+  const { getPaymentMethodStatus, paymentMethods, getDefaultPaymentMethod, fetchAllData } = useFinanceStore();
   const status = getPaymentMethodStatus(card.methodId);
   const cycleNotClosedYet =
     status.nextClosingDate !== undefined && new Date() < status.nextClosingDate;
@@ -34,7 +45,39 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
     ? format(status.nextClosingDate, "d 'de' MMM", { locale: es })
     : '';
 
+  // Medios que pueden financiar el pago (todos menos la propia tarjeta y los personales).
+  const fundingMethods = paymentMethods.filter((m) => m.id !== card.methodId && !m.is_personal);
+  const [fundingId, setFundingId] = useState<string>(() => {
+    const def = getDefaultPaymentMethod();
+    return def && def.id !== card.methodId ? String(def.id) : '';
+  });
+
+  const refresh = async () => {
+    await fetchAllData();
+    router.refresh();
+  };
+
   if (!card.isPending) {
+    const handleUndo = async () => {
+      setConfirming(true);
+      try {
+        const res = await undoCreditCardPayment({
+          cardMethodId: card.methodId,
+          year: card.nextPaymentDate.getFullYear(),
+          month: card.nextPaymentDate.getMonth(),
+        });
+        if (res.error) {
+          toast.error(res.error);
+        } else {
+          toast.success('Pago deshecho');
+          await refresh();
+        }
+      } finally {
+        setConfirming(false);
+        setOpen(false);
+      }
+    };
+
     return (
       <>
         <span
@@ -56,7 +99,7 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
                 ¿Deshacer pago de {card.name}?
               </AlertDialogTitle>
               <AlertDialogDescription className="text-muted">
-                La tarjeta volverá al estado pendiente para el ciclo que vence el {formattedDate}.
+                Se borrará la salida registrada y la tarjeta volverá a pendiente (vence el {formattedDate}).
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2">
@@ -64,16 +107,7 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
                 Cancelar
               </AlertDialogCancel>
               <AlertDialogAction
-                onClick={(e) => {
-                  e.preventDefault();
-                  setConfirming(true);
-                  try {
-                    unmarkCreditCardCyclePaid(card.methodId);
-                  } finally {
-                    setConfirming(false);
-                    setOpen(false);
-                  }
-                }}
+                onClick={(e) => { e.preventDefault(); handleUndo(); }}
                 disabled={confirming}
                 className="w-full sm:w-auto"
               >
@@ -88,12 +122,29 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
   }
 
   const handleConfirm = async () => {
+    const fundingMethod = fundingMethods.find((m) => String(m.id) === fundingId);
+    if (!fundingMethod) {
+      toast.error('Elegí con qué medio pagás');
+      return;
+    }
     setConfirming(true);
     try {
-      markCreditCardCyclePaid(card.methodId);
+      const res = await payCreditCardCycle({
+        cardMethodId: card.methodId,
+        fundingMethodId: fundingMethod.id,
+        amountArs: card.total,
+        date: format(card.nextPaymentDate, 'yyyy-MM-dd'),
+        cardName: card.name,
+      });
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Pago registrado en ${fundingMethod.name}`);
+        await refresh();
+        setOpen(false);
+      }
     } finally {
       setConfirming(false);
-      setOpen(false);
     }
   };
 
@@ -133,13 +184,33 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
               </p>
             )}
           </AlertDialogHeader>
+
+          {/* Selector del medio con el que se paga (de ahí sale la plata) */}
+          <div className="py-1">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted mb-1.5">
+              ¿Con qué medio pagás?
+            </p>
+            <Select value={fundingId} onValueChange={setFundingId}>
+              <SelectTrigger className="w-full min-h-11">
+                <SelectValue placeholder="Elegí un medio" />
+              </SelectTrigger>
+              <SelectContent>
+                {fundingMethods.map((m) => (
+                  <SelectItem key={m.id} value={String(m.id)}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel disabled={confirming} className="w-full sm:w-auto">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); handleConfirm(); }}
-              disabled={confirming}
+              disabled={confirming || !fundingId}
               className="w-full sm:w-auto"
             >
               {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { CategoryTreemap } from './charts/category-treemap';
-import { FrequencyHeatmap } from './charts/frequency-heatmap';
+import { CategoryDistribution } from './charts/category-distribution';
+import { CategoryFrequencyRanking } from './charts/category-frequency-ranking';
 import { CurrencyExposureCard } from './cards/currency-exposure-card';
 import { InfoHint } from '@/components/ui/info-hint';
 import { Modal } from '@/components/shared/modal';
@@ -10,11 +10,15 @@ import { useFinanceStore } from '@/lib/store/financeStore';
 import { formatCurrency } from '@/lib/utils';
 
 export function TabCategorias() {
-  const { getCategoryBreakdown, toDisplay } = useFinanceStore();
+  const { getCategoryBreakdown, getCategoryFrequencyRanking, toDisplay } = useFinanceStore();
   const [selected, setSelected] = useState<string | null>(null);
   const [scope, setScope] = useState<'current_month' | 'global'>('current_month');
+  const [freqScope, setFreqScope] = useState<'current_month' | 'global'>('current_month');
+  const [selectedFreq, setSelectedFreq] = useState<string | null>(null);
   const breakdown = getCategoryBreakdown(scope);
   const item = selected ? breakdown.items.find((i) => i.name === selected) : null;
+  const freqRanking = getCategoryFrequencyRanking(freqScope);
+  const freqItem = selectedFreq ? freqRanking.find((r) => r.category === selectedFreq) : null;
 
   return (
     <div className="space-y-4">
@@ -37,16 +41,28 @@ export function TabCategorias() {
             <span className={scope === 'global' ? 'text-accent' : 'text-muted'}>Histórico</span>
           </button>
         </div>
-        <CategoryTreemap key={scope} scope={scope} onSelect={setSelected} />
+        <CategoryDistribution key={scope} scope={scope} onSelect={setSelected} />
       </div>
       <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
-        <h3 className="text-sm font-bold text-text mb-3 flex items-center gap-1.5">
-          Frecuencia por categoría
-          <InfoHint label="Qué muestra">
-            Cuántas veces gastaste en cada categoría en el período. Más intenso = más movimientos.
-          </InfoHint>
-        </h3>
-        <FrequencyHeatmap />
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h3 className="text-sm font-bold text-text flex items-center gap-1.5">
+            Frecuencia por categoría
+            <InfoHint label="Qué muestra">
+              En qué categorías gastás más seguido. Cuenta la cantidad de movimientos, no el monto.
+              Tocá una categoría para ver el detalle.
+            </InfoHint>
+          </h3>
+          <button
+            onClick={() => setFreqScope(freqScope === 'current_month' ? 'global' : 'current_month')}
+            aria-label="Cambiar entre mes actual e histórico"
+            className="shrink-0 rounded-full border-[1.5px] border-border bg-surface-2 px-3 py-2 text-[11px] font-bold text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          >
+            <span className={freqScope === 'current_month' ? 'text-accent' : 'text-muted'}>Mes</span>
+            <span className="text-faint mx-1">·</span>
+            <span className={freqScope === 'global' ? 'text-accent' : 'text-muted'}>Histórico</span>
+          </button>
+        </div>
+        <CategoryFrequencyRanking key={freqScope} scope={freqScope} onSelect={setSelectedFreq} />
       </div>
       <CurrencyExposureCard />
 
@@ -56,6 +72,28 @@ export function TabCategorias() {
             <p className="text-xs text-muted uppercase tracking-wider mb-1">{scope === 'global' ? 'Gasto histórico' : 'Gasto del mes'}</p>
             <p className="font-poster tnum text-3xl text-text">{formatCurrency(toDisplay(item.value))}</p>
             <p className="text-sm text-muted mt-2">{item.percentage.toFixed(1)}% del total</p>
+          </div>
+        )}
+      </Modal>
+
+      <Modal isOpen={!!freqItem} onClose={() => setSelectedFreq(null)} title={selectedFreq ? `${freqItem?.emoji ?? ''} ${selectedFreq}`.trim() : ''}>
+        {freqItem && (
+          <div className="text-center py-4">
+            <p className="text-xs text-muted uppercase tracking-wider mb-1">
+              {freqScope === 'global' ? 'Frecuencia histórica' : 'Frecuencia del mes'}
+            </p>
+            <p className="font-poster tnum text-3xl text-text">{freqItem.count}x</p>
+            <p className="text-sm text-muted mt-2">movimientos</p>
+            <div className="mt-4 flex justify-center gap-6 text-left">
+              <div>
+                <p className="text-[11px] text-muted uppercase tracking-wider">Total</p>
+                <p className="font-sans tnum text-base font-bold text-text">{formatCurrency(toDisplay(freqItem.total))}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted uppercase tracking-wider">Promedio</p>
+                <p className="font-sans tnum text-base font-bold text-text">{formatCurrency(toDisplay(freqItem.avg))}</p>
+              </div>
+            </div>
           </div>
         )}
       </Modal>

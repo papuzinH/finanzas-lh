@@ -18,6 +18,7 @@ export const transactionSchema = z.object({
   date: localDateString,
   category_id: z.string().min(1, 'La categoría es requerida'),
   type: z.enum(['income', 'expense'], { message: 'El tipo es requerido' }),
+  payment_method_id: z.string().nullable().optional(),
   ...currencyFields,
 });
 

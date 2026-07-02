@@ -219,6 +219,9 @@ interface FinanceState {
     usdExpenses: number;
     arsExpenses: number;
   };
+  getDefaultPaymentMethod: () => PaymentMethod | undefined;
+  getUnassignedTransactionsCount: () => number;
+  isCreditCardCyclePaid: (methodId: number) => boolean;
 
   // Credit card cycle tracking (localStorage-backed)
   paidCycles: Record<number, { year: number; month: number }>;
@@ -460,6 +463,8 @@ interface FinanceState {
  */
 const isExpenseInCurrentMonthScope = (t: ProcessedTransaction, methods: PaymentMethod[], now: Date) => {
   if (t.type !== 'expense') return false;
+  // Los pagos de tarjeta no son consumo: no participan de las analíticas de gasto.
+  if (t.card_payment_for) return false;
 
   // 1. Si es Cuota (Installment) -> Usar lógica de Ciclo de Tarjeta
   // t.date para cuotas siempre es la fecha de pago calculada
@@ -499,6 +504,48 @@ const isExpenseInCurrentMonthScope = (t: ProcessedTransaction, methods: PaymentM
     localPeriodDate.getMonth() === now.getMonth() &&
     localPeriodDate.getFullYear() === now.getFullYear()
   );
+};
+
+/** Mismo mes y año entre dos fechas. */
+const sameMonthYear = (a: Date, b: Date) =>
+  a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+
+/**
+ * Fechas de cierre y vencimiento del ciclo VIGENTE de una tarjeta de crédito.
+ * El ciclo termina cuando se PAGA (no cuando cierra): mientras no llegue el vencimiento,
+ * seguimos en ese ciclo. Devuelve undefined si el método no es crédito con ciclo configurado.
+ *
+ * Como `transactions.date` de crédito ya es la fecha de vencimiento calculada
+ * (ver calculateCreditPaymentDate), un movimiento pertenece a este ciclo sii su
+ * `t.date` cae en el mismo mes/año que `nextPaymentDate`.
+ */
+const getCreditCycleDates = (
+  method: PaymentMethod,
+  now: Date
+): { nextClosingDate: Date; nextPaymentDate: Date } | undefined => {
+  if (
+    method.type !== 'credit' ||
+    !method.default_closing_day ||
+    !method.default_payment_day
+  ) {
+    return undefined;
+  }
+  const closingDay = method.default_closing_day;
+  const paymentDay = method.default_payment_day;
+
+  let nextPaymentDate = setDate(now, paymentDay);
+  if (!isAfter(startOfDay(nextPaymentDate), startOfDay(now))) {
+    nextPaymentDate = addMonths(nextPaymentDate, 1);
+  }
+
+  // paymentDay > closingDay: cierran en el mismo mes (ej: cierra 10, vence 25).
+  // paymentDay <= closingDay: el pago es el mes siguiente al cierre (ej: cierra 19, vence 1).
+  const nextClosingDate =
+    paymentDay > closingDay
+      ? setDate(nextPaymentDate, closingDay)
+      : setDate(subMonths(nextPaymentDate, 1), closingDay);
+
+  return { nextClosingDate, nextPaymentDate };
 };
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
@@ -1112,9 +1159,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .filter((t) => t.type === 'income')
       .reduce((acc, t) => acc + Number(t.amount), 0);
 
-    // 1. Gastos variables históricos (sin cuotas ni Mensualidades recurrentes)
+    // 1. Gastos variables históricos (sin cuotas ni Mensualidades recurrentes).
+    //    Se excluyen los pagos de tarjeta (card_payment_for): no son consumo nuevo,
+    //    las compras ya se restaron; el pago solo baja el saldo del medio financiador.
     const variableExpenses = transactions
-      .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id)
+      .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id && !t.card_payment_for)
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
     // 2. Cuotas pagadas + cuotas que vencen este mes.
@@ -1235,6 +1284,27 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * - nextClosingDate: Próxima fecha de cierre (solo crédito)
    * - nextPaymentDate: Próxima fecha de vencimiento (solo crédito)
    */
+  getDefaultPaymentMethod: () => {
+    return get().paymentMethods.find((m) => m.is_default);
+  },
+
+  getUnassignedTransactionsCount: () => {
+    return get().transactions.filter((t) => t.payment_method_id == null).length;
+  },
+
+  isCreditCardCyclePaid: (methodId: number) => {
+    const { transactions, paymentMethods } = get();
+    const method = paymentMethods.find((m) => m.id === methodId);
+    if (!method) return false;
+    const cycle = getCreditCycleDates(method, new Date());
+    if (!cycle) return false;
+    return transactions.some(
+      (t) =>
+        t.card_payment_for === methodId &&
+        sameMonthYear(parseLocalDate(t.date), cycle.nextPaymentDate)
+    );
+  },
+
   getPaymentMethodStatus: (methodId: number) => {
     const { transactions, recurringPlans, paymentMethods } = get();
     const method = paymentMethods.find((m) => m.id === methodId);
@@ -1243,167 +1313,119 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     if (!method)
       return { currentConsumption: 0, fixedCosts: 0, projectedTotal: 0, usdExpenses: 0, arsExpenses: 0 };
 
-    // 1. Definir el rango de fechas (Scope)
-    let startDate: Date;
-    let endDate: Date;
-    let nextClosingDate: Date | undefined;
-    let nextPaymentDate: Date | undefined;
+    // Fechas de cierre/vencimiento del ciclo vigente (solo crédito con ciclo).
+    const cycleDates = getCreditCycleDates(method, now);
+    const nextClosingDate = cycleDates?.nextClosingDate;
+    const nextPaymentDate = cycleDates?.nextPaymentDate;
 
-    if (method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
-      // Lógica de Ciclo de Tarjeta
-      const closingDay = method.default_closing_day;
-      const paymentDay = method.default_payment_day;
-
-      // Encontrar la próxima fecha de pago/vencimiento.
-      // El ciclo termina cuando se PAGA, no cuando se cierra.
-      // Ej: cierra 19/3 y vence 1/4 → mientras no llegue el 1/4 seguimos en ese ciclo.
-      let nextPaymentCandidate = setDate(now, paymentDay);
-      if (!isAfter(startOfDay(nextPaymentCandidate), startOfDay(now))) {
-        nextPaymentCandidate = addMonths(nextPaymentCandidate, 1);
-      }
-      nextPaymentDate = nextPaymentCandidate;
-
-      // Derivar el cierre a partir del vencimiento.
-      // Si paymentDay > closingDay: cierran en el mismo mes (ej: cierra 10, vence 25).
-      // Si paymentDay <= closingDay: el pago es el mes siguiente al cierre (ej: cierra 19, vence 1).
-      if (paymentDay > closingDay) {
-        nextClosingDate = setDate(nextPaymentDate, closingDay);
-      } else {
-        nextClosingDate = setDate(subMonths(nextPaymentDate, 1), closingDay);
-      }
-
-      // Fecha de inicio del ciclo (aprox 1 mes antes del cierre)
-      startDate = subMonths(nextClosingDate, 1);
-      endDate = nextClosingDate;
-
-    } else {
-      // Lógica de Mes Calendario (Débito / Efectivo)
-      startDate = startOfDay(setDate(now, 1)); // 1ro del mes
-      endDate = endOfMonth(now);
-    }
-
-    // 2. Calcular Componentes de la Fórmula
-
-    // A) Ingresos
-    const income = transactions
-      .filter(t => {
-        if (t.payment_method_id !== methodId || t.type !== 'income') return false;
-        
-        // Para Crédito CON fechas: Solo ingresos del ciclo
-        if (method.type === 'credit' && startDate && endDate) {
-             const localTDate = parseLocalDate(t.date);
-             return localTDate >= startDate && localTDate <= endDate;
-        }
-        
-        // Para Débito/Efectivo (o Crédito sin fechas): Histórico completo
-        return true;
-      })
-      .reduce((acc, t) => acc + Number(t.amount), 0);
-
-    // B) Gastos (NO Cuotas)
-    const expensesNonInstallment = transactions
-      .filter(t => {
-        if (t.payment_method_id !== methodId || t.type !== 'expense' || t.installment_plan_id) return false;
-        
-        // Para Crédito CON fechas: Solo gastos del ciclo
-        if (method.type === 'credit' && startDate && endDate) {
-             const localTDate = parseLocalDate(t.date);
-             return localTDate >= startDate && localTDate <= endDate;
-        }
-
-        // Para Débito/Efectivo (o Crédito sin fechas): Histórico completo
-        return true;
-      })
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-
-    // C) Cuotas
-    const installments = transactions
-      .filter(t => {
-        if (t.payment_method_id !== methodId || t.type !== 'expense' || !t.installment_plan_id) return false;
-        
-        // CRÉDITO CON FECHAS: Solo las del ciclo actual
-        if (method.type === 'credit' && nextPaymentDate) {
-             const localTDate = parseLocalDate(t.date);
-             return (
-                localTDate.getMonth() === nextPaymentDate.getMonth() &&
-                localTDate.getFullYear() === nextPaymentDate.getFullYear()
-             );
-        }
-
-        // DÉBITO/EFECTIVO (o Crédito sin fechas): Histórico hasta fin de mes
-        const localTDate = parseLocalDate(t.date);
-        return localTDate <= endOfMonth(now);
-      })
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-
-    // D) Fijos Mensuales
+    // Mensualidades activas del medio (para el bloque "servicios adheridos").
     const fixedCosts = recurringPlans
       .filter((p) => p.payment_method_id === methodId && p.is_active)
       .reduce((acc, p) => acc + Number(p.amount), 0);
 
-    // E) Desglose bimonetario del ciclo
-    let usdExpenses = 0;
-    let arsExpenses = 0;
+    // ===================================================================
+    // CRÉDITO CON CICLO → "A pagar en el vencimiento"
+    // = gastos que vencen en nextPaymentDate (cuotas + compras + mensualidades) − reintegros.
+    // Regla ÚNICA de pertenencia al ciclo: t.date (que en crédito ya es la fecha de
+    // vencimiento calculada) cae en el mismo mes/año que nextPaymentDate. Aplica igual
+    // a compras normales, cuotas e ingresos, de modo que el número coincide con la
+    // lista de movimientos del medio.
+    // ===================================================================
+    if (nextPaymentDate) {
+      const recurringPlanIdsInCycle = new Set<number>();
+      let expensesInCycleArs = 0; // total en ARS (USD convertido) → alimenta projectedTotal
+      let usdExpenses = 0; // desglose: importe original USD
+      let arsExpenses = 0; // desglose: importe ARS puro
 
-    // Transacciones del ciclo (solo crédito con fechas configuradas)
-    // Se trackea qué planes recurrentes ya tienen transacción registrada en el ciclo
-    // para evitar doble conteo al agregar los planes activos después.
-    const recurringPlanIdsInCycle = new Set<number>();
-    if (method.type === 'credit' && nextPaymentDate && startDate && endDate) {
       for (const t of transactions) {
         if (t.payment_method_id !== methodId || t.type !== 'expense') continue;
-        const localTDate = parseLocalDate(t.date);
-        let inCycle: boolean;
-        if (t.installment_plan_id) {
-          inCycle = localTDate.getMonth() === nextPaymentDate.getMonth() &&
-                    localTDate.getFullYear() === nextPaymentDate.getFullYear();
-        } else {
-          // Gastos variables: rango de fechas del ciclo O mismo mes/año que el vencimiento
-          // según periodDate (cubre gastos cargados después del cierre pero antes del vencimiento)
-          const inCycleRange = localTDate >= startDate && localTDate <= endDate;
-          const pDate = parseLocalDate(t.periodDate ?? t.date);
-          const inPaymentMonth = pDate.getMonth() === nextPaymentDate.getMonth() &&
-                                 pDate.getFullYear() === nextPaymentDate.getFullYear();
-          inCycle = inCycleRange || inPaymentMonth;
-        }
-        if (!inCycle) continue;
+        if (!sameMonthYear(parseLocalDate(t.date), nextPaymentDate)) continue;
         if (t.recurring_plan_id) recurringPlanIdsInCycle.add(t.recurring_plan_id);
+        expensesInCycleArs += Math.abs(Number(t.amount));
         if (t.original_currency === 'USD' && t.original_amount) {
           usdExpenses += Math.abs(Number(t.original_amount));
         } else {
           arsExpenses += Math.abs(Number(t.amount));
         }
       }
-    }
 
-    // Mensualidades activas sin transacción registrada en este ciclo
-    for (const p of recurringPlans) {
-      if (p.payment_method_id !== methodId || !p.is_active) continue;
-      if (recurringPlanIdsInCycle.has(p.id)) continue;
-      if (p.currency === 'USD' && p.original_amount) {
-        usdExpenses += Math.abs(Number(p.original_amount));
-      } else {
-        arsExpenses += Math.abs(Number(p.amount));
+      // Mensualidades adheridas al medio que todavía no tienen transacción en el ciclo.
+      // (recomputedRecurring ya deja p.amount en ARS, incluso para planes en USD.)
+      for (const p of recurringPlans) {
+        if (p.payment_method_id !== methodId || !p.is_active) continue;
+        if (recurringPlanIdsInCycle.has(p.id)) continue;
+        expensesInCycleArs += Math.abs(Number(p.amount));
+        if (p.currency === 'USD' && p.original_amount) {
+          usdExpenses += Math.abs(Number(p.original_amount));
+        } else {
+          arsExpenses += Math.abs(Number(p.amount));
+        }
       }
+
+      // Reintegros/ingresos que vencen en el mismo ciclo.
+      const refundsInCycle = transactions
+        .filter(
+          (t) =>
+            t.payment_method_id === methodId &&
+            t.type === 'income' &&
+            sameMonthYear(parseLocalDate(t.date), nextPaymentDate)
+        )
+        .reduce((acc, t) => acc + Number(t.amount), 0);
+
+      const amountToPay = expensesInCycleArs - refundsInCycle;
+      // Contrato existente: projectedTotal negativo = se debe dinero a la tarjeta.
+      const netResult = -amountToPay;
+
+      return {
+        currentConsumption: netResult,
+        fixedCosts,
+        projectedTotal: netResult,
+        nextClosingDate,
+        nextPaymentDate,
+        usdExpenses,
+        arsExpenses,
+      };
     }
 
-    // 3. Fórmula Final
-    // Income - Expenses(Non-Quota) - Quotas - Fixed
-    const netResult = income - expensesNonInstallment - installments - fixedCosts;
+    // ===================================================================
+    // DÉBITO / EFECTIVO (o crédito sin ciclo configurado) → "Saldo disponible"
+    // = ingresos históricos − gastos históricos (cuotas hasta fin de mes).
+    // No se restan mensualidades futuras: las ya debitadas ya están en los gastos.
+    // ===================================================================
+    const income = transactions
+      .filter((t) => t.payment_method_id === methodId && t.type === 'income')
+      .reduce((acc, t) => acc + Number(t.amount), 0);
+
+    const expensesNonInstallment = transactions
+      .filter(
+        (t) =>
+          t.payment_method_id === methodId &&
+          t.type === 'expense' &&
+          !t.installment_plan_id
+      )
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+    const installments = transactions
+      .filter((t) => {
+        if (t.payment_method_id !== methodId || t.type !== 'expense' || !t.installment_plan_id)
+          return false;
+        return parseLocalDate(t.date) <= endOfMonth(now);
+      })
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+    const netResult = income - expensesNonInstallment - installments;
 
     return {
       currentConsumption: netResult,
       fixedCosts,
       projectedTotal: netResult,
-      nextClosingDate,
-      nextPaymentDate,
-      usdExpenses,
-      arsExpenses,
+      usdExpenses: 0,
+      arsExpenses: 0,
     };
   },
 
   getPendingCreditCardByCard: (): CreditCardCycleSummary[] => {
-    const { paymentMethods, paidCycles } = get()
+    const { paymentMethods } = get()
     const now = new Date()
     const creditCards = paymentMethods.filter((m) => m.type === 'credit')
 
@@ -1414,11 +1436,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       // projectedTotal = income - expenses (negative when user owes money to the card)
       if (!nextPaymentDate || projectedTotal >= 0) return acc
 
-      const stored = paidCycles[method.id]
-      const isPaidManually =
-        stored !== undefined &&
-        stored.year === nextPaymentDate.getFullYear() &&
-        stored.month === nextPaymentDate.getMonth()
+      // El estado "pagada" se deriva de la existencia de una transacción de pago
+      // (card_payment_for) cuya fecha cae en el mes del vencimiento del ciclo.
+      const isPaidManually = get().isCreditCardCyclePaid(method.id)
 
       const isPending = !isPaidManually && now < nextPaymentDate
 
@@ -1480,7 +1500,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const { transactions, getCurrentMonthInstallmentsTotal, getMonthlyBurnRate } = get();
 
     const totalNonInstallmentExpenses = transactions
-      .filter((t) => t.type === 'expense' && !t.installment_plan_id)
+      .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.card_payment_for)
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
     return totalNonInstallmentExpenses + getCurrentMonthInstallmentsTotal() + getMonthlyBurnRate();
@@ -1492,12 +1512,12 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     return transactions
       .filter((t) => {
-        if (t.type !== 'expense') return false;
-        
+        if (t.type !== 'expense' || t.card_payment_for) return false;
+
         if (scope === 'current_month') {
             return isExpenseInCurrentMonthScope(t, paymentMethods, now);
         }
-        
+
         return true; // Global includes all history
       })
       .reduce((acc, t) => {
@@ -1728,16 +1748,23 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   getPaymentMethodTransactionsForCurrentMonth: (methodId) => {
     const { transactions, paymentMethods } = get();
     const now = new Date();
+    const method = paymentMethods.find((m) => m.id === methodId);
+    const nextPaymentDate = method ? getCreditCycleDates(method, now)?.nextPaymentDate : undefined;
 
     return transactions.filter(t => {
       if (t.payment_method_id !== methodId) return false;
 
-      const localTDate = parseLocalDate(t.date);
-      
-      if (t.type === 'income') {
-        return isSameMonth(localTDate, now);
+      // Crédito con ciclo: gastos e ingresos pertenecen al ciclo si su fecha de
+      // vencimiento (t.date) cae en el mes de nextPaymentDate. Así la lista cuadra
+      // exactamente con el número "A pagar en el vencimiento".
+      if (nextPaymentDate) {
+        return sameMonthYear(parseLocalDate(t.date), nextPaymentDate);
       }
-      
+
+      // Débito/efectivo (o crédito sin ciclo): mes calendario.
+      if (t.type === 'income') {
+        return isSameMonth(parseLocalDate(t.date), now);
+      }
       return isExpenseInCurrentMonthScope(t, paymentMethods, now);
     });
   },

@@ -25,6 +25,7 @@ import {
   CategoryPicker,
   DateField,
   CurrencyField,
+  PaymentMethodField,
   DEFAULT_RATE_PAIR,
 } from '@/components/transactions/transaction-form-fields';
 
@@ -38,6 +39,7 @@ interface EditTransactionDialogProps {
     date: string;
     category_id: string | null;
     type: 'expense' | 'income' | null;
+    payment_method_id?: number | string | null;
     original_currency?: string | null;
     original_amount?: number | null;
     rate_pair?: string | null;
@@ -51,9 +53,12 @@ export function EditTransactionDialog({
 }: EditTransactionDialogProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
-  const { fetchAllData, categories, getFrequentCategories, getExchangeRate } = useFinanceStore();
+  const { fetchAllData, categories, paymentMethods, getFrequentCategories, getExchangeRate } = useFinanceStore();
 
   const frequentCategories = getFrequentCategories(4);
+
+  const initialPaymentMethodId =
+    transaction.payment_method_id != null ? String(transaction.payment_method_id) : 'none';
 
   const form = useForm<TransactionSchema>({
     resolver: zodResolver(transactionSchema),
@@ -65,6 +70,7 @@ export function EditTransactionDialog({
       date: transaction.date,
       category_id: transaction.category_id || '',
       type: transaction.type || 'expense',
+      payment_method_id: initialPaymentMethodId,
       currency: (transaction.original_currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
       rate_pair: transaction.rate_pair ?? null,
       exchange_rate: null,
@@ -74,6 +80,7 @@ export function EditTransactionDialog({
   const watchedAmount = form.watch('amount');
   const watchedCurrency = form.watch('currency');
   const watchedRatePair = form.watch('rate_pair');
+  const watchedDate = form.watch('date');
 
   // Reset form when dialog opens with fresh transaction data
   useEffect(() => {
@@ -84,6 +91,7 @@ export function EditTransactionDialog({
         date: transaction.date,
         category_id: transaction.category_id || '',
         type: transaction.type || 'expense',
+        payment_method_id: initialPaymentMethodId,
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -96,6 +104,7 @@ export function EditTransactionDialog({
       const ratePair = data.rate_pair || DEFAULT_RATE_PAIR;
       const payload = {
         ...data,
+        payment_method_id: data.payment_method_id === 'none' ? null : data.payment_method_id,
         rate_pair: isUsd ? ratePair : null,
         exchange_rate: isUsd ? getExchangeRate(ratePair) : null,
       };
@@ -163,6 +172,13 @@ export function EditTransactionDialog({
 
               {/* ── Date ── */}
               <DateField control={form.control} />
+
+              {/* ── Payment method ── */}
+              <PaymentMethodField
+                control={form.control}
+                paymentMethods={paymentMethods}
+                watchedDate={watchedDate}
+              />
 
             </div>
 

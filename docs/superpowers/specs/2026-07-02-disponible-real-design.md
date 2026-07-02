@@ -1,7 +1,9 @@
 # Disponible Real (Número Central del Dashboard) — Diseño
 
 **Fecha:** 2026-07-02
-**Estado:** Aprobado (brainstorming) — pendiente de plan de implementación
+**Estado:** Implementado. Ver **"Ajustes durante implementación"** al final — varias decisiones de este diseño cambiaron al ejecutar (sobre todo el cálculo de `saldoBruto`, el rol de `getGlobalBalance()` y la definición del Fondo de Ojo). Ante cualquier conflicto, mandan los ajustes finales.
+
+> **Actualización posterior (pago de tarjeta como salida real).** El modelo se mantiene accrual-at-purchase (cada compra baja el Disponible al comprarse), pero ahora **pagar una tarjeta** registra una transacción `expense` en el medio que la financia, marcada `transactions.card_payment_for = <id tarjeta>`. Efecto: baja el **saldo de ese medio** (`getPaymentMethodStatus` débito) y es **neutra para el Disponible Real global** — `getGlobalBalance`, `getGlobalEffectiveExpenses`, `getExpensesByCategory` e `isExpenseInCurrentMonthScope` excluyen `card_payment_for`. Reemplaza el flag local `paidCycles` (retoma el "Ajuste #6"). El estado "pagada" se deriva de `isCreditCardCyclePaid()`. Actions: `payCreditCardCycle`/`undoCreditCardPayment` en `src/app/compromisos/actions.ts`.
 
 ## Problema
 
@@ -24,7 +26,7 @@ Reemplazar la hero card del home por un número que refleje el **patrimonio líq
 
 **No incluye:**
 - Campo de "saldo declarado manualmente" ni cambios de schema/Supabase. Todo se deriva de transacciones existentes.
-- Cambios en `getGlobalBalance()` ni en otros getters que la consumen hoy (queda intacto, se usa en otras pantallas).
+- ~~Cambios en `getGlobalBalance()`~~ **(SUPERADO en implementación — sí se modificó `getGlobalBalance()`; ver ajustes finales).**
 - Rediseño visual de `installments-real-cost-card.tsx` ni de otras cards de análisis ya en curso (ritmo de gasto, cuotas).
 - Tracking histórico por ciclo de "pagado/no pagado" de tarjetas más allá de lo que ya guarda `paidCycles` (un flag por tarjeta, ciclo más reciente).
 
@@ -141,3 +143,52 @@ src/components/compromisos/credit-card-cycle-card.tsx        (modificado: advert
 
 - Mensualidad pagada con una tarjeta de crédito cuya cuenta está pendiente: su transacción cuenta en `mensualidadesPagadas` (siempre), pero no se excluye vía `pendingCardIds` como los gastos variables/cuotas. Caso raro, no bloqueante — documentado como limitación conocida, no se resuelve en esta iteración.
 - Si el usuario marca "pagada" y luego carga una compra nueva dentro del mismo ciclo (antes del cierre), esa compra entra directo a `saldoBruto` y baja `disponibleReal` al instante — comportamiento esperado, mitigado con la advertencia de pre-cierre.
+
+---
+
+## Ajustes durante implementación (2026-07-02)
+
+Lo que cambió respecto del diseño de arriba, y por qué. Estos ajustes **mandan** ante cualquier contradicción con las secciones anteriores.
+
+### 1. `disponibleReal` se ancla a `getGlobalBalance()` (no reimplementa `saldoBruto`)
+
+El diseño original recalculaba `saldoBruto` con su propia lógica de exclusión por ciclo (`isExpenseInCurrentMonthScope`), mientras `pendingCardTotal` salía de `projectedTotal`/`nextPaymentDate` (`getPaymentMethodStatus`). Esas dos fechas de pago se calculan con fórmulas distintas y caen en meses distintos parte del mes → algunas cuotas quedaban excluidas del bruto pero NO contadas en ningún bucket → plata sin restar → número inflado ~2M.
+
+**Decisión final:** una sola fórmula probada.
+```
+disponibleReal = getGlobalBalance()
+saldoBruto     = disponibleReal + pendingFixedExpenses + pendingCardTotal   (derivado, solo para el desglose)
+```
+La invariante "pagar no mueve el número" se cumple por construcción: `getGlobalBalance()` es invariante a que se creen las transacciones de mensualidad/tarjeta (las mensualidades pagadas ya se restan por historial; las de tarjeta salen del bucket pendiente y entran al bruto sin cambiar el total).
+
+### 2. `getGlobalBalance()` SÍ se modificó (resta mensualidades históricas)
+
+Contrario al "no incluye" original. Causa raíz: nada en la app creaba transacciones con `recurring_plan_id` (solo se leían), y `getGlobalBalance` restaba únicamente el burn rate del mes corriente (comentario obsoleto "las Mensualidades no generan transacciones reales"). Las mensualidades de meses **pasados** nunca se restaban → ~790k × ~2.5 meses = los ~2M fantasma.
+
+**Fix:** `recurringExpense = recurringPaid (Σ tx con recurring_plan_id, histórico) + getPendingFixedExpenses().total (mes en curso)`.
+
+### 3. Mensualidades ahora crean transacciones reales (feature nueva)
+
+Para que el punto 2 tenga datos que restar, marcar una mensualidad como pagada ahora **inserta una transacción real**. Archivo nuevo `src/app/compromisos/actions.ts`:
+- `markRecurringPlanPaid(planId)` — inserta tx del mes (guard anti-duplicado mensual).
+- `unmarkRecurringPlanPaid(planId)` — borra la tx del mes.
+- `backfillRecurringPlansHistory()` — completa meses pasados faltantes y **borra el exceso**.
+
+Convención de columnas exacta de `createTransaction`: `original_currency` siempre (`'USD'`/`'ARS'`), `original_amount` en moneda original, `rate_pair`/`exchange_rate` solo si USD. **La columna se llama `original_currency`, NO `currency`** (esta última no existe en `transactions` y rompía el insert entero en PostgREST).
+
+**Piso del backfill:** nunca genera antes del mes de la primera transacción real del usuario (tx sin `recurring_plan_id`). Sin piso, backfilleaba desde el `created_at` del plan (~7 meses) contra un historial de ingresos que arranca ~4 meses atrás → restaba meses sin contrapartida → número ~2M por debajo. `getRecurringBackfillPreview()` expone `missingMonths`/`totalAmount` y `excessMonths`/`excessAmount`; el banner de Compromisos aparece en modo "Corregir historial" cuando hay exceso (si no, tras un backfill erróneo el banner desaparecía y no había forma de disparar la corrección).
+
+### 4. Fondo de Ojo redefinido: todo gasto de crédito del mes siguiente
+
+`getNextMonthCardExposure()` ya NO mezcla horizontes. El diseño original sumaba `futureInstallments` = TODAS las cuotas futuras de planes activos (todos los meses), lo que inflaba y se pisaba con Compromisos → Cuotas.
+
+**Definición final:** filtro único = `type === 'expense'` && medio de pago **crédito** && `monthKey(periodDate) === mes calendario siguiente`. Se desglosa por `installment_plan_id` en dos líneas informativas ("Cuotas del próximo mes" / "Compras del próximo cierre"), pero el criterio es uno solo: **todo gasto hecho con tarjeta de crédito cuyo resumen cae el mes que viene**. Las cuotas de meses más lejanos ya no cuentan.
+
+### 5. Nivel 2 sin listas de ítems + botones de info
+
+- El desglose de la hero card muestra **solo los totales** (Cuenta total / Gastos fijos por pagar / Tarjeta de este mes), sin las listas individuales de `pendingFixedItems`/`pendingCardItems` que preveía el diseño. Los getters siguen exponiendo esos arrays, pero la UI no los renderiza.
+- Se agregaron botones de info (`<InfoHint>`, patrón de las cards de Análisis) en el label principal y en cada línea del desglose, y en el título del Fondo de Ojo. Helper `HintStop` frena la propagación del click para que tocar un info no colapse la hero card.
+
+### 6. Task saltada: insight de vencimiento automático
+
+El nuevo insight en `getInsights()` ("la tarjeta venció, la asumimos pagada") **no se implementó**. Está bloqueado por una contradicción del modelo: `getPaymentMethodStatus` recalcula `nextPaymentDate` siempre a futuro, así que `now >= nextPaymentDate` nunca es true y la tarjeta nunca "se vence sola". Se retomará cuando se trackee el ciclo previo. La advertencia pre-cierre en `credit-card-cycle-card.tsx` (punto del diseño) sí se implementó.

@@ -82,6 +82,7 @@ export interface Database {
           default_closing_day: number | null
           default_payment_day: number | null
           is_personal?: boolean
+          is_default?: boolean
           created_at: string
         }
         Insert: {
@@ -92,6 +93,7 @@ export interface Database {
           default_closing_day?: number | null
           default_payment_day?: number | null
           is_personal?: boolean
+          is_default?: boolean
           created_at?: string
         }
         Update: {
@@ -102,6 +104,7 @@ export interface Database {
           default_closing_day?: number | null
           default_payment_day?: number | null
           is_personal?: boolean
+          is_default?: boolean
           created_at?: string
         }
         Relationships: [
@@ -252,6 +255,7 @@ export interface Database {
           original_amount: number | null
           rate_pair: string | null
           exchange_rate: number | null
+          card_payment_for: number | null
         }
         Insert: {
           id?: number
@@ -269,6 +273,7 @@ export interface Database {
           original_amount?: number | null
           rate_pair?: string | null
           exchange_rate?: number | null
+          card_payment_for?: number | null
         }
         Update: {
           id?: number
@@ -286,6 +291,7 @@ export interface Database {
           original_amount?: number | null
           rate_pair?: string | null
           exchange_rate?: number | null
+          card_payment_for?: number | null
         }
         Relationships: [
           {

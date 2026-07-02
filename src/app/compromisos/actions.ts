@@ -119,6 +119,140 @@ export async function unmarkRecurringPlanPaid(planId: number): Promise<ActionRes
 }
 
 /**
+ * Registra el pago del resumen de una tarjeta de crédito como una salida real
+ * del medio que la financia (ej. Mercado Pago). La transacción se marca con
+ * `card_payment_for` = id de la tarjeta: baja el saldo del medio financiador,
+ * pero es neutra para el Disponible Real global y las analíticas de consumo
+ * (las compras de la tarjeta ya están itemizadas). La fecha se setea en el
+ * vencimiento del ciclo pagado, así el estado "pagada" se deriva de su existencia.
+ */
+export async function payCreditCardCycle(params: {
+  cardMethodId: number;
+  fundingMethodId: number;
+  amountArs: number;
+  date: string; // yyyy-MM-dd (vencimiento / fecha del pago)
+  cardName: string;
+}): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: 'No autorizado' };
+
+    const { cardMethodId, fundingMethodId, amountArs, date, cardName } = params;
+    if (!fundingMethodId) return { error: 'Elegí con qué medio pagás' };
+    if (!amountArs || amountArs <= 0) return { error: 'El monto del pago es inválido' };
+
+    // Guard anti-duplicado: ya hay un pago de esta tarjeta en ese mes.
+    const d = new Date(date);
+    const monthStart = dateToLocalString(new Date(d.getFullYear(), d.getMonth(), 1));
+    const monthEnd = dateToLocalString(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+    const { data: existing } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('card_payment_for', cardMethodId)
+      .gte('date', monthStart)
+      .lte('date', monthEnd)
+      .limit(1);
+    if (existing && existing.length > 0) return { success: true };
+
+    // category_id es NOT NULL. Usamos una categoría "Pagos de tarjeta" (get-or-create).
+    // Igual queda excluida de las analíticas de consumo por el marcador card_payment_for.
+    const CARD_PAYMENT_CATEGORY = 'Pagos de tarjeta';
+    let categoryId: string;
+    const { data: cats } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('name', CARD_PAYMENT_CATEGORY)
+      .limit(1);
+    if (cats && cats.length > 0) {
+      categoryId = cats[0].id;
+    } else {
+      const { data: newCat, error: catErr } = await supabase
+        .from('categories')
+        .insert({ user_id: user.id, name: CARD_PAYMENT_CATEGORY, emoji: '💳', is_system: true })
+        .select('id')
+        .single();
+      if (catErr || !newCat) {
+        console.error('Error creando categoría de pago de tarjeta:', catErr);
+        return { error: 'No se pudo preparar la categoría del pago' };
+      }
+      categoryId = newCat.id;
+    }
+
+    const { error } = await supabase.from('transactions').insert({
+      user_id: user.id,
+      description: `Pago ${cardName}`,
+      amount: Math.abs(Number(amountArs)),
+      date,
+      type: 'expense' as const,
+      category_id: categoryId,
+      payment_method_id: fundingMethodId,
+      card_payment_for: cardMethodId,
+      original_currency: 'ARS',
+      original_amount: Math.abs(Number(amountArs)),
+      rate_pair: null,
+      exchange_rate: null,
+    });
+    if (error) {
+      console.error('Error registrando pago de tarjeta:', error);
+      return { error: `No se pudo registrar el pago: ${error.message}` };
+    }
+
+    revalidatePath('/compromisos');
+    revalidatePath('/');
+    return { success: true };
+  } catch (e) {
+    console.error('Error inesperado en payCreditCardCycle:', e);
+    return { error: 'Ocurrió un error inesperado' };
+  }
+}
+
+/**
+ * Deshace el pago de un ciclo de tarjeta: borra la transacción de pago
+ * (`card_payment_for`) cuya fecha cae en el mes del vencimiento indicado.
+ */
+export async function undoCreditCardPayment(params: {
+  cardMethodId: number;
+  year: number;
+  month: number; // 0-indexed
+}): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: 'No autorizado' };
+
+    const { cardMethodId, year, month } = params;
+    const monthStart = dateToLocalString(new Date(year, month, 1));
+    const monthEnd = dateToLocalString(new Date(year, month + 1, 0));
+
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('card_payment_for', cardMethodId)
+      .gte('date', monthStart)
+      .lte('date', monthEnd);
+    if (error) {
+      console.error('Error deshaciendo pago de tarjeta:', error);
+      return { error: 'No se pudo deshacer el pago' };
+    }
+
+    revalidatePath('/compromisos');
+    revalidatePath('/');
+    return { success: true };
+  } catch (e) {
+    console.error('Error inesperado en undoCreditCardPayment:', e);
+    return { error: 'Ocurrió un error inesperado' };
+  }
+}
+
+/**
  * Regulariza el historial: crea las transacciones de mensualidades de meses
  * PASADOS que nunca se registraron (desde el mes de creación de cada plan
  * activo hasta el mes pasado inclusive). El mes actual no se toca: lo maneja

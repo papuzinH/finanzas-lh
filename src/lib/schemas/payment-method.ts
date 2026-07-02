@@ -14,6 +14,7 @@ export const createPaymentMethodSchema = z.object({
     .nullable()
     .optional(),
   is_personal: z.boolean().optional(),
+  is_default: z.boolean().optional(),
 }).refine(
   (data) => {
     // Solo validar si ambos están presentes y el tipo es credit

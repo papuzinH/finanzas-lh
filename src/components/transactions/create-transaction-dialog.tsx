@@ -50,9 +50,12 @@ export function CreateTransactionDialog({
 }: CreateTransactionDialogProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
-  const { fetchAllData, categories, paymentMethods, getCategoryBudgetStatus, getFrequentCategories, isInitialized } = useFinanceStore();
+  const { fetchAllData, categories, paymentMethods, getCategoryBudgetStatus, getFrequentCategories, getDefaultPaymentMethod, isInitialized } = useFinanceStore();
 
   const frequentCategories = getFrequentCategories(4);
+  const defaultPmId = getDefaultPaymentMethod()?.id != null
+    ? String(getDefaultPaymentMethod()!.id)
+    : 'none';
 
   const form = useForm<CreateTransactionSchema>({
     resolver: zodResolver(createTransactionSchema),
@@ -62,7 +65,7 @@ export function CreateTransactionDialog({
       date: todayString(),
       category_id: defaultValues?.category_id ?? '',
       type: defaultValues?.type ?? 'expense',
-      payment_method_id: 'none',
+      payment_method_id: defaultPmId,
       currency: 'ARS',
       rate_pair: null,
       exchange_rate: null,
@@ -87,7 +90,7 @@ export function CreateTransactionDialog({
         date: todayString(),
         category_id: defaultValues?.category_id ?? '',
         type: defaultValues?.type ?? 'expense',
-        payment_method_id: 'none',
+        payment_method_id: defaultPmId,
         currency: 'ARS',
         rate_pair: null,
         exchange_rate: null,

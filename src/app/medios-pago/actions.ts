@@ -18,6 +18,16 @@ export async function createPaymentMethod(data: CreatePaymentMethodSchema): Prom
     const validated = createPaymentMethodSchema.safeParse(data)
     if (!validated.success) return { error: 'Datos inválidos' }
 
+    const isDefault = validated.data.is_default ?? false
+
+    // Invariante: un solo predeterminado por usuario.
+    if (isDefault) {
+      await supabase
+        .from('payment_methods')
+        .update({ is_default: false })
+        .eq('user_id', user.id)
+    }
+
     const { error } = await supabase
       .from('payment_methods')
       .insert({
@@ -27,6 +37,7 @@ export async function createPaymentMethod(data: CreatePaymentMethodSchema): Prom
         default_closing_day: validated.data.default_closing_day ?? null,
         default_payment_day: validated.data.default_payment_day ?? null,
         is_personal: validated.data.is_personal ?? false,
+        is_default: isDefault,
       })
 
     if (error) {
@@ -51,6 +62,17 @@ export async function updatePaymentMethod(id: number, data: CreatePaymentMethodS
     const validated = createPaymentMethodSchema.safeParse(data)
     if (!validated.success) return { error: 'Datos inválidos' }
 
+    const isDefault = validated.data.is_default ?? false
+
+    // Invariante: un solo predeterminado por usuario. Si este pasa a ser el
+    // default, primero se resetean todos (incluido este) y luego se marca.
+    if (isDefault) {
+      await supabase
+        .from('payment_methods')
+        .update({ is_default: false })
+        .eq('user_id', user.id)
+    }
+
     const { error } = await supabase
       .from('payment_methods')
       .update({
@@ -59,6 +81,7 @@ export async function updatePaymentMethod(id: number, data: CreatePaymentMethodS
         default_closing_day: validated.data.default_closing_day ?? null,
         default_payment_day: validated.data.default_payment_day ?? null,
         is_personal: validated.data.is_personal ?? false,
+        is_default: isDefault,
       })
       .eq('id', id)
       .eq('user_id', user.id)

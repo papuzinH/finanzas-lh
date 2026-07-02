@@ -53,6 +53,7 @@ export function EditPaymentMethodDialog({
       default_closing_day: paymentMethod.default_closing_day ?? null,
       default_payment_day: paymentMethod.default_payment_day ?? null,
       is_personal: paymentMethod.is_personal ?? false,
+      is_default: paymentMethod.is_default ?? false,
     },
   })
 
@@ -64,6 +65,7 @@ export function EditPaymentMethodDialog({
         default_closing_day: paymentMethod.default_closing_day ?? null,
         default_payment_day: paymentMethod.default_payment_day ?? null,
         is_personal: paymentMethod.is_personal ?? false,
+        is_default: paymentMethod.is_default ?? false,
       })
     }
   }, [open, paymentMethod, form])
@@ -250,6 +252,29 @@ export function EditPaymentMethodDialog({
                   </FormItem>
                 )}
               />
+
+              {/* ── Is default switch (solo para medios no personales) ── */}
+              {!form.watch('is_personal') && (
+                <FormField
+                  control={form.control}
+                  name="is_default"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-xl bg-surface-2 px-4 py-3 min-h-[52px]">
+                      <div>
+                        <span className="text-[10px] font-medium uppercase tracking-widest text-muted">
+                          Predeterminado
+                        </span>
+                        <FormDescription className="text-[11px] text-muted mt-0.5">
+                          Se usa cuando no aclarás el medio (chat y alta manual)
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
           </form>
         </Form>

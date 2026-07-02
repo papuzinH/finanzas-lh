@@ -14,6 +14,14 @@ export const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+/** Formato de montos en dólares: "u$s 1.234,56" (sin convertir a ARS). */
+export const formatUsd = (amount: number) => {
+  return `u$s ${amount.toLocaleString('es-AR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
 /** Formato compacto para espacios ajustados: $1,5M · $340K · $890 */
 export const formatCompact = (amount: number): string => {
   const abs = Math.abs(amount);

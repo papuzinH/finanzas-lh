@@ -56,24 +56,24 @@ export function IncompleteCreditCardsBanner() {
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.25 }}
         className={cn(
-          'relative rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-amber-500/5 p-4',
+          'relative rounded-xl border-[1.5px] border-warn/40 bg-warn/10 p-4',
           'flex items-start gap-3'
         )}
       >
-        <div className="rounded-lg bg-amber-500/15 p-2 shrink-0">
-          <CreditCard className="h-4 w-4 text-amber-400" />
+        <div className="rounded-lg bg-warn/15 p-2 shrink-0">
+          <CreditCard className="h-4 w-4 text-warn" />
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+            <AlertCircle className="h-4 w-4 text-warn mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-amber-100">
+              <p className="text-sm font-medium text-text">
                 {count === 1
                   ? 'Tu tarjeta no tiene cierre/vencimiento'
                   : `${count} tarjetas sin cierre/vencimiento`}
               </p>
-              <p className="text-xs text-amber-200/80 mt-0.5">
+              <p className="text-xs text-muted mt-0.5">
                 {namesList}{extra}. Completalas para que Chanchito pueda
                 calcular bien las cuotas y avisarte de los vencimientos.
               </p>
@@ -82,7 +82,7 @@ export function IncompleteCreditCardsBanner() {
 
           <Link
             href="/medios-pago"
-            className="inline-flex items-center gap-1 mt-2.5 text-xs font-medium text-amber-300 hover:text-amber-200 transition-colors"
+            className="inline-flex items-center gap-1 mt-2.5 text-xs font-medium text-warn hover:text-warn/80 transition-colors"
           >
             Completar ahora
             <ArrowRight className="h-3 w-3" />
@@ -92,7 +92,7 @@ export function IncompleteCreditCardsBanner() {
         <button
           type="button"
           onClick={handleDismiss}
-          className="shrink-0 p-1 rounded hover:bg-amber-500/10 text-amber-400/70 hover:text-amber-300 transition-colors"
+          className="shrink-0 p-1 rounded hover:bg-warn/10 text-warn/70 hover:text-warn transition-colors"
           aria-label="Descartar aviso"
           title="Recordame en 7 días"
         >

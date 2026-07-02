@@ -207,8 +207,14 @@ async function handleTransaction(data: TransactionData, userId: number): Promise
   try {
     const supabase = await createClient()
 
-    // Resolver payment method completo (con ciclo de tarjeta si aplica)
-    const paymentMethod = await resolvePaymentMethod(supabase, userId, data.paymentMethodName)
+    // Resolver payment method completo (con ciclo de tarjeta si aplica).
+    // Si el usuario no menciona medio, se usa su predeterminado (is_default).
+    const paymentMethod = await resolvePaymentMethod(
+      supabase,
+      userId,
+      data.paymentMethodName,
+      !data.paymentMethodName
+    )
 
     // Calcular fecha real de pago (aplica lógica de tarjeta de crédito si corresponde)
     const realPaymentDate = calculateRealPaymentDate(data.date, paymentMethod)
@@ -260,8 +266,14 @@ async function handleInstallment(data: InstallmentData, userId: number): Promise
   try {
     const supabase = await createClient()
 
-    // Resolver payment method completo
-    const paymentMethod = await resolvePaymentMethod(supabase, userId, data.paymentMethodName)
+    // Resolver payment method completo.
+    // Si el usuario no menciona medio, se usa su predeterminado (is_default).
+    const paymentMethod = await resolvePaymentMethod(
+      supabase,
+      userId,
+      data.paymentMethodName,
+      !data.paymentMethodName
+    )
 
     // Calcular fecha real de pago base (aplica lógica de tarjeta de crédito si corresponde)
     const realPaymentDateBase = calculateRealPaymentDate(data.date, paymentMethod)
