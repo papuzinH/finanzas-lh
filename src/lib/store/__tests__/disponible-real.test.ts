@@ -177,6 +177,40 @@ describe('getRealAvailableBalance', () => {
   });
 });
 
+describe('getRecurringBackfillPreview', () => {
+  it('cuenta meses pasados sin transaccion desde la creacion del plan', () => {
+    const now = new Date();
+    const createdAt = subMonths(now, 2).toISOString(); // plan creado hace 2 meses
+    seed({
+      recurringPlans: [
+        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
+      ],
+      transactions: [],
+    });
+    const res = useFinanceStore.getState().getRecurringBackfillPreview();
+    // mes de creacion + mes pasado = 2 meses faltantes (el actual no cuenta)
+    expect(res.missingMonths).toBe(2);
+    expect(res.totalAmount).toBe(200000);
+  });
+
+  it('no cuenta meses ya cubiertos por una transaccion vinculada', () => {
+    const now = new Date();
+    const createdAt = subMonths(now, 1).toISOString();
+    const lastMonth = format(subMonths(now, 1), 'yyyy-MM-dd');
+    seed({
+      recurringPlans: [
+        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
+      ],
+      transactions: [
+        { id: 1, type: 'expense', amount: -100000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: 9 },
+      ],
+    });
+    const res = useFinanceStore.getState().getRecurringBackfillPreview();
+    expect(res.missingMonths).toBe(0);
+    expect(res.totalAmount).toBe(0);
+  });
+});
+
 describe('getNextMonthCardExposure', () => {
   it('suma cuotas con periodDate en meses futuros', () => {
     const now = new Date();

@@ -19,6 +19,9 @@ import {
   Dumbbell,
   ShieldCheck,
   Plus,
+  Check,
+  Clock,
+  Undo2,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { ScreenHeader } from '@/components/shared/screen-header';
@@ -35,6 +38,11 @@ import { EditInstallmentPlanDialog } from '@/components/installments/edit-plan-d
 import { ConfirmationModal } from '@/components/shared/confirmation-modal';
 import { deleteInstallmentPlan } from '@/app/dashboard/installments/actions';
 import { deleteSubscription } from '@/app/dashboard/subscriptions/actions';
+import {
+  markRecurringPlanPaid,
+  unmarkRecurringPlanPaid,
+  backfillRecurringPlansHistory,
+} from '@/app/compromisos/actions';
 import { toast } from 'sonner';
 import { InstallmentPlan, RecurringPlan } from '@/types/database';
 import { CreateInstallmentPlanDialog } from '@/components/installments/create-plan-dialog';
@@ -212,10 +220,32 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
   const router = useRouter();
-  const { fetchAllData, categories } = useFinanceStore();
+  const { fetchAllData, categories, getPendingFixedExpenses } = useFinanceStore();
 
   const category = categories.find(c => c.id === plan.category_id);
+  // Pagada este mes = ya no figura entre los gastos fijos pendientes del store.
+  const isPaidThisMonth =
+    plan.is_active && !getPendingFixedExpenses().items.some((i) => i.id === plan.id);
+
+  const togglePaid = async () => {
+    setIsToggling(true);
+    try {
+      const result = isPaidThisMonth
+        ? await unmarkRecurringPlanPaid(plan.id)
+        : await markRecurringPlanPaid(plan.id);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(isPaidThisMonth ? 'Pago deshecho' : `${plan.description} marcada como pagada`);
+        await fetchAllData();
+        router.refresh();
+      }
+    } finally {
+      setIsToggling(false);
+    }
+  };
 
   const confirmDelete = async () => {
     setIsDeleting(true);
@@ -303,7 +333,37 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
             </div>
           )}
 
-          <DropdownMenu modal={false}>
+          <div className="flex items-center gap-1.5">
+            {plan.is_active && (
+              <button
+                type="button"
+                onClick={togglePaid}
+                disabled={isToggling}
+                aria-label={isPaidThisMonth ? `Deshacer pago de ${plan.description}` : `Marcar ${plan.description} como pagada`}
+                className={cn(
+                  'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer select-none transition-colors disabled:opacity-60',
+                  isPaidThisMonth
+                    ? 'bg-good/10 text-good border-good/20 hover:bg-good/15'
+                    : 'bg-warn/10 text-warn border-warn/20 hover:bg-warn/15'
+                )}
+              >
+                {isToggling ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : isPaidThisMonth ? (
+                  <>
+                    <Check className="h-3 w-3" />
+                    Pagada
+                    <Undo2 className="h-3 w-3 opacity-60" />
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-3 w-3" />
+                    Pendiente
+                  </>
+                )}
+              </button>
+            )}
+            <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Opciones de suscripción" className="h-6 w-6 min-h-11 min-w-11 text-muted hover:text-text hover:bg-surface-2">
                 <MoreVertical className="h-3.5 w-3.5" />
@@ -324,6 +384,7 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
       </div>
 
@@ -352,9 +413,27 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     getCurrentMonthInstallmentsTotal,
     getMonthlyBurnRate,
     getPendingCreditCardByCard,
+    getRecurringBackfillPreview,
   } = useFinanceStore();
 
   const creditCards = getPendingCreditCardByCard();
+  const backfillPreview = getRecurringBackfillPreview();
+  const [isBackfilling, setIsBackfilling] = useState(false);
+
+  const handleBackfill = async () => {
+    setIsBackfilling(true);
+    try {
+      const result = await backfillRecurringPlansHistory();
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`Historial regularizado: ${result.created ?? 0} pagos registrados`);
+        await fetchAllData();
+      }
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
 
   useEffect(() => {
     if (!isInitialized) {
@@ -511,6 +590,23 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
         {/* Tab: Mensualidades */}
         {activeTab === 'mensualidades' && (
           <div className="px-5 space-y-4">
+            {backfillPreview.missingMonths > 0 && (
+              <div className="rounded-2xl bg-warn/10 border-[1.5px] border-warn/40 p-4">
+                <p className="font-sans font-bold text-[13px] text-text">
+                  Meses sin registrar
+                </p>
+                <p className="text-[12px] text-muted mt-0.5">
+                  Tus mensualidades tienen {backfillPreview.missingMonths}{' '}
+                  {backfillPreview.missingMonths === 1 ? 'pago' : 'pagos'} de meses anteriores sin
+                  registrar (≈ {formatCurrency(backfillPreview.totalAmount)}). Regularizalos para
+                  que tu Disponible Real refleje lo que realmente gastaste.
+                </p>
+                <Button variant="soft" onClick={handleBackfill} disabled={isBackfilling} className="mt-3">
+                  {isBackfilling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Regularizar historial
+                </Button>
+              </div>
+            )}
             {plansWithPayment.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
                 <CalendarClock className="h-14 w-14 text-faint mb-4" />

@@ -238,6 +238,11 @@ interface FinanceState {
     total: number;
     items: Array<{ id: number; name: string; amount: number }>;
   };
+
+  getRecurringBackfillPreview: () => {
+    missingMonths: number;
+    totalAmount: number;
+  };
   getRealAvailableBalance: () => {
     saldoBruto: number;
     pendingFixedExpenses: number;
@@ -1564,6 +1569,42 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     const total = items.reduce((acc, i) => acc + i.amount, 0);
     return { total, items };
+  },
+
+  /**
+   * Meses PASADOS de mensualidades activas sin transacción registrada
+   * (desde el mes de creación de cada plan hasta el mes pasado inclusive).
+   * Alimenta el banner de regularización en Compromisos; el backfill real
+   * lo hace la server action backfillRecurringPlansHistory con esta misma lógica.
+   */
+  getRecurringBackfillPreview: () => {
+    const { recurringPlans, transactions } = get();
+    const currentMonth = format(new Date(), 'yyyy-MM');
+
+    // Meses ya cubiertos por plan (por fecha real de la transacción)
+    const covered = new Map<number, Set<string>>();
+    for (const t of transactions) {
+      if (!t.recurring_plan_id) continue;
+      if (!covered.has(t.recurring_plan_id)) covered.set(t.recurring_plan_id, new Set());
+      covered.get(t.recurring_plan_id)!.add(String(t.date).slice(0, 7));
+    }
+
+    let missingMonths = 0;
+    let totalAmount = 0;
+    for (const plan of recurringPlans) {
+      if (!plan.is_active || !plan.created_at) continue;
+      const start = new Date(plan.created_at);
+      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      const coveredSet = covered.get(plan.id) ?? new Set<string>();
+      while (format(cursor, 'yyyy-MM') < currentMonth) {
+        if (!coveredSet.has(format(cursor, 'yyyy-MM'))) {
+          missingMonths += 1;
+          totalAmount += Math.abs(Number(plan.amount));
+        }
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+    }
+    return { missingMonths, totalAmount };
   },
 
   getRealAvailableBalance: () => {
