@@ -3,6 +3,7 @@
 import { Check, AlertTriangle } from 'lucide-react';
 import { SpendingPaceChart } from './charts/spending-pace-chart';
 import { InstallmentsRealCostCard } from './cards/installments-real-cost-card';
+import { InfoHint } from '@/components/ui/info-hint';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { formatCurrency } from '@/lib/utils';
 
@@ -17,7 +18,13 @@ export function TabEsteMes() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:items-start">
       <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
-        <h3 className="text-sm font-bold text-text mb-2">¿Llegás a fin de mes?</h3>
+        <h3 className="text-sm font-bold text-text mb-2 flex items-center gap-1.5">
+          ¿Llegás a fin de mes?
+          <InfoHint label="Cómo se calcula">
+            Proyectamos tu gasto de fin de mes según el ritmo diario de lo que va del mes y lo
+            comparamos con tu ingreso. La línea punteada es la proyección; la roja, tu ingreso.
+          </InfoHint>
+        </h3>
 
         {hasData && (
           <div className="flex items-center gap-2 mb-2">

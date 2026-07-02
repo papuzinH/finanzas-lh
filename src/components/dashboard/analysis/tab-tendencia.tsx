@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import { SavingsRateBars } from './charts/savings-rate-bars';
+import { InfoHint } from '@/components/ui/info-hint';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { cn, formatCurrency } from '@/lib/utils';
 
@@ -45,7 +46,13 @@ export function TabTendencia() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
-        <h3 className="text-sm font-bold text-text mb-3">Ingreso vs Gasto · 6 meses</h3>
+        <h3 className="text-sm font-bold text-text mb-3 flex items-center gap-1.5">
+          Ingreso vs Gasto · 6 meses
+          <InfoHint label="Qué muestra">
+            Compara tus ingresos y gastos de los últimos 6 meses. El texto de abajo ajusta el gasto
+            por inflación, para verlo en términos reales.
+          </InfoHint>
+        </h3>
         <TrendChart />
         {realHint && (
           <p className="text-[11px] text-text font-semibold mt-2 bg-accent/8 rounded-lg px-3 py-1.5">
@@ -54,7 +61,13 @@ export function TabTendencia() {
         )}
       </div>
       <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
-        <h3 className="text-sm font-bold text-text mb-2">Tasa de ahorro mensual</h3>
+        <h3 className="text-sm font-bold text-text mb-2 flex items-center gap-1.5">
+          Tasa de ahorro mensual
+          <InfoHint label="Qué muestra">
+            Qué % de tu ingreso te queda como ahorro cada mes (neto ÷ ingreso). Tocá una barra para
+            ver ese mes.
+          </InfoHint>
+        </h3>
         {hasSavingsData && activeEntry && (
           <>
             <div className="flex items-center justify-between gap-2 mb-1">

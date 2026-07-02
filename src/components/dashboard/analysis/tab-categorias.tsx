@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { CategoryTreemap } from './charts/category-treemap';
 import { FrequencyHeatmap } from './charts/frequency-heatmap';
 import { CurrencyExposureCard } from './cards/currency-exposure-card';
+import { InfoHint } from '@/components/ui/info-hint';
 import { Modal } from '@/components/shared/modal';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { formatCurrency } from '@/lib/utils';
@@ -19,7 +20,13 @@ export function TabCategorias() {
     <div className="space-y-4">
       <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <h3 className="text-sm font-bold text-text">Distribución del gasto</h3>
+          <h3 className="text-sm font-bold text-text flex items-center gap-1.5">
+            Distribución del gasto
+            <InfoHint label="Qué muestra">
+              Cuánto pesa cada categoría sobre tu gasto total. &laquo;Mes&raquo; usa el ciclo actual;
+              &laquo;Histórico&raquo; suma todo. Tocá una categoría para ver el detalle.
+            </InfoHint>
+          </h3>
           <button
             onClick={() => setScope(scope === 'current_month' ? 'global' : 'current_month')}
             aria-label="Cambiar entre mes actual e histórico"
@@ -33,7 +40,12 @@ export function TabCategorias() {
         <CategoryTreemap key={scope} scope={scope} onSelect={setSelected} />
       </div>
       <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
-        <h3 className="text-sm font-bold text-text mb-3">Frecuencia por categoría</h3>
+        <h3 className="text-sm font-bold text-text mb-3 flex items-center gap-1.5">
+          Frecuencia por categoría
+          <InfoHint label="Qué muestra">
+            Cuántas veces gastaste en cada categoría en el período. Más intenso = más movimientos.
+          </InfoHint>
+        </h3>
         <FrequencyHeatmap />
       </div>
       <CurrencyExposureCard />
