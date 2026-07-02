@@ -349,6 +349,11 @@ interface FinanceState {
   getInstallmentsRealCost: () => {
     remainingARS: number;
     remainingUSD: number;
+    realTodayARS: number;
+    savedARS: number;
+    savedPct: number;
+    monthlyInflation: number;
+    hasInflation: boolean;
     hasData: boolean;
   };
 
@@ -2106,16 +2111,42 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getInstallmentsRealCost: () => {
-    const { transactions, getUsdRate } = get();
+    const { transactions, getUsdRate, inflationSeries } = get();
     const now = new Date();
     const future = transactions.filter(
       (t) => t.installment_plan_id && parseLocalDate(t.date) > now,
     );
     const remainingARS = future.reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
     const rate = getUsdRate();
+
+    // Inflación mensual proyectada = promedio del IPC real de los últimos 3 meses.
+    const recent = inflationSeries.slice(-3);
+    const monthlyInflation =
+      recent.length > 0 ? recent.reduce((a, r) => a + r.rate, 0) / recent.length : 0;
+    const hasInflation = recent.length > 0 && monthlyInflation > 0;
+
+    // Valor "a plata de hoy": cada cuota futura se descuenta por la inflación
+    // proyectada según cuántos meses falten para pagarla.
+    const realTodayARS = hasInflation
+      ? future.reduce((acc, t) => {
+          const d = parseLocalDate(t.date);
+          const months = (d.getFullYear() - now.getFullYear()) * 12 + (d.getMonth() - now.getMonth());
+          const factor = Math.pow(1 + monthlyInflation / 100, Math.max(0, months));
+          return acc + Math.abs(Number(t.amount)) / factor;
+        }, 0)
+      : remainingARS;
+
+    const savedARS = remainingARS - realTodayARS;
+    const savedPct = remainingARS > 0 ? (savedARS / remainingARS) * 100 : 0;
+
     return {
       remainingARS,
       remainingUSD: rate > 0 ? remainingARS / rate : 0,
+      realTodayARS,
+      savedARS,
+      savedPct,
+      monthlyInflation,
+      hasInflation,
       hasData: future.length > 0,
     };
   },
