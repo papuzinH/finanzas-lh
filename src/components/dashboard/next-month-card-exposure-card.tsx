@@ -1,6 +1,7 @@
 'use client';
 
 import { CalendarClock } from 'lucide-react';
+import { InfoHint } from '@/components/ui/info-hint';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { formatCurrency } from '@/lib/utils';
 
@@ -16,6 +17,10 @@ export function NextMonthCardExposureCard() {
         <h3 className="text-sm font-bold text-text inline-flex items-center gap-1.5">
           <CalendarClock className="w-4 h-4 text-muted" />
           Consumo tarjeta próximo mes
+          <InfoHint label="Cómo se calcula el consumo del próximo mes">
+            Lo que tu tarjeta va a impactar el mes que viene: cuotas futuras y compras hechas después
+            del cierre del resumen actual. No toca tu plata libre de hoy, solo prepara el terreno.
+          </InfoHint>
         </h3>
       </div>
 

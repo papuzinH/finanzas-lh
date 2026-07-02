@@ -5,6 +5,21 @@ import { motion, AnimatePresence } from "framer-motion"
 import { ChevronDown, CreditCard } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useFinanceStore } from "@/lib/store/financeStore"
+import { InfoHint } from "@/components/ui/info-hint"
+
+// Frena la propagación del click/teclado para que tocar un botón de info
+// no colapse la hero card (que es clickeable para expandir/contraer).
+function HintStop({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="inline-flex"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      {children}
+    </span>
+  )
+}
 
 // Count-up animado con requestAnimationFrame
 function useCountUp(target: number, duration = 900) {
@@ -78,10 +93,17 @@ export function BalanceCard() {
       >
         {/* Header siempre visible */}
         <div className="p-5">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-1.5 mb-1">
             <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
               Tu plata libre para hoy
             </p>
+            <HintStop>
+              <InfoHint label="Qué es tu plata libre para hoy" className="text-celeste/70 hover:text-cream">
+                Lo que realmente podés gastar hoy sin comprometerte: tu plata en cuentas menos lo que
+                ya debés este mes (gastos fijos sin pagar + tarjeta sin pagar). No importa cuándo
+                cobres. Al pagar algo pendiente, este número no cambia: esa plata ya estaba apartada.
+              </InfoHint>
+            </HintStop>
             <motion.div
               className="ml-auto"
               animate={{ rotate: expanded ? 180 : 0 }}
@@ -112,7 +134,15 @@ export function BalanceCard() {
             >
               <div className="border-t border-cream-light/15 px-5 py-4 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-[13px] text-cream-light/80">Cuenta total</span>
+                  <span className="inline-flex items-center gap-1.5 text-[13px] text-cream-light/80">
+                    Cuenta total
+                    <HintStop>
+                      <InfoHint label="Cómo se calcula la cuenta total" className="text-celeste/70 hover:text-cream">
+                        Toda tu plata acumulada: ingresos menos gastos, cuotas y ahorros de todo tu
+                        historial. Es lo que tenés en cuentas hoy, antes de apartar lo que debés este mes.
+                      </InfoHint>
+                    </HintStop>
+                  </span>
                   <span className="font-poster tnum text-[13px] text-good">
                     +{formatCurrency(saldoBruto)}
                   </span>
@@ -121,7 +151,16 @@ export function BalanceCard() {
                 {pendingFixedExpenses > 0 && (
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-[13px] text-cream-light/80">Gastos fijos por pagar</span>
+                      <span className="inline-flex items-center gap-1.5 text-[13px] text-cream-light/80">
+                        Gastos fijos por pagar
+                        <HintStop>
+                          <InfoHint label="Cómo se calculan los gastos fijos por pagar" className="text-celeste/70 hover:text-cream">
+                            Tus mensualidades activas (alquiler, internet, etc.) que todavía no
+                            marcaste como pagadas este mes. Al marcarlas pagadas en Compromisos, salen
+                            de acá y tu plata libre no cambia.
+                          </InfoHint>
+                        </HintStop>
+                      </span>
                       <span className="font-poster tnum text-[13px] text-warn">
                         -{formatCurrency(pendingFixedExpenses)}
                       </span>
@@ -143,6 +182,13 @@ export function BalanceCard() {
                       <span className="text-[13px] text-cream-light/80 flex items-center gap-1.5">
                         <CreditCard className="h-3 w-3" />
                         Tarjeta de este mes
+                        <HintStop>
+                          <InfoHint label="Cómo se calcula la tarjeta de este mes" className="text-celeste/70 hover:text-cream">
+                            El total del resumen de tus tarjetas de crédito que vence este ciclo y
+                            todavía no pagaste. Al marcarlo pagado en Compromisos, tu plata libre no
+                            cambia: ese gasto ya estaba contado.
+                          </InfoHint>
+                        </HintStop>
                       </span>
                       <span className="font-poster tnum text-[13px] text-bad">
                         -{formatCurrency(pendingCardTotal)}
