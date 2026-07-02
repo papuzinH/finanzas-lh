@@ -61,9 +61,7 @@ export function BalanceCard() {
   const {
     saldoBruto,
     pendingFixedExpenses,
-    pendingFixedItems,
     pendingCardTotal,
-    pendingCardItems,
     disponibleReal,
   } = getRealAvailableBalance()
 
@@ -149,59 +147,39 @@ export function BalanceCard() {
                 </div>
 
                 {pendingFixedExpenses > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <span className="inline-flex items-center gap-1.5 text-[13px] text-cream-light/80">
-                        Gastos fijos por pagar
-                        <HintStop>
-                          <InfoHint label="Cómo se calculan los gastos fijos por pagar" className="text-celeste/70 hover:text-cream">
-                            Tus mensualidades activas (alquiler, internet, etc.) que todavía no
-                            marcaste como pagadas este mes. Al marcarlas pagadas en Compromisos, salen
-                            de acá y tu plata libre no cambia.
-                          </InfoHint>
-                        </HintStop>
-                      </span>
-                      <span className="font-poster tnum text-[13px] text-warn">
-                        -{formatCurrency(pendingFixedExpenses)}
-                      </span>
-                    </div>
-                    {pendingFixedItems.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center pl-3">
-                        <span className="text-[11px] text-celeste/70">{item.name}</span>
-                        <span className="font-poster tnum text-[11px] text-celeste/70">
-                          -{formatCurrency(item.amount)}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="flex justify-between items-center">
+                    <span className="inline-flex items-center gap-1.5 text-[13px] text-cream-light/80">
+                      Gastos fijos por pagar
+                      <HintStop>
+                        <InfoHint label="Cómo se calculan los gastos fijos por pagar" className="text-celeste/70 hover:text-cream">
+                          Tus mensualidades activas (alquiler, internet, etc.) que todavía no
+                          marcaste como pagadas este mes. Al marcarlas pagadas en Compromisos, salen
+                          de acá y tu plata libre no cambia.
+                        </InfoHint>
+                      </HintStop>
+                    </span>
+                    <span className="font-poster tnum text-[13px] text-warn">
+                      -{formatCurrency(pendingFixedExpenses)}
+                    </span>
                   </div>
                 )}
 
                 {pendingCardTotal > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[13px] text-cream-light/80 flex items-center gap-1.5">
-                        <CreditCard className="h-3 w-3" />
-                        Tarjeta de este mes
-                        <HintStop>
-                          <InfoHint label="Cómo se calcula la tarjeta de este mes" className="text-celeste/70 hover:text-cream">
-                            El total del resumen de tus tarjetas de crédito que vence este ciclo y
-                            todavía no pagaste. Al marcarlo pagado en Compromisos, tu plata libre no
-                            cambia: ese gasto ya estaba contado.
-                          </InfoHint>
-                        </HintStop>
-                      </span>
-                      <span className="font-poster tnum text-[13px] text-bad">
-                        -{formatCurrency(pendingCardTotal)}
-                      </span>
-                    </div>
-                    {pendingCardItems.map((card) => (
-                      <div key={card.methodId} className="flex justify-between items-center pl-3">
-                        <span className="text-[11px] text-celeste/70">{card.name}</span>
-                        <span className="font-poster tnum text-[11px] text-celeste/70">
-                          -{formatCurrency(card.total)}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="flex justify-between items-center">
+                    <span className="text-[13px] text-cream-light/80 flex items-center gap-1.5">
+                      <CreditCard className="h-3 w-3" />
+                      Tarjeta de este mes
+                      <HintStop>
+                        <InfoHint label="Cómo se calcula la tarjeta de este mes" className="text-celeste/70 hover:text-cream">
+                          El total del resumen de tus tarjetas de crédito que vence este ciclo y
+                          todavía no pagaste. Al marcarlo pagado en Compromisos, tu plata libre no
+                          cambia: ese gasto ya estaba contado.
+                        </InfoHint>
+                      </HintStop>
+                    </span>
+                    <span className="font-poster tnum text-[13px] text-bad">
+                      -{formatCurrency(pendingCardTotal)}
+                    </span>
                   </div>
                 )}
 
