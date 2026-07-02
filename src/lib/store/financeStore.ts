@@ -338,6 +338,7 @@ interface FinanceState {
     month: string;
     rate: number;
     net: number;
+    tone: 'good' | 'warn' | 'bad';
   }>;
 
   getRealAdjustedTrend: (months?: number) => {
@@ -2070,11 +2071,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getSavingsRateSeries: (months = 6) => {
-    return get().getMonthlyTrend(months).map((row) => ({
-      month: row.month,
-      net: row.net,
-      rate: row.income > 0 ? (row.net / row.income) * 100 : 0,
-    }));
+    return get().getMonthlyTrend(months).map((row) => {
+      const rate = row.income > 0 ? (row.net / row.income) * 100 : 0;
+      const tone: 'good' | 'warn' | 'bad' = rate >= 15 ? 'good' : rate >= 0 ? 'warn' : 'bad';
+      return { month: row.month, net: row.net, rate, tone };
+    });
   },
 
   getRealAdjustedTrend: (months = 6) => {

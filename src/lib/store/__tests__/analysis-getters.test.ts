@@ -121,6 +121,37 @@ describe('getSavingsRateSeries', () => {
     const res = useFinanceStore.getState().getSavingsRateSeries(1);
     expect(res[0].rate).toBeCloseTo(40, 1); // (1000-600)/1000
   });
+
+  it('asigna tone="good" cuando la tasa es >= 15', () => {
+    seed({
+      transactions: [
+        { id: 1, type: 'income', amount: 1000, date: format(new Date(), 'yyyy-MM-dd') },
+        { id: 2, type: 'expense', amount: -800, date: format(new Date(), 'yyyy-MM-dd'), installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+    // rate = (1000-800)/1000*100 = 20
+    expect(useFinanceStore.getState().getSavingsRateSeries(1)[0].tone).toBe('good');
+  });
+
+  it('asigna tone="warn" cuando la tasa está entre 0 y 15, y tone="bad" cuando es negativa', () => {
+    seed({
+      transactions: [
+        { id: 1, type: 'income', amount: 1000, date: format(new Date(), 'yyyy-MM-dd') },
+        { id: 2, type: 'expense', amount: -950, date: format(new Date(), 'yyyy-MM-dd'), installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+    // rate = 5 -> warn
+    expect(useFinanceStore.getState().getSavingsRateSeries(1)[0].tone).toBe('warn');
+
+    seed({
+      transactions: [
+        { id: 1, type: 'income', amount: 1000, date: format(new Date(), 'yyyy-MM-dd') },
+        { id: 2, type: 'expense', amount: -1200, date: format(new Date(), 'yyyy-MM-dd'), installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+    // rate = -20 -> bad
+    expect(useFinanceStore.getState().getSavingsRateSeries(1)[0].tone).toBe('bad');
+  });
 });
 
 describe('getRealAdjustedTrend', () => {
