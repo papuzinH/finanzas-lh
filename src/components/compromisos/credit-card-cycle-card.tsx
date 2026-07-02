@@ -26,7 +26,13 @@ interface CreditCardCycleChipProps {
 export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChipProps) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const { markCreditCardCyclePaid, unmarkCreditCardCyclePaid } = useFinanceStore();
+  const { markCreditCardCyclePaid, unmarkCreditCardCyclePaid, getPaymentMethodStatus } = useFinanceStore();
+  const status = getPaymentMethodStatus(card.methodId);
+  const cycleNotClosedYet =
+    status.nextClosingDate !== undefined && new Date() < status.nextClosingDate;
+  const closingDateLabel = status.nextClosingDate
+    ? format(status.nextClosingDate, "d 'de' MMM", { locale: es })
+    : '';
 
   if (!card.isPending) {
     return (
@@ -117,6 +123,15 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
               {card.totalARS === 0 && card.totalUSD === 0 && formatCurrency(card.total)}
               {' · vence '}{formattedDate}
             </AlertDialogDescription>
+            {cycleNotClosedYet && (
+              <p className="mt-2 text-[12px] text-warn flex items-start gap-1.5">
+                <span aria-hidden="true">⚠️</span>
+                <span>
+                  El resumen todavía no cerró (cierra el {closingDateLabel}). Compras nuevas hasta
+                  esa fecha se restarán de tu Disponible Real al instante.
+                </span>
+              </p>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel disabled={confirming} className="w-full sm:w-auto">
