@@ -1,20 +1,53 @@
 'use client';
 
-import { TrendingDown } from 'lucide-react';
+import { useState } from 'react';
+import { TrendingDown, Info } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { formatCurrency } from '@/lib/utils';
 
 export function InstallmentsRealCostCard() {
   const getInstallmentsRealCost = useFinanceStore((s) => s.getInstallmentsRealCost);
-  const { remainingARS, remainingUSD, realTodayARS, savedARS, savedPct, hasInflation, hasData } =
+  const { remainingARS, remainingUSD, realTodayARS, savedARS, savedPct, monthlyInflation, hasInflation, hasData } =
     getInstallmentsRealCost();
+  const [infoOpen, setInfoOpen] = useState(false);
 
   if (!hasData) return null;
 
   return (
     <div className="rounded-2xl bg-surface border-[1.5px] border-warn/40 p-4">
       <h3 className="text-sm font-bold text-text mb-3 flex items-center justify-between">
-        La inflación licúa tus cuotas
+        <span className="inline-flex items-center gap-1.5">
+          La inflación licúa tus cuotas
+          {hasInflation && (
+            <Popover open={infoOpen} onOpenChange={setInfoOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Cómo se calcula el ahorro"
+                  onMouseEnter={() => setInfoOpen(true)}
+                  onMouseLeave={() => setInfoOpen(false)}
+                  className="text-faint hover:text-muted transition-colors"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={6}
+                onMouseEnter={() => setInfoOpen(true)}
+                onMouseLeave={() => setInfoOpen(false)}
+                className="w-64 rounded-xl bg-surface border-[1.5px] border-border text-text p-3 shadow-card"
+              >
+                <p className="text-[11px] font-normal leading-relaxed text-muted">
+                  Proyectamos la inflación con el promedio del IPC real de los últimos 3 meses
+                  (~{Math.round(monthlyInflation)}%/mes) y descontamos cada cuota futura a plata de hoy.
+                  El ahorro asume que ese ritmo se mantiene.
+                </p>
+              </PopoverContent>
+            </Popover>
+          )}
+        </span>
         <span className="text-[9px] text-warn font-bold bg-warn/10 px-1.5 py-0.5 rounded">🇦🇷 AR</span>
       </h3>
 
