@@ -40,6 +40,7 @@ import {
 import { categorySchema, type CategoryFormValues } from '@/lib/schemas/category'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Category } from '@/types/database'
+import { cn } from '@/lib/utils'
 
 const COMMON_EMOJIS = [
   '🍔', '🍕', '🍺', '☕', '🏠', '🚗', '🛒', '💊', '🎮', '👕',
@@ -65,6 +66,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
   const [editOpen, setEditOpen] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
   const [generatingAi, setGeneratingAi] = useState(false)
+  const [depsTotal, setDepsTotal] = useState<number | null>(null)
 
   const editForm = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
@@ -72,6 +74,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
       name: category.name,
       emoji: category.emoji ?? '💰',
       description: category.description ?? '',
+      type: category.type,
     },
   })
 
@@ -83,7 +86,10 @@ export function CategoryCardActions({ category, allCategories }: Props) {
         name: category.name,
         emoji: category.emoji ?? '💰',
         description: category.description ?? '',
+        type: category.type,
       })
+      setDepsTotal(null)
+      getCategoryDependencies(category.id).then((deps) => setDepsTotal(deps.total))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editOpen, category])
@@ -92,7 +98,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
   const [deleteState, setDeleteState] = useState<DeleteState>({ step: 'idle' })
   const [reassignTo, setReassignTo] = useState('')
 
-  const otherCategories = allCategories.filter((c) => c.id !== category.id)
+  const otherCategories = allCategories.filter((c) => c.id !== category.id && c.type === category.type)
 
   // ── Edit handlers ────────────────────────────────────────────
   const handleGenerateDescription = async () => {
@@ -238,6 +244,45 @@ export function CategoryCardActions({ category, allCategories }: Props) {
           <Form {...editForm}>
             <form id="edit-category-form" onSubmit={editForm.handleSubmit(handleEditSubmit)} className="contents">
               <div className="overflow-y-auto flex-1 px-6 pb-4 space-y-5">
+
+                {/* ── Type Toggle ── */}
+                <FormField
+                  control={editForm.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <span className="text-[10px] font-medium uppercase tracking-widest text-muted">
+                        Tipo
+                      </span>
+                      <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
+                        {(['expense', 'income'] as const).map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            disabled={!!depsTotal}
+                            onClick={() => field.onChange(t)}
+                            className={cn(
+                              'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
+                              'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',
+                              !!depsTotal && 'opacity-50 cursor-not-allowed',
+                              field.value === t
+                                ? 'bg-accent text-accent-ink'
+                                : 'text-muted hover:text-text'
+                            )}
+                          >
+                            {t === 'expense' ? 'Gasto' : 'Ingreso'}
+                          </button>
+                        ))}
+                      </div>
+                      {!!depsTotal && (
+                        <p className="text-[11px] text-muted italic mt-1">
+                          No se puede cambiar el tipo: esta categoría tiene {depsTotal} movimiento{depsTotal !== 1 ? 's' : ''} asociado{depsTotal !== 1 ? 's' : ''}.
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 {/* ── Emoji + Name ── */}
                 <div className="flex items-start gap-3">
