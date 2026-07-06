@@ -23,7 +23,8 @@ import { NextMonthCardExposureCard } from '@/components/dashboard/next-month-car
 import { IncompleteCreditCardsBanner } from '@/components/dashboard/incomplete-credit-cards-banner';
 import { EndOfMonthSavingsBanner } from '@/components/dashboard/end-of-month-savings-banner';
 import { MetricRow } from '@/components/dashboard/metric-row';
-import { BudgetOverviewStrip } from '@/components/goals/budget-overview-strip';
+import { BudgetGaugeCard } from '@/components/dashboard/budget-gauge-card';
+import { SavingsGoalsRingsCard } from '@/components/dashboard/savings-goals-rings-card';
 import { InsightsCarousel } from '@/components/dashboard/insights-carousel';
 import { AnalysisSection } from '@/components/dashboard/analysis/analysis-section';
 import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
@@ -199,8 +200,12 @@ export default function DashboardPage() {
         </div>
 
         {/* PRESUPUESTOS DEL MES */}
-        <SectionTitle action="Gestionar" href="/objetivos">Presupuestos</SectionTitle>
-        <BudgetOverviewStrip />
+        <SectionTitle action="Gestionar" href="/objetivos?tab=presupuestos">Presupuestos</SectionTitle>
+        <BudgetGaugeCard />
+
+        {/* METAS DE AHORRO */}
+        <SectionTitle action="Ver todas" href="/objetivos?tab=metas">Metas de ahorro</SectionTitle>
+        <SavingsGoalsRingsCard />
 
         {/* ── BELOW THE FOLD ── */}
 
