@@ -17,9 +17,9 @@ interface MetricItemProps {
   sparklineType?: SparklineType
 }
 
-export function MetricRow({ items }: { items: [MetricItemProps, MetricItemProps] }) {
+export function MetricGrid({ items, className }: { items: MetricItemProps[]; className?: string }) {
   return (
-    <div className="col-span-2 grid grid-cols-2 gap-3">
+    <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-3", className)}>
       {items.map((item, i) => (
         <MetricCard key={i} {...item} />
       ))}

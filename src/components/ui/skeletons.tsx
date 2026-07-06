@@ -32,7 +32,7 @@ function PageHeaderSkeleton({ titleWidth = "w-32" }: { titleWidth?: string }) {
 
 function BalanceCardSkeleton() {
   return (
-    <div className="col-span-2 lg:col-span-4 rounded-2xl bg-surface border border-border p-6">
+    <div className="rounded-2xl bg-surface border border-border p-6">
       <div className="flex justify-between items-start">
         <div className="space-y-4 flex-1">
           <div className="flex items-center gap-2">
@@ -54,7 +54,7 @@ function BalanceCardSkeleton() {
 
 function InsightsCarouselSkeleton() {
   return (
-    <div className="col-span-2 lg:col-span-4 flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
       <div className="rounded-2xl border border-border bg-surface/50 px-4 py-3 space-y-2">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-1/2" />
@@ -64,6 +64,19 @@ function InsightsCarouselSkeleton() {
           <Skeleton key={i} className="h-1.5 w-1.5 rounded-full" />
         ))}
       </div>
+    </div>
+  )
+}
+
+function NextMonthCardExposureCardSkeleton() {
+  return (
+    <div className="rounded-2xl bg-surface border border-border p-4 space-y-3">
+      <Skeleton className="h-4 w-48" />
+      <div className="flex items-baseline justify-between">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-7 w-28" />
+      </div>
+      <Skeleton className="h-3 w-40" />
     </div>
   )
 }
@@ -144,15 +157,18 @@ export function DashboardSkeleton() {
       </header>
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 space-y-6">
-        {/* SECCION A: Bento Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <BalanceCardSkeleton />
-          <InsightsCarouselSkeleton />
-          <div className="col-span-2 grid grid-cols-2 gap-3">
-            <MetricCardSkeleton />
-            <MetricCardSkeleton />
+        {/* SECCION A: hero + 4 KPIs (principal 2/3) + rail (1/3) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2">
+            <BalanceCardSkeleton />
           </div>
-          <div className="col-span-2 grid grid-cols-2 gap-3">
+          <div className="lg:col-start-3 space-y-3">
+            <NextMonthCardExposureCardSkeleton />
+            <InsightsCarouselSkeleton />
+          </div>
+          <div className="lg:col-span-2 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
             <MetricCardSkeleton />
             <MetricCardSkeleton />
           </div>

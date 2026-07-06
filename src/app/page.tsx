@@ -21,8 +21,7 @@ import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { BalanceCard } from '@/components/dashboard/balance-card';
 import { NextMonthCardExposureCard } from '@/components/dashboard/next-month-card-exposure-card';
 import { IncompleteCreditCardsBanner } from '@/components/dashboard/incomplete-credit-cards-banner';
-import { EndOfMonthSavingsBanner } from '@/components/dashboard/end-of-month-savings-banner';
-import { MetricRow } from '@/components/dashboard/metric-row';
+import { MetricGrid } from '@/components/dashboard/metric-grid';
 import { BudgetGaugeCard } from '@/components/dashboard/budget-gauge-card';
 import { SavingsGoalsRingsCard } from '@/components/dashboard/savings-goals-rings-card';
 import { InsightsCarousel } from '@/components/dashboard/insights-carousel';
@@ -127,31 +126,23 @@ export default function DashboardPage() {
 
         {/* ── ABOVE THE FOLD ── */}
 
-        {/* SECCIÓN A: ESTADO PATRIMONIAL (Bento Grid) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* SECCIÓN A: ESTADO PATRIMONIAL — principal (hero + 4 KPIs) 2/3 + rail (consumo tarjeta + insights) 1/3 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-flow-row-dense lg:items-start gap-4">
 
-          {/* Expandible Balance Card */}
-          <div data-tour="balance-card" className="col-span-2 lg:col-span-4">
+          {/* Hero — principal, fila 1 (cols 1-2) */}
+          <div data-tour="balance-card" className="lg:col-span-2">
             <BalanceCard />
           </div>
 
-          {/* Nivel 3: Fondo de Ojo — consumo de tarjeta del proximo mes */}
-          <div className="col-span-2 lg:col-span-4">
-            <NextMonthCardExposureCard />
-          </div>
+          {/* Consumo tarjeta próximo mes — rail (col 3). Hijo directo: si retorna null, la celda colapsa. */}
+          <NextMonthCardExposureCard className="lg:col-start-3" />
 
-          {/* CTA ahorro: debajo de la card principal de balance */}
-          <div className="col-span-2 lg:col-span-4">
-            <EndOfMonthSavingsBanner />
-          </div>
+          {/* Insights — rail (col 3). Idem. */}
+          <InsightsCarousel className="lg:col-start-3" />
 
-          {/* Insights Carousel */}
-          <div className="col-span-2 lg:col-span-4">
-            <InsightsCarousel />
-          </div>
-
-          {/* Metric Row 1: Ingresos y Gastos Variables */}
-          <MetricRow
+          {/* Las 4 KPIs — principal, fila 2 (cols 1-2) */}
+          <MetricGrid
+            className="lg:col-span-2"
             items={[
               {
                 label: "Ingresos mes",
@@ -171,12 +162,6 @@ export default function DashboardPage() {
                 sparklineType: "variable",
                 onClick: () => setIsVariableExpensesModalOpen(true),
               },
-            ]}
-          />
-
-          {/* Metric Row 2: Cuotas y Mensualidades */}
-          <MetricRow
-            items={[
               {
                 label: "Cuotas mes",
                 value: formatCurrency(currentMonthInstallments),

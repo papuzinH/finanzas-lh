@@ -296,13 +296,6 @@ interface FinanceState {
     pendingCreditTotal: number;
     pendingCards: CreditCardCycleSummary[];
   };
-  getEndOfMonthSurplusSuggestion: () => {
-    suggestedAmount: number;
-    isEndOfMonth: boolean;
-    alreadyTransferred: boolean;
-    periodMonth: string;
-  };
-
   // Goals Getters
   getSavingsGoalProgress: (goalId: string) => {
     goal: SavingsGoal;
@@ -1974,27 +1967,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       liquidNetBalance,
       pendingCreditTotal,
       pendingCards,
-    };
-  },
-
-  getEndOfMonthSurplusSuggestion: () => {
-    const { getMonthlyExpensesBreakdown, internalTransfers } = get();
-    const now = new Date();
-    const lastDay = endOfMonth(now).getDate();
-    const isEndOfMonth = now.getDate() >= Math.max(lastDay - 4, 1);
-    const periodMonth = format(now, 'yyyy-MM');
-    const suggestedAmount = Math.max(getMonthlyExpensesBreakdown().netBalance, 0);
-
-    const alreadyTransferred = internalTransfers.some((transfer) => {
-      const transferMonth = transfer.period_date?.slice(0, 7);
-      return transfer.transfer_type === 'end_of_month_surplus' && transferMonth === periodMonth;
-    });
-
-    return {
-      suggestedAmount,
-      isEndOfMonth,
-      alreadyTransferred,
-      periodMonth,
     };
   },
 

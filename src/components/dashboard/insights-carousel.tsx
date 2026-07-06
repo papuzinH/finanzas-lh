@@ -12,6 +12,7 @@ import {
   Lightbulb,
 } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import { cn } from '@/lib/utils';
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   TrendingDown,
@@ -46,7 +47,7 @@ const STYLE_MAP = {
 
 const ROTATION_INTERVAL = 5000;
 
-export function InsightsCarousel() {
+export function InsightsCarousel({ className }: { className?: string }) {
   const getInsights = useFinanceStore((s) => s.getInsights);
   const insights = getInsights();
 
@@ -74,7 +75,7 @@ export function InsightsCarousel() {
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn("flex flex-col gap-2", className)}>
       <div className={`relative overflow-hidden rounded-2xl border px-4 py-3 ${styles.card}`}>
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
