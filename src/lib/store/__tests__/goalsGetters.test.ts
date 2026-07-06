@@ -124,6 +124,7 @@ const makeCategory = (overrides: Partial<Category> = {}): Category => ({
   emoji: '🍔',
   description: null,
   is_system: false,
+  type: 'expense',
   created_at: '2026-01-01T00:00:00Z',
   ...overrides,
 })
