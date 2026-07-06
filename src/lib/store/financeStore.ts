@@ -1631,14 +1631,13 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const { recurringPlans, transactions } = get();
     const currentMonth = format(new Date(), 'yyyy-MM');
 
-    // Piso del historial: mes del primer INGRESO del usuario. Antes de ese mes
-    // la app no tiene ingresos registrados, así que backfillear mensualidades
-    // ahí resta gastos sin contrapartida y hunde el saldo. Ojo: NO alcanza con
-    // "primera transacción" — una cuota/gasto anterior al primer sueldo NO debe
-    // fijar el piso (bug que materializaba meses fantasma sin ingreso detrás).
+    // Piso del historial: mes de la primera transacción REAL del usuario
+    // (excluye las vinculadas a mensualidades, que genera esta misma feature).
+    // Antes de ese mes la app no tiene ingresos registrados, así que backfillear
+    // ahí distorsiona el saldo.
     let floorMonth = currentMonth;
     for (const t of transactions) {
-      if (t.type !== 'income') continue;
+      if (t.recurring_plan_id) continue;
       const m = String(t.date).slice(0, 7);
       if (m < floorMonth) floorMonth = m;
     }

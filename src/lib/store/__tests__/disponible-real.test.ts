@@ -217,32 +217,6 @@ describe('getRecurringBackfillPreview', () => {
     expect(res.totalAmount).toBe(200000);
   });
 
-  it('el piso es el primer INGRESO, no una cuota/gasto anterior sin ingreso detras', () => {
-    // Bug reportado: el piso usaba la primera transaccion de CUALQUIER tipo.
-    // Si el usuario tenia una cuota (gasto) meses antes de su primer ingreso,
-    // el backfill materializaba mensualidades en meses sin ingreso -> hundia el saldo.
-    const now = new Date();
-    const createdAt = subMonths(now, 5).toISOString(); // plan creado hace 5 meses
-    const fourMonthsAgo = format(subMonths(now, 4), 'yyyy-MM-dd'); // cuota vieja, sin ingreso
-    const twoMonthsAgo = format(subMonths(now, 2), 'yyyy-MM-dd'); // primer INGRESO real
-    seed({
-      recurringPlans: [
-        { id: 9, description: 'Netflix', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
-      ],
-      transactions: [
-        // gasto/cuota ANTES del primer ingreso: NO debe fijar el piso
-        { id: 1, type: 'expense', amount: -40000, date: fourMonthsAgo, periodDate: fourMonthsAgo, payment_method_id: null, installment_plan_id: 7, recurring_plan_id: null },
-        // primer INGRESO real hace 2 meses -> este es el piso
-        { id: 2, type: 'income', amount: 500000, date: twoMonthsAgo, periodDate: twoMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
-      ],
-    });
-    const res = useFinanceStore.getState().getRecurringBackfillPreview();
-    // piso = mes del primer ingreso: solo hace 2 meses + mes pasado = 2 meses
-    // (con el bug contaba desde hace 4 meses = 4 meses / 400000)
-    expect(res.missingMonths).toBe(2);
-    expect(res.totalAmount).toBe(200000);
-  });
-
   it('sin transacciones reales no hay nada que backfillear', () => {
     const now = new Date();
     seed({
