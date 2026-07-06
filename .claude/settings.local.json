@@ -40,7 +40,8 @@
       "Bash(git commit *)",
       "Bash(node node_modules/vitest/vitest.mjs run src/lib/store/__tests__/analysis-getters.test.ts)",
       "Bash(npm -v)",
-      "Bash(echo \"npm: $\\(npm -v\\)\")"
+      "Bash(echo \"npm: $\\(npm -v\\)\")",
+      "Bash(bash *)"
     ]
   },
   "enabledPlugins": {
