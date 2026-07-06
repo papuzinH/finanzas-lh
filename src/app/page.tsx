@@ -199,13 +199,12 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* PRESUPUESTOS DEL MES */}
-        <SectionTitle action="Gestionar" href="/objetivos?tab=presupuestos">Presupuestos</SectionTitle>
-        <BudgetGaugeCard />
-
-        {/* METAS DE AHORRO */}
-        <SectionTitle action="Ver todas" href="/objetivos?tab=metas">Metas de ahorro</SectionTitle>
-        <SavingsGoalsRingsCard />
+        {/* PRESUPUESTOS Y METAS DE AHORRO */}
+        <SectionTitle action="Ver todo" href="/objetivos">Presupuestos y metas</SectionTitle>
+        <div className="grid grid-cols-2 gap-3">
+          <BudgetGaugeCard />
+          <SavingsGoalsRingsCard />
+        </div>
 
         {/* ── BELOW THE FOLD ── */}
 
