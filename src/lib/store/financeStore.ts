@@ -324,6 +324,7 @@ interface FinanceState {
       status: 'active' | 'completed';
     }>;
     totalSavedARS: number;
+    totalDisplay: { amount: number; currency: 'ARS' | 'USD' };
     activeCount: number;
   };
 
@@ -2160,6 +2161,12 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    *
    * `totalSavedARS` suma TODAS las metas activas (no solo las priorizadas para
    * mostrar), convirtiendo los aportes de metas en USD a ARS vía dólar blue.
+   *
+   * `totalDisplay` es el total "según corresponda": si todas las metas activas
+   * comparten moneda, se muestra nativo sin convertir (evita el ruido de una
+   * conversión innecesaria, p. ej. una meta en USD no debería mostrarse
+   * "en pesos" solo porque sí); si están mezcladas ARS/USD, no hay una sola
+   * moneda nativa posible y se cae a `totalSavedARS` (ARS-equivalente).
    */
   getSavingsGoalsOverview: () => {
     const { savingsGoals, dolarBlue, getSavingsGoalProgress } = get();
@@ -2190,7 +2197,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       return sum + (p.goal.currency === 'USD' && blue ? contributed * blue : contributed);
     }, 0);
 
-    return { goals, totalSavedARS, activeCount: goals.length };
+    const currencies = new Set(withProgress.map((p) => p.goal.currency));
+    const nativeCurrency = currencies.size === 1 ? [...currencies][0] : null;
+    const totalDisplay: { amount: number; currency: 'ARS' | 'USD' } =
+      nativeCurrency === 'USD'
+        ? { amount: withProgress.reduce((sum, p) => sum + p.totalContributed, 0), currency: 'USD' }
+        : { amount: totalSavedARS, currency: 'ARS' };
+
+    return { goals, totalSavedARS, totalDisplay, activeCount: goals.length };
   },
 
   /**

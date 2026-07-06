@@ -138,9 +138,10 @@ describe('getSavingsGoalsOverview', () => {
     expect(res.activeCount).toBe(1);
     expect(res.goals[0]).toMatchObject({ id: 'g1', name: 'Vacaciones', percent: 30, currency: 'ARS', status: 'active' });
     expect(res.totalSavedARS).toBe(30000);
+    expect(res.totalDisplay).toEqual({ amount: 30000, currency: 'ARS' });
   });
 
-  it('convierte a ARS los aportes de metas en USD para el total', () => {
+  it('convierte a ARS los aportes de metas en USD para el total cuando estan mezcladas', () => {
     seed({
       dolarBlue: { compra: 900, venta: 1000, fechaActualizacion: '' },
       savingsGoals: [
@@ -155,8 +156,29 @@ describe('getSavingsGoalsOverview', () => {
     const res = useFinanceStore.getState().getSavingsGoalsOverview();
     // 30000 (ARS) + 200*1000 (USD->ARS) = 230000
     expect(res.totalSavedARS).toBe(230000);
+    // mezcladas ARS/USD: no hay una sola moneda nativa, se cae al ARS-equivalente
+    expect(res.totalDisplay).toEqual({ amount: 230000, currency: 'ARS' });
     const usdGoal = res.goals.find((g) => g.id === 'g2');
     expect(usdGoal).toMatchObject({ percent: 40, currency: 'USD', status: 'active' });
+  });
+
+  it('muestra el total nativo en USD sin convertir cuando todas las metas activas son USD', () => {
+    seed({
+      dolarBlue: { compra: 900, venta: 1000, fechaActualizacion: '' },
+      savingsGoals: [
+        { id: 'g1', name: 'Viaje USA', type: 'one_time', target_amount: 500, currency: 'USD', target_date: null, is_active: true },
+        { id: 'g2', name: 'Laptop', type: 'one_time', target_amount: 1000, currency: 'USD', target_date: null, is_active: true },
+      ],
+      savingsGoalContributions: [
+        { id: 'c1', goal_id: 'g1', amount: 200, currency: 'USD', date: '2026-01-10' },
+        { id: 'c2', goal_id: 'g2', amount: 300, currency: 'USD', date: '2026-01-10' },
+      ],
+    });
+    const res = useFinanceStore.getState().getSavingsGoalsOverview();
+    // totalSavedARS sigue convirtiendo (200+300)*1000 = 500000, para quien lo necesite en ARS
+    expect(res.totalSavedARS).toBe(500000);
+    // pero el total "segun corresponda" es nativo en USD, sin blue de por medio
+    expect(res.totalDisplay).toEqual({ amount: 500, currency: 'USD' });
   });
 
   it('prioriza metas con fecha por daysLeft asc y despues por percent desc', () => {
