@@ -152,10 +152,13 @@ export function AmountField<T extends FieldValues>({
 
 interface TypeToggleProps<T extends FieldValues & BaseTransactionFields> {
   control: Control<T>;
+  /** Se invoca solo cuando el usuario clickea el toggle (no cuando el valor cambia por form.reset()). */
+  onTypeChange?: (type: 'expense' | 'income') => void;
 }
 
 export function TypeToggle<T extends FieldValues & BaseTransactionFields>({
   control,
+  onTypeChange,
 }: TypeToggleProps<T>) {
   return (
     <FormField
@@ -168,7 +171,10 @@ export function TypeToggle<T extends FieldValues & BaseTransactionFields>({
               <button
                 key={type}
                 type="button"
-                onClick={() => field.onChange(type)}
+                onClick={() => {
+                  field.onChange(type);
+                  onTypeChange?.(type);
+                }}
                 className={cn(
                   'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
                   'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',

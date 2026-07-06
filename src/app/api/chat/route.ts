@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
     // 4. Obtener categorías del usuario para construir el prompt
     const { data: categories, error: categoriesError } = await supabase
       .from('categories')
-      .select('id, name, emoji')
+      .select('id, name, emoji, type')
       .eq('user_id', user.id)
 
     if (categoriesError) {

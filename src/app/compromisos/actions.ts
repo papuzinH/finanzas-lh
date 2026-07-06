@@ -173,7 +173,7 @@ export async function payCreditCardCycle(params: {
     } else {
       const { data: newCat, error: catErr } = await supabase
         .from('categories')
-        .insert({ user_id: user.id, name: CARD_PAYMENT_CATEGORY, emoji: '💳', is_system: true })
+        .insert({ user_id: user.id, name: CARD_PAYMENT_CATEGORY, emoji: '💳', is_system: true, type: 'expense' as const })
         .select('id')
         .single();
       if (catErr || !newCat) {

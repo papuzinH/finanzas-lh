@@ -58,6 +58,11 @@ export async function saveOnboardingName(name: string): Promise<ActionResponse> 
 // =============================================================================
 // Inserta todas las categorías de una vez. Borra las custom previas del usuario
 // para que el onboarding sea idempotente si se reinicia.
+const DEFAULT_ONBOARDING_INCOME_CATEGORIES = [
+  { name: 'Sueldo', emoji: '💰', description: 'Sueldo, honorarios, pagos fijos de trabajo en relación de dependencia o autónomo.' },
+  { name: 'Freelance / Otros ingresos', emoji: '📈', description: 'Trabajos independientes, ventas, regalos en dinero y cualquier otro ingreso no fijo.' },
+] as const
+
 export async function saveOnboardingCategories(
   categories: OnboardingCategoryInput[]
 ): Promise<ActionResponse> {
@@ -77,15 +82,28 @@ export async function saveOnboardingCategories(
       .eq('user_id', user.id)
       .eq('is_system', false)
 
-    const rows = categories.map((c) => ({
+    const expenseRows = categories.map((c) => ({
       user_id: user.id,
       name: c.name.trim(),
       emoji: c.emoji,
       description: (c.description || '').trim() || null,
       is_system: false,
+      type: 'expense' as const,
     }))
 
-    const { error } = await supabase.from('categories').insert(rows)
+    // Las categorías del slide de onboarding son siempre de gasto; se suman
+    // categorías de ingreso por defecto para que el selector de "Ingreso"
+    // nunca quede vacío en el primer uso.
+    const incomeRows = DEFAULT_ONBOARDING_INCOME_CATEGORIES.map((c) => ({
+      user_id: user.id,
+      name: c.name,
+      emoji: c.emoji,
+      description: c.description,
+      is_system: false,
+      type: 'income' as const,
+    }))
+
+    const { error } = await supabase.from('categories').insert([...expenseRows, ...incomeRows])
     if (error) {
       console.error('Error inserting onboarding categories:', error)
       return { error: 'No se pudieron guardar las categorías. Intentá de nuevo.' }

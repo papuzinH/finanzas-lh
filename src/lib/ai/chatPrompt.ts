@@ -7,6 +7,7 @@ export interface Category {
   id: string
   name: string
   emoji: string | null
+  type: 'income' | 'expense'
 }
 
 export interface ConversationMessage {
@@ -41,10 +42,19 @@ export interface GoalContext {
 }
 
 export function buildChatPrompt(categories: Category[], conversationHistory?: ConversationMessage[], goalContext?: GoalContext, cardAlerts?: string[]): string {
-  // Construir la lista de categorías en formato de referencia
-  const categoriesPrompt = categories
-    .map((cat) => `- ${cat.emoji || '📁'} ${cat.name}: para ${cat.name.toLowerCase()}`)
-    .join('\n')
+  // Construir la lista de categorías en formato de referencia, separada por
+  // tipo para que el modelo elija siempre dentro del bloque correcto.
+  const formatCategoryList = (cats: Category[]) =>
+    cats.map((cat) => `- ${cat.emoji || '📁'} ${cat.name}: para ${cat.name.toLowerCase()}`).join('\n')
+
+  const expenseCategories = categories.filter((cat) => cat.type === 'expense')
+  const incomeCategories = categories.filter((cat) => cat.type === 'income')
+
+  const categoriesPrompt = `CATEGORÍAS DE GASTO:
+${formatCategoryList(expenseCategories) || '(el usuario no tiene categorías de gasto)'}
+
+CATEGORÍAS DE INGRESO:
+${formatCategoryList(incomeCategories) || '(el usuario no tiene categorías de ingreso)'}`
 
   // Construir el diccionario de IDs (nombre -> UUID)
   const categoriesMap = categories.reduce(
@@ -94,7 +104,7 @@ Tu objetivo es extraer datos estructurados de un mensaje natural y categorizarlo
 INSTRUCCIONES:
 Analiza el mensaje y devuelve EXCLUSIVAMENTE un objeto JSON.
 Detecta la INTENCIÓN y elige la estructura correcta.
-IMPORTANTE: Cuando elijas una categoría, busca su nombre exacto en el "DICCIONARIO DE IDs" y extrae el UUID correspondiente para el campo "category_id".
+IMPORTANTE: Cuando elijas una categoría, elegí siempre una del bloque que corresponda al tipo del movimiento (gasto → bloque CATEGORÍAS DE GASTO, ingreso → bloque CATEGORÍAS DE INGRESO), buscá su nombre exacto en el "DICCIONARIO DE IDs" y extraé el UUID correspondiente para el campo "category_id".
 
 --- CASO A: ES UNA TRANSACCIÓN (Gasto, Compra, Cuotas, Ingreso) ---
 Si el usuario informa un movimiento de dinero.
@@ -295,7 +305,7 @@ Devuelve esta estructura:
 }
 
 REGLAS CRÍTICAS DE PROCESAMIENTO:
-1. Si detectas palabras como "Cobré", "Sueldo", "Me transfirieron", "Ingreso", define "tipo": "income" y "categoria": "Ingresos".
+1. Si detectas palabras como "Cobré", "Sueldo", "Me transfirieron", "Ingreso", define "tipo": "income" y elegí la categoría más adecuada del bloque "CATEGORÍAS DE INGRESO" (nunca uses una del bloque de gasto).
 2. Si "es_gasto_real" es false, el resto de campos pueden ser null.
 3. Prioriza tu lista de categorías personalizada. Si no encaja, usa "Otros".
 4. Si el usuario dice palabras como 'mensual', 'suscripción', 'débito automático', 'plan', prioriza la intención 'suscripcion' sobre 'transaccion'.

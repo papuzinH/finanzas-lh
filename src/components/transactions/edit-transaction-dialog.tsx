@@ -55,8 +55,6 @@ export function EditTransactionDialog({
   const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories, paymentMethods, getFrequentCategories, getExchangeRate } = useFinanceStore();
 
-  const frequentCategories = getFrequentCategories(4);
-
   const initialPaymentMethodId =
     transaction.payment_method_id != null ? String(transaction.payment_method_id) : 'none';
 
@@ -81,6 +79,10 @@ export function EditTransactionDialog({
   const watchedCurrency = form.watch('currency');
   const watchedRatePair = form.watch('rate_pair');
   const watchedDate = form.watch('date');
+  const watchedType = form.watch('type');
+
+  const categoriesForType = categories.filter((c) => c.type === watchedType);
+  const frequentCategories = getFrequentCategories(4, watchedType);
 
   // Reset form when dialog opens with fresh transaction data
   useEffect(() => {
@@ -158,7 +160,10 @@ export function EditTransactionDialog({
               />
 
               {/* ── Type Toggle ── */}
-              <TypeToggle control={form.control} />
+              <TypeToggle
+                control={form.control}
+                onTypeChange={() => form.setValue('category_id', '')}
+              />
 
               {/* ── Description ── */}
               <DescriptionField control={form.control} />
@@ -166,7 +171,7 @@ export function EditTransactionDialog({
               {/* ── Categories ── */}
               <CategoryPicker
                 control={form.control}
-                categories={categories}
+                categories={categoriesForType}
                 frequentCategories={frequentCategories}
               />
 
