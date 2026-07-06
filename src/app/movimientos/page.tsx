@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { MonthSelector } from '@/components/dashboard/month-selector';
 import { isSameDay, isSameMonth, parse, format } from 'date-fns';
@@ -29,6 +29,10 @@ export default function MovimientosPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isRefreshingRates, setIsRefreshingRates] = useState(false);
+  // Revelado de filtros en mobile: los chips se muestran solo al enfocar el buscador
+  // (persistencia inteligente: siguen visibles mientras haya foco, texto o filtro activo).
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const searchFocusedRef = useRef(false);
   const {
     transactions,
     paymentMethods,
@@ -170,6 +174,25 @@ export default function MovimientosPage() {
   const netBalance = monthlyIncome - monthlyExpense;
   const hasActiveFilters = selectedPaymentMethodId !== 'all' || selectedCategoryId !== 'all';
 
+  // Los chips (mobile) quedan visibles mientras el buscador esté abierto, haya texto
+  // escrito o algún filtro aplicado. Si no, permanecen colapsados.
+  const shouldShowFilters = filtersOpen || hasActiveFilters || searchQuery.trim().length > 0;
+
+  const handleSearchFocus = () => {
+    searchFocusedRef.current = true;
+    setFiltersOpen(true);
+  };
+
+  // Al perder foco, colapsamos con un pequeño delay: así un tap sobre un chip
+  // (que desenfoca el input antes de disparar su click) alcanza a aplicar el filtro,
+  // y `shouldShowFilters` los mantiene visibles. El ref evita colapsar si se re-enfoca.
+  const handleSearchBlur = () => {
+    searchFocusedRef.current = false;
+    window.setTimeout(() => {
+      if (!searchFocusedRef.current) setFiltersOpen(false);
+    }, 150);
+  };
+
   const clearFilters = () => {
     const params = new URLSearchParams(searchParams);
     params.delete('paymentMethod');
@@ -180,7 +203,7 @@ export default function MovimientosPage() {
   // Chips de filtro reutilizables: 'scroll' (mobile, scroll horizontal) | 'wrap' (rail desktop)
   const renderFilters = (variant: 'scroll' | 'wrap') => {
     const rowClass = variant === 'scroll'
-      ? 'flex gap-2 overflow-x-auto -mx-5 px-5 pb-1 scrollbar-hide'
+      ? 'flex gap-2 overflow-x-auto pb-1 scrollbar-hide'
       : 'flex flex-wrap gap-2';
     const groupLabel = (text: string) =>
       variant === 'wrap' ? (
@@ -368,8 +391,18 @@ export default function MovimientosPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={handleSearchFocus}
+                onBlur={handleSearchBlur}
                 placeholder="Buscar por descripción, categoría o monto..."
-                className="w-full bg-surface border-[1.5px] border-border rounded-xl pl-9 pr-10 py-2.5 text-sm text-text placeholder:text-faint focus:outline-none focus:border-accent/40 transition-colors font-sans"
+                inputMode="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                aria-label="Buscar movimientos"
+                aria-controls="movimientos-filtros-mobile"
+                className="w-full bg-surface border-[1.5px] border-border rounded-xl pl-9 pr-10 py-2.5 text-sm text-text placeholder:text-faint focus:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg transition-colors font-sans"
               />
               {searchQuery && (
                 <button
@@ -434,9 +467,22 @@ export default function MovimientosPage() {
                 {ratesButton}
               </div>
 
-              {/* Filtros */}
-              <div className="mb-5">
-                {renderFilters('scroll')}
+              {/* Filtros: se revelan al enfocar el buscador (persistencia inteligente).
+                  Animamos la altura con el truco de grid-rows 0fr→1fr para no generar CLS. */}
+              <div
+                id="movimientos-filtros-mobile"
+                inert={!shouldShowFilters}
+                aria-hidden={!shouldShowFilters}
+                className={cn(
+                  'grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out motion-reduce:transition-none',
+                  shouldShowFilters
+                    ? 'grid-rows-[1fr] opacity-100 mb-5'
+                    : 'grid-rows-[0fr] opacity-0 mb-0 pointer-events-none'
+                )}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  {renderFilters('scroll')}
+                </div>
               </div>
             </div>
 

@@ -41,7 +41,10 @@
       "Bash(node node_modules/vitest/vitest.mjs run src/lib/store/__tests__/analysis-getters.test.ts)",
       "Bash(npm -v)",
       "Bash(echo \"npm: $\\(npm -v\\)\")",
-      "Bash(bash *)"
+      "Bash(bash *)",
+      "Bash(git checkout *)",
+      "Bash(cat \"$\\(git rev-parse --show-toplevel\\)/.superpowers/sdd/progress.md\")",
+      "Bash(ls \"C:/Users/lauta/.claude/plugins/cache/claude-plugins-official/superpowers/6.1.0/skills/subagent-driven-development/scripts/\")"
     ]
   },
   "enabledPlugins": {
