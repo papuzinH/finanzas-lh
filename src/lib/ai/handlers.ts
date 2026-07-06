@@ -219,6 +219,21 @@ async function handleTransaction(data: TransactionData, userId: number): Promise
     // Calcular fecha real de pago (aplica lógica de tarjeta de crédito si corresponde)
     const realPaymentDate = calculateRealPaymentDate(data.date, paymentMethod)
 
+    // Validación defensiva: si el modelo eligió una categoría de un tipo
+    // distinto al detectado (ej. categoría de gasto para un ingreso), se
+    // descarta en vez de guardar una combinación inconsistente.
+    let categoryId = data.categoryId
+    if (categoryId) {
+      const { data: categoryRow } = await supabase
+        .from('categories')
+        .select('type')
+        .eq('id', categoryId)
+        .single()
+      if (categoryRow && categoryRow.type !== data.type) {
+        categoryId = null
+      }
+    }
+
     // Insertar la transacción
     const { error } = await supabase.from('transactions').insert({
       user_id: userId,
@@ -226,7 +241,7 @@ async function handleTransaction(data: TransactionData, userId: number): Promise
       amount: data.amount,
       date: realPaymentDate,
       type: data.type,
-      category_id: data.categoryId,
+      category_id: categoryId,
       payment_method_id: paymentMethod?.id || null,
     })
 
@@ -243,7 +258,7 @@ async function handleTransaction(data: TransactionData, userId: number): Promise
 
     const budgetAlert =
       data.type === 'expense'
-        ? await checkBudgetAlert(supabase, userId, data.categoryId ?? null)
+        ? await checkBudgetAlert(supabase, userId, categoryId ?? null)
         : null
 
     return {
