@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { Card } from '@/components/ui/card';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { InfoHint } from '@/components/ui/info-hint';
 
 type Tone = 'good' | 'warn' | 'bad';
+type HoverTarget = 'current' | 'projected' | null;
 
 const ARC_STROKE: Record<Tone, string> = {
   good: 'var(--good)',
@@ -49,6 +51,7 @@ function pointOnArc(fraction: number) {
 export function BudgetGaugeCard() {
   const getBudgetsOverview = useFinanceStore((s) => s.getBudgetsOverview);
   const getAllBudgetStatuses = useFinanceStore((s) => s.getAllBudgetStatuses);
+  const [hover, setHover] = useState<HoverTarget>(null);
 
   const overview = getBudgetsOverview();
   if (!overview) return null;
@@ -57,6 +60,10 @@ export function BudgetGaugeCard() {
   const tone: Tone = status === 'exceeded' ? 'bad' : status === 'warning' ? 'warn' : 'good';
   const valueFraction = Math.min(percent, 100) / 100;
   const projectionPoint = pointOnArc(Math.min(projectedPercent, 100) / 100);
+  // El punto de proyeccion nunca usa "good": si usara el mismo verde que el
+  // arco cuando todo esta en orden, quedarian indistinguibles. "accent" marca
+  // "esto es una proyeccion", no un estado — solo pasa a "bad" si te vas a pasar.
+  const dotColor = willExceed ? 'var(--bad)' : 'var(--accent)';
 
   const pillTone: Tone = willExceed ? 'bad' : projectedPercent >= 90 ? 'warn' : 'good';
   const roundedProjected = Math.round(projectedPercent);
@@ -74,24 +81,40 @@ export function BudgetGaugeCard() {
       </div>
 
       <div className="relative mx-auto w-full max-w-[160px] md:max-w-[240px] aspect-[220/128]">
-        <svg viewBox={`0 0 ${GAUGE_WIDTH} ${GAUGE_HEIGHT}`} className="w-full h-full">
+        {hover && (
+          <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-[calc(100%+4px)] whitespace-nowrap rounded-lg border-[1.5px] border-border bg-surface px-2.5 py-1 shadow-card">
+            <span className="text-[10px] md:text-[11px] text-text">
+              {hover === 'current' ? 'Gastado' : 'Proyección'}:{' '}
+              <b className="tnum">{Math.round(hover === 'current' ? percent : projectedPercent)}%</b>
+            </span>
+          </div>
+        )}
+        <svg viewBox={`0 0 ${GAUGE_WIDTH} ${GAUGE_HEIGHT}`} className="w-full h-full overflow-visible">
           <path d={ARC_PATH} fill="none" stroke="var(--surface-2)" strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
           <path
             d={ARC_PATH}
             fill="none"
             stroke={ARC_STROKE[tone]}
-            strokeWidth={STROKE_WIDTH}
+            strokeWidth={hover === 'current' ? STROKE_WIDTH + 3 : STROKE_WIDTH}
             strokeLinecap="round"
             strokeDasharray={ARC_LENGTH}
             strokeDashoffset={ARC_LENGTH * (1 - valueFraction)}
+            className="cursor-pointer transition-[stroke-width] duration-150"
+            onMouseEnter={() => setHover('current')}
+            onMouseLeave={() => setHover(null)}
+            onClick={() => setHover((h) => (h === 'current' ? null : 'current'))}
           />
           <circle
             cx={projectionPoint.x}
             cy={projectionPoint.y}
-            r={7}
-            fill={willExceed ? 'var(--bad)' : 'var(--good)'}
+            r={hover === 'projected' ? 9 : 7}
+            fill={dotColor}
             stroke="white"
             strokeWidth={2}
+            className="cursor-pointer transition-[r] duration-150"
+            onMouseEnter={() => setHover('projected')}
+            onMouseLeave={() => setHover(null)}
+            onClick={() => setHover((h) => (h === 'projected' ? null : 'projected'))}
           />
         </svg>
         <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
@@ -100,6 +123,17 @@ export function BudgetGaugeCard() {
           </span>
           <span className="text-[8px] md:text-[11px] text-muted mt-0.5">usado del mes</span>
         </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-3 text-[9px] md:text-[10px] text-muted">
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full" style={{ background: ARC_STROKE[tone] }} />
+          Gastado
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full" style={{ background: dotColor }} />
+          Proyección
+        </span>
       </div>
 
       <div className="flex justify-center">
