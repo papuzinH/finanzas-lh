@@ -19,7 +19,7 @@ import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { SectionTitle } from '@/components/shared/section-title';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { BalanceCard } from '@/components/dashboard/balance-card';
-import { NextMonthCardExposureCard } from '@/components/dashboard/next-month-card-exposure-card';
+import { UpcomingCardDueDatesCard } from '@/components/dashboard/upcoming-card-due-dates-card';
 import { IncompleteCreditCardsBanner } from '@/components/dashboard/incomplete-credit-cards-banner';
 import { MetricGrid } from '@/components/dashboard/metric-grid';
 import { BudgetGaugeCard } from '@/components/dashboard/budget-gauge-card';
@@ -134,8 +134,8 @@ export default function DashboardPage() {
             <BalanceCard />
           </div>
 
-          {/* Consumo tarjeta próximo mes — rail (col 3). Hijo directo: si retorna null, la celda colapsa. */}
-          <NextMonthCardExposureCard className="lg:col-start-3" />
+          {/* Lo que se viene — rail (col 3). Hijo directo: si retorna null, la celda colapsa. */}
+          <UpcomingCardDueDatesCard className="lg:col-start-3" />
 
           {/* Insights — rail (col 3). Idem. */}
           <InsightsCarousel className="lg:col-start-3" />

@@ -68,7 +68,7 @@ function InsightsCarouselSkeleton() {
   )
 }
 
-function NextMonthCardExposureCardSkeleton() {
+function UpcomingCardDueDatesCardSkeleton() {
   return (
     <div className="rounded-2xl bg-surface border border-border p-4 space-y-3">
       <Skeleton className="h-4 w-48" />
@@ -163,7 +163,7 @@ export function DashboardSkeleton() {
             <BalanceCardSkeleton />
           </div>
           <div className="lg:col-start-3 space-y-3">
-            <NextMonthCardExposureCardSkeleton />
+            <UpcomingCardDueDatesCardSkeleton />
             <InsightsCarouselSkeleton />
           </div>
           <div className="lg:col-span-2 grid grid-cols-2 lg:grid-cols-4 gap-3">
