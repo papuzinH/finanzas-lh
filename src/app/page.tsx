@@ -22,7 +22,7 @@ import { BalanceCard } from '@/components/dashboard/balance-card';
 import { NextMonthCardExposureCard } from '@/components/dashboard/next-month-card-exposure-card';
 import { IncompleteCreditCardsBanner } from '@/components/dashboard/incomplete-credit-cards-banner';
 import { EndOfMonthSavingsBanner } from '@/components/dashboard/end-of-month-savings-banner';
-import { MetricRow } from '@/components/dashboard/metric-row';
+import { MetricGrid } from '@/components/dashboard/metric-grid';
 import { BudgetGaugeCard } from '@/components/dashboard/budget-gauge-card';
 import { SavingsGoalsRingsCard } from '@/components/dashboard/savings-goals-rings-card';
 import { InsightsCarousel } from '@/components/dashboard/insights-carousel';
@@ -150,8 +150,9 @@ export default function DashboardPage() {
             <InsightsCarousel />
           </div>
 
-          {/* Metric Row 1: Ingresos y Gastos Variables */}
-          <MetricRow
+          {/* Metric Grid: Ingresos, Variables, Cuotas, Fijos */}
+          <MetricGrid
+            className="col-span-2 lg:col-span-4"
             items={[
               {
                 label: "Ingresos mes",
@@ -171,12 +172,6 @@ export default function DashboardPage() {
                 sparklineType: "variable",
                 onClick: () => setIsVariableExpensesModalOpen(true),
               },
-            ]}
-          />
-
-          {/* Metric Row 2: Cuotas y Mensualidades */}
-          <MetricRow
-            items={[
               {
                 label: "Cuotas mes",
                 value: formatCurrency(currentMonthInstallments),
