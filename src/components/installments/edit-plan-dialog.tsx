@@ -45,7 +45,7 @@ export function EditInstallmentPlanDialog({
   const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories, getFrequentCategories } = useFinanceStore();
 
-  const frequentCategories = getFrequentCategories(4);
+  const frequentCategories = getFrequentCategories(4, 'expense');
   const installmentValue = plan.total_amount / plan.installments_count;
 
   const form = useForm<InstallmentPlanSchema>({
@@ -130,7 +130,7 @@ export function EditInstallmentPlanDialog({
               {/* ── Categories ── */}
               <CategoryPicker
                 control={form.control}
-                categories={categories}
+                categories={categories.filter((c) => c.type === 'expense')}
                 frequentCategories={frequentCategories}
               />
 

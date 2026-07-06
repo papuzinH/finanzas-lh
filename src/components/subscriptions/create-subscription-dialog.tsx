@@ -43,7 +43,7 @@ export function CreateSubscriptionDialog({
   const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories, paymentMethods, getFrequentCategories } = useFinanceStore();
 
-  const frequentCategories = getFrequentCategories(4);
+  const frequentCategories = getFrequentCategories(4, 'expense');
 
   const form = useForm<CreateSubscriptionSchema>({
     resolver: zodResolver(createSubscriptionSchema),
@@ -156,7 +156,7 @@ export function CreateSubscriptionDialog({
               {/* ── Category ── */}
               <CategoryPicker<CreateSubscriptionSchema>
                 control={form.control}
-                categories={categories}
+                categories={categories.filter((c) => c.type === 'expense')}
                 frequentCategories={frequentCategories}
               />
 

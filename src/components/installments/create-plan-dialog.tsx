@@ -41,7 +41,7 @@ export function CreateInstallmentPlanDialog({
   const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories, paymentMethods, getFrequentCategories, isInitialized } = useFinanceStore();
 
-  const frequentCategories = getFrequentCategories(4);
+  const frequentCategories = getFrequentCategories(4, 'expense');
 
   const form = useForm<CreateInstallmentPlanSchema>({
     resolver: zodResolver(createInstallmentPlanSchema),
@@ -140,7 +140,7 @@ export function CreateInstallmentPlanDialog({
               {/* ── Categories ── */}
               <CategoryPicker
                 control={form.control}
-                categories={categories}
+                categories={categories.filter((c) => c.type === 'expense')}
                 frequentCategories={frequentCategories}
               />
 
