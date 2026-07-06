@@ -211,7 +211,7 @@ export function ObjetivosClient({ initialTab }: { initialTab: ActiveTab }) {
         onOpenChange={setIsCreateMetaOpen}
       />
       <CreateBudgetDialog
-        categories={categories}
+        categories={categories.filter((c) => c.type === 'expense')}
         open={isCreateBudgetOpen}
         onOpenChange={setIsCreateBudgetOpen}
       />
