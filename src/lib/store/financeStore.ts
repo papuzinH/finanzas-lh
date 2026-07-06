@@ -235,7 +235,7 @@ interface FinanceState {
   getActiveRecurringPlans: () => RecurringPlan[];
   getGlobalIncome: () => number;
   getGlobalEffectiveExpenses: () => number;
-  getExpensesByCategory: (scope: 'global' | 'current_month') => Record<string, number>;
+  getExpensesByCategory: (scope: 'global' | 'current_month', type?: 'income' | 'expense') => Record<string, number>;
   getMonthlyBalance: (monthStr: string, paymentMethodId: string) => number;
   getPendingFixedExpenses: () => {
     total: number;
@@ -261,7 +261,7 @@ interface FinanceState {
     futureInstallments: number;
     total: number;
   };
-  getCategoryBreakdown: (scope: 'global' | 'current_month') => {
+  getCategoryBreakdown: (scope: 'global' | 'current_month', type?: 'income' | 'expense') => {
     total: number;
     items: Array<{
       name: string;
@@ -448,7 +448,7 @@ interface FinanceState {
     type: 'expense' | 'income';
   }>;
 
-  getFrequentCategories: (n?: number) => Category[];
+  getFrequentCategories: (n?: number, type?: 'income' | 'expense') => Category[];
 
   getInsights: () => Array<{
     type: 'positive' | 'warning' | 'info';
@@ -1530,16 +1530,21 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     return totalNonInstallmentExpenses + getCurrentMonthInstallmentsTotal() + getMonthlyBurnRate();
   },
 
-  getExpensesByCategory: (scope) => {
+  getExpensesByCategory: (scope, type = 'expense') => {
     const { transactions, paymentMethods, categories } = get();
     const now = new Date();
 
     return transactions
       .filter((t) => {
-        if (t.type !== 'expense' || t.card_payment_for) return false;
+        if (t.type !== type || t.card_payment_for) return false;
 
         if (scope === 'current_month') {
-            return isExpenseInCurrentMonthScope(t, paymentMethods, now);
+          // isExpenseInCurrentMonthScope solo entiende gastos (ciclos de
+          // tarjeta de cuotas); para ingresos se usa el mismo criterio de
+          // mes calendario que getMonthlyIncome().
+          return type === 'expense'
+            ? isExpenseInCurrentMonthScope(t, paymentMethods, now)
+            : isSameMonth(parseLocalDate(t.date), now);
         }
 
         return true; // Global includes all history
@@ -1756,8 +1761,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * Nota: La "mes actual" respeta ciclos de tarjeta si aplica.
    * Útil para dashboard de análisis de gastos por categoría.
    */
-  getCategoryBreakdown: (scope) => {
-    const expenses = get().getExpensesByCategory(scope);
+  getCategoryBreakdown: (scope, type = 'expense') => {
+    const expenses = get().getExpensesByCategory(scope, type);
     const total = Object.values(expenses).reduce((acc, val) => acc + val, 0);
 
     const items = Object.entries(expenses).map(([name, value]) => ({
@@ -2670,25 +2675,27 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       });
   },
 
-  getFrequentCategories: (n = 4) => {
+  getFrequentCategories: (n = 4, type) => {
     const { transactions, categories } = get();
+    const pool = type ? categories.filter((c) => c.type === type) : categories;
+    const poolIds = new Set(pool.map((c) => c.id));
 
     const countMap: Record<string, number> = {};
     for (const t of transactions) {
-      if (!t.category_id) continue;
+      if (!t.category_id || !poolIds.has(t.category_id)) continue;
       countMap[t.category_id] = (countMap[t.category_id] ?? 0) + 1;
     }
 
     const sorted = Object.entries(countMap)
       .sort((a, b) => b[1] - a[1])
       .slice(0, n)
-      .map(([id]) => categories.find((c) => c.id === id))
+      .map(([id]) => pool.find((c) => c.id === id))
       .filter((c): c is Category => c != null);
 
     // Fallback for new users with no transaction history
     if (sorted.length < n) {
       const usedIds = new Set(sorted.map((c) => c.id));
-      for (const c of categories) {
+      for (const c of pool) {
         if (sorted.length >= n) break;
         if (!usedIds.has(c.id)) sorted.push(c);
       }
