@@ -261,6 +261,17 @@ interface FinanceState {
     futureInstallments: number;
     total: number;
   };
+  getUpcomingCardDueDates: () => {
+    items: Array<{
+      methodId: number;
+      name: string;
+      dueDate: Date;
+      amountArs: number;
+      amountUsd: number;
+    }>;
+    totalArs: number;
+    totalUsd: number;
+  };
   getCategoryBreakdown: (scope: 'global' | 'current_month') => {
     total: number;
     items: Array<{
@@ -1620,13 +1631,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const { recurringPlans, transactions } = get();
     const currentMonth = format(new Date(), 'yyyy-MM');
 
-    // Piso del historial: mes de la primera transacción REAL del usuario
-    // (excluye las vinculadas a mensualidades, que genera esta misma feature).
-    // Antes de ese mes la app no tiene ingresos registrados, así que backfillear
-    // ahí distorsiona el saldo.
+    // Piso del historial: mes del primer INGRESO del usuario. Antes de ese mes
+    // la app no tiene ingresos registrados, así que backfillear mensualidades
+    // ahí resta gastos sin contrapartida y hunde el saldo. Ojo: NO alcanza con
+    // "primera transacción" — una cuota/gasto anterior al primer sueldo NO debe
+    // fijar el piso (bug que materializaba meses fantasma sin ingreso detrás).
     let floorMonth = currentMonth;
     for (const t of transactions) {
-      if (t.recurring_plan_id) continue;
+      if (t.type !== 'income') continue;
       const m = String(t.date).slice(0, 7);
       if (m < floorMonth) floorMonth = m;
     }
@@ -1734,6 +1746,82 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       nextCyclePurchases,
       futureInstallments,
       total: nextCyclePurchases + futureInstallments,
+    };
+  },
+
+  getUpcomingCardDueDates: () => {
+    const { transactions, recurringPlans, paymentMethods } = get();
+    const now = new Date();
+
+    const items: Array<{
+      methodId: number;
+      name: string;
+      dueDate: Date;
+      amountArs: number;
+      amountUsd: number;
+    }> = [];
+
+    for (const method of paymentMethods) {
+      // Solo crédito con ciclo configurado.
+      const current = getCreditCycleDates(method, now);
+      if (!current) continue;
+
+      // El resumen SIGUIENTE al ciclo vigente = +1 mes exacto sobre el vencimiento
+      // actual. El ciclo vigente lo cubre el hero (pendingCardTotal); acá miramos
+      // solo el que todavía no vence.
+      const dueDate = addMonths(current.nextPaymentDate, 1);
+
+      let amountArs = 0;
+      let amountUsd = 0;
+      const recurringInCycle = new Set<number>();
+
+      for (const t of transactions) {
+        if (t.payment_method_id !== method.id) continue;
+        // Pertenencia al resumen: t.date (en crédito ya es el vencimiento calculado)
+        // cae en el mismo mes/año que dueDate.
+        if (!sameMonthYear(parseLocalDate(t.date), dueDate)) continue;
+
+        if (t.type === 'expense') {
+          if (t.recurring_plan_id) recurringInCycle.add(t.recurring_plan_id);
+          if (t.original_currency === 'USD' && t.original_amount) {
+            amountUsd += Math.abs(Number(t.original_amount));
+          } else {
+            amountArs += Math.abs(Number(t.amount));
+          }
+        } else if (t.type === 'income') {
+          // Reintegros del mismo ciclo restan (se asumen ARS, igual que getPaymentMethodStatus).
+          amountArs -= Number(t.amount);
+        }
+      }
+
+      // Mensualidades adheridas al medio aún sin transacción en ese resumen: se sumarán.
+      for (const p of recurringPlans) {
+        if (p.payment_method_id !== method.id || !p.is_active) continue;
+        if (recurringInCycle.has(p.id)) continue;
+        if (p.currency === 'USD' && p.original_amount) {
+          amountUsd += Math.abs(Number(p.original_amount));
+        } else {
+          amountArs += Math.abs(Number(p.amount));
+        }
+      }
+
+      if (amountArs <= 0 && amountUsd <= 0) continue;
+
+      items.push({
+        methodId: method.id,
+        name: method.name,
+        dueDate,
+        amountArs: Math.max(amountArs, 0),
+        amountUsd,
+      });
+    }
+
+    items.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+
+    return {
+      items,
+      totalArs: items.reduce((acc, it) => acc + it.amountArs, 0),
+      totalUsd: items.reduce((acc, it) => acc + it.amountUsd, 0),
     };
   },
 
