@@ -90,7 +90,7 @@ export function BalanceCard() {
         aria-label="Ver desglose de tu plata disponible"
       >
         {/* Header siempre visible */}
-        <div className="p-5">
+        <div className="p-5 lg:p-6">
           <div className="flex items-center gap-1.5 mb-1">
             <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
               Tu plata libre para hoy
@@ -113,7 +113,7 @@ export function BalanceCard() {
 
           {/* Disponible Real */}
           <div className="flex items-baseline gap-2 mt-1 overflow-hidden">
-            <span className="font-poster tnum text-[38px] leading-[0.95] text-cream-light min-w-0 truncate">
+            <span className="font-poster tnum text-[38px] lg:text-[46px] leading-[0.95] text-cream-light min-w-0 truncate">
               {isNegative ? "-" : ""}
               {formatCurrency(animatedBalance)}
             </span>
