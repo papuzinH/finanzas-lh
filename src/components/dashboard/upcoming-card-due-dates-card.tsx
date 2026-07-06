@@ -52,7 +52,7 @@ export function UpcomingCardDueDatesCard({ className }: { className?: string }) 
                   ? formatUsd(it.amountUsd)
                   : formatCurrency(it.amountArs)}
                 {it.amountUsd > 0 && it.amountArs > 0 && (
-                  <span className="block text-[11px] font-sans text-muted">{formatUsd(it.amountUsd)}</span>
+                  <span className="block font-poster tnum text-[11px] text-muted">{formatUsd(it.amountUsd)}</span>
                 )}
               </span>
             </button>
