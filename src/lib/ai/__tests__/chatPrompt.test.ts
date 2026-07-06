@@ -93,7 +93,7 @@ test('incluye instrucciones sobre tarjetas', () => {
 
 test('incluye una categoría simple', () => {
   const categories: Category[] = [
-    { id: '1', name: 'Comida', emoji: '🍔' },
+    { id: '1', name: 'Comida', emoji: '🍔', type: 'expense' },
   ]
   const prompt = buildChatPrompt(categories)
   expect(prompt.includes('Comida')).toBe(true)
@@ -101,7 +101,7 @@ test('incluye una categoría simple', () => {
 
 test('incluye el emoji de la categoría', () => {
   const categories: Category[] = [
-    { id: '1', name: 'Comida', emoji: '🍔' },
+    { id: '1', name: 'Comida', emoji: '🍔', type: 'expense' },
   ]
   const prompt = buildChatPrompt(categories)
   expect(prompt.includes('🍔')).toBe(true)
@@ -109,9 +109,9 @@ test('incluye el emoji de la categoría', () => {
 
 test('incluye múltiples categorías', () => {
   const categories: Category[] = [
-    { id: '1', name: 'Comida', emoji: '🍔' },
-    { id: '2', name: 'Transporte', emoji: '🚗' },
-    { id: '3', name: 'Entretenimiento', emoji: '🎬' },
+    { id: '1', name: 'Comida', emoji: '🍔', type: 'expense' },
+    { id: '2', name: 'Transporte', emoji: '🚗', type: 'expense' },
+    { id: '3', name: 'Entretenimiento', emoji: '🎬', type: 'expense' },
   ]
   const prompt = buildChatPrompt(categories)
   expect(prompt.includes('Comida')).toBe(true)
@@ -121,7 +121,7 @@ test('incluye múltiples categorías', () => {
 
 test('usa emoji genérico cuando no hay emoji', () => {
   const categories: Category[] = [
-    { id: '1', name: 'Otros', emoji: null },
+    { id: '1', name: 'Otros', emoji: null, type: 'expense' },
   ]
   const prompt = buildChatPrompt(categories)
   expect(prompt.includes('📁')).toBe(true) // emoji por defecto
@@ -129,8 +129,8 @@ test('usa emoji genérico cuando no hay emoji', () => {
 
 test('construye diccionario de IDs de categorías', () => {
   const categories: Category[] = [
-    { id: 'abc-123', name: 'Comida', emoji: '🍔' },
-    { id: 'def-456', name: 'Transporte', emoji: '🚗' },
+    { id: 'abc-123', name: 'Comida', emoji: '🍔', type: 'expense' },
+    { id: 'def-456', name: 'Transporte', emoji: '🚗', type: 'expense' },
   ]
   const prompt = buildChatPrompt(categories)
   // El prompt debe incluir el JSON stringificado del diccionario
@@ -197,8 +197,8 @@ test('fecha actual es hoy', () => {
 
 test('crea diccionario con nombre -> id', () => {
   const categories: Category[] = [
-    { id: 'id-1', name: 'Comida', emoji: '🍔' },
-    { id: 'id-2', name: 'Salud', emoji: '💊' },
+    { id: 'id-1', name: 'Comida', emoji: '🍔', type: 'expense' },
+    { id: 'id-2', name: 'Salud', emoji: '💊', type: 'expense' },
   ]
   const prompt = buildChatPrompt(categories)
   // El diccionario debe estar en JSON dentro del prompt
@@ -208,8 +208,8 @@ test('crea diccionario con nombre -> id', () => {
 
 test('diccionario es válido JSON', () => {
   const categories: Category[] = [
-    { id: 'uuid-001', name: 'Viajes', emoji: '✈️' },
-    { id: 'uuid-002', name: 'Casa', emoji: '🏠' },
+    { id: 'uuid-001', name: 'Viajes', emoji: '✈️', type: 'expense' },
+    { id: 'uuid-002', name: 'Casa', emoji: '🏠', type: 'expense' },
   ]
   const prompt = buildChatPrompt(categories)
   // Extraer el JSON del diccionario (está entre { } dentro del prompt)
@@ -301,6 +301,7 @@ test('maneja muchas categorías sin problemas', () => {
     id: `id-${i}`,
     name: `Categoría ${i}`,
     emoji: '📁',
+    type: 'expense' as const,
   }))
   const prompt = buildChatPrompt(categories)
   expect(prompt.length > 100).toBe(true)
@@ -310,8 +311,8 @@ test('maneja muchas categorías sin problemas', () => {
 
 test('maneja nombres de categoría con caracteres especiales', () => {
   const categories: Category[] = [
-    { id: '1', name: 'Educación & Cultura', emoji: '📚' },
-    { id: '2', name: 'Salud/Médico', emoji: '⚕️' },
+    { id: '1', name: 'Educación & Cultura', emoji: '📚', type: 'expense' },
+    { id: '2', name: 'Salud/Médico', emoji: '⚕️', type: 'expense' },
   ]
   const prompt = buildChatPrompt(categories)
   expect(prompt.includes('Educación & Cultura')).toBe(true)
@@ -320,8 +321,8 @@ test('maneja nombres de categoría con caracteres especiales', () => {
 
 test('maneja emoji con variaciones', () => {
   const categories: Category[] = [
-    { id: '1', name: 'Viajes', emoji: '✈️' },
-    { id: '2', name: 'Comida', emoji: '🍕' },
+    { id: '1', name: 'Viajes', emoji: '✈️', type: 'expense' },
+    { id: '2', name: 'Comida', emoji: '🍕', type: 'expense' },
   ]
   const prompt = buildChatPrompt(categories)
   expect(prompt.includes('✈️')).toBe(true)
