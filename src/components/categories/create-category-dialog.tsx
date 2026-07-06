@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/form'
 import { Loader2, Sparkles, CheckCircle2, Tag } from 'lucide-react'
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { generateCategoryDescription } from '@/app/actions/ai'
 import { createCategory } from '@/app/dashboard/categories/actions'
@@ -40,6 +41,7 @@ export function CreateCategoryDialog() {
       name: '',
       emoji: '💰',
       description: '',
+      type: 'expense',
     },
   })
 
@@ -105,6 +107,38 @@ export function CreateCategoryDialog() {
         <Form {...form}>
           <form id="category-form" onSubmit={form.handleSubmit(onSubmit)} className="contents">
             <div className="overflow-y-auto flex-1 px-6 pb-4 space-y-5">
+
+              {/* ── Type Toggle ── */}
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
+                      Tipo
+                    </span>
+                    <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
+                      {(['expense', 'income'] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => field.onChange(t)}
+                          className={cn(
+                            'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
+                            'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none',
+                            field.value === t
+                              ? 'bg-accent text-accent-ink'
+                              : 'text-muted hover:text-text'
+                          )}
+                        >
+                          {t === 'expense' ? 'Gasto' : 'Ingreso'}
+                        </button>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               {/* ── Emoji + Name ── */}
               <div className="flex items-start gap-3">
