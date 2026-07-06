@@ -3,16 +3,16 @@
 import { CalendarClock } from 'lucide-react';
 import { InfoHint } from '@/components/ui/info-hint';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 
-export function NextMonthCardExposureCard() {
+export function NextMonthCardExposureCard({ className }: { className?: string }) {
   const getNextMonthCardExposure = useFinanceStore((s) => s.getNextMonthCardExposure);
   const { nextCyclePurchases, futureInstallments, total } = getNextMonthCardExposure();
 
   if (total <= 0) return null;
 
   return (
-    <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
+    <div className={cn("rounded-2xl bg-surface border-[1.5px] border-border p-4", className)}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold text-text inline-flex items-center gap-1.5">
           <CalendarClock className="w-4 h-4 text-muted" />
