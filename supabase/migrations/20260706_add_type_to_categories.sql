@@ -39,6 +39,10 @@ WHERE NOT EXISTS (
   SELECT 1 FROM categories c WHERE c.user_id = u.id AND c.type = 'income'
 );
 
--- 4. Constraint final
+-- 4. Constraint final. DEFAULT 'expense' es red de seguridad: cualquier
+-- insert que por algun motivo no especifique type (codigo desplegado antes
+-- de esta migracion durante la ventana de deploy, o un insert que se nos
+-- haya escapado) cae en el caso mas comun en vez de romper por NOT NULL.
+ALTER TABLE categories ALTER COLUMN type SET DEFAULT 'expense';
 ALTER TABLE categories ALTER COLUMN type SET NOT NULL;
 ALTER TABLE categories ADD CONSTRAINT categories_type_check CHECK (type IN ('income', 'expense'));
