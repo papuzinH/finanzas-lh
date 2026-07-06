@@ -126,27 +126,23 @@ export default function DashboardPage() {
 
         {/* ── ABOVE THE FOLD ── */}
 
-        {/* SECCIÓN A: ESTADO PATRIMONIAL (Bento Grid) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* SECCIÓN A: ESTADO PATRIMONIAL — principal (hero + 4 KPIs) 2/3 + rail (consumo tarjeta + insights) 1/3 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-flow-row-dense gap-4">
 
-          {/* Expandible Balance Card */}
-          <div data-tour="balance-card" className="col-span-2 lg:col-span-4">
+          {/* Hero — principal, fila 1 (cols 1-2) */}
+          <div data-tour="balance-card" className="lg:col-span-2">
             <BalanceCard />
           </div>
 
-          {/* Nivel 3: Fondo de Ojo — consumo de tarjeta del proximo mes */}
-          <div className="col-span-2 lg:col-span-4">
-            <NextMonthCardExposureCard />
-          </div>
+          {/* Consumo tarjeta próximo mes — rail (col 3). Hijo directo: si retorna null, la celda colapsa. */}
+          <NextMonthCardExposureCard className="lg:col-start-3" />
 
-          {/* Insights Carousel */}
-          <div className="col-span-2 lg:col-span-4">
-            <InsightsCarousel />
-          </div>
+          {/* Insights — rail (col 3). Idem. */}
+          <InsightsCarousel className="lg:col-start-3" />
 
-          {/* Metric Grid: Ingresos, Variables, Cuotas, Fijos */}
+          {/* Las 4 KPIs — principal, fila 2 (cols 1-2) */}
           <MetricGrid
-            className="col-span-2 lg:col-span-4"
+            className="lg:col-span-2"
             items={[
               {
                 label: "Ingresos mes",
