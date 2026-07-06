@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import {
   CreditCard,
@@ -17,6 +16,7 @@ import { TransactionItem } from '@/components/shared/transaction-item';
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { Modal } from '@/components/shared/modal';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
+import { SectionTitle } from '@/components/shared/section-title';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { BalanceCard } from '@/components/dashboard/balance-card';
 import { NextMonthCardExposureCard } from '@/components/dashboard/next-month-card-exposure-card';
@@ -199,27 +199,17 @@ export default function DashboardPage() {
         </div>
 
         {/* PRESUPUESTOS DEL MES */}
+        <SectionTitle action="Gestionar" href="/objetivos">Presupuestos</SectionTitle>
         <BudgetOverviewStrip />
 
         {/* ── BELOW THE FOLD ── */}
 
-        {/* Separador: Análisis */}
-        <div className="flex items-center gap-2 mt-6 mb-2">
-          <h2 className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-muted whitespace-nowrap">Análisis</h2>
-          <div className="flex-1 h-px bg-border" />
-        </div>
-
         {/* SECCIÓN B: ANÁLISIS (tabs + toggle ARS/USD) */}
+        <SectionTitle>Análisis</SectionTitle>
         <AnalysisSection />
 
-        {/* Separador: Últimos movimientos */}
-        <div className="flex items-center gap-2 mt-6 mb-2">
-          <h2 className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-muted whitespace-nowrap">Últimos movimientos</h2>
-          <div className="flex-1 h-px bg-border" />
-          <Link href="/movimientos" className="text-xs text-accent hover:text-accent-deep transition-colors">Ver todos</Link>
-        </div>
-
         {/* SECCIÓN C: ÚLTIMOS MOVIMIENTOS */}
+        <SectionTitle action="Ver todos" href="/movimientos">Últimos movimientos</SectionTitle>
         <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {transactions
             .filter(t => !t.installment_plan_id)
