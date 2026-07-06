@@ -256,11 +256,6 @@ interface FinanceState {
     pendingCardItems: CreditCardCycleSummary[];
     disponibleReal: number;
   };
-  getNextMonthCardExposure: () => {
-    nextCyclePurchases: number;
-    futureInstallments: number;
-    total: number;
-  };
   getUpcomingCardDueDates: () => {
     items: Array<{
       methodId: number;
@@ -1708,43 +1703,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       pendingCardTotal,
       pendingCardItems,
       disponibleReal,
-    };
-  },
-
-  getNextMonthCardExposure: () => {
-    const { transactions, paymentMethods } = get();
-    const now = new Date();
-    const nextMonthKey = format(new Date(now.getFullYear(), now.getMonth() + 1, 1), 'yyyy-MM');
-
-    const creditIds = new Set(
-      paymentMethods.filter((m) => m.type === 'credit').map((m) => m.id),
-    );
-
-    const monthKey = (t: ProcessedTransaction) =>
-      format(parseLocalDate(t.periodDate || t.date), 'yyyy-MM');
-
-    // Todos los gastos hechos con tarjeta de CRÉDITO cuyo período visual cae en
-    // el mes calendario siguiente: cuotas + compras normales. No toca el número
-    // de hoy; anticipa lo que va a impactar el mes que viene.
-    const nextMonthCardTx = transactions.filter(
-      (t) =>
-        t.type === 'expense' &&
-        creditIds.has(t.payment_method_id ?? -1) &&
-        monthKey(t) === nextMonthKey,
-    );
-
-    const futureInstallments = nextMonthCardTx
-      .filter((t) => !!t.installment_plan_id)
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-
-    const nextCyclePurchases = nextMonthCardTx
-      .filter((t) => !t.installment_plan_id)
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
-
-    return {
-      nextCyclePurchases,
-      futureInstallments,
-      total: nextCyclePurchases + futureInstallments,
     };
   },
 
