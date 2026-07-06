@@ -39,7 +39,7 @@ export function UpcomingCardDueDatesCard({ className }: { className?: string }) 
               type="button"
               onClick={() => router.push('/ajustes/medios')}
               aria-label={`Ver detalle de ${it.name}`}
-              className="w-full flex items-center justify-between gap-3 text-left rounded-xl -mx-1 px-1 py-1 hover:bg-bg-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft transition-colors"
+              className="w-full flex items-center justify-between gap-3 text-left rounded-xl -mx-1 px-1 py-1 min-h-[44px] hover:bg-bg-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft transition-colors"
             >
               <span className="min-w-0">
                 <span className="block text-[13px] font-semibold text-text truncate">{it.name}</span>
