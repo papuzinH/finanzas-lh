@@ -127,7 +127,7 @@ export default function DashboardPage() {
         {/* ── ABOVE THE FOLD ── */}
 
         {/* SECCIÓN A: ESTADO PATRIMONIAL — principal (hero + 4 KPIs) 2/3 + rail (consumo tarjeta + insights) 1/3 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-flow-row-dense gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-flow-row-dense lg:items-start gap-4">
 
           {/* Hero — principal, fila 1 (cols 1-2) */}
           <div data-tour="balance-card" className="lg:col-span-2">
