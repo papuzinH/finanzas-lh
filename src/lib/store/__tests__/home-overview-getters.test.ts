@@ -138,10 +138,10 @@ describe('getSavingsGoalsOverview', () => {
     expect(res.activeCount).toBe(1);
     expect(res.goals[0]).toMatchObject({ id: 'g1', name: 'Vacaciones', percent: 30, currency: 'ARS', status: 'active' });
     expect(res.totalSavedARS).toBe(30000);
-    expect(res.totalDisplay).toEqual({ amount: 30000, currency: 'ARS' });
+    expect(res.totalsByCurrency).toEqual({ ARS: 30000, USD: null });
   });
 
-  it('convierte a ARS los aportes de metas en USD para el total cuando estan mezcladas', () => {
+  it('mantiene ARS y USD nativos por separado cuando hay metas de las dos monedas (no las mezcla)', () => {
     seed({
       dolarBlue: { compra: 900, venta: 1000, fechaActualizacion: '' },
       savingsGoals: [
@@ -154,15 +154,15 @@ describe('getSavingsGoalsOverview', () => {
       ],
     });
     const res = useFinanceStore.getState().getSavingsGoalsOverview();
-    // 30000 (ARS) + 200*1000 (USD->ARS) = 230000
+    // totalSavedARS sigue disponible como ARS-equivalente para quien lo necesite: 30000 + 200*1000 = 230000
     expect(res.totalSavedARS).toBe(230000);
-    // mezcladas ARS/USD: no hay una sola moneda nativa, se cae al ARS-equivalente
-    expect(res.totalDisplay).toEqual({ amount: 230000, currency: 'ARS' });
+    // pero totalsByCurrency NUNCA mezcla monedas: la meta en USD se ve nativa, no "convertida a pesos"
+    expect(res.totalsByCurrency).toEqual({ ARS: 30000, USD: 200 });
     const usdGoal = res.goals.find((g) => g.id === 'g2');
     expect(usdGoal).toMatchObject({ percent: 40, currency: 'USD', status: 'active' });
   });
 
-  it('muestra el total nativo en USD sin convertir cuando todas las metas activas son USD', () => {
+  it('deja en null la moneda sin metas activas', () => {
     seed({
       dolarBlue: { compra: 900, venta: 1000, fechaActualizacion: '' },
       savingsGoals: [
@@ -175,10 +175,8 @@ describe('getSavingsGoalsOverview', () => {
       ],
     });
     const res = useFinanceStore.getState().getSavingsGoalsOverview();
-    // totalSavedARS sigue convirtiendo (200+300)*1000 = 500000, para quien lo necesite en ARS
-    expect(res.totalSavedARS).toBe(500000);
-    // pero el total "segun corresponda" es nativo en USD, sin blue de por medio
-    expect(res.totalDisplay).toEqual({ amount: 500, currency: 'USD' });
+    // no hay ninguna meta activa en ARS: esa fila no debe existir (null), no "0"
+    expect(res.totalsByCurrency).toEqual({ ARS: null, USD: 500 });
   });
 
   it('prioriza metas con fecha por daysLeft asc y despues por percent desc', () => {

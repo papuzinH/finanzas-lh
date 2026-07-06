@@ -20,10 +20,7 @@ export function SavingsGoalsRingsCard() {
   if (overview.activeCount === 0) return null;
 
   const shownGoals = overview.goals.slice(0, MAX_SHOWN);
-  const totalText =
-    overview.totalDisplay.currency === 'USD'
-      ? formatUsd(overview.totalDisplay.amount)
-      : formatCurrency(overview.totalDisplay.amount);
+  const { ARS: arsTotal, USD: usdTotal } = overview.totalsByCurrency;
 
   return (
     <Card className="p-3 md:p-5 flex flex-col">
@@ -82,9 +79,20 @@ export function SavingsGoalsRingsCard() {
 
       <div className="border-t border-border pt-2 md:pt-3 flex items-center justify-between shrink-0">
         <span className="text-[9px] md:text-[12px] text-muted">Total ahorrado</span>
-        <span className="font-poster tnum text-text text-[13px] md:text-[17px]">
-          {totalText}
-        </span>
+        {/* Nunca se mezclan monedas: cada una que tenga metas activas se
+            muestra nativa (una meta en USD no se "convierte" a pesos). */}
+        <div className="flex flex-col items-end">
+          {arsTotal !== null && (
+            <span className="font-poster tnum text-text text-[13px] md:text-[17px] leading-tight">
+              {formatCurrency(arsTotal)}
+            </span>
+          )}
+          {usdTotal !== null && (
+            <span className="font-poster tnum text-text text-[13px] md:text-[17px] leading-tight">
+              {formatUsd(usdTotal)}
+            </span>
+          )}
+        </div>
       </div>
     </Card>
   );

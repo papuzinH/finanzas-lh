@@ -324,7 +324,7 @@ interface FinanceState {
       status: 'active' | 'completed';
     }>;
     totalSavedARS: number;
-    totalDisplay: { amount: number; currency: 'ARS' | 'USD' };
+    totalsByCurrency: { ARS: number | null; USD: number | null };
     activeCount: number;
   };
 
@@ -2162,11 +2162,12 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * `totalSavedARS` suma TODAS las metas activas (no solo las priorizadas para
    * mostrar), convirtiendo los aportes de metas en USD a ARS vía dólar blue.
    *
-   * `totalDisplay` es el total "según corresponda": si todas las metas activas
-   * comparten moneda, se muestra nativo sin convertir (evita el ruido de una
-   * conversión innecesaria, p. ej. una meta en USD no debería mostrarse
-   * "en pesos" solo porque sí); si están mezcladas ARS/USD, no hay una sola
-   * moneda nativa posible y se cae a `totalSavedARS` (ARS-equivalente).
+   * `totalsByCurrency` es el total "según corresponda", SIN convertir nunca
+   * entre monedas: suma nativa de aportes por cada moneda que tenga al menos
+   * una meta activa. Si el usuario solo tiene metas ARS, `USD` queda `null`
+   * (no se muestra esa fila); si tiene de las dos, se muestran ambas nativas
+   * en vez de mezclarlas en un unico ARS-equivalente (una meta en USD no debe
+   * verse "convertida a pesos" solo porque conviva con otras en ARS).
    */
   getSavingsGoalsOverview: () => {
     const { savingsGoals, dolarBlue, getSavingsGoalProgress } = get();
@@ -2197,14 +2198,16 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       return sum + (p.goal.currency === 'USD' && blue ? contributed * blue : contributed);
     }, 0);
 
-    const currencies = new Set(withProgress.map((p) => p.goal.currency));
-    const nativeCurrency = currencies.size === 1 ? [...currencies][0] : null;
-    const totalDisplay: { amount: number; currency: 'ARS' | 'USD' } =
-      nativeCurrency === 'USD'
-        ? { amount: withProgress.reduce((sum, p) => sum + p.totalContributed, 0), currency: 'USD' }
-        : { amount: totalSavedARS, currency: 'ARS' };
+    const sumNative = (currency: 'ARS' | 'USD') => {
+      const matching = withProgress.filter((p) => p.goal.currency === currency);
+      return matching.length > 0 ? matching.reduce((sum, p) => sum + p.totalContributed, 0) : null;
+    };
+    const totalsByCurrency: { ARS: number | null; USD: number | null } = {
+      ARS: sumNative('ARS'),
+      USD: sumNative('USD'),
+    };
 
-    return { goals, totalSavedARS, totalDisplay, activeCount: goals.length };
+    return { goals, totalSavedARS, totalsByCurrency, activeCount: goals.length };
   },
 
   /**
