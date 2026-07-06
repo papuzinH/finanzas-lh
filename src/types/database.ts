@@ -17,6 +17,7 @@ export interface Database {
           description: string | null
           emoji: string | null
           is_system: boolean | null
+          type: 'income' | 'expense'
           created_at: string | null
         }
         Insert: {
@@ -26,6 +27,7 @@ export interface Database {
           description?: string | null
           emoji?: string | null
           is_system?: boolean | null
+          type: 'income' | 'expense'
           created_at?: string | null
         }
         Update: {
@@ -35,6 +37,7 @@ export interface Database {
           description?: string | null
           emoji?: string | null
           is_system?: boolean | null
+          type?: 'income' | 'expense'
           created_at?: string | null
         }
         Relationships: [
