@@ -135,15 +135,6 @@ function PieChartSkeleton() {
   )
 }
 
-function CategoryComparisonSkeleton() {
-  return (
-    <div className="col-span-1 md:col-span-2 lg:col-span-2 rounded-2xl border border-border bg-surface/30 p-5 space-y-3">
-      <Skeleton className="h-4 w-44" />
-      <Skeleton className="h-52 w-full rounded-lg" />
-    </div>
-  )
-}
-
 export function TransactionItemSkeleton() {
   return (
     <div className="rounded-xl border border-border/40 bg-surface/20 p-3">
@@ -201,7 +192,6 @@ export function DashboardSkeleton() {
           <div className="col-span-1 lg:col-span-2">
             <PieChartSkeleton />
           </div>
-          <CategoryComparisonSkeleton />
         </div>
 
         {/* SECCION D: Transacciones recientes */}
