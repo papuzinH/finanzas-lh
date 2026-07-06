@@ -52,7 +52,6 @@ export function CreateTransactionDialog({
   const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories, paymentMethods, getCategoryBudgetStatus, getFrequentCategories, getDefaultPaymentMethod, isInitialized } = useFinanceStore();
 
-  const frequentCategories = getFrequentCategories(4);
   const defaultPmId = getDefaultPaymentMethod()?.id != null
     ? String(getDefaultPaymentMethod()!.id)
     : 'none';
@@ -76,7 +75,11 @@ export function CreateTransactionDialog({
   const watchedDate = form.watch('date');
   const watchedCurrency = form.watch('currency');
   const watchedRatePair = form.watch('rate_pair');
+  const watchedType = form.watch('type');
   const getExchangeRate = useFinanceStore((s) => s.getExchangeRate);
+
+  const categoriesForType = categories.filter((c) => c.type === watchedType);
+  const frequentCategories = getFrequentCategories(4, watchedType);
 
   // Reset form with new defaultValues each time the dialog opens
   useEffect(() => {
@@ -176,7 +179,10 @@ export function CreateTransactionDialog({
               />
 
               {/* ── Type Toggle ── */}
-              <TypeToggle control={form.control} />
+              <TypeToggle
+                control={form.control}
+                onTypeChange={() => form.setValue('category_id', '')}
+              />
 
               {/* ── Description ── */}
               <DescriptionField control={form.control} />
@@ -184,7 +190,7 @@ export function CreateTransactionDialog({
               {/* ── Categories ── */}
               <CategoryPicker
                 control={form.control}
-                categories={categories}
+                categories={categoriesForType}
                 frequentCategories={frequentCategories}
               />
 
