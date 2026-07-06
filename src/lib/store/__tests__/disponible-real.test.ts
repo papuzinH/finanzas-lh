@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { format, subMonths } from 'date-fns';
 import { useFinanceStore } from '@/lib/store/financeStore';
 
@@ -217,6 +217,32 @@ describe('getRecurringBackfillPreview', () => {
     expect(res.totalAmount).toBe(200000);
   });
 
+  it('el piso es el primer INGRESO, no una cuota/gasto anterior sin ingreso detras', () => {
+    // Bug reportado: el piso usaba la primera transaccion de CUALQUIER tipo.
+    // Si el usuario tenia una cuota (gasto) meses antes de su primer ingreso,
+    // el backfill materializaba mensualidades en meses sin ingreso -> hundia el saldo.
+    const now = new Date();
+    const createdAt = subMonths(now, 5).toISOString(); // plan creado hace 5 meses
+    const fourMonthsAgo = format(subMonths(now, 4), 'yyyy-MM-dd'); // cuota vieja, sin ingreso
+    const twoMonthsAgo = format(subMonths(now, 2), 'yyyy-MM-dd'); // primer INGRESO real
+    seed({
+      recurringPlans: [
+        { id: 9, description: 'Netflix', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
+      ],
+      transactions: [
+        // gasto/cuota ANTES del primer ingreso: NO debe fijar el piso
+        { id: 1, type: 'expense', amount: -40000, date: fourMonthsAgo, periodDate: fourMonthsAgo, payment_method_id: null, installment_plan_id: 7, recurring_plan_id: null },
+        // primer INGRESO real hace 2 meses -> este es el piso
+        { id: 2, type: 'income', amount: 500000, date: twoMonthsAgo, periodDate: twoMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+    const res = useFinanceStore.getState().getRecurringBackfillPreview();
+    // piso = mes del primer ingreso: solo hace 2 meses + mes pasado = 2 meses
+    // (con el bug contaba desde hace 4 meses = 4 meses / 400000)
+    expect(res.missingMonths).toBe(2);
+    expect(res.totalAmount).toBe(200000);
+  });
+
   it('sin transacciones reales no hay nada que backfillear', () => {
     const now = new Date();
     seed({
@@ -274,68 +300,95 @@ describe('getRecurringBackfillPreview', () => {
   });
 });
 
-describe('getNextMonthCardExposure', () => {
-  it('suma TODOS los gastos de credito del mes que viene (cuotas + compras)', () => {
-    const now = new Date();
-    const nextMonth = format(new Date(now.getFullYear(), now.getMonth() + 1, 10), 'yyyy-MM-dd');
+describe('getUpcomingCardDueDates', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 3)); // 3 jul 2026: Visa (cierra 20 / vence 5) => ciclo vigente vence 5 jul, próximo vence 5 ago
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('lista el próximo resumen por tarjeta con fecha de vencimiento y monto', () => {
     seed({
       paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
       transactions: [
-        { id: 1, type: 'expense', amount: -8000, date: nextMonth, periodDate: nextMonth, payment_method_id: 1, installment_plan_id: 3, recurring_plan_id: null },
-        { id: 2, type: 'expense', amount: -15000, date: nextMonth, periodDate: nextMonth, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: 1, type: 'expense', amount: -8000, date: '2026-08-05', periodDate: '2026-08-05', payment_method_id: 1, installment_plan_id: 3, recurring_plan_id: null },
+        { id: 2, type: 'expense', amount: -15000, date: '2026-08-05', periodDate: '2026-08-05', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
       ],
     });
-    const res = useFinanceStore.getState().getNextMonthCardExposure();
-    expect(res.futureInstallments).toBe(8000);
-    expect(res.nextCyclePurchases).toBe(15000);
-    expect(res.total).toBe(23000);
+    const res = useFinanceStore.getState().getUpcomingCardDueDates();
+    expect(res.items).toHaveLength(1);
+    expect(res.items[0].name).toBe('Visa');
+    expect(res.items[0].amountArs).toBe(23000);
+    expect(res.items[0].amountUsd).toBe(0);
+    expect(res.items[0].dueDate.getMonth()).toBe(7); // agosto
+    expect(res.items[0].dueDate.getFullYear()).toBe(2026);
+    expect(res.totalArs).toBe(23000);
   });
 
-  it('NO cuenta cuotas de meses mas lejanos que el proximo (solo el mes que viene)', () => {
-    const now = new Date();
-    const nextMonth = format(new Date(now.getFullYear(), now.getMonth() + 1, 10), 'yyyy-MM-dd');
-    const inTwoMonths = format(new Date(now.getFullYear(), now.getMonth() + 2, 10), 'yyyy-MM-dd');
+  it('excluye el ciclo vigente: no duplica el hero', () => {
     seed({
       paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
       transactions: [
-        { id: 1, type: 'expense', amount: -8000, date: nextMonth, periodDate: nextMonth, payment_method_id: 1, installment_plan_id: 3, recurring_plan_id: null },
-        { id: 2, type: 'expense', amount: -8000, date: inTwoMonths, periodDate: inTwoMonths, payment_method_id: 1, installment_plan_id: 3, recurring_plan_id: null },
+        // vence 5 jul => ciclo vigente (lo cuenta el hero), NO esta card
+        { id: 1, type: 'expense', amount: -10000, date: '2026-07-05', periodDate: '2026-07-05', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
       ],
     });
-    const res = useFinanceStore.getState().getNextMonthCardExposure();
-    // solo la cuota del mes que viene; la de dentro de 2 meses no
-    expect(res.total).toBe(8000);
+    const res = useFinanceStore.getState().getUpcomingCardDueDates();
+    expect(res.items).toHaveLength(0);
+    expect(res.totalArs).toBe(0);
   });
 
-  it('valida por medio de pago credito: ignora cuotas/compras de debito o efectivo', () => {
-    const now = new Date();
-    const nextMonth = format(new Date(now.getFullYear(), now.getMonth() + 1, 10), 'yyyy-MM-dd');
-    seed({
-      paymentMethods: [
-        { id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 },
-        { id: 2, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null },
-      ],
-      transactions: [
-        // cuota pagada en efectivo -> NO cuenta
-        { id: 1, type: 'expense', amount: -7000, date: nextMonth, periodDate: nextMonth, payment_method_id: 2, installment_plan_id: 3, recurring_plan_id: null },
-        // compra en efectivo -> NO cuenta
-        { id: 2, type: 'expense', amount: -9999, date: nextMonth, periodDate: nextMonth, payment_method_id: 2, installment_plan_id: null, recurring_plan_id: null },
-      ],
-    });
-    const res = useFinanceStore.getState().getNextMonthCardExposure();
-    expect(res.total).toBe(0);
-  });
-
-  it('ignora gastos del mes actual', () => {
-    const now = new Date();
-    const thisMonth = format(new Date(now.getFullYear(), now.getMonth(), 10), 'yyyy-MM-dd');
+  it('desglosa ARS y USD sin convertir', () => {
     seed({
       paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
       transactions: [
-        { id: 1, type: 'expense', amount: -5000, date: thisMonth, periodDate: thisMonth, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: 1, type: 'expense', amount: -60000, original_currency: 'USD', original_amount: 50, date: '2026-08-05', periodDate: '2026-08-05', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: 2, type: 'expense', amount: -20000, date: '2026-08-05', periodDate: '2026-08-05', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
       ],
     });
-    const res = useFinanceStore.getState().getNextMonthCardExposure();
-    expect(res.total).toBe(0);
+    const res = useFinanceStore.getState().getUpcomingCardDueDates();
+    expect(res.items[0].amountUsd).toBe(50);
+    expect(res.items[0].amountArs).toBe(20000);
+    expect(res.totalUsd).toBe(50);
+    expect(res.totalArs).toBe(20000);
+  });
+
+  it('ignora medios que no son crédito con ciclo', () => {
+    seed({
+      paymentMethods: [{ id: 2, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
+      transactions: [
+        { id: 1, type: 'expense', amount: -9999, date: '2026-08-05', periodDate: '2026-08-05', payment_method_id: 2, installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+    const res = useFinanceStore.getState().getUpcomingCardDueDates();
+    expect(res.items).toHaveLength(0);
+  });
+
+  it('suma mensualidades adheridas al medio para el próximo resumen', () => {
+    seed({
+      paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
+      recurringPlans: [
+        { id: 9, description: 'Netflix', amount: 6500, is_active: true, payment_method_id: 1 },
+      ],
+      transactions: [],
+    });
+    const res = useFinanceStore.getState().getUpcomingCardDueDates();
+    expect(res.items).toHaveLength(1);
+    expect(res.items[0].amountArs).toBe(6500);
+  });
+
+  it('sin consumo futuro cargado no genera items', () => {
+    seed({
+      paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
+      transactions: [
+        { id: 1, type: 'expense', amount: -5000, date: '2026-07-05', periodDate: '2026-07-05', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+    const res = useFinanceStore.getState().getUpcomingCardDueDates();
+    expect(res.items).toHaveLength(0);
+    expect(res.totalArs).toBe(0);
+    expect(res.totalUsd).toBe(0);
   });
 });

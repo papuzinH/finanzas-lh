@@ -23,11 +23,10 @@ export function SavingsGoalsRingsCard() {
   const { ARS: arsTotal, USD: usdTotal } = overview.totalsByCurrency;
 
   return (
-    <Card className="p-3 md:p-5 flex flex-col">
-      {/* Los anillos ocupan todo el espacio libre entre el top de la card y
-          la fila de total, centrados verticalmente en ese espacio; la fila
-          de total siempre queda pegada al fondo (flex-1 empuja hacia abajo). */}
-      <div className="flex-1 flex items-center py-1">
+    <Card className="p-3 md:p-5 flex flex-col self-start">
+      {/* self-start saca la card del stretch del grid: su altura es la de su
+          contenido (fit-content), no la de la BudgetGaugeCard vecina. */}
+      <div className="flex items-center py-1">
         <div className="w-full flex flex-wrap justify-center md:justify-around gap-2 md:gap-4">
           {shownGoals.map((g) => {
             const ringColor = g.status === 'completed' ? 'var(--good)' : 'var(--accent)';

@@ -41,7 +41,6 @@ import { deleteSubscription } from '@/app/dashboard/subscriptions/actions';
 import {
   markRecurringPlanPaid,
   unmarkRecurringPlanPaid,
-  backfillRecurringPlansHistory,
 } from '@/app/compromisos/actions';
 import { toast } from 'sonner';
 import { InstallmentPlan, RecurringPlan } from '@/types/database';
@@ -413,27 +412,9 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     getCurrentMonthInstallmentsTotal,
     getMonthlyBurnRate,
     getPendingCreditCardByCard,
-    getRecurringBackfillPreview,
   } = useFinanceStore();
 
   const creditCards = getPendingCreditCardByCard();
-  const backfillPreview = getRecurringBackfillPreview();
-  const [isBackfilling, setIsBackfilling] = useState(false);
-
-  const handleBackfill = async () => {
-    setIsBackfilling(true);
-    try {
-      const result = await backfillRecurringPlansHistory();
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        toast.success(`Historial regularizado: ${result.created ?? 0} pagos registrados`);
-        await fetchAllData();
-      }
-    } finally {
-      setIsBackfilling(false);
-    }
-  };
 
   useEffect(() => {
     if (!isInitialized) {
@@ -590,35 +571,6 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
         {/* Tab: Mensualidades */}
         {activeTab === 'mensualidades' && (
           <div className="px-5 space-y-4">
-            {(backfillPreview.missingMonths > 0 || backfillPreview.excessMonths > 0) && (
-              <div className="rounded-2xl bg-warn/10 border-[1.5px] border-warn/40 p-4">
-                <p className="font-sans font-bold text-[13px] text-text">
-                  {backfillPreview.excessMonths > 0 ? 'Historial a corregir' : 'Meses sin registrar'}
-                </p>
-                <p className="text-[12px] text-muted mt-0.5">
-                  {backfillPreview.excessMonths > 0 && (
-                    <>
-                      Detectamos {backfillPreview.excessMonths}{' '}
-                      {backfillPreview.excessMonths === 1 ? 'pago generado' : 'pagos generados'} antes
-                      de tu historial real (≈ {formatCurrency(backfillPreview.excessAmount)}) que
-                      inflan tus gastos.{' '}
-                    </>
-                  )}
-                  {backfillPreview.missingMonths > 0 && (
-                    <>
-                      Tus mensualidades tienen {backfillPreview.missingMonths}{' '}
-                      {backfillPreview.missingMonths === 1 ? 'pago' : 'pagos'} de meses anteriores sin
-                      registrar (≈ {formatCurrency(backfillPreview.totalAmount)}).{' '}
-                    </>
-                  )}
-                  Corregilo con un click para que tu Disponible Real refleje lo que realmente gastaste.
-                </p>
-                <Button variant="soft" onClick={handleBackfill} disabled={isBackfilling} className="mt-3">
-                  {isBackfilling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {backfillPreview.excessMonths > 0 ? 'Corregir historial' : 'Regularizar historial'}
-                </Button>
-              </div>
-            )}
             {plansWithPayment.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
                 <CalendarClock className="h-14 w-14 text-faint mb-4" />

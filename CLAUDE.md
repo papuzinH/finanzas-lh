@@ -31,7 +31,7 @@ Getters disponibles:
 - `getMonthlyBalance(monthStr, methodId)` – balance mensual
 - `getRealAvailableBalance()` – **Disponible Real** (número central del home). `disponibleReal = getGlobalBalance()`; expone también `saldoBruto`, `pendingFixedExpenses`, `pendingCardTotal` para el desglose. Invariante: pagar una mensualidad o tarjeta NO mueve `disponibleReal` **global** (sí baja el saldo del medio que financia el pago, ver "Medios de pago").
 - `getPendingFixedExpenses()` – mensualidades activas sin transacción vinculada este mes (`{ total, items }`).
-- `getNextMonthCardExposure()` – "Fondo de Ojo": todo gasto con medio de pago **crédito** cuyo `periodDate` cae en el mes calendario siguiente (cuotas + compras). No toca el número central.
+- `getUpcomingCardDueDates()` – "Lo que se viene": por cada tarjeta de **crédito** con ciclo, el **próximo resumen** (el que aún no vence; +1 ciclo sobre el vigente, que cubre el hero). Devuelve `items:[{ methodId, name, dueDate, amountArs, amountUsd }]` ordenado por fecha + `totalArs`/`totalUsd`. Pertenencia por ciclo (misma regla que `getPaymentMethodStatus`); USD sin convertir. No toca el número central. La card (`UpcomingCardDueDatesCard`) es tappeable → navega a `/ajustes/medios`.
 - `getRecurringBackfillPreview()` – meses de mensualidades sin registrar (`missingMonths`) y exceso a borrar (`excessMonths`), con piso en la primera transacción real del usuario.
 - `getDefaultPaymentMethod()` – medio de pago marcado `is_default`.
 - `getUnassignedTransactionsCount()` – transacciones con `payment_method_id == null`.

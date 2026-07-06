@@ -51,12 +51,16 @@ export function AnimatedPlusButton({
   }, [triggerKey]); // Dependencia en triggerKey
 
   return (
-    <div className={cn("relative h-9 w-9 shrink-0", className)}>
+    // Mobile: contenedor fijo w-9; el botón absoluto se expande sin empujar el layout.
+    // Desktop (md+): siempre ampliado → contenedor y botón en flujo normal, ancho al contenido.
+    <div className={cn("relative h-9 w-9 shrink-0 md:w-fit", className)}>
       <button
         onClick={onClick}
         disabled={disabled}
         className={cn(
           "absolute right-0 top-0 flex items-center justify-center rounded-full bg-accent text-accent-ink border-[1.5px] border-accent-deep shadow-offset disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 z-10",
+          // En desktop la pill queda fija y expandida, sin depender del estado de animación.
+          "md:static md:h-9 md:w-fit md:px-3 md:min-w-9",
           isExpanded
             ? "h-9 px-3 min-w-9"
             : "h-9 w-9",
@@ -65,13 +69,13 @@ export function AnimatedPlusButton({
       >
         <Plus
           className={cn(
-            "transition-all duration-200 shrink-0",
+            "transition-all duration-200 shrink-0 md:h-3.5 md:w-3.5 md:mr-1.5",
             showText ? "h-3.5 w-3.5 mr-1.5" : "h-4 w-4"
           )}
         />
         <span
           className={cn(
-            "text-xs font-medium whitespace-nowrap transition-all duration-200 overflow-hidden",
+            "text-xs font-medium whitespace-nowrap transition-all duration-200 overflow-hidden md:opacity-100 md:max-w-[200px]",
             showText
               ? "opacity-100 max-w-[200px]"
               : "opacity-0 max-w-0"

@@ -271,7 +271,7 @@ export async function backfillRecurringPlansHistory(): Promise<ActionResponse & 
     const [
       { data: plans, error: plansError },
       { data: existingTxs, error: txReadError },
-      { data: firstRealTx, error: firstTxError },
+      { data: firstIncomeTx, error: firstTxError },
     ] = await Promise.all([
       supabase.from('recurring_plans').select('*').eq('user_id', user.id).eq('is_active', true),
       supabase
@@ -283,7 +283,7 @@ export async function backfillRecurringPlansHistory(): Promise<ActionResponse & 
         .from('transactions')
         .select('date')
         .eq('user_id', user.id)
-        .is('recurring_plan_id', null)
+        .eq('type', 'income')
         .order('date', { ascending: true })
         .limit(1),
     ]);
@@ -294,12 +294,13 @@ export async function backfillRecurringPlansHistory(): Promise<ActionResponse & 
     const now = new Date();
     const currentMonthKey = dateToLocalString(now).slice(0, 7);
 
-    // Piso del historial: mes de la primera transacción REAL del usuario.
-    // Antes de ese mes la app no tiene ingresos registrados; backfillear ahí
-    // resta gastos sin contrapartida y hunde el saldo. Sin transacciones
-    // reales, no hay nada que backfillear.
-    const floorMonth = firstRealTx?.[0]?.date
-      ? String(firstRealTx[0].date).slice(0, 7)
+    // Piso del historial: mes del primer INGRESO del usuario. Antes de ese mes
+    // la app no tiene ingresos registrados; backfillear mensualidades ahí resta
+    // gastos sin contrapartida y hunde el saldo. Ojo: usar el primer INGRESO, no
+    // la primera transacción — una cuota/gasto anterior al primer sueldo no debe
+    // correr el piso hacia atrás. Sin ingresos, no hay nada que backfillear.
+    const floorMonth = firstIncomeTx?.[0]?.date
+      ? String(firstIncomeTx[0].date).slice(0, 7)
       : currentMonthKey;
 
     // Limpieza: pagos generados por backfills previos en meses anteriores al

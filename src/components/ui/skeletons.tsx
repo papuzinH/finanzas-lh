@@ -68,15 +68,26 @@ function InsightsCarouselSkeleton() {
   )
 }
 
-function NextMonthCardExposureCardSkeleton() {
+function UpcomingCardDueDatesCardSkeleton() {
   return (
-    <div className="rounded-2xl bg-surface border border-border p-4 space-y-3">
-      <Skeleton className="h-4 w-48" />
-      <div className="flex items-baseline justify-between">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-7 w-28" />
+    <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
+      <Skeleton className="h-4 w-32" />
+      <Skeleton className="h-3 w-40 mt-1.5" />
+      <div className="mt-3 space-y-2.5">
+        {[0, 1].map((i) => (
+          <div key={i} className="flex items-center justify-between">
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-2.5 w-16" />
+            </div>
+            <Skeleton className="h-4 w-20" />
+          </div>
+        ))}
       </div>
-      <Skeleton className="h-3 w-40" />
+      <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+        <Skeleton className="h-3 w-12" />
+        <Skeleton className="h-6 w-24" />
+      </div>
     </div>
   )
 }
@@ -163,7 +174,7 @@ export function DashboardSkeleton() {
             <BalanceCardSkeleton />
           </div>
           <div className="lg:col-start-3 space-y-3">
-            <NextMonthCardExposureCardSkeleton />
+            <UpcomingCardDueDatesCardSkeleton />
             <InsightsCarouselSkeleton />
           </div>
           <div className="lg:col-span-2 grid grid-cols-2 lg:grid-cols-4 gap-3">

@@ -256,10 +256,16 @@ interface FinanceState {
     pendingCardItems: CreditCardCycleSummary[];
     disponibleReal: number;
   };
-  getNextMonthCardExposure: () => {
-    nextCyclePurchases: number;
-    futureInstallments: number;
-    total: number;
+  getUpcomingCardDueDates: () => {
+    items: Array<{
+      methodId: number;
+      name: string;
+      dueDate: Date;
+      amountArs: number;
+      amountUsd: number;
+    }>;
+    totalArs: number;
+    totalUsd: number;
   };
   getCategoryBreakdown: (scope: 'global' | 'current_month', type?: 'income' | 'expense') => {
     total: number;
@@ -1625,13 +1631,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const { recurringPlans, transactions } = get();
     const currentMonth = format(new Date(), 'yyyy-MM');
 
-    // Piso del historial: mes de la primera transacción REAL del usuario
-    // (excluye las vinculadas a mensualidades, que genera esta misma feature).
-    // Antes de ese mes la app no tiene ingresos registrados, así que backfillear
-    // ahí distorsiona el saldo.
+    // Piso del historial: mes del primer INGRESO del usuario. Antes de ese mes
+    // la app no tiene ingresos registrados, así que backfillear mensualidades
+    // ahí resta gastos sin contrapartida y hunde el saldo. Ojo: NO alcanza con
+    // "primera transacción" — una cuota/gasto anterior al primer sueldo NO debe
+    // fijar el piso (bug que materializaba meses fantasma sin ingreso detrás).
     let floorMonth = currentMonth;
     for (const t of transactions) {
-      if (t.recurring_plan_id) continue;
+      if (t.type !== 'income') continue;
       const m = String(t.date).slice(0, 7);
       if (m < floorMonth) floorMonth = m;
     }
@@ -1705,40 +1712,79 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     };
   },
 
-  getNextMonthCardExposure: () => {
-    const { transactions, paymentMethods } = get();
+  getUpcomingCardDueDates: () => {
+    const { transactions, recurringPlans, paymentMethods } = get();
     const now = new Date();
-    const nextMonthKey = format(new Date(now.getFullYear(), now.getMonth() + 1, 1), 'yyyy-MM');
 
-    const creditIds = new Set(
-      paymentMethods.filter((m) => m.type === 'credit').map((m) => m.id),
-    );
+    const items: Array<{
+      methodId: number;
+      name: string;
+      dueDate: Date;
+      amountArs: number;
+      amountUsd: number;
+    }> = [];
 
-    const monthKey = (t: ProcessedTransaction) =>
-      format(parseLocalDate(t.periodDate || t.date), 'yyyy-MM');
+    for (const method of paymentMethods) {
+      // Solo crédito con ciclo configurado.
+      const current = getCreditCycleDates(method, now);
+      if (!current) continue;
 
-    // Todos los gastos hechos con tarjeta de CRÉDITO cuyo período visual cae en
-    // el mes calendario siguiente: cuotas + compras normales. No toca el número
-    // de hoy; anticipa lo que va a impactar el mes que viene.
-    const nextMonthCardTx = transactions.filter(
-      (t) =>
-        t.type === 'expense' &&
-        creditIds.has(t.payment_method_id ?? -1) &&
-        monthKey(t) === nextMonthKey,
-    );
+      // El resumen SIGUIENTE al ciclo vigente = +1 mes exacto sobre el vencimiento
+      // actual. El ciclo vigente lo cubre el hero (pendingCardTotal); acá miramos
+      // solo el que todavía no vence.
+      const dueDate = addMonths(current.nextPaymentDate, 1);
 
-    const futureInstallments = nextMonthCardTx
-      .filter((t) => !!t.installment_plan_id)
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+      let amountArs = 0;
+      let amountUsd = 0;
+      const recurringInCycle = new Set<number>();
 
-    const nextCyclePurchases = nextMonthCardTx
-      .filter((t) => !t.installment_plan_id)
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+      for (const t of transactions) {
+        if (t.payment_method_id !== method.id) continue;
+        // Pertenencia al resumen: t.date (en crédito ya es el vencimiento calculado)
+        // cae en el mismo mes/año que dueDate.
+        if (!sameMonthYear(parseLocalDate(t.date), dueDate)) continue;
+
+        if (t.type === 'expense') {
+          if (t.recurring_plan_id) recurringInCycle.add(t.recurring_plan_id);
+          if (t.original_currency === 'USD' && t.original_amount) {
+            amountUsd += Math.abs(Number(t.original_amount));
+          } else {
+            amountArs += Math.abs(Number(t.amount));
+          }
+        } else if (t.type === 'income') {
+          // Reintegros del mismo ciclo restan (se asumen ARS, igual que getPaymentMethodStatus).
+          amountArs -= Number(t.amount);
+        }
+      }
+
+      // Mensualidades adheridas al medio aún sin transacción en ese resumen: se sumarán.
+      for (const p of recurringPlans) {
+        if (p.payment_method_id !== method.id || !p.is_active) continue;
+        if (recurringInCycle.has(p.id)) continue;
+        if (p.currency === 'USD' && p.original_amount) {
+          amountUsd += Math.abs(Number(p.original_amount));
+        } else {
+          amountArs += Math.abs(Number(p.amount));
+        }
+      }
+
+      if (amountArs <= 0 && amountUsd <= 0) continue;
+
+      items.push({
+        methodId: method.id,
+        name: method.name,
+        dueDate,
+        amountArs: Math.max(amountArs, 0),
+        amountUsd,
+      });
+    }
+
+    items.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
 
     return {
-      nextCyclePurchases,
-      futureInstallments,
-      total: nextCyclePurchases + futureInstallments,
+      items,
+      totalArs: items.reduce((acc, it) => acc + it.amountArs, 0),
+      totalUsd: items.reduce((acc, it) => acc + it.amountUsd, 0),
     };
   },
 
