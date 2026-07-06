@@ -315,6 +315,18 @@ interface FinanceState {
     status: 'active' | 'completed';
   } | null;
 
+  getSavingsGoalsOverview: () => {
+    goals: Array<{
+      id: string;
+      name: string;
+      percent: number;
+      currency: 'ARS' | 'USD';
+      status: 'active' | 'completed';
+    }>;
+    totalSavedARS: number;
+    activeCount: number;
+  };
+
   getCategoryBudgetStatus: (categoryId: string) => {
     budget: CategoryBudget;
     categoryName: string;
@@ -334,6 +346,17 @@ interface FinanceState {
     percent: number;
     status: 'ok' | 'warning' | 'exceeded';
   }>;
+
+  getBudgetsOverview: () => {
+    percent: number;
+    projectedPercent: number;
+    status: 'ok' | 'warning' | 'exceeded';
+    willExceed: boolean;
+    exceededCount: number;
+    warningCount: number;
+    totalSpentARS: number;
+    totalLimitARS: number;
+  } | null;
 
   getMonthlyComparison: (monthStr?: string) => {
     currentMonthExpenses: number;
@@ -2128,6 +2151,49 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   /**
+   * Agregado de metas de ahorro activas para la card de anillos del inicio.
+   *
+   * Orden de prioridad: las metas con fecha límite (`daysLeft` no nulo) van
+   * primero, ordenadas por `daysLeft` ascendente (las que vencen antes,
+   * primero); las metas sin fecha (mensuales) van después, ordenadas por
+   * `percent` descendente (las más avanzadas primero).
+   *
+   * `totalSavedARS` suma TODAS las metas activas (no solo las priorizadas para
+   * mostrar), convirtiendo los aportes de metas en USD a ARS vía dólar blue.
+   */
+  getSavingsGoalsOverview: () => {
+    const { savingsGoals, dolarBlue, getSavingsGoalProgress } = get();
+    const blue = dolarBlue?.venta && dolarBlue.venta > 0 ? dolarBlue.venta : null;
+
+    const withProgress = savingsGoals
+      .filter((g) => g.is_active)
+      .map((g) => getSavingsGoalProgress(g.id))
+      .filter((p): p is NonNullable<typeof p> => p !== null);
+
+    const sorted = [...withProgress].sort((a, b) => {
+      if (a.daysLeft !== null && b.daysLeft !== null) return a.daysLeft - b.daysLeft;
+      if (a.daysLeft !== null) return -1;
+      if (b.daysLeft !== null) return 1;
+      return b.percent - a.percent;
+    });
+
+    const goals = sorted.map((p) => ({
+      id: p.goal.id,
+      name: p.goal.name,
+      percent: p.percent,
+      currency: p.goal.currency,
+      status: p.status,
+    }));
+
+    const totalSavedARS = withProgress.reduce((sum, p) => {
+      const contributed = p.totalContributed;
+      return sum + (p.goal.currency === 'USD' && blue ? contributed * blue : contributed);
+    }, 0);
+
+    return { goals, totalSavedARS, activeCount: goals.length };
+  },
+
+  /**
    * Retorna el estado de un presupuesto mensual por categoría.
    *
    * El gasto se calcula dinámicamente usando getExpensesByCategory('current_month')
@@ -2171,6 +2237,51 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .sort((a, b) => b.percent - a.percent);
   },
 
+  /**
+   * Agregado de presupuestos activos para el gauge del inicio. `spent`/`projected`
+   * de cada presupuesto ya vienen en ARS (derivan de `getExpensesByCategory`, que
+   * trabaja siempre en ARS); solo `limit` está en la moneda propia del presupuesto
+   * y necesita conversión vía dólar blue.
+   *
+   * `exceededCount`/`warningCount` reusan el `status` por presupuesto de
+   * `getAllBudgetStatuses()` (puede ser impreciso para presupuestos en USD, ver
+   * nota en `getCategoryBudgetStatus`; fuera de alcance arreglarlo acá).
+   */
+  getBudgetsOverview: () => {
+    const { categoryBudgets, dolarBlue, getAllBudgetStatuses, getBudgetProjection } = get();
+    if (!categoryBudgets.some((b) => b.is_active)) return null;
+
+    const blue = dolarBlue?.venta && dolarBlue.venta > 0 ? dolarBlue.venta : null;
+    const statuses = getAllBudgetStatuses();
+
+    let totalSpentARS = 0;
+    let totalLimitARS = 0;
+    let projectedTotalARS = 0;
+
+    for (const s of statuses) {
+      totalSpentARS += s.spent;
+      totalLimitARS += s.budget.currency === 'USD' && blue ? s.limit * blue : s.limit;
+      const projection = getBudgetProjection(s.budget.id);
+      projectedTotalARS += projection?.projected ?? s.spent;
+    }
+
+    const percent = totalLimitARS > 0 ? (totalSpentARS / totalLimitARS) * 100 : 0;
+    const projectedPercent = totalLimitARS > 0 ? (projectedTotalARS / totalLimitARS) * 100 : 0;
+
+    const status: 'ok' | 'warning' | 'exceeded' =
+      percent >= 100 ? 'exceeded' : percent >= 75 ? 'warning' : 'ok';
+
+    return {
+      percent,
+      projectedPercent,
+      status,
+      willExceed: projectedPercent > 100,
+      exceededCount: statuses.filter((s) => s.status === 'exceeded').length,
+      warningCount: statuses.filter((s) => s.status === 'warning').length,
+      totalSpentARS,
+      totalLimitARS,
+    };
+  },
 
   /**
    * Retorna un snapshot de 7 semanas para sparklines en el dashboard.
