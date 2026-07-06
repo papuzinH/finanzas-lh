@@ -44,6 +44,24 @@ export async function updateCategory(id: string, data: CategoryFormValues) {
   const validated = categorySchema.safeParse(data)
   if (!validated.success) return { error: validated.error.issues[0].message }
 
+  // Guarda de servidor: el toggle de tipo en el diálogo de edición se
+  // deshabilita en el cliente cuando hay dependencias, pero eso es solo UX.
+  // Esta validación es la que realmente impide dejar transacciones/planes
+  // apuntando a una categoría cuyo tipo ya no coincide.
+  const { data: current } = await supabase
+    .from('categories')
+    .select('type')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (current && current.type !== validated.data.type) {
+    const deps = await getCategoryDependencies(id)
+    if (deps.total > 0) {
+      return { error: 'No se puede cambiar el tipo: esta categoría tiene movimientos asociados.' }
+    }
+  }
+
   const { error } = await supabase
     .from('categories')
     .update(validated.data)
