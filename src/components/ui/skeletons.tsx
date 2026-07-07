@@ -54,16 +54,9 @@ function BalanceCardSkeleton() {
 
 function InsightsCarouselSkeleton() {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="rounded-2xl border border-border bg-surface/50 px-4 py-3 space-y-2">
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-3 w-1/2" />
-      </div>
-      <div className="flex items-center justify-center gap-1.5">
-        {[1, 2, 3].map(i => (
-          <Skeleton key={i} className="h-1.5 w-1.5 rounded-full" />
-        ))}
-      </div>
+    <div className="rounded-2xl border border-border bg-surface/50 px-4 py-3 space-y-2">
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-3 w-1/2" />
     </div>
   )
 }
