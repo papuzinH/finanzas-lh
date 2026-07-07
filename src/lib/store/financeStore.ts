@@ -2767,6 +2767,12 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * 2. Categoría con mayor subida: Si alguna categoría subió >20%, avisa.
    * 3. Cuotas del mes: Cantidad y total de cuotas que vencen este mes.
    * 4. Alerta de presupuesto: Categoría más cerca del límite con días restantes.
+   * 5. Tarjetas que necesitan actualización de fechas de cierre/vencimiento.
+   * 6. Progreso de objetivo de ahorro: objetivo activo con mayor avance, >= 50%.
+   * 7. Racha de registro: días seguidos anotando movimientos, >= 3 días.
+   * 8. Rendimiento del portafolio: ganancia o caída con |PL%| >= 3%.
+   *
+   * Tope: devuelve como máximo 6 insights (los primeros que dispararon).
    *
    * Cada insight tiene:
    * - type: 'positive' | 'warning' | 'info'
@@ -2781,6 +2787,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       getCurrentMonthInstallmentsTotal,
       getAllBudgetStatuses,
       paymentMethods,
+      getSavingsGoalsOverview,
+      getRegistrationStreak,
+      getPortfolioStatus,
     } = get();
 
     const insights: Array<{ type: 'positive' | 'warning' | 'info'; message: string; icon: string }> = [];
@@ -2796,14 +2805,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         const saved = Math.abs(percentageChange).toFixed(0);
         insights.push({
           type: 'positive',
-          message: `Gastaste un ${saved}% menos que el mes pasado 🎉`,
+          message: `Gastaste un ${saved}% menos que el mes pasado. ¡Bien ahí! 🎉`,
           icon: 'TrendingDown',
         });
       } else if (percentageChange > 15) {
         const increase = percentageChange.toFixed(0);
         insights.push({
           type: 'warning',
-          message: `Tu gasto subió un ${increase}% respecto al mes pasado`,
+          message: `Ojo que tu gasto subió un ${increase}% contra el mes pasado 👀`,
           icon: 'TrendingUp',
         });
       }
@@ -2819,7 +2828,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       const emoji = biggestRise.emoji ? `${biggestRise.emoji} ` : '';
       insights.push({
         type: 'warning',
-        message: `Tu gasto en ${emoji}${biggestRise.category} subió un ${pct}% este mes`,
+        message: `Ojo con ${emoji}${biggestRise.category}: subió un ${pct}% este mes 👀`,
         icon: 'AlertTriangle',
       });
     }
@@ -2831,7 +2840,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       const totalFormatted = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(installmentsTotal);
       insights.push({
         type: 'info',
-        message: `Tenés ${installments.length} cuota${installments.length > 1 ? 's' : ''} este mes por ${totalFormatted}`,
+        message: `Este mes se vienen ${installments.length} cuota${installments.length > 1 ? 's' : ''} por ${totalFormatted} 💳`,
         icon: 'CreditCard',
       });
     }
@@ -2844,7 +2853,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       const pct = criticalBudget.percent.toFixed(0);
       insights.push({
         type: criticalBudget.percent >= 100 ? 'warning' : 'info',
-        message: `Vas al ${pct}% del presupuesto de ${emoji}${criticalBudget.categoryName} con ${daysRemaining} días restantes`,
+        message: `Ya vas al ${pct}% del presupuesto de ${emoji}${criticalBudget.categoryName}, con ${daysRemaining} días por delante`,
         icon: criticalBudget.percent >= 100 ? 'AlertCircle' : 'Target',
       });
     }
@@ -2864,12 +2873,54 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     for (const card of creditCardsNeedingUpdate) {
       insights.push({
         type: 'warning',
-        message: `Actualizá el cierre y vencimiento de ${card.name} para el nuevo ciclo 📅`,
+        message: `Che, actualizá el cierre y vencimiento de ${card.name} para el nuevo ciclo 📅`,
         icon: 'CreditCard',
       });
     }
 
-    return insights;
+    // 6. Progreso de objetivo de ahorro (activo con mayor avance, >= 50%)
+    const { goals } = getSavingsGoalsOverview();
+    const topGoal = goals
+      .filter((g) => g.status === 'active')
+      .sort((a, b) => b.percent - a.percent)[0];
+    if (topGoal && topGoal.percent >= 50) {
+      insights.push({
+        type: 'info',
+        message: `Ya llevás ${Math.round(topGoal.percent)}% de ${topGoal.name}. ¡Se viene! 🎯`,
+        icon: 'Target',
+      });
+    }
+
+    // 7. Racha de registro
+    const { days } = getRegistrationStreak();
+    if (days >= 3) {
+      insights.push({
+        type: 'positive',
+        message: `Venís ${days} días seguidos anotando todo. ¡Así se hace! 🔥`,
+        icon: 'Flame',
+      });
+    }
+
+    // 8. Rendimiento del portafolio
+    const { totalInvested, totalPLPercent } = getPortfolioStatus();
+    if (totalInvested > 0 && Math.abs(totalPLPercent) >= 3) {
+      const pct = Math.abs(totalPLPercent).toFixed(0);
+      if (totalPLPercent > 0) {
+        insights.push({
+          type: 'positive',
+          message: `Tu portafolio viene +${pct}% arriba. ¡Joya! 📈`,
+          icon: 'TrendingUp',
+        });
+      } else {
+        insights.push({
+          type: 'warning',
+          message: `Tu portafolio cayó ${pct}%. Tranqui, es parte del juego 📉`,
+          icon: 'TrendingDown',
+        });
+      }
+    }
+
+    return insights.slice(0, 6);
   },
 
   getRegistrationStreak: () => {
