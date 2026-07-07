@@ -22,6 +22,7 @@ import {
   Check,
   Clock,
   Undo2,
+  ChevronDown,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { ScreenHeader } from '@/components/shared/screen-header';
@@ -50,6 +51,7 @@ import { CreateSubscriptionDialog } from '@/components/subscriptions/create-subs
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { CreditCardCycleCard } from '@/components/compromisos/credit-card-cycle-card';
+import { CompromisosSkeleton } from '@/components/ui/skeletons';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface PlanWithStatus extends InstallmentPlan {
@@ -131,13 +133,13 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
             <div className="flex flex-wrap gap-2 mt-3">
               {plan.paymentMethodName && (
                 <div className="flex items-center gap-1.5 text-[10px] text-muted bg-surface-2 border border-border px-2 py-1 rounded-full w-fit">
-                  <CreditCard className="h-3 w-3" />
+                  <CreditCard className="h-3 w-3" aria-hidden="true" />
                   <span>{plan.paymentMethodName}</span>
                 </div>
               )}
               {category && (
                 <div className="flex items-center gap-1.5 text-[10px] text-muted bg-surface-2 border border-border px-2 py-1 rounded-full w-fit">
-                  {category.emoji ? <span>{category.emoji}</span> : <Tag className="h-3 w-3" />}
+                  {category.emoji ? <span aria-hidden="true">{category.emoji}</span> : <Tag className="h-3 w-3" aria-hidden="true" />}
                   <span>{category.name}</span>
                 </div>
               )}
@@ -153,7 +155,7 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label="Opciones del plan" className="h-6 w-6 min-h-11 min-w-11 text-muted hover:text-text hover:bg-surface-2 -mr-2">
-                    <MoreVertical className="h-3.5 w-3.5" />
+                    <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
@@ -180,17 +182,23 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
           </div>
         </div>
 
-        <ProgressBar value={plan.progress} tone={plan.isFinished ? 'good' : 'bad'} />
+        <ProgressBar
+          value={plan.progress}
+          tone={plan.isFinished ? 'good' : 'bad'}
+          label={`Progreso de cuotas: ${plan.installmentsPaid} de ${plan.installments_count} pagadas`}
+        />
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {plan.isFinished ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-good/10 text-good border border-good/20">
-                ✓ Pagado
+                <Check className="h-3 w-3" aria-hidden="true" />
+                Pagado
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-accent-soft text-accent-deep border border-accent/20">
-                ● En curso
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-accent-soft text-accent-deep border border-accent/20">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent-deep" aria-hidden="true" />
+                En curso
               </span>
             )}
           </div>
@@ -280,12 +288,12 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
           'group rounded-2xl border-[1.5px] p-4 flex flex-col justify-between gap-4 transition-all',
           plan.is_active
             ? 'border-border bg-surface'
-            : 'border-border/50 bg-surface opacity-50 grayscale'
+            : 'border-border bg-surface-2'
         )}
       >
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-2 border-[1.5px] border-border text-text shrink-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-2 border-[1.5px] border-border text-text shrink-0" aria-hidden="true">
               {category?.emoji ? <span className="text-lg">{category.emoji}</span> : getServiceIcon(plan.description, category?.name || null)}
             </div>
             <div>
@@ -311,7 +319,7 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
               <span className="font-poster tnum text-[15px] text-text">{formatCurrency(plan.amount)}</span>
             )}
             <div className="flex items-center justify-end gap-1.5 mt-1">
-              <div className={cn('h-1.5 w-1.5 rounded-full', plan.is_active ? 'bg-good' : 'bg-muted')} />
+              <div className={cn('h-1.5 w-1.5 rounded-full', plan.is_active ? 'bg-good' : 'bg-muted')} aria-hidden="true" />
               <p className="text-[10px] text-muted uppercase tracking-wider">
                 {plan.is_active ? 'Activo' : 'Inactivo'}
               </p>
@@ -326,8 +334,8 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
               <span>{plan.paymentMethodName}</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 text-[10px] text-faint bg-surface-2 border border-border px-2 py-1 rounded-full">
-              <CreditCard className="h-3 w-3" />
+            <div className="flex items-center gap-1.5 text-[10px] text-muted bg-surface-2 border border-border px-2 py-1 rounded-full">
+              <CreditCard className="h-3 w-3" aria-hidden="true" />
               <span>Sin asignar</span>
             </div>
           )}
@@ -340,23 +348,23 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
                 disabled={isToggling}
                 aria-label={isPaidThisMonth ? `Deshacer pago de ${plan.description}` : `Marcar ${plan.description} como pagada`}
                 className={cn(
-                  'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border cursor-pointer select-none transition-colors disabled:opacity-60',
+                  'inline-flex items-center gap-1 min-h-11 px-3 rounded-full text-[11px] font-bold border cursor-pointer select-none transition-all active:scale-[0.97] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
                   isPaidThisMonth
                     ? 'bg-good/10 text-good border-good/20 hover:bg-good/15'
                     : 'bg-warn/10 text-warn border-warn/20 hover:bg-warn/15'
                 )}
               >
                 {isToggling ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
                 ) : isPaidThisMonth ? (
                   <>
-                    <Check className="h-3 w-3" />
+                    <Check className="h-3 w-3" aria-hidden="true" />
                     Pagada
-                    <Undo2 className="h-3 w-3 opacity-60" />
+                    <Undo2 className="h-3 w-3 opacity-60" aria-hidden="true" />
                   </>
                 ) : (
                   <>
-                    <Clock className="h-3 w-3" />
+                    <Clock className="h-3 w-3" aria-hidden="true" />
                     Pendiente
                   </>
                 )}
@@ -365,7 +373,7 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
             <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Opciones de suscripción" className="h-6 w-6 min-h-11 min-w-11 text-muted hover:text-text hover:bg-surface-2">
-                <MoreVertical className="h-3.5 w-3.5" />
+                <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
@@ -401,6 +409,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
   const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
   const [isCreateCuotaOpen, setIsCreateCuotaOpen] = useState(false);
   const [isCreateSuscripcionOpen, setIsCreateSuscripcionOpen] = useState(false);
+  const [showFinished, setShowFinished] = useState(false);
 
   const {
     installmentPlans,
@@ -412,6 +421,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     getCurrentMonthInstallmentsTotal,
     getMonthlyBurnRate,
     getPendingCreditCardByCard,
+    getPendingFixedExpenses,
   } = useFinanceStore();
 
   const creditCards = getPendingCreditCardByCard();
@@ -421,6 +431,11 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
       fetchAllData();
     }
   }, [isInitialized, fetchAllData]);
+
+  // Skeleton durante la carga inicial → evita el flash del empty-state.
+  if (!isInitialized) {
+    return <CompromisosSkeleton />;
+  }
 
   // ── Cuotas data ──
   const plansWithProgress: PlanWithStatus[] = installmentPlans
@@ -439,6 +454,9 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
 
   const totalDebtFuturo = plansWithProgress.reduce((sum, plan) => sum + plan.remaining, 0);
   const currentMonthCuotas = getCurrentMonthInstallmentsTotal();
+  // Activos primero; finalizados detrás de un toggle para no ensuciar la lista.
+  const activeCuotas = plansWithProgress.filter((p) => !p.isFinished);
+  const finishedCuotas = plansWithProgress.filter((p) => p.isFinished);
 
   // ── Mensualidades data ──
   const plansWithPayment = recurringPlans
@@ -449,6 +467,8 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     .sort((a, b) => b.amount - a.amount);
 
   const totalMonthlyCost = getMonthlyBurnRate();
+  const activeSubsCount = plansWithPayment.filter((p) => p.is_active).length;
+  const pendingSubs = getPendingFixedExpenses();
 
   // ── Hero totals ──
   const totalCompromisosMes = currentMonthCuotas + totalMonthlyCost;
@@ -489,11 +509,11 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2">
-              <p className="text-[9.5px] font-bold uppercase tracking-wider text-celeste">Cuotas</p>
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">Cuotas</p>
               <p className="font-poster tnum text-[15px] mt-0.5 text-cream-light">{formatCurrency(currentMonthCuotas)}</p>
             </div>
             <div className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2">
-              <p className="text-[9.5px] font-bold uppercase tracking-wider text-celeste">Mensualidades</p>
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">Mensualidades</p>
               <p className="font-poster tnum text-[15px] mt-0.5 text-cream-light">{formatCurrency(totalMonthlyCost)}</p>
             </div>
           </div>
@@ -503,7 +523,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
         {creditCards.length > 0 && (
           <section className="px-5">
             <div className="flex items-center gap-2 mb-3">
-              <CreditCard className="h-4 w-4 text-muted" />
+              <CreditCard className="h-4 w-4 text-muted" aria-hidden="true" />
               <h2 className="text-[11px] font-extrabold text-muted uppercase tracking-[0.15em]">
                 Tarjetas de crédito
               </h2>
@@ -519,6 +539,8 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
         {/* Segmented Tabs */}
         <div className="px-5">
           <TabsDS
+            idBase="compromisos"
+            ariaLabel="Tipo de compromiso"
             tabs={[
               { id: 'cuotas', label: 'Cuotas', icon: 'credit-card' },
               { id: 'mensualidades', label: 'Mensualidades', icon: 'repeat' },
@@ -530,67 +552,134 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
 
         {/* Tab: Cuotas */}
         {activeTab === 'cuotas' && (
-          <div className="px-5 space-y-4">
+          <div
+            role="tabpanel"
+            id="compromisos-panel-cuotas"
+            aria-labelledby="compromisos-tab-cuotas"
+            className="px-5 space-y-4"
+          >
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
                 <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Deuda Futura</p>
                 <p className="font-poster tnum text-[20px] text-text">{formatCurrency(totalDebtFuturo)}</p>
-                <p className="text-[10px] text-faint mt-1">Pendiente a largo plazo</p>
+                <p className="text-[10px] text-muted mt-1">Pendiente a largo plazo</p>
               </div>
               <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
-                <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Vence este mes</p>
-                <p className="font-poster tnum text-[20px] text-bad">{formatCurrency(currentMonthCuotas)}</p>
-                <p className="text-[10px] text-faint mt-1">A pagar en el ciclo actual</p>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Cuotas activas</p>
+                <p className="font-poster tnum text-[20px] text-text">{activeCuotas.length}</p>
+                <p className="text-[10px] text-muted mt-1">Planes en curso</p>
               </div>
             </div>
 
             {plansWithProgress.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
-                <CreditCard className="h-14 w-14 text-faint mb-4" />
+                <CreditCard className="h-14 w-14 text-faint mb-4" aria-hidden="true" />
                 <h3 className="font-sans font-bold text-text text-lg mb-2">Organizá tus pagos en cuotas</h3>
                 <p className="text-sm text-muted max-w-xs mb-6">
                   Registrá tus planes de cuotas para saber exactamente cuánto pagás cada mes y cuándo terminás de pagar.
                 </p>
                 <Button onClick={() => setIsCreateCuotaOpen(true)}>
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-4 w-4" aria-hidden="true" />
                   Nuevo Plan de Cuotas
                 </Button>
               </div>
             ) : (
-              <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {plansWithProgress.map((plan) => (
-                  <StaggeredItem key={plan.id}>
-                    <InstallmentPlanCard plan={plan} />
-                  </StaggeredItem>
-                ))}
-              </StaggeredList>
+              <>
+                {activeCuotas.length > 0 ? (
+                  <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {activeCuotas.map((plan) => (
+                      <StaggeredItem key={plan.id}>
+                        <InstallmentPlanCard plan={plan} />
+                      </StaggeredItem>
+                    ))}
+                  </StaggeredList>
+                ) : (
+                  <p className="text-sm text-muted text-center py-4">
+                    No tenés cuotas activas.
+                  </p>
+                )}
+
+                {finishedCuotas.length > 0 && (
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowFinished((v) => !v)}
+                      aria-expanded={showFinished}
+                      aria-controls="compromisos-cuotas-finalizadas"
+                      className="inline-flex items-center gap-1.5 min-h-11 px-3 -ml-3 rounded-full text-[12px] font-bold text-muted hover:text-text transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                    >
+                      <ChevronDown
+                        className={cn('h-4 w-4 transition-transform', showFinished && 'rotate-180')}
+                        aria-hidden="true"
+                      />
+                      {showFinished ? 'Ocultar finalizados' : `Ver finalizados (${finishedCuotas.length})`}
+                    </button>
+                    {showFinished && (
+                      <StaggeredList
+                        id="compromisos-cuotas-finalizadas"
+                        className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                      >
+                        {finishedCuotas.map((plan) => (
+                          <StaggeredItem key={plan.id}>
+                            <InstallmentPlanCard plan={plan} />
+                          </StaggeredItem>
+                        ))}
+                      </StaggeredList>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
 
         {/* Tab: Mensualidades */}
         {activeTab === 'mensualidades' && (
-          <div className="px-5 space-y-4">
+          <div
+            role="tabpanel"
+            id="compromisos-panel-mensualidades"
+            aria-labelledby="compromisos-tab-mensualidades"
+            className="px-5 space-y-4"
+          >
             {plansWithPayment.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
-                <CalendarClock className="h-14 w-14 text-faint mb-4" />
+                <CalendarClock className="h-14 w-14 text-faint mb-4" aria-hidden="true" />
                 <h3 className="font-sans font-bold text-text text-lg mb-2">Registrá tus gastos fijos y mensualidades</h3>
                 <p className="text-sm text-muted max-w-xs mb-6">
                   Netflix, alquiler, gimnasio... sumá tus gastos recurrentes y sabé de antemano cuánto se te va cada mes.
                 </p>
                 <Button onClick={() => setIsCreateSuscripcionOpen(true)}>
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-4 w-4" aria-hidden="true" />
                   Nueva Suscripción
                 </Button>
               </div>
             ) : (
-              <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {plansWithPayment.map((plan) => (
-                  <StaggeredItem key={plan.id}>
-                    <SubscriptionCard plan={plan} />
-                  </StaggeredItem>
-                ))}
-              </StaggeredList>
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Pendiente este mes</p>
+                    <p className={cn('font-poster tnum text-[20px]', pendingSubs.total > 0 ? 'text-bad' : 'text-good')}>
+                      {formatCurrency(pendingSubs.total)}
+                    </p>
+                    <p className="text-[10px] text-muted mt-1">
+                      {pendingSubs.total > 0 ? 'Sin registrar aún' : 'Todo al día'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Activas</p>
+                    <p className="font-poster tnum text-[20px] text-text">{activeSubsCount}</p>
+                    <p className="text-[10px] text-muted mt-1">Mensualidades en curso</p>
+                  </div>
+                </div>
+
+                <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {plansWithPayment.map((plan) => (
+                    <StaggeredItem key={plan.id}>
+                      <SubscriptionCard plan={plan} />
+                    </StaggeredItem>
+                  ))}
+                </StaggeredList>
+              </>
             )}
           </div>
         )}
