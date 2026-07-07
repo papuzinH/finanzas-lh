@@ -42,6 +42,7 @@ import {
 } from '@/lib/finance/creditCycle';
 import type { ProcessedTransaction, CreditCardCycleSummary as CreditCardCycleSummaryType, DolarBlue } from '@/lib/finance/types';
 import { resolveRate, prepareTransactions, prepareRecurringPlans } from '@/lib/finance/prepare';
+import { computePendingFixedExpenses } from '@/lib/finance/pending';
 
 export type { ProcessedTransaction } from '@/lib/finance/types';
 export { resolveRate } from '@/lib/finance/prepare';
@@ -1420,26 +1421,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
   getPendingFixedExpenses: () => {
     const { recurringPlans, transactions } = get();
-    const currentMonth = format(new Date(), 'yyyy-MM');
-
-    const items = recurringPlans
-      .filter((p) => p.is_active)
-      .filter((plan) => {
-        const hasTransactionThisMonth = transactions.some(
-          (t) =>
-            t.recurring_plan_id === plan.id &&
-            (t.periodDate || t.date)?.slice(0, 7) === currentMonth,
-        );
-        return !hasTransactionThisMonth;
-      })
-      .map((plan) => ({
-        id: plan.id,
-        name: plan.description,
-        amount: Math.abs(Number(plan.amount)),
-      }));
-
-    const total = items.reduce((acc, i) => acc + i.amount, 0);
-    return { total, items };
+    return computePendingFixedExpenses(recurringPlans, transactions);
   },
 
   /**
