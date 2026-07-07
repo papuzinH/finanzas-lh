@@ -1,0 +1,294 @@
+// src/lib/finance/balances.ts
+import { isAfter, isBefore, isSameMonth, startOfDay, endOfMonth } from 'date-fns'
+import { parseLocalDate } from '@/lib/utils/dates'
+import { getCreditCycleDates, isExpenseInCurrentMonthScope, sameMonthYear } from '@/lib/finance/creditCycle'
+import type { PaymentMethod, RecurringPlan, InternalTransfer } from '@/types/database'
+import type { ProcessedTransaction, CreditCardCycleSummary } from './types'
+
+export interface PaymentMethodStatus {
+  currentConsumption: number
+  fixedCosts: number
+  projectedTotal: number
+  nextClosingDate?: Date
+  nextPaymentDate?: Date
+  usdExpenses: number
+  arsExpenses: number
+}
+
+/**
+ * Retorna el estado de consumo de un método de pago.
+ *
+ * Para tarjetas de crédito:
+ * - Calcula el período actual según closing_day/payment_day
+ * - Agrupa ingresos, gastos y cuotas del ciclo
+ * - Retorna currentConsumption = ingresos - gastos - cuotas - Mensualidades
+ *
+ * Para débito/efectivo:
+ * - Usa mes calendario
+ * - currentConsumption es el balance histórico hasta fin de mes
+ *
+ * Resultado:
+ * - currentConsumption: Balance neto del período (consumo real - ingresos)
+ * - fixedCosts: Mensualidades activas en este método
+ * - projectedTotal: Mismo que currentConsumption (consistencia)
+ * - nextClosingDate: Próxima fecha de cierre (solo crédito)
+ * - nextPaymentDate: Próxima fecha de vencimiento (solo crédito)
+ */
+export function computePaymentMethodStatus(
+  method: PaymentMethod | undefined,
+  transactions: ProcessedTransaction[],
+  recurringPlans: RecurringPlan[],
+  now: Date,
+): PaymentMethodStatus {
+  if (!method)
+    return { currentConsumption: 0, fixedCosts: 0, projectedTotal: 0, usdExpenses: 0, arsExpenses: 0 }
+
+  // Fechas de cierre/vencimiento del ciclo vigente (solo crédito con ciclo).
+  const cycleDates = getCreditCycleDates(method, now)
+  const nextClosingDate = cycleDates?.nextClosingDate
+  const nextPaymentDate = cycleDates?.nextPaymentDate
+
+  // Mensualidades activas del medio (para el bloque "servicios adheridos").
+  const fixedCosts = recurringPlans
+    .filter((p) => p.payment_method_id === method.id && p.is_active)
+    .reduce((acc, p) => acc + Number(p.amount), 0)
+
+  // ===================================================================
+  // CRÉDITO CON CICLO → "A pagar en el vencimiento"
+  // = gastos que vencen en nextPaymentDate (cuotas + compras + mensualidades) − reintegros.
+  // Regla ÚNICA de pertenencia al ciclo: t.date (que en crédito ya es la fecha de
+  // vencimiento calculada) cae en el mismo mes/año que nextPaymentDate. Aplica igual
+  // a compras normales, cuotas e ingresos, de modo que el número coincide con la
+  // lista de movimientos del medio.
+  // ===================================================================
+  if (nextPaymentDate) {
+    const recurringPlanIdsInCycle = new Set<number>()
+    let expensesInCycleArs = 0 // total en ARS (USD convertido) → alimenta projectedTotal
+    let usdExpenses = 0 // desglose: importe original USD
+    let arsExpenses = 0 // desglose: importe ARS puro
+
+    for (const t of transactions) {
+      if (t.payment_method_id !== method.id || t.type !== 'expense') continue
+      if (!sameMonthYear(parseLocalDate(t.date), nextPaymentDate)) continue
+      if (t.recurring_plan_id) recurringPlanIdsInCycle.add(t.recurring_plan_id)
+      expensesInCycleArs += Math.abs(Number(t.amount))
+      if (t.original_currency === 'USD' && t.original_amount) {
+        usdExpenses += Math.abs(Number(t.original_amount))
+      } else {
+        arsExpenses += Math.abs(Number(t.amount))
+      }
+    }
+
+    // Mensualidades adheridas al medio que todavía no tienen transacción en el ciclo.
+    // (recomputedRecurring ya deja p.amount en ARS, incluso para planes en USD.)
+    for (const p of recurringPlans) {
+      if (p.payment_method_id !== method.id || !p.is_active) continue
+      if (recurringPlanIdsInCycle.has(p.id)) continue
+      expensesInCycleArs += Math.abs(Number(p.amount))
+      if (p.currency === 'USD' && p.original_amount) {
+        usdExpenses += Math.abs(Number(p.original_amount))
+      } else {
+        arsExpenses += Math.abs(Number(p.amount))
+      }
+    }
+
+    // Reintegros/ingresos que vencen en el mismo ciclo.
+    const refundsInCycle = transactions
+      .filter(
+        (t) =>
+          t.payment_method_id === method.id &&
+          t.type === 'income' &&
+          sameMonthYear(parseLocalDate(t.date), nextPaymentDate),
+      )
+      .reduce((acc, t) => acc + Number(t.amount), 0)
+
+    const amountToPay = expensesInCycleArs - refundsInCycle
+    // Contrato existente: projectedTotal negativo = se debe dinero a la tarjeta.
+    const netResult = -amountToPay
+
+    return {
+      currentConsumption: netResult,
+      fixedCosts,
+      projectedTotal: netResult,
+      nextClosingDate,
+      nextPaymentDate,
+      usdExpenses,
+      arsExpenses,
+    }
+  }
+
+  // ===================================================================
+  // DÉBITO / EFECTIVO (o crédito sin ciclo configurado) → "Saldo disponible"
+  // = ingresos históricos − gastos históricos (cuotas hasta fin de mes).
+  // No se restan mensualidades futuras: las ya debitadas ya están en los gastos.
+  // ===================================================================
+  const income = transactions
+    .filter((t) => t.payment_method_id === method.id && t.type === 'income')
+    .reduce((acc, t) => acc + Number(t.amount), 0)
+
+  const expensesNonInstallment = transactions
+    .filter(
+      (t) =>
+        t.payment_method_id === method.id &&
+        t.type === 'expense' &&
+        !t.installment_plan_id,
+    )
+    .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
+
+  const installments = transactions
+    .filter((t) => {
+      if (t.payment_method_id !== method.id || t.type !== 'expense' || !t.installment_plan_id)
+        return false
+      return parseLocalDate(t.date) <= endOfMonth(now)
+    })
+    .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
+
+  const netResult = income - expensesNonInstallment - installments
+
+  return {
+    currentConsumption: netResult,
+    fixedCosts,
+    projectedTotal: netResult,
+    usdExpenses: 0,
+    arsExpenses: 0,
+  }
+}
+
+/** true si existe un pago (card_payment_for) en el mes del vencimiento del ciclo vigente. */
+export function hasCardPaymentInCycle(
+  transactions: ProcessedTransaction[],
+  method: PaymentMethod,
+  now: Date,
+): boolean {
+  const cycle = getCreditCycleDates(method, now)
+  if (!cycle) return false
+  return transactions.some(
+    (t) =>
+      t.card_payment_for === method.id &&
+      sameMonthYear(parseLocalDate(t.date), cycle.nextPaymentDate),
+  )
+}
+
+/** Resumen de ciclo pendiente por cada tarjeta de crédito. */
+export function computePendingCreditCards(
+  paymentMethods: PaymentMethod[],
+  transactions: ProcessedTransaction[],
+  recurringPlans: RecurringPlan[],
+  now: Date,
+): CreditCardCycleSummary[] {
+  const creditCards = paymentMethods.filter((m) => m.type === 'credit')
+
+  return creditCards.reduce<CreditCardCycleSummary[]>((acc, method) => {
+    const status = computePaymentMethodStatus(method, transactions, recurringPlans, now)
+    const { projectedTotal, nextPaymentDate, nextClosingDate, usdExpenses, arsExpenses } = status
+
+    // projectedTotal = income - expenses (negative when user owes money to the card)
+    if (!nextPaymentDate || projectedTotal >= 0) return acc
+
+    // Ciclo cerrado = el cierre ya pasó (o es hoy): el resumen está fijado y a pagar.
+    // Ciclo en curso = todavía acumula consumo. Diferencia por qué una tarjeta muestra
+    // consumo de un período anterior (cerrado) y otra el del período vigente (en curso).
+    const isCycleClosed = nextClosingDate
+      ? !isBefore(startOfDay(now), startOfDay(nextClosingDate))
+      : false
+
+    // El estado "pagada" se deriva de la existencia de una transacción de pago
+    // (card_payment_for) cuya fecha cae en el mes del vencimiento del ciclo.
+    const isPaidManually = hasCardPaymentInCycle(transactions, method, now)
+
+    // Pendiente mientras no se pagó y el vencimiento no pasó. Comparación por
+    // día (no por timestamp) para que el día EXACTO del vencimiento siga contando
+    // como pendiente, coherente con getCreditCycleDates.
+    const isPending = !isPaidManually && !isAfter(startOfDay(now), startOfDay(nextPaymentDate))
+
+    acc.push({
+      methodId: method.id,
+      name: method.name,
+      total: Math.abs(projectedTotal),
+      totalARS: arsExpenses,
+      totalUSD: usdExpenses,
+      nextPaymentDate,
+      isCycleClosed,
+      isPending,
+      isPaidManually,
+    })
+    return acc
+  }, [])
+}
+
+/**
+ * Balance global disponible ("Disponible Real").
+ *
+ * Balance = ingresos históricos
+ *         - gastos variables históricos (sin cuotas, sin Mensualidades)
+ *         - cuotas YA pagadas (fecha visual <= hoy)
+ *         - cuotas que vencen este mes (según ciclo de tarjeta)
+ *         - Mensualidades: pagos reales históricos + el compromiso del mes en curso
+ *           que aún no registra pago (pendingFixedTotal)
+ *         - ahorro transferido internamente
+ *
+ * Decisiones de diseño:
+ * - Cuotas FUTURAS: NO se restan. Todavía no salieron de tu bolsillo.
+ *   Solo impactan cuando llega su mes.
+ * - Mensualidades: se restan UNA vez (mes actual) porque no generan
+ *   transacciones reales. No se multiplican por meses pasados para
+ *   evitar inventar datos históricos que no existen en la base.
+ * - Pagos de tarjeta (card_payment_for): NO son consumo nuevo, las compras
+ *   ya se restaron; el pago solo baja el saldo del medio financiador.
+ */
+export function computeGlobalBalance(
+  transactions: ProcessedTransaction[],
+  paymentMethods: PaymentMethod[],
+  internalTransfers: InternalTransfer[],
+  pendingFixedTotal: number,
+  now: Date,
+): number {
+  const todayStart = startOfDay(now)
+
+  const totalIncome = transactions
+    .filter((t) => t.type === 'income')
+    .reduce((acc, t) => acc + Number(t.amount), 0)
+
+  // 1. Gastos variables históricos (sin cuotas ni Mensualidades recurrentes).
+  //    Se excluyen los pagos de tarjeta (card_payment_for): no son consumo nuevo,
+  //    las compras ya se restaron; el pago solo baja el saldo del medio financiador.
+  const variableExpenses = transactions
+    .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.recurring_plan_id && !t.card_payment_for)
+    .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
+
+  // 2. Cuotas pagadas + cuotas que vencen este mes.
+  //    - Mes actual: respeta el ciclo de tarjeta (closing/payment day).
+  //    - Pasadas: cualquier cuota cuya fecha visual ya pasó.
+  //    - Futuras: NO se incluyen.
+  const installmentsExpense = transactions
+    .filter((t) => {
+      if (t.type !== 'expense' || !t.installment_plan_id) return false
+
+      // ¿Es cuota del mes actual según ciclo de tarjeta?
+      if (isExpenseInCurrentMonthScope(t, paymentMethods, now)) return true
+
+      // ¿O es cuota de un mes anterior (ya pasó)?
+      const visualDateStr = t.periodDate || t.date
+      const visualDate = parseLocalDate(visualDateStr)
+      return visualDate < todayStart && !isSameMonth(visualDate, now)
+    })
+    .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
+
+  // 3. Mensualidades: pagos reales históricos (transacciones vinculadas a un
+  //    plan recurrente, de cualquier mes) + el compromiso del mes en curso que
+  //    aún no registra pago. Los meses pasados restan lo realmente pagado; el
+  //    mes actual resta el compromiso completo (pagado o pendiente), así
+  //    marcar una mensualidad como pagada NO mueve el balance.
+  const recurringPaid = transactions
+    .filter((t) => t.type === 'expense' && !!t.recurring_plan_id)
+    .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
+  const recurringExpense = recurringPaid + pendingFixedTotal
+
+  // 4. Ahorros transferidos (tabla separada): dejan de ser saldo gastable.
+  const transferredToSavings = internalTransfers.reduce(
+    (acc, transfer) => acc + Math.abs(Number(transfer.amount)),
+    0,
+  )
+
+  return totalIncome - variableExpenses - installmentsExpense - recurringExpense - transferredToSavings
+}
