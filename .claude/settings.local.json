@@ -44,7 +44,8 @@
       "Bash(bash *)",
       "Bash(git checkout *)",
       "Bash(cat \"$\\(git rev-parse --show-toplevel\\)/.superpowers/sdd/progress.md\")",
-      "Bash(ls \"C:/Users/lauta/.claude/plugins/cache/claude-plugins-official/superpowers/6.1.0/skills/subagent-driven-development/scripts/\")"
+      "Bash(ls \"C:/Users/lauta/.claude/plugins/cache/claude-plugins-official/superpowers/6.1.0/skills/subagent-driven-development/scripts/\")",
+      "Bash(python scripts/search.py \"touch target size accessibility contrast tabs form\" --domain ux -n 12)"
     ]
   },
   "enabledPlugins": {
