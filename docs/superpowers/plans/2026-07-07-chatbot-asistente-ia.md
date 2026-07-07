@@ -19,7 +19,7 @@
 - Fechas: SIEMPRE `parseLocalDate`/`formatLocalDate` de `@/lib/utils/dates`. Nunca `new Date(str)` ni `toISOString()` para fechas locales.
 - TypeScript: nunca `any`; imports absolutos `@/...`; tipos de `types/database.ts`.
 - Los tests existentes del store (`src/lib/store/__tests__/analysis-getters.test.ts`, `disponible-real.test.ts`) deben pasar **sin modificarse** tras cada task de la Fase 1. (`dates.test.ts` tiene fallas preexistentes ajenas: ignorarlas.)
-- Gotcha de IDs: `transactions`/`payment_methods`/`recurring_plans`/`installment_plans`/`internal_transfers` filtran por `user_id` **numérico** (`public.users.id`); `savings_goals`/`category_budgets` por **UUID** de auth. Para `categories` el codebase es inconsistente (route usa UUID, handleDelete usa numérico): **Task 7 lo verifica contra `types/database.ts` y fija el criterio** — usar ese criterio en todas las tools.
+- Gotcha de IDs (**verificado en Task 7 contra `types/database.ts`**): `transactions`/`payment_methods`/`recurring_plans`/`installment_plans` filtran por `user_id` **numérico** (`public.users.id`); `categories`/`internal_transfers`/`savings_goals`/`category_budgets` por **UUID** de auth (`ctx.authUserId`). Nota: `handlers.ts` tiene un BUG preexistente filtrando `categories` por id numérico (líneas ~1188/1210/1390/1428) — corregirlo al envolver esos handlers en Tasks 12-13.
 - No tocar: `/api/chat/onboarding`, `src/lib/ai/onboarding*`, schema SQL (no hay migraciones en este plan).
 - Commits frecuentes: un commit por task como mínimo, mensajes `feat(chat): ...` / `refactor(finance): ...` con `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
 
