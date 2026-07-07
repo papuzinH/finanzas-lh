@@ -449,6 +449,9 @@ interface FinanceState {
 
   getFrequentCategories: (n?: number, type?: 'income' | 'expense') => Category[];
 
+  /** Montos rápidos sugeridos para el AmountField, basados en el historial del usuario por tipo y moneda. */
+  getQuickAmounts: (type: 'expense' | 'income', currency?: 'ARS' | 'USD', n?: number) => number[];
+
   getInsights: () => Array<{
     type: 'positive' | 'warning' | 'info';
     message: string;
@@ -2720,6 +2723,40 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     return sorted;
+  },
+
+  getQuickAmounts: (type, currency = 'ARS', n = 3) => {
+    const { transactions } = get();
+
+    const relevant = transactions.filter((t) => {
+      if (t.type !== type) return false;
+      return currency === 'USD'
+        ? t.original_currency === 'USD' && t.original_amount != null
+        : t.original_currency !== 'USD';
+    });
+
+    const countMap = new Map<number, number>();
+    for (const t of relevant) {
+      const raw = currency === 'USD' ? (t.original_amount as number) : t.amount;
+      const rounded = Math.round(Math.abs(raw));
+      if (rounded <= 0) continue;
+      countMap.set(rounded, (countMap.get(rounded) ?? 0) + 1);
+    }
+
+    const fromHistory = Array.from(countMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, n)
+      .map(([amount]) => amount);
+
+    // Fallback razonable si no hay historial suficiente para completar n sugerencias.
+    const fallback = currency === 'USD' ? [10, 50, 100] : [500, 1000, 2000];
+    const merged = [...fromHistory];
+    for (const amount of fallback) {
+      if (merged.length >= n) break;
+      if (!merged.includes(amount)) merged.push(amount);
+    }
+
+    return merged.slice(0, n).sort((a, b) => a - b);
   },
 
   /**

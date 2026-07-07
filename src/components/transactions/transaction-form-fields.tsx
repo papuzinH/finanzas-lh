@@ -22,8 +22,6 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import type { Category, PaymentMethod } from '@/types/database';
 
-const QUICK_AMOUNTS = [100, 500, 1000] as const;
-
 /* ─── Base type constraints ─── */
 type BaseTransactionFields = {
   description: string;
@@ -54,6 +52,7 @@ interface AmountFieldProps<T extends FieldValues> {
   watchedAmount: number;
   fieldName?: string;
   currency?: 'ARS' | 'USD';
+  type?: 'expense' | 'income';
 }
 
 export function AmountField<T extends FieldValues>({
@@ -62,8 +61,10 @@ export function AmountField<T extends FieldValues>({
   watchedAmount,
   fieldName = 'amount',
   currency = 'ARS',
+  type = 'expense',
 }: AmountFieldProps<T>) {
   const amountInputRef = useRef<HTMLInputElement>(null);
+  const quickAmounts = useFinanceStore((s) => s.getQuickAmounts(type, currency, 3));
 
   const displayAmount =
     watchedAmount === 0
@@ -86,6 +87,8 @@ export function AmountField<T extends FieldValues>({
           <FormItem className="w-full flex flex-col items-center">
             <button
               type="button"
+              tabIndex={-1}
+              aria-hidden="true"
               className="flex items-baseline justify-center gap-1 w-full focus-visible:ring-2 focus-visible:ring-accent/50 rounded-lg"
               onClick={() => amountInputRef.current?.focus()}
             >
@@ -118,12 +121,13 @@ export function AmountField<T extends FieldValues>({
         )}
       />
 
-      {/* Quick amount pills */}
+      {/* Quick amount pills: sugeridos del historial del usuario por tipo y moneda */}
       <div className="flex items-center gap-2">
-        {QUICK_AMOUNTS.map((amount) => (
+        {quickAmounts.map((amount) => (
           <button
             key={amount}
             type="button"
+            aria-pressed={watchedAmount === amount}
             onClick={() =>
               setValue(fieldName as Path<T>, amount as T[Path<T>], {
                 shouldValidate: true,
@@ -137,7 +141,7 @@ export function AmountField<T extends FieldValues>({
                 : 'bg-surface-2 text-muted hover:bg-surface hover:text-text'
             )}
           >
-            ${amount}
+            {currency === 'USD' ? `US$${amount}` : `$${amount}`}
           </button>
         ))}
       </div>
@@ -166,11 +170,13 @@ export function TypeToggle<T extends FieldValues & BaseTransactionFields>({
       name={'type' as Path<T>}
       render={({ field }) => (
         <FormItem>
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
+          <div role="radiogroup" aria-label="Tipo de movimiento" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
             {(['expense', 'income'] as const).map((type) => (
               <button
                 key={type}
                 type="button"
+                role="radio"
+                aria-checked={field.value === type}
                 onClick={() => {
                   field.onChange(type);
                   onTypeChange?.(type);
@@ -265,6 +271,7 @@ export function CategoryPicker<T extends FieldValues & { category_id: string | u
               <button
                 key={cat.id}
                 type="button"
+                aria-pressed={field.value === cat.id}
                 onClick={() => field.onChange(cat.id)}
                 className={cn(
                   'flex flex-col items-center gap-1.5 min-w-[60px] group',
@@ -296,6 +303,8 @@ export function CategoryPicker<T extends FieldValues & { category_id: string | u
             {/* "More" button */}
             <button
               type="button"
+              aria-expanded={showAll}
+              aria-controls="category-picker-grid"
               onClick={() => setShowAll((v) => !v)}
               className="flex flex-col items-center gap-1.5 min-w-[60px] group focus-visible:outline-none"
             >
@@ -314,11 +323,12 @@ export function CategoryPicker<T extends FieldValues & { category_id: string | u
 
           {/* Expanded categories grid */}
           {showAll && (
-            <div className="grid grid-cols-4 gap-2 pt-2 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+            <div id="category-picker-grid" className="grid grid-cols-4 gap-2 pt-2 animate-in fade-in-0 slide-in-from-top-2 duration-200 motion-reduce:animate-none">
               {categories.map((cat) => (
                 <button
                   key={cat.id}
                   type="button"
+                  aria-pressed={field.value === cat.id}
                   onClick={() => {
                     field.onChange(cat.id);
                     setShowAll(false);
@@ -685,7 +695,7 @@ export function PaymentMethodField<T extends FieldValues>({
                     ) : (
                       <>
                         <Wallet className="h-5 w-5 text-muted shrink-0" />
-                        <span className="text-sm text-faint">Sin asignar</span>
+                        <span className="text-sm text-muted">Sin asignar</span>
                       </>
                     )}
                   </div>
@@ -828,11 +838,13 @@ export function CurrencyField<T extends FieldValues>({
             Moneda
           </span>
           {/* ARS / USD */}
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
+          <div role="radiogroup" aria-label="Moneda" className="grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
             {(['ARS', 'USD'] as const).map((cur) => (
               <button
                 key={cur}
                 type="button"
+                role="radio"
+                aria-checked={field.value === cur}
                 onClick={() => {
                   field.onChange(cur);
                   if (cur === 'USD' && !watchedRatePair) {
@@ -855,14 +867,16 @@ export function CurrencyField<T extends FieldValues>({
           {/* Selector de cotización + preview, solo en USD */}
           {field.value === 'USD' && (
             <div className="mt-3 space-y-2 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-              <div className="flex gap-1 p-1 rounded-xl bg-surface-2 border-[1.5px] border-border">
+              <div role="radiogroup" aria-label="Cotización" className="flex gap-1 p-1 rounded-xl bg-surface-2 border-[1.5px] border-border">
                 {RATE_OPTIONS.map((opt) => (
                   <button
                     key={opt.pair}
                     type="button"
+                    role="radio"
+                    aria-checked={activePair === opt.pair}
                     onClick={() => setValue('rate_pair' as Path<T>, opt.pair as T[Path<T>], { shouldValidate: true })}
                     className={cn(
-                      'flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all',
+                      'flex-1 min-h-11 px-2 py-1.5 rounded-lg text-xs font-medium transition-all',
                       activePair === opt.pair
                         ? 'bg-accent text-accent-ink'
                         : 'text-muted hover:text-text'

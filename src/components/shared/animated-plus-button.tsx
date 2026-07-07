@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
+import { useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface AnimatedPlusButtonProps {
@@ -23,8 +24,12 @@ export function AnimatedPlusButton({
 }: AnimatedPlusButtonProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showText, setShowText] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
+    // Con reduced-motion activo, se omite la secuencia de auto-expandir/colapsar.
+    if (prefersReducedMotion) return;
+
     // Secuencia de animación al montar el componente o cambiar triggerKey
     const timer1 = setTimeout(() => {
       setIsExpanded(true);
@@ -48,7 +53,7 @@ export function AnimatedPlusButton({
       clearTimeout(timer3);
       clearTimeout(timer4);
     };
-  }, [triggerKey]); // Dependencia en triggerKey
+  }, [triggerKey, prefersReducedMotion]);
 
   return (
     // Mobile: contenedor fijo w-9; el botón absoluto se expande sin empujar el layout.

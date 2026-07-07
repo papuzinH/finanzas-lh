@@ -15,9 +15,11 @@ export function Chip({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 select-none",
+        "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 min-h-11 select-none",
         "text-[12.5px] font-bold border-[1.5px] cursor-pointer",
         "transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.97]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",

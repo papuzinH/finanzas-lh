@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { MonthSelector } from '@/components/dashboard/month-selector';
 import { isSameDay, isSameMonth, parse, format } from 'date-fns';
@@ -9,7 +9,7 @@ import { parseLocalDate } from '@/lib/utils/dates';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
-import { ChevronDown, ChevronRight, Search, X, Receipt, RefreshCw, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, X, Receipt, RefreshCw, ArrowDownLeft, ArrowUpRight, Clock, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateExchangeRates } from '@/app/movimientos/actions';
 import { TransactionListSkeleton } from '@/components/ui/skeletons';
@@ -29,10 +29,8 @@ export default function MovimientosPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isRefreshingRates, setIsRefreshingRates] = useState(false);
-  // Revelado de filtros en mobile: los chips se muestran solo al enfocar el buscador
-  // (persistencia inteligente: siguen visibles mientras haya foco, texto o filtro activo).
+  // Filtros en mobile: colapsados por defecto, se despliegan con el botón "Filtros".
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const searchFocusedRef = useRef(false);
   const {
     transactions,
     paymentMethods,
@@ -172,26 +170,8 @@ export default function MovimientosPage() {
   };
 
   const netBalance = monthlyIncome - monthlyExpense;
-  const hasActiveFilters = selectedPaymentMethodId !== 'all' || selectedCategoryId !== 'all';
-
-  // Los chips (mobile) quedan visibles mientras el buscador esté abierto, haya texto
-  // escrito o algún filtro aplicado. Si no, permanecen colapsados.
-  const shouldShowFilters = filtersOpen || hasActiveFilters || searchQuery.trim().length > 0;
-
-  const handleSearchFocus = () => {
-    searchFocusedRef.current = true;
-    setFiltersOpen(true);
-  };
-
-  // Al perder foco, colapsamos con un pequeño delay: así un tap sobre un chip
-  // (que desenfoca el input antes de disparar su click) alcanza a aplicar el filtro,
-  // y `shouldShowFilters` los mantiene visibles. El ref evita colapsar si se re-enfoca.
-  const handleSearchBlur = () => {
-    searchFocusedRef.current = false;
-    window.setTimeout(() => {
-      if (!searchFocusedRef.current) setFiltersOpen(false);
-    }, 150);
-  };
+  const activeFilterCount = (selectedPaymentMethodId !== 'all' ? 1 : 0) + (selectedCategoryId !== 'all' ? 1 : 0);
+  const hasActiveFilters = activeFilterCount > 0;
 
   const clearFilters = () => {
     const params = new URLSearchParams(searchParams);
@@ -207,7 +187,7 @@ export default function MovimientosPage() {
       : 'flex flex-wrap gap-2';
     const groupLabel = (text: string) =>
       variant === 'wrap' ? (
-        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.14em] text-faint mb-1.5">{text}</p>
+        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.14em] text-muted mb-1.5">{text}</p>
       ) : null;
 
     return (
@@ -302,22 +282,30 @@ export default function MovimientosPage() {
     if (items.length === 0) return null;
 
     const dailyNet = items.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
+    const collapsiblePanelId = 'movimientos-proyeccion-futura-panel';
 
     return (
-      <div className="mb-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <div
-          className={cn(
-            "flex items-center justify-between mb-1.5 px-1 select-none",
-            collapsible ? "cursor-pointer hover:opacity-80" : ""
+      <div className="mb-5 animate-in fade-in slide-in-from-bottom-2 duration-500 motion-reduce:animate-none">
+        <div className="flex items-center justify-between mb-1.5 px-1 select-none">
+          {collapsible ? (
+            <h3 className={cn("font-sans text-[11px] font-extrabold uppercase tracking-[0.15em]", colorClass)}>
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={isOpen}
+                aria-controls={collapsiblePanelId}
+                className="flex items-center gap-2 -m-1 p-1 rounded-md hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+              >
+                <Clock className="h-3 w-3 text-muted" aria-hidden="true" />
+                {title}
+                {isOpen ? <ChevronDown className="h-3 w-3 text-muted" aria-hidden="true" /> : <ChevronRight className="h-3 w-3 text-muted" aria-hidden="true" />}
+              </button>
+            </h3>
+          ) : (
+            <h3 className={cn("font-sans text-[11px] font-extrabold uppercase tracking-[0.15em] flex items-center gap-2", colorClass)}>
+              {title}
+            </h3>
           )}
-          onClick={collapsible ? onToggle : undefined}
-        >
-          <h3 className={cn("font-sans text-[11px] font-extrabold uppercase tracking-[0.15em] flex items-center gap-2", colorClass)}>
-            {title}
-            {collapsible && (
-              isOpen ? <ChevronDown className="h-3 w-3 text-muted" aria-hidden="true" /> : <ChevronRight className="h-3 w-3 text-muted" aria-hidden="true" />
-            )}
-          </h3>
           <span className={cn(
             "font-sans text-[11px] font-bold tnum",
             dailyNet >= 0 ? "text-good" : "text-bad"
@@ -327,7 +315,7 @@ export default function MovimientosPage() {
         </div>
 
         {(!collapsible || isOpen) && (
-          <Card className="overflow-hidden">
+          <Card id={collapsible ? collapsiblePanelId : undefined} className="overflow-hidden">
             {items.map((t, i) => {
               const paymentMethod = paymentMethods.find(pm => pm.id === t.payment_method_id);
               return (
@@ -391,8 +379,6 @@ export default function MovimientosPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={handleSearchFocus}
-                onBlur={handleSearchBlur}
                 placeholder="Buscar por descripción, categoría o monto..."
                 inputMode="search"
                 enterKeyHint="search"
@@ -401,11 +387,11 @@ export default function MovimientosPage() {
                 autoCapitalize="none"
                 spellCheck={false}
                 aria-label="Buscar movimientos"
-                aria-controls="movimientos-filtros-mobile"
-                className="w-full bg-surface border-[1.5px] border-border rounded-xl pl-9 pr-10 py-2.5 text-sm text-text placeholder:text-faint focus:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg transition-colors font-sans"
+                className="w-full bg-surface border-[1.5px] border-border rounded-xl pl-9 pr-10 py-2.5 text-sm text-text placeholder:text-muted focus:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg transition-colors font-sans"
               />
               {searchQuery && (
                 <button
+                  type="button"
                   onClick={() => setSearchQuery('')}
                   aria-label="Limpiar búsqueda"
                   className="absolute right-3 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted hover:text-text transition-colors rounded-lg"
@@ -414,6 +400,24 @@ export default function MovimientosPage() {
                 </button>
               )}
               </div>
+
+              {/* Filtros: solo mobile/tablet (en desktop viven siempre visibles en el rail) */}
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((v) => !v)}
+                aria-expanded={filtersOpen}
+                aria-controls="movimientos-filtros-mobile"
+                className="lg:hidden relative shrink-0 min-h-11 min-w-11 flex items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-border bg-surface px-3 text-sm font-semibold text-text transition-colors hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+              >
+                <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                <span>Filtros</span>
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-ink border-[1.5px] border-accent-deep">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
               <div className="hidden md:block">
                 <AnimatedPlusButton
                   label="Crear transacción"
@@ -423,7 +427,7 @@ export default function MovimientosPage() {
               </div>
             </div>
             {debouncedQuery && (
-              <p className="text-[11px] text-muted mt-1.5 px-1">
+              <p role="status" aria-live="polite" className="text-[11px] text-muted mt-1.5 px-1">
                 {searchFilteredTransactions.length}{' '}
                 movimiento{searchFilteredTransactions.length !== 1 ? 's' : ''} encontrado{searchFilteredTransactions.length !== 1 ? 's' : ''}
               </p>
@@ -462,20 +466,33 @@ export default function MovimientosPage() {
                 </Card>
               </div>
 
+              {/* Neto del mes */}
+              <Card className="p-3.5 mb-4 flex items-center justify-between">
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted">
+                  Neto
+                </span>
+                <span className={cn(
+                  "font-poster text-[18px] tnum leading-none",
+                  netBalance >= 0 ? "text-good" : "text-bad"
+                )}>
+                  {netBalance >= 0 ? '+' : ''}{formatCurrency(netBalance)}
+                </span>
+              </Card>
+
               {/* Botón de actualizar cotización */}
               <div className="flex justify-end mb-3">
                 {ratesButton}
               </div>
 
-              {/* Filtros: se revelan al enfocar el buscador (persistencia inteligente).
+              {/* Filtros: se despliegan con el botón "Filtros".
                   Animamos la altura con el truco de grid-rows 0fr→1fr para no generar CLS. */}
               <div
                 id="movimientos-filtros-mobile"
-                inert={!shouldShowFilters}
-                aria-hidden={!shouldShowFilters}
+                inert={!filtersOpen}
+                aria-hidden={!filtersOpen}
                 className={cn(
                   'grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out motion-reduce:transition-none',
-                  shouldShowFilters
+                  filtersOpen
                     ? 'grid-rows-[1fr] opacity-100 mb-5'
                     : 'grid-rows-[0fr] opacity-0 mb-0 pointer-events-none'
                 )}
@@ -524,7 +541,7 @@ export default function MovimientosPage() {
                   );
                 })}
 
-                {renderSection('Proyección Futura', groups.futuro, "text-warn", true, isFutureOpen, () => setIsFutureOpen(!isFutureOpen), true)}
+                {renderSection('Proyección Futura', groups.futuro, "text-muted", true, isFutureOpen, () => setIsFutureOpen(!isFutureOpen), true)}
               </>
             )}
           </div>

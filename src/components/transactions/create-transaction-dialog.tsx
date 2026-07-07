@@ -167,6 +167,7 @@ export function CreateTransactionDialog({
                 setValue={form.setValue}
                 watchedAmount={watchedAmount}
                 currency={watchedCurrency}
+                type={watchedType}
               />
 
               {/* ── Currency ── */}

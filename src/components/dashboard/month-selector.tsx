@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addMonths, subMonths, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useState } from 'react';
 import { useFinanceStore } from '@/lib/store/financeStore';
 
@@ -15,26 +15,27 @@ interface MonthSelectorProps {
   compact?: boolean;
 }
 
-const slideVariants = {
-  enter: (dir: number) => ({
-    x: dir > 0 ? 56 : -56,
-    opacity: 0,
-  }),
-  center: {
-    x: 0,
-    opacity: 1,
-  },
-  exit: (dir: number) => ({
-    x: dir > 0 ? -56 : 56,
-    opacity: 0,
-  }),
-};
-
 export function MonthSelector({ currentMonth, baseUrl = '/', compact = false }: MonthSelectorProps) {
   const router = useRouter();
   const [direction, setDirection] = useState(0);
+  const prefersReducedMotion = useReducedMotion();
   const getMonthlyComparison = useFinanceStore((s) => s.getMonthlyComparison);
   const comparison = getMonthlyComparison(currentMonth);
+
+  const slideVariants = {
+    enter: (dir: number) => ({
+      x: prefersReducedMotion ? 0 : dir > 0 ? 56 : -56,
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (dir: number) => ({
+      x: prefersReducedMotion ? 0 : dir > 0 ? -56 : 56,
+      opacity: 0,
+    }),
+  };
 
   const date = parse(currentMonth, 'yyyy-MM', new Date());
   const prevMonth = format(subMonths(date, 1), 'yyyy-MM');
@@ -82,7 +83,7 @@ export function MonthSelector({ currentMonth, baseUrl = '/', compact = false }: 
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.18, ease: 'easeInOut' }}
+            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeInOut' }}
             className="flex flex-col items-center gap-1"
           >
             <span className="font-sans text-[12.5px] font-extrabold capitalize text-text">

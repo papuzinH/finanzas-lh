@@ -89,11 +89,16 @@ export function EditTransactionDialog({
     if (open) {
       form.reset({
         description: transaction.description,
-        amount: Math.abs(transaction.amount),
+        amount: transaction.original_currency === 'USD' && transaction.original_amount != null
+          ? Math.abs(transaction.original_amount)
+          : Math.abs(transaction.amount),
         date: transaction.date,
         category_id: transaction.category_id || '',
         type: transaction.type || 'expense',
         payment_method_id: initialPaymentMethodId,
+        currency: (transaction.original_currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
+        rate_pair: transaction.rate_pair ?? null,
+        exchange_rate: null,
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,6 +153,7 @@ export function EditTransactionDialog({
                 setValue={form.setValue}
                 watchedAmount={watchedAmount}
                 currency={watchedCurrency}
+                type={watchedType}
               />
 
               {/* ── Currency ── */}
