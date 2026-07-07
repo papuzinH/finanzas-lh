@@ -977,7 +977,7 @@ async function handleMensualidadesTotal(supabase: any, userId: number): Promise<
   return { success: true, message: msg }
 }
 
-async function handlePortfolio(supabase: any, userId: number): Promise<ChatResponse> {
+export async function handlePortfolio(supabase: any, userId: number): Promise<ChatResponse> {
   const { data: investments, error: invError } = await supabase
     .from('investments')
     .select('ticker, name, quantity, avg_buy_price, currency')
