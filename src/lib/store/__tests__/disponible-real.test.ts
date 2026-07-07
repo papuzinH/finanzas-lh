@@ -300,95 +300,71 @@ describe('getRecurringBackfillPreview', () => {
   });
 });
 
-describe('getUpcomingCardDueDates', () => {
-  beforeEach(() => {
+describe('borde del vencimiento: el día del vencimiento sigue siendo el ciclo vigente', () => {
+  afterEach(() => vi.useRealTimers());
+
+  // Master: cierra día 2, vence día 13.
+  // - consumo de junio -> vence 13 jul (t.date = fecha de vencimiento calculada), $50.000
+  // - consumo de julio -> vence 13 ago, $30.000
+  function seedMaster() {
+    seed({
+      paymentMethods: [{ id: 1, name: 'Master', type: 'credit', default_closing_day: 2, default_payment_day: 13 }],
+      transactions: [
+        { id: 1, type: 'expense', amount: -50000, date: '2026-07-13', periodDate: '2026-07-13', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: 2, type: 'expense', amount: -30000, date: '2026-08-13', periodDate: '2026-08-13', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+      ],
+    });
+  }
+
+  function pendingAtDay(day: number) {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 6, 3)); // 3 jul 2026: Visa (cierra 20 / vence 5) => ciclo vigente vence 5 jul, próximo vence 5 ago
-  });
-  afterEach(() => {
-    vi.useRealTimers();
+    vi.setSystemTime(new Date(2026, 6, day, 10, 0, 0)); // 10hs para no depender del borde de medianoche
+    seedMaster();
+    const { pendingCardTotal, pendingCardItems } = useFinanceStore.getState().getRealAvailableBalance();
+    return { pendingCardTotal, item: pendingCardItems[0] };
+  }
+
+  it('12 jul: resta el resumen que vence el 13 jul (consumo junio)', () => {
+    const { pendingCardTotal, item } = pendingAtDay(12);
+    expect(pendingCardTotal).toBe(50000);
+    expect(item.nextPaymentDate.getMonth()).toBe(6); // julio
   });
 
-  it('lista el próximo resumen por tarjeta con fecha de vencimiento y monto', () => {
+  it('13 jul (día del vencimiento): SIGUE restando el resumen que vence hoy', () => {
+    const { pendingCardTotal, item } = pendingAtDay(13);
+    expect(pendingCardTotal).toBe(50000);
+    expect(item.nextPaymentDate.getMonth()).toBe(6); // julio, no agosto
+  });
+
+  it('14 jul: recalcula al siguiente ciclo (consumo julio, vence 13 ago)', () => {
+    const { pendingCardTotal, item } = pendingAtDay(14);
+    expect(pendingCardTotal).toBe(30000);
+    expect(item.nextPaymentDate.getMonth()).toBe(7); // agosto
+  });
+});
+
+describe('isCycleClosed: distingue resumen cerrado vs ciclo en curso', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('marca cerrado el ciclo cuyo cierre ya pasó y en curso el que aún acumula', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 7, 10, 0, 0)); // 7 jul 2026
     seed({
-      paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
+      paymentMethods: [
+        // Master cerró el 2 jul (vence 13 jul) -> cerrado
+        { id: 1, name: 'Master', type: 'credit', default_closing_day: 2, default_payment_day: 13 },
+        // Visa cierra el 23 jul (vence 3 ago) -> en curso
+        { id: 2, name: 'Visa', type: 'credit', default_closing_day: 23, default_payment_day: 3 },
+      ],
       transactions: [
-        { id: 1, type: 'expense', amount: -8000, date: '2026-08-05', periodDate: '2026-08-05', payment_method_id: 1, installment_plan_id: 3, recurring_plan_id: null },
-        { id: 2, type: 'expense', amount: -15000, date: '2026-08-05', periodDate: '2026-08-05', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: 1, type: 'expense', amount: -50000, date: '2026-07-13', periodDate: '2026-07-13', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: 2, type: 'expense', amount: -90000, date: '2026-08-03', periodDate: '2026-08-03', payment_method_id: 2, installment_plan_id: null, recurring_plan_id: null },
       ],
     });
-    const res = useFinanceStore.getState().getUpcomingCardDueDates();
-    expect(res.items).toHaveLength(1);
-    expect(res.items[0].name).toBe('Visa');
-    expect(res.items[0].amountArs).toBe(23000);
-    expect(res.items[0].amountUsd).toBe(0);
-    expect(res.items[0].dueDate.getMonth()).toBe(7); // agosto
-    expect(res.items[0].dueDate.getFullYear()).toBe(2026);
-    expect(res.totalArs).toBe(23000);
-  });
-
-  it('excluye el ciclo vigente: no duplica el hero', () => {
-    seed({
-      paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
-      transactions: [
-        // vence 5 jul => ciclo vigente (lo cuenta el hero), NO esta card
-        { id: 1, type: 'expense', amount: -10000, date: '2026-07-05', periodDate: '2026-07-05', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
-      ],
-    });
-    const res = useFinanceStore.getState().getUpcomingCardDueDates();
-    expect(res.items).toHaveLength(0);
-    expect(res.totalArs).toBe(0);
-  });
-
-  it('desglosa ARS y USD sin convertir', () => {
-    seed({
-      paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
-      transactions: [
-        { id: 1, type: 'expense', amount: -60000, original_currency: 'USD', original_amount: 50, date: '2026-08-05', periodDate: '2026-08-05', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
-        { id: 2, type: 'expense', amount: -20000, date: '2026-08-05', periodDate: '2026-08-05', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
-      ],
-    });
-    const res = useFinanceStore.getState().getUpcomingCardDueDates();
-    expect(res.items[0].amountUsd).toBe(50);
-    expect(res.items[0].amountArs).toBe(20000);
-    expect(res.totalUsd).toBe(50);
-    expect(res.totalArs).toBe(20000);
-  });
-
-  it('ignora medios que no son crédito con ciclo', () => {
-    seed({
-      paymentMethods: [{ id: 2, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
-      transactions: [
-        { id: 1, type: 'expense', amount: -9999, date: '2026-08-05', periodDate: '2026-08-05', payment_method_id: 2, installment_plan_id: null, recurring_plan_id: null },
-      ],
-    });
-    const res = useFinanceStore.getState().getUpcomingCardDueDates();
-    expect(res.items).toHaveLength(0);
-  });
-
-  it('suma mensualidades adheridas al medio para el próximo resumen', () => {
-    seed({
-      paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
-      recurringPlans: [
-        { id: 9, description: 'Netflix', amount: 6500, is_active: true, payment_method_id: 1 },
-      ],
-      transactions: [],
-    });
-    const res = useFinanceStore.getState().getUpcomingCardDueDates();
-    expect(res.items).toHaveLength(1);
-    expect(res.items[0].amountArs).toBe(6500);
-  });
-
-  it('sin consumo futuro cargado no genera items', () => {
-    seed({
-      paymentMethods: [{ id: 1, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 }],
-      transactions: [
-        { id: 1, type: 'expense', amount: -5000, date: '2026-07-05', periodDate: '2026-07-05', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
-      ],
-    });
-    const res = useFinanceStore.getState().getUpcomingCardDueDates();
-    expect(res.items).toHaveLength(0);
-    expect(res.totalArs).toBe(0);
-    expect(res.totalUsd).toBe(0);
+    const items = useFinanceStore.getState().getRealAvailableBalance().pendingCardItems;
+    const master = items.find((i) => i.methodId === 1)!;
+    const visa = items.find((i) => i.methodId === 2)!;
+    expect(master.isCycleClosed).toBe(true);
+    expect(visa.isCycleClosed).toBe(false);
   });
 });

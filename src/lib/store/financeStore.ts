@@ -34,6 +34,7 @@ import {
   startOfWeek,
   endOfWeek,
   isAfter,
+  isBefore,
   startOfDay,
   isSameDay,
   isSameMonth,
@@ -80,6 +81,7 @@ export type CreditCardCycleSummary = {
   totalARS: number  // ARS-only expenses in the cycle
   totalUSD: number  // USD-only expenses (original amount, for display)
   nextPaymentDate: Date
+  isCycleClosed: boolean // true si el ciclo ya cerró (resumen a pagar); false si sigue acumulando ("en curso")
   isPending: boolean
   isPaidManually: boolean
 }
@@ -255,17 +257,6 @@ interface FinanceState {
     pendingCardTotal: number;
     pendingCardItems: CreditCardCycleSummary[];
     disponibleReal: number;
-  };
-  getUpcomingCardDueDates: () => {
-    items: Array<{
-      methodId: number;
-      name: string;
-      dueDate: Date;
-      amountArs: number;
-      amountUsd: number;
-    }>;
-    totalArs: number;
-    totalUsd: number;
   };
   getCategoryBreakdown: (scope: 'global' | 'current_month', type?: 'income' | 'expense') => {
     total: number;
@@ -559,8 +550,11 @@ const getCreditCycleDates = (
   const closingDay = method.default_closing_day;
   const paymentDay = method.default_payment_day;
 
+  // El ciclo avanza al siguiente resumen SOLO cuando el vencimiento ya pasó
+  // (es estrictamente anterior a hoy). El día exacto del vencimiento sigue
+  // siendo el ciclo vigente: ese día todavía tenés que pagar ese resumen.
   let nextPaymentDate = setDate(now, paymentDay);
-  if (!isAfter(startOfDay(nextPaymentDate), startOfDay(now))) {
+  if (isBefore(startOfDay(nextPaymentDate), startOfDay(now))) {
     nextPaymentDate = addMonths(nextPaymentDate, 1);
   }
 
@@ -1457,16 +1451,26 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     return creditCards.reduce<CreditCardCycleSummary[]>((acc, method) => {
       const status = get().getPaymentMethodStatus(method.id)
-      const { projectedTotal, nextPaymentDate, usdExpenses, arsExpenses } = status
+      const { projectedTotal, nextPaymentDate, nextClosingDate, usdExpenses, arsExpenses } = status
 
       // projectedTotal = income - expenses (negative when user owes money to the card)
       if (!nextPaymentDate || projectedTotal >= 0) return acc
+
+      // Ciclo cerrado = el cierre ya pasó (o es hoy): el resumen está fijado y a pagar.
+      // Ciclo en curso = todavía acumula consumo. Diferencia por qué una tarjeta muestra
+      // consumo de un período anterior (cerrado) y otra el del período vigente (en curso).
+      const isCycleClosed = nextClosingDate
+        ? !isBefore(startOfDay(now), startOfDay(nextClosingDate))
+        : false
 
       // El estado "pagada" se deriva de la existencia de una transacción de pago
       // (card_payment_for) cuya fecha cae en el mes del vencimiento del ciclo.
       const isPaidManually = get().isCreditCardCyclePaid(method.id)
 
-      const isPending = !isPaidManually && now < nextPaymentDate
+      // Pendiente mientras no se pagó y el vencimiento no pasó. Comparación por
+      // día (no por timestamp) para que el día EXACTO del vencimiento siga contando
+      // como pendiente, coherente con getCreditCycleDates.
+      const isPending = !isPaidManually && !isAfter(startOfDay(now), startOfDay(nextPaymentDate))
 
       acc.push({
         methodId: method.id,
@@ -1475,6 +1479,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         totalARS: arsExpenses,
         totalUSD: usdExpenses,
         nextPaymentDate,
+        isCycleClosed,
         isPending,
         isPaidManually,
       })
@@ -1712,82 +1717,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       pendingCardTotal,
       pendingCardItems,
       disponibleReal,
-    };
-  },
-
-  getUpcomingCardDueDates: () => {
-    const { transactions, recurringPlans, paymentMethods } = get();
-    const now = new Date();
-
-    const items: Array<{
-      methodId: number;
-      name: string;
-      dueDate: Date;
-      amountArs: number;
-      amountUsd: number;
-    }> = [];
-
-    for (const method of paymentMethods) {
-      // Solo crédito con ciclo configurado.
-      const current = getCreditCycleDates(method, now);
-      if (!current) continue;
-
-      // El resumen SIGUIENTE al ciclo vigente = +1 mes exacto sobre el vencimiento
-      // actual. El ciclo vigente lo cubre el hero (pendingCardTotal); acá miramos
-      // solo el que todavía no vence.
-      const dueDate = addMonths(current.nextPaymentDate, 1);
-
-      let amountArs = 0;
-      let amountUsd = 0;
-      const recurringInCycle = new Set<number>();
-
-      for (const t of transactions) {
-        if (t.payment_method_id !== method.id) continue;
-        // Pertenencia al resumen: t.date (en crédito ya es el vencimiento calculado)
-        // cae en el mismo mes/año que dueDate.
-        if (!sameMonthYear(parseLocalDate(t.date), dueDate)) continue;
-
-        if (t.type === 'expense') {
-          if (t.recurring_plan_id) recurringInCycle.add(t.recurring_plan_id);
-          if (t.original_currency === 'USD' && t.original_amount) {
-            amountUsd += Math.abs(Number(t.original_amount));
-          } else {
-            amountArs += Math.abs(Number(t.amount));
-          }
-        } else if (t.type === 'income') {
-          // Reintegros del mismo ciclo restan (se asumen ARS, igual que getPaymentMethodStatus).
-          amountArs -= Number(t.amount);
-        }
-      }
-
-      // Mensualidades adheridas al medio aún sin transacción en ese resumen: se sumarán.
-      for (const p of recurringPlans) {
-        if (p.payment_method_id !== method.id || !p.is_active) continue;
-        if (recurringInCycle.has(p.id)) continue;
-        if (p.currency === 'USD' && p.original_amount) {
-          amountUsd += Math.abs(Number(p.original_amount));
-        } else {
-          amountArs += Math.abs(Number(p.amount));
-        }
-      }
-
-      if (amountArs <= 0 && amountUsd <= 0) continue;
-
-      items.push({
-        methodId: method.id,
-        name: method.name,
-        dueDate,
-        amountArs: Math.max(amountArs, 0),
-        amountUsd,
-      });
-    }
-
-    items.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-
-    return {
-      items,
-      totalArs: items.reduce((acc, it) => acc + it.amountArs, 0),
-      totalUsd: items.reduce((acc, it) => acc + it.amountUsd, 0),
     };
   },
 

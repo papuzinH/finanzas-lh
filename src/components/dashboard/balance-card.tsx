@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronDown, CreditCard } from "lucide-react"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { useFinanceStore } from "@/lib/store/financeStore"
 import { InfoHint } from "@/components/ui/info-hint"
@@ -62,6 +64,7 @@ export function BalanceCard() {
     saldoBruto,
     pendingFixedExpenses,
     pendingCardTotal,
+    pendingCardItems,
     disponibleReal,
   } = getRealAvailableBalance()
 
@@ -165,21 +168,38 @@ export function BalanceCard() {
                 )}
 
                 {pendingCardTotal > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-[13px] text-cream-light/80 flex items-center gap-1.5">
-                      <CreditCard className="h-3 w-3" />
-                      Tarjeta de este mes
-                      <HintStop>
-                        <InfoHint label="Cómo se calcula la tarjeta de este mes" className="text-celeste/70 hover:text-cream">
-                          El total del resumen de tus tarjetas de crédito que vence este ciclo y
-                          todavía no pagaste. Al marcarlo pagado en Compromisos, tu plata libre no
-                          cambia: ese gasto ya estaba contado.
-                        </InfoHint>
-                      </HintStop>
-                    </span>
-                    <span className="font-poster tnum text-[13px] text-bad">
-                      -{formatCurrency(pendingCardTotal)}
-                    </span>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[13px] text-cream-light/80 flex items-center gap-1.5">
+                        <CreditCard className="h-3 w-3" />
+                        Tarjeta de este mes
+                        <HintStop>
+                          <InfoHint label="Cómo se calcula la tarjeta de este mes" className="text-celeste/70 hover:text-cream">
+                            El total del resumen de tus tarjetas de crédito que vence este ciclo y
+                            todavía no pagaste. Al marcarlo pagado en Compromisos, tu plata libre no
+                            cambia: ese gasto ya estaba contado.
+                          </InfoHint>
+                        </HintStop>
+                      </span>
+                      <span className="font-poster tnum text-[13px] text-bad">
+                        -{formatCurrency(pendingCardTotal)}
+                      </span>
+                    </div>
+
+                    {/* Detalle por tarjeta con su fecha de vencimiento vigente */}
+                    <ul className="pl-[18px] space-y-1">
+                      {pendingCardItems.map((card) => (
+                        <li key={card.methodId} className="flex justify-between items-baseline gap-2">
+                          <span className="min-w-0 truncate text-[11px] text-cream-light/60">
+                            {card.name} · {card.isCycleClosed ? "cerrado" : "en curso"} · vence{" "}
+                            {format(card.nextPaymentDate, "d MMM", { locale: es })}
+                          </span>
+                          <span className="shrink-0 font-poster tnum text-[11px] text-cream-light/70">
+                            -{formatCurrency(card.total)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
