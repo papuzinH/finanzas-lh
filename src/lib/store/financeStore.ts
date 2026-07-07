@@ -40,34 +40,11 @@ import {
   isExpenseInCurrentMonthScope,
   sameMonthYear,
 } from '@/lib/finance/creditCycle';
-import type { ProcessedTransaction, CreditCardCycleSummary as CreditCardCycleSummaryType } from '@/lib/finance/types';
+import type { ProcessedTransaction, CreditCardCycleSummary as CreditCardCycleSummaryType, DolarBlue } from '@/lib/finance/types';
+import { resolveRate, prepareTransactions, prepareRecurringPlans } from '@/lib/finance/prepare';
 
 export type { ProcessedTransaction } from '@/lib/finance/types';
-
-interface DolarBlue {
-  compra: number;
-  venta: number;
-  fechaActualizacion: string;
-}
-
-/**
- * Resuelve la cotización ARS de un par dado.
- * Prioridad: rate del par en exchange_rates → dólar blue (venta) → fallback (snapshot) → 1.
- */
-export function resolveRate(
-  pair: string | null,
-  exchangeRates: ExchangeRate[],
-  dolarBlue: DolarBlue | null,
-  fallback?: number | null,
-): number {
-  if (pair) {
-    const r = exchangeRates.find((e) => e.pair === pair);
-    if (r && r.rate > 0) return r.rate;
-  }
-  if (dolarBlue?.venta && dolarBlue.venta > 0) return dolarBlue.venta;
-  if (fallback && fallback > 0) return fallback;
-  return 1;
-}
+export { resolveRate } from '@/lib/finance/prepare';
 
 export function parseInflation(
   raw: Array<{ fecha: string; valor: number }>,
@@ -638,50 +615,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
       // PROCESAMIENTO INTELIGENTE DEL FRONTEND
       // Creamos 'periodDate' para agrupar visualmente en el mes del resumen
-      const processedTransactions = rawTransactions.map((t) => {
-        const method = methods.find((m) => m.id === t.payment_method_id);
-        let periodDate = t.date; // Default: Misma fecha
-
-        if (method && method.type === 'credit') {
-          const localTDate = parseLocalDate(t.date);
-          const dayOfMonth = getDate(localTDate);
-
-          // t.date = fecha de pago calculada al crear la transacción.
-          // Si paymentDay < closingDay: el pago vence el mes SIGUIENTE al cierre,
-          // por lo que el período visual corresponde al mes anterior al pago.
-          // Si paymentDay >= closingDay: el pago vence el mismo mes del cierre,
-          // el período visual ES el mes del pago (sin ajuste).
-          if (
-            method.default_payment_day &&
-            method.default_closing_day &&
-            method.default_payment_day < method.default_closing_day &&
-            dayOfMonth <= method.default_payment_day + 2
-          ) {
-            const visualDate = subMonths(localTDate, 1);
-            periodDate = format(visualDate, 'yyyy-MM-dd');
-          }
-        }
-
-        const amountArs =
-          t.original_currency === 'USD' && t.original_amount != null
-            ? t.original_amount * resolveRate(t.rate_pair, (exchangeRatesData as ExchangeRate[]) || [], dolarBlue, t.exchange_rate)
-            : t.amount;
-
-        return {
-          ...t,
-          amount: amountArs,
-          periodDate, // Usar esta para filtros de mes
-          realPaymentDate: t.date, // Usar esta para mostrar "Vence el..."
-        };
-      });
-
-      const recomputedRecurring = ((recurring as RecurringPlan[]) || []).map((plan) => {
-        if (plan.currency === 'USD' && plan.original_amount != null) {
-          const rate = resolveRate(plan.rate_pair, (exchangeRatesData as ExchangeRate[]) || [], dolarBlue, plan.exchange_rate);
-          return { ...plan, amount: plan.original_amount * rate };
-        }
-        return plan;
-      });
+      const processedTransactions = prepareTransactions(rawTransactions, methods, (exchangeRatesData as ExchangeRate[]) || [], dolarBlue);
+      const recomputedRecurring = prepareRecurringPlans(((recurring as RecurringPlan[]) || []), (exchangeRatesData as ExchangeRate[]) || [], dolarBlue);
 
       set({
         transactions: processedTransactions,
