@@ -243,26 +243,26 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
               {isExpanded && (
                 <div className="px-3 pb-3 border-t border-border pt-3 space-y-3 bg-surface-2">
                   <div className="grid grid-cols-2 gap-2 text-[10px]">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-muted uppercase font-bold">PPC</p>
-                      <p className="text-text tnum">{fmtNumber(asset.ppc, 2)}</p>
+                      <p className="text-text tnum break-words">{fmtNumber(asset.ppc, 2)}</p>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-muted uppercase font-bold">V. Inicial</p>
-                      <p className="text-text tnum">{fmtCurrency(asset.investedValue, currencyLabel)}</p>
+                      <p className="text-text tnum break-words">{fmtCurrency(asset.investedValue, currencyLabel)}</p>
                     </div>
                     {asset.realizedPL !== 0 && (
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-muted uppercase font-bold">Realizado</p>
-                        <p className={cn('tnum', plColor(asset.realizedPL))}>
+                        <p className={cn('tnum break-words', plColor(asset.realizedPL))}>
                           {fmtSignedCurrency(asset.realizedPL, currencyLabel)}
                         </p>
                       </div>
                     )}
                     {asset.realizedPL !== 0 && (
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-muted uppercase font-bold">Total P/L</p>
-                        <p className={cn('tnum', plColor(asset.totalPL))}>
+                        <p className={cn('tnum break-words', plColor(asset.totalPL))}>
                           {fmtSignedCurrency(asset.totalPL, currencyLabel)}
                         </p>
                       </div>

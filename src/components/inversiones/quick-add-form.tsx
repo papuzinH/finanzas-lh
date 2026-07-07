@@ -320,9 +320,9 @@ export function QuickAddForm() {
           </div>
 
           {totalInvestido !== null && (
-            <div className="rounded-lg bg-surface-2 border-[1.5px] border-border px-3 py-2 flex items-center justify-between">
-              <span className="text-[11px] text-muted">Total invertido</span>
-              <span className="text-sm tnum font-bold text-text">
+            <div className="rounded-lg bg-surface-2 border-[1.5px] border-border px-3 py-2 flex items-center justify-between gap-2">
+              <span className="text-[11px] text-muted shrink-0">Total invertido</span>
+              <span className="text-sm tnum font-bold text-text text-right break-words min-w-0">
                 {fmtCurrency(totalInvestido, currency)}
               </span>
             </div>
