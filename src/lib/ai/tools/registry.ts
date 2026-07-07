@@ -1,8 +1,9 @@
 import type { AgentContext, ToolDef, ToolResult } from './types'
 import { zodToGeminiSchema } from './schema'
+import { readTools } from './readTools'
 
-// Tasks 8-13 agregan sus tools a este array vía los spreads.
-export const allTools: ToolDef[] = []
+// Tasks 9-13 agregan sus tools a este array vía los spreads.
+export const allTools: ToolDef[] = [...readTools]
 
 /** Convierte tools a function declarations para Gemini. */
 export function getFunctionDeclarations(tools: ToolDef[] = allTools) {
