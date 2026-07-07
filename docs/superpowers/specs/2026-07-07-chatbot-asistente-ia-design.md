@@ -131,7 +131,12 @@ modelo llamar `delete_entity(..., confirmed=true)`. Cero estado en el servidor
 
 - Toda escritura valida con Zod contra `lib/schemas/` antes de insertar.
 - El modelo nunca arma SQL ni toca Supabase directo: solo elige tools y
-  argumentos.
+  argumentos. Toda tool corre con el cliente Supabase del usuario autenticado
+  (RLS + filtro por `user_id`): el agente solo puede ver y tocar datos del
+  propio usuario.
+- Salidas acotadas: toda tool de lectura devuelve JSON compacto con tope de
+  filas (ej. `search_transactions` máx. 20). Controla el crecimiento del
+  contexto entre pasos — y con eso, el costo.
 - Tipo de categoría coherente con tipo de movimiento (la regla del commit
   `8bd0ea6` se vuelve estructural en el schema de la tool).
 - Ambigüedad → preguntar, no adivinar: sin medio de pago claro ni default, el
@@ -181,6 +186,10 @@ modificarse.
 **Protecciones del loop**:
 
 - Tope de 6 pasos; al agotarse, llamada final forzada sin tools.
+- Techo de tokens por mensaje: si el acumulado del loop supera un límite
+  (~50k tokens, configurable), se fuerza la respuesta final aunque queden
+  pasos disponibles. Protege del peor caso: cada paso reenvía la conversación
+  completa, así que el costo por paso crece si no se corta.
 - Anti-bucle: misma tool con mismos argumentos repetida → corte y respuesta
   forzada.
 - `maxDuration = 60` en la route.
