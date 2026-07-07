@@ -13,7 +13,6 @@ import type {
   CardConfigData,
   EditData,
   DeleteData,
-  ConfirmActionData,
   QueryType,
   QueryFilters,
   CreateGoalData,
@@ -29,23 +28,6 @@ export interface ChatResponse {
   message: string
   data?: any
 }
-
-/**
- * Estado de acciones pendientes de confirmación (en memoria del servidor).
- * Se limpia después de 5 minutos de inactividad.
- * Clave: userId numérico
- */
-interface PendingAction {
-  type: 'delete_with_deps'
-  entity: 'medio_pago' | 'categoria' | 'cuota'
-  entityId: number
-  entityName: string
-  dependencyCount: number
-  dependencyType: string // 'transacciones', 'planes', etc.
-  timestamp: number
-}
-
-const pendingActions = new Map<number, PendingAction>()
 
 /**
  * Interfaz para representar un payment method resuelto con todos sus detalles.
@@ -128,7 +110,10 @@ export async function handleIntent(intent: ChatIntent, userId: number): Promise<
     case 'delete':
       return handleDelete(intent.data, userId)
     case 'confirm_action':
-      return handleConfirmAction(intent.data, userId)
+      // El flujo de confirmación ahora es stateless (ver handleDelete: confirmed/reassignTo
+      // viajan en el propio intent). Este case queda solo para que el switch siga compilando
+      // hasta que se elimine en una task posterior.
+      return { success: false, message: 'No hay ninguna acción pendiente de confirmación.' }
     case 'create_goal':
       return handleCreateGoal(intent.data)
     case 'create_budget':
@@ -1270,8 +1255,24 @@ async function handleEdit(data: EditData, userId: number): Promise<ChatResponse>
 
 /**
  * Maneja la eliminación de entidades con validación de dependencias.
+ *
+ * Stateless: reemplaza al viejo flujo `pendingActions` (Map en memoria del módulo),
+ * que se rompía en Vercel porque cada request puede caer en una lambda distinta y
+ * el Map llega vacío. Ahora `data.confirmed`/`data.reassignTo` viajan en el propio
+ * intent (el cliente/LLM reenvía el intent completo al confirmar), así que no hay
+ * estado compartido entre requests.
+ *
+ * Para las entidades con dependencias (medio_pago, categoria, cuota):
+ * - `confirmed` ausente/false → devuelve el mensaje ⚠️ de confirmación, no borra nada.
+ * - `confirmed: true` + `reassignTo` → reasigna las dependencias a la entidad indicada
+ *   y después borra la original (lógica que antes vivía en `handleConfirmAction`).
+ * - `confirmed: true` sin `reassignTo` → borra directo (para `cuota`, incluye sus
+ *   transacciones/cuotas futuras).
  */
-async function handleDelete(data: DeleteData, userId: number): Promise<ChatResponse> {
+export async function handleDelete(
+  data: DeleteData & { confirmed?: boolean; reassignTo?: string | null },
+  userId: number
+): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
 
@@ -1344,29 +1345,63 @@ async function handleDelete(data: DeleteData, userId: number): Promise<ChatRespo
         const totalDeps = (txCount ?? 0) + (planCount ?? 0) + (subCount ?? 0)
 
         if (totalDeps > 0) {
-          // Guardar acción pendiente de confirmación
-          pendingActions.set(userId, {
-            type: 'delete_with_deps',
-            entity: 'medio_pago',
-            entityId: method.id,
-            entityName: method.name,
-            dependencyCount: totalDeps,
-            dependencyType: 'entidades',
-            timestamp: Date.now(),
-          })
+          if (!data.confirmed) {
+            const details: string[] = []
+            if (txCount && txCount > 0) details.push(`${txCount} transacciones`)
+            if (planCount && planCount > 0) details.push(`${planCount} planes de cuotas`)
+            if (subCount && subCount > 0) details.push(`${subCount} Mensualidades`)
 
-          const details: string[] = []
-          if (txCount && txCount > 0) details.push(`${txCount} transacciones`)
-          if (planCount && planCount > 0) details.push(`${planCount} planes de cuotas`)
-          if (subCount && subCount > 0) details.push(`${subCount} Mensualidades`)
-
-          return {
-            success: true,
-            message: `⚠️ El medio de pago "${method.name}" tiene ${details.join(', ')} asociadas. ¿Querés reasignarlas a otro medio de pago, o cancelar la eliminación?`,
+            return {
+              success: true,
+              message: `⚠️ El medio de pago "${method.name}" tiene ${details.join(', ')} asociadas. ¿Querés reasignarlas a otro medio de pago, o cancelar la eliminación?`,
+            }
           }
+
+          if (data.reassignTo) {
+            // Buscar el nuevo medio de pago
+            const newMethod = await resolvePaymentMethod(supabase, userId, data.reassignTo)
+            if (!newMethod) {
+              return { success: false, message: `No encontré un medio de pago que coincida con "${data.reassignTo}".` }
+            }
+
+            // Reasignar transacciones
+            await supabase
+              .from('transactions')
+              .update({ payment_method_id: newMethod.id })
+              .eq('payment_method_id', method.id)
+              .eq('user_id', userId)
+
+            // Reasignar planes de cuotas
+            await supabase
+              .from('installment_plans')
+              .update({ payment_method_id: newMethod.id })
+              .eq('payment_method_id', method.id)
+              .eq('user_id', userId)
+
+            // Reasignar Mensualidades
+            await supabase
+              .from('recurring_plans')
+              .update({ payment_method_id: newMethod.id })
+              .eq('payment_method_id', method.id)
+              .eq('user_id', userId)
+
+            // Eliminar el medio de pago original
+            await supabase
+              .from('payment_methods')
+              .delete()
+              .eq('id', method.id)
+              .eq('user_id', userId)
+
+            return {
+              success: true,
+              message: `✅ ${totalDeps} entidades reasignadas a "${newMethod.name}". Medio de pago "${method.name}" eliminado.`,
+            }
+          }
+
+          // confirmed sin reassignTo: cae al borrado directo de abajo
         }
 
-        // Sin dependencias: eliminar directamente
+        // Sin dependencias (o confirmado sin reasignación): eliminar directamente
         const { error: deleteError } = await supabase
           .from('payment_methods')
           .delete()
@@ -1384,10 +1419,16 @@ async function handleDelete(data: DeleteData, userId: number): Promise<ChatRespo
       }
 
       case 'categoria': {
+        // Bug fix: categories.user_id es el UUID de auth (no el id numérico interno
+        // que usan transactions/payment_methods), por eso el filtro con `userId` nunca
+        // matcheaba. Usamos getAuthUserId() para obtener el UUID correcto.
+        const authId = await getAuthUserId()
+        if (!authId) return { success: false, message: 'No autorizado' }
+
         const { data: cats, error } = await supabase
           .from('categories')
           .select('id, name, emoji')
-          .eq('user_id', userId)
+          .eq('user_id', authId)
           .ilike('name', `%${data.search}%`)
           .limit(1)
 
@@ -1397,7 +1438,7 @@ async function handleDelete(data: DeleteData, userId: number): Promise<ChatRespo
 
         const cat = cats[0]
 
-        // Verificar dependencias
+        // Verificar dependencias (transactions.user_id sí es numérico)
         const { count: txCount } = await supabase
           .from('transactions')
           .select('id', { count: 'exact' })
@@ -1405,27 +1446,56 @@ async function handleDelete(data: DeleteData, userId: number): Promise<ChatRespo
           .eq('user_id', userId)
 
         if (txCount && txCount > 0) {
-          pendingActions.set(userId, {
-            type: 'delete_with_deps',
-            entity: 'categoria',
-            entityId: cat.id as unknown as number, // categories use UUID but same flow
-            entityName: cat.name,
-            dependencyCount: txCount,
-            dependencyType: 'transacciones',
-            timestamp: Date.now(),
-          })
-
-          return {
-            success: true,
-            message: `⚠️ La categoría "${cat.emoji || ''} ${cat.name}" tiene ${txCount} transacciones asociadas. ¿Querés reasignarlas a otra categoría, o cancelar?`,
+          if (!data.confirmed) {
+            return {
+              success: true,
+              message: `⚠️ La categoría "${cat.emoji || ''} ${cat.name}" tiene ${txCount} transacciones asociadas. ¿Querés reasignarlas a otra categoría, o cancelar?`,
+            }
           }
+
+          if (data.reassignTo) {
+            // Buscar la nueva categoría
+            const { data: newCats } = await supabase
+              .from('categories')
+              .select('id, name, emoji')
+              .eq('user_id', authId)
+              .ilike('name', `%${data.reassignTo}%`)
+              .limit(1)
+
+            if (!newCats || newCats.length === 0) {
+              return { success: false, message: `No encontré una categoría que coincida con "${data.reassignTo}".` }
+            }
+
+            const newCat = newCats[0]
+
+            // Reasignar transacciones
+            await supabase
+              .from('transactions')
+              .update({ category_id: newCat.id })
+              .eq('category_id', cat.id)
+              .eq('user_id', userId)
+
+            // Eliminar la categoría original
+            await supabase
+              .from('categories')
+              .delete()
+              .eq('id', cat.id)
+              .eq('user_id', authId)
+
+            return {
+              success: true,
+              message: `✅ ${txCount} transacciones reasignadas a "${newCat.emoji || ''} ${newCat.name}". Categoría "${cat.name}" eliminada.`,
+            }
+          }
+
+          // confirmed sin reassignTo: cae al borrado directo de abajo
         }
 
         const { error: deleteError } = await supabase
           .from('categories')
           .delete()
           .eq('id', cat.id)
-          .eq('user_id', userId)
+          .eq('user_id', authId)
 
         if (deleteError) {
           return { success: false, message: 'Error al eliminar la categoría.' }
@@ -1492,19 +1562,30 @@ async function handleDelete(data: DeleteData, userId: number): Promise<ChatRespo
           .gte('date', today)
 
         if (futureCount && futureCount > 0) {
-          pendingActions.set(userId, {
-            type: 'delete_with_deps',
-            entity: 'cuota',
-            entityId: plan.id,
-            entityName: plan.description,
-            dependencyCount: futureCount,
-            dependencyType: 'cuotas futuras',
-            timestamp: Date.now(),
-          })
+          if (!data.confirmed) {
+            return {
+              success: true,
+              message: `⚠️ El plan "${plan.description}" tiene ${futureCount} cuotas futuras. ¿Confirmo eliminar el plan y sus cuotas pendientes, o cancelar?`,
+            }
+          }
+
+          // Confirmado: eliminar cuotas futuras + plan (cuota no soporta reasignación)
+          await supabase
+            .from('transactions')
+            .delete()
+            .eq('installment_plan_id', plan.id)
+            .eq('user_id', userId)
+            .gte('date', today)
+
+          await supabase
+            .from('installment_plans')
+            .delete()
+            .eq('id', plan.id)
+            .eq('user_id', userId)
 
           return {
             success: true,
-            message: `⚠️ El plan "${plan.description}" tiene ${futureCount} cuotas futuras. ¿Confirmo eliminar el plan y sus cuotas pendientes, o cancelar?`,
+            message: `🗑️ Plan "${plan.description}" eliminado junto con sus ${futureCount} cuotas futuras.`,
           }
         }
 
@@ -1531,155 +1612,6 @@ async function handleDelete(data: DeleteData, userId: number): Promise<ChatRespo
   } catch (error) {
     console.error('Error in handleDelete:', error)
     return { success: false, message: 'Error inesperado al eliminar.' }
-  }
-}
-
-/**
- * Maneja confirmaciones de acciones pendientes (reasignar, confirmar delete, cancelar).
- */
-async function handleConfirmAction(data: ConfirmActionData, userId: number): Promise<ChatResponse> {
-  const pending = pendingActions.get(userId)
-
-  if (!pending) {
-    return { success: false, message: 'No hay ninguna acción pendiente de confirmación.' }
-  }
-
-  // Limpiar si pasaron más de 5 minutos
-  if (Date.now() - pending.timestamp > 5 * 60 * 1000) {
-    pendingActions.delete(userId)
-    return { success: false, message: 'La acción expiró. Si querés eliminar algo, pedímelo de nuevo.' }
-  }
-
-  try {
-    const supabase = await createClient()
-
-    if (data.action === 'cancel') {
-      pendingActions.delete(userId)
-      return { success: true, message: '❌ Operación cancelada.' }
-    }
-
-    if (data.action === 'confirm_delete') {
-      // Confirmar eliminación sin reasignación
-      if (pending.entity === 'cuota') {
-        // Eliminar cuotas futuras + plan
-        const today = formatLocalDate(new Date())
-        await supabase
-          .from('transactions')
-          .delete()
-          .eq('installment_plan_id', pending.entityId)
-          .eq('user_id', userId)
-          .gte('date', today)
-
-        await supabase
-          .from('installment_plans')
-          .delete()
-          .eq('id', pending.entityId)
-          .eq('user_id', userId)
-
-        pendingActions.delete(userId)
-        return {
-          success: true,
-          message: `🗑️ Plan "${pending.entityName}" eliminado junto con sus ${pending.dependencyCount} cuotas futuras.`,
-        }
-      }
-
-      pendingActions.delete(userId)
-      return { success: false, message: 'Para esta entidad necesitás reasignar las dependencias antes de eliminar.' }
-    }
-
-    if (data.action === 'reassign') {
-      if (!data.reassignTo) {
-        return { success: false, message: '¿A qué entidad querés reasignar? Decime el nombre.' }
-      }
-
-      if (pending.entity === 'medio_pago') {
-        // Buscar el nuevo medio de pago
-        const newMethod = await resolvePaymentMethod(supabase, userId, data.reassignTo)
-        if (!newMethod) {
-          return { success: false, message: `No encontré un medio de pago que coincida con "${data.reassignTo}".` }
-        }
-
-        // Reasignar transacciones
-        await supabase
-          .from('transactions')
-          .update({ payment_method_id: newMethod.id })
-          .eq('payment_method_id', pending.entityId)
-          .eq('user_id', userId)
-
-        // Reasignar planes de cuotas
-        await supabase
-          .from('installment_plans')
-          .update({ payment_method_id: newMethod.id })
-          .eq('payment_method_id', pending.entityId)
-          .eq('user_id', userId)
-
-        // Reasignar Mensualidades
-        await supabase
-          .from('recurring_plans')
-          .update({ payment_method_id: newMethod.id })
-          .eq('payment_method_id', pending.entityId)
-          .eq('user_id', userId)
-
-        // Eliminar el medio de pago original
-        await supabase
-          .from('payment_methods')
-          .delete()
-          .eq('id', pending.entityId)
-          .eq('user_id', userId)
-
-        pendingActions.delete(userId)
-        return {
-          success: true,
-          message: `✅ ${pending.dependencyCount} entidades reasignadas a "${newMethod.name}". Medio de pago "${pending.entityName}" eliminado.`,
-        }
-      }
-
-      if (pending.entity === 'categoria') {
-        // Buscar la nueva categoría
-        const { data: cats } = await supabase
-          .from('categories')
-          .select('id, name, emoji')
-          .eq('user_id', userId)
-          .ilike('name', `%${data.reassignTo}%`)
-          .limit(1)
-
-        if (!cats || cats.length === 0) {
-          return { success: false, message: `No encontré una categoría que coincida con "${data.reassignTo}".` }
-        }
-
-        const newCat = cats[0]
-
-        // Reasignar transacciones
-        await supabase
-          .from('transactions')
-          .update({ category_id: newCat.id })
-          .eq('category_id', pending.entityId)
-          .eq('user_id', userId)
-
-        // Eliminar la categoría original
-        await supabase
-          .from('categories')
-          .delete()
-          .eq('id', pending.entityId)
-          .eq('user_id', userId)
-
-        pendingActions.delete(userId)
-        return {
-          success: true,
-          message: `✅ ${pending.dependencyCount} transacciones reasignadas a "${newCat.emoji || ''} ${newCat.name}". Categoría "${pending.entityName}" eliminada.`,
-        }
-      }
-
-      pendingActions.delete(userId)
-      return { success: false, message: 'Reasignación no soportada para este tipo de entidad.' }
-    }
-
-    pendingActions.delete(userId)
-    return { success: false, message: 'Acción no reconocida.' }
-  } catch (error) {
-    console.error('Error in handleConfirmAction:', error)
-    pendingActions.delete(userId)
-    return { success: false, message: 'Error inesperado al procesar la confirmación.' }
   }
 }
 
