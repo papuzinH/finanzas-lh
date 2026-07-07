@@ -203,7 +203,7 @@ async function checkBudgetAlert(
 /**
  * Maneja una transacción simple (gasto o ingreso)
  */
-async function handleTransaction(data: TransactionData, userId: number): Promise<ChatResponse> {
+export async function handleTransaction(data: TransactionData, userId: number): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
 
@@ -277,7 +277,7 @@ async function handleTransaction(data: TransactionData, userId: number): Promise
 /**
  * Maneja una compra en cuotas
  */
-async function handleInstallment(data: InstallmentData, userId: number): Promise<ChatResponse> {
+export async function handleInstallment(data: InstallmentData, userId: number): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
 
@@ -364,7 +364,7 @@ async function handleInstallment(data: InstallmentData, userId: number): Promise
 /**
  * Maneja una suscripción o gasto fijo
  */
-async function handleSubscription(data: SubscriptionData, userId: number): Promise<ChatResponse> {
+export async function handleSubscription(data: SubscriptionData, userId: number): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
 
@@ -414,7 +414,7 @@ async function handleSubscription(data: SubscriptionData, userId: number): Promi
 /**
  * Maneja la configuración de tarjeta de crédito
  */
-async function handleCardConfig(data: CardConfigData, userId: number): Promise<ChatResponse> {
+export async function handleCardConfig(data: CardConfigData, userId: number): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
 
