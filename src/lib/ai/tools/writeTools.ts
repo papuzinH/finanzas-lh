@@ -78,6 +78,16 @@ const createPaymentMethodSchema = z.object({
     .describe('Día de vencimiento del pago; solo aplica si tipo es "credit"'),
 })
 
+/**
+ * Normaliza un nombre para el duplicate-check exacto case-insensitive de
+ * create_category/create_payment_method: trim + lowercase. NO usar ilike para esto:
+ * sin escapar, % y _ del input son wildcards LIKE vivos y convierten el chequeo en
+ * substring match (fix post-review Task 11).
+ */
+function normalizeName(name: string): string {
+  return name.trim().toLowerCase()
+}
+
 export const writeTools: ToolDef[] = [
   {
     name: 'create_transaction',
@@ -173,18 +183,25 @@ export const writeTools: ToolDef[] = [
       const args = rawArgs as z.infer<typeof createCategorySchema>
       const { supabase, authUserId } = ctx
 
-      // Duplicado: ilike con el nombre exacto (sin %) sobre las categorías del
-      // usuario — categories.user_id es UUID (Task 7 Step 0), NO el userId numérico.
+      // Duplicado: comparación EXACTA case-insensitive client-side sobre las
+      // categorías del usuario — categories.user_id es UUID (Task 7 Step 0), NO el
+      // userId numérico. No se usa ilike: sin escapar, % y _ en el nombre son
+      // wildcards LIKE vivos (ej. "Compras 20%" matchearía "Compras..." por substring
+      // y bloquearía creaciones legítimas).
       const { data: existing, error: findError } = await supabase
         .from('categories')
-        .select('id')
+        .select('name')
         .eq('user_id', authUserId)
-        .ilike('name', args.nombre)
-        .limit(1)
 
-      if (findError) return { ok: false, error: 'No pude verificar si la categoría ya existía.' }
-      if (existing && existing.length > 0) {
-        return { ok: false, error: `Ya existe una categoría llamada "${args.nombre}".` }
+      if (findError) {
+        console.error('Error checking category duplicates:', findError)
+        return { ok: false, error: 'No pude verificar si la categoría ya existía.', mutated: false }
+      }
+
+      const nombreNorm = normalizeName(args.nombre)
+      const rows = (existing ?? []) as { name: string }[]
+      if (rows.some((row) => normalizeName(row.name) === nombreNorm)) {
+        return { ok: false, error: `Ya existe una categoría llamada "${args.nombre}".`, mutated: false }
       }
 
       const { error: insertError } = await supabase.from('categories').insert({
@@ -194,7 +211,10 @@ export const writeTools: ToolDef[] = [
         emoji: args.emoji ?? null,
       })
 
-      if (insertError) return { ok: false, error: 'No pude crear la categoría.' }
+      if (insertError) {
+        console.error('Error creating category:', insertError)
+        return { ok: false, error: 'No pude crear la categoría.', mutated: false }
+      }
 
       const label = args.emoji ? `${args.emoji} ${args.nombre}` : args.nombre
       return { ok: true, data: { mensaje: `✅ Categoría "${label}" creada.` }, mutated: true }
@@ -210,18 +230,24 @@ export const writeTools: ToolDef[] = [
       const args = rawArgs as z.infer<typeof createPaymentMethodSchema>
       const { supabase, userId } = ctx
 
-      // Duplicado: ilike con el nombre exacto (sin %) sobre los medios del usuario —
-      // payment_methods.user_id es numérico (Task 7 Step 0), NO el UUID de auth.
+      // Duplicado: comparación EXACTA case-insensitive client-side sobre los medios
+      // del usuario — payment_methods.user_id es numérico (Task 7 Step 0), NO el UUID
+      // de auth. Sin ilike, por el mismo motivo que create_category (% y _ son
+      // wildcards LIKE vivos).
       const { data: existing, error: findError } = await supabase
         .from('payment_methods')
-        .select('id')
+        .select('name')
         .eq('user_id', userId)
-        .ilike('name', args.nombre)
-        .limit(1)
 
-      if (findError) return { ok: false, error: 'No pude verificar si el medio de pago ya existía.' }
-      if (existing && existing.length > 0) {
-        return { ok: false, error: `Ya existe un medio de pago llamado "${args.nombre}".` }
+      if (findError) {
+        console.error('Error checking payment method duplicates:', findError)
+        return { ok: false, error: 'No pude verificar si el medio de pago ya existía.', mutated: false }
+      }
+
+      const nombreNorm = normalizeName(args.nombre)
+      const rows = (existing ?? []) as { name: string }[]
+      if (rows.some((row) => normalizeName(row.name) === nombreNorm)) {
+        return { ok: false, error: `Ya existe un medio de pago llamado "${args.nombre}".`, mutated: false }
       }
 
       const { error: insertError } = await supabase.from('payment_methods').insert({
@@ -235,7 +261,10 @@ export const writeTools: ToolDef[] = [
           : {}),
       })
 
-      if (insertError) return { ok: false, error: 'No pude crear el medio de pago.' }
+      if (insertError) {
+        console.error('Error creating payment method:', insertError)
+        return { ok: false, error: 'No pude crear el medio de pago.', mutated: false }
+      }
 
       return { ok: true, data: { mensaje: `✅ Medio de pago "${args.nombre}" creado.` }, mutated: true }
     },

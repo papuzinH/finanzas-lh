@@ -17,10 +17,13 @@ vi.mock('@/lib/ai/handlers', () => ({
   handleCardConfig: vi.fn(),
 }))
 
-// --- Mock de supabase encadenable (select/eq/ilike/limit/insert → this), usado por
+// --- Mock de supabase encadenable (select/eq/insert → this), usado por
 // create_category y create_payment_method (inserts directos, sin handler legacy).
-// `tables['X'].existing` simula filas encontradas en el chequeo de duplicado;
-// `tables['X'].insertError` simula un error al insertar.
+// `tables['X'].existing` simula las filas (con `name`) del usuario que trae el select
+// para el duplicate-check client-side; `tables['X'].insertError` simula un error al
+// insertar. A propósito NO expone `ilike`/`limit`: el duplicate-check debe ser
+// comparación client-side (fix post-review: ilike sin escapar trata % y _ como
+// wildcards LIKE vivos); si una regresión reintroduce ilike, el mock revienta.
 type TableFixture = { existing?: unknown[]; findError?: boolean; insertError?: boolean }
 
 function createSupabaseMock(tables: Record<string, TableFixture>) {
@@ -33,8 +36,6 @@ function createSupabaseMock(tables: Record<string, TableFixture>) {
     const chain = {
       select: () => chain,
       eq: () => chain,
-      ilike: () => chain,
-      limit: () => chain,
       insert: (payload: unknown) => {
         insertCalls[table] = insertCalls[table] ?? []
         insertCalls[table].push(payload)
@@ -359,7 +360,7 @@ describe('set_card_dates', () => {
 describe('create_category', () => {
   it('rechaza duplicado (case-insensitive) sin insertar', async () => {
     const { supabase, insertCalls } = createSupabaseMock({
-      categories: { existing: [{ id: 'c1' }] },
+      categories: { existing: [{ id: 'c1', name: 'Comida' }] },
     })
     const localCtx: AgentContext = { ...ctx, supabase }
 
@@ -372,7 +373,26 @@ describe('create_category', () => {
 
     expect(res.ok).toBe(false)
     expect(res.error).toBeTruthy()
+    expect(res.mutated).toBe(false)
     expect(insertCalls.categories).toBeUndefined()
+  })
+
+  it('un nombre con % NO matchea por substring contra otro existente (sin wildcards LIKE)', async () => {
+    const { supabase, insertCalls } = createSupabaseMock({
+      categories: { existing: [{ id: 'c1', name: 'Compras' }] },
+    })
+    const localCtx: AgentContext = { ...ctx, supabase }
+
+    const res = await executeToolWith(
+      writeTools,
+      'create_category',
+      { nombre: 'Compras 20%', tipo: 'expense' },
+      localCtx,
+    )
+
+    expect(res.ok).toBe(true)
+    expect(res.mutated).toBe(true)
+    expect(insertCalls.categories[0]).toMatchObject({ name: 'Compras 20%' })
   })
 
   it('crea la categoría con el user_id UUID (authUserId) cuando no hay duplicado', async () => {
@@ -397,7 +417,8 @@ describe('create_category', () => {
     })
   })
 
-  it('error al insertar devuelve ok:false y mutated ausente/false', async () => {
+  it('error al insertar devuelve ok:false, mutated:false y loguea el error', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { supabase } = createSupabaseMock({ categories: { existing: [], insertError: true } })
     const localCtx: AgentContext = { ...ctx, supabase }
 
@@ -409,14 +430,35 @@ describe('create_category', () => {
     )
 
     expect(res.ok).toBe(false)
-    expect(res.mutated).not.toBe(true)
+    expect(res.mutated).toBe(false)
+    expect(errorSpy).toHaveBeenCalled()
+    errorSpy.mockRestore()
+  })
+
+  it('error en el duplicate-check devuelve ok:false, mutated:false y loguea el error', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { supabase, insertCalls } = createSupabaseMock({ categories: { findError: true } })
+    const localCtx: AgentContext = { ...ctx, supabase }
+
+    const res = await executeToolWith(
+      writeTools,
+      'create_category',
+      { nombre: 'Mascotas', tipo: 'expense' },
+      localCtx,
+    )
+
+    expect(res.ok).toBe(false)
+    expect(res.mutated).toBe(false)
+    expect(insertCalls.categories).toBeUndefined()
+    expect(errorSpy).toHaveBeenCalled()
+    errorSpy.mockRestore()
   })
 })
 
 describe('create_payment_method', () => {
-  it('rechaza duplicado sin insertar', async () => {
+  it('rechaza duplicado (case-insensitive) sin insertar', async () => {
     const { supabase, insertCalls } = createSupabaseMock({
-      payment_methods: { existing: [{ id: 1 }] },
+      payment_methods: { existing: [{ id: 1, name: 'Visa' }] },
     })
     const localCtx: AgentContext = { ...ctx, supabase }
 
@@ -428,7 +470,27 @@ describe('create_payment_method', () => {
     )
 
     expect(res.ok).toBe(false)
+    expect(res.mutated).toBe(false)
     expect(insertCalls.payment_methods).toBeUndefined()
+  })
+
+  it('un nombre con _ NO matchea por wildcard contra otro existente', async () => {
+    // En LIKE, "_" matchea cualquier caracter: "Visa_" matchearía "Visas".
+    const { supabase, insertCalls } = createSupabaseMock({
+      payment_methods: { existing: [{ id: 1, name: 'Visas' }] },
+    })
+    const localCtx: AgentContext = { ...ctx, supabase }
+
+    const res = await executeToolWith(
+      writeTools,
+      'create_payment_method',
+      { nombre: 'Visa_', tipo: 'debit' },
+      localCtx,
+    )
+
+    expect(res.ok).toBe(true)
+    expect(res.mutated).toBe(true)
+    expect(insertCalls.payment_methods[0]).toMatchObject({ name: 'Visa_' })
   })
 
   it('crea el medio con user_id numérico y días de tarjeta si tipo=credit', async () => {
