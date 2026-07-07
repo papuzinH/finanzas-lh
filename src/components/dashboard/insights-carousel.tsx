@@ -79,6 +79,9 @@ export function InsightsCarousel({ className }: { className?: string }) {
     } else if (info.offset.x > SWIPE_OFFSET_THRESHOLD || info.velocity.x > SWIPE_VELOCITY_THRESHOLD) {
       goRelative(-1);
     }
+    // Reanudar el auto-rotado al soltar (cruce o no el umbral). En touch no hay
+    // onMouseLeave que despause, así que sin esto el primer swipe congelaría el carrusel.
+    setPaused(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
