@@ -1,10 +1,10 @@
 'use client'
 
-const SOURCE_LABELS: Record<string, { label: string; className: string }> = {
-  yahoo:      { label: 'Yahoo',     className: 'text-accent' },
-  yahoo_us:   { label: 'Yahoo US',  className: 'text-accent' },
-  iol:        { label: 'IOL',       className: 'text-warn' },
-  coingecko:  { label: 'CoinGecko', className: 'text-good' },
+const SOURCE_LABELS: Record<string, string> = {
+  yahoo:      'Yahoo',
+  yahoo_us:   'Yahoo US',
+  iol:        'IOL',
+  coingecko:  'CoinGecko',
 }
 
 interface PriceSourceBadgeProps {
@@ -13,10 +13,10 @@ interface PriceSourceBadgeProps {
 
 export function PriceSourceBadge({ source }: PriceSourceBadgeProps) {
   if (!source) return null
-  const config = SOURCE_LABELS[source] ?? { label: source, className: 'text-muted' }
+  const label = SOURCE_LABELS[source] ?? source
   return (
-    <span className={`text-[9px] font-medium ${config.className}`} title={`Fuente: ${config.label}`}>
-      {config.label}
+    <span className="text-[10px] font-medium text-muted" title={`Fuente: ${label}`}>
+      {label}
     </span>
   )
 }

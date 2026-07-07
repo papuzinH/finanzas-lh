@@ -376,7 +376,7 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                           </span>
                           <div className="flex items-center gap-1.5">
                             <PriceSourceBadge source={asset.source} />
-                            <span className="text-[9px] text-faint">
+                            <span className="text-[10px] text-muted">
                               {formatRelativeTime(asset.lastUpdate)}
                             </span>
                           </div>
