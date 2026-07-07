@@ -40,9 +40,9 @@ export function PricesStatusBar({
           {hasFailed && (
             <button
               onClick={onOpenFailed}
-              className="inline-flex items-center gap-1 rounded-md bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn hover:bg-warn/20 transition-colors"
+              className="inline-flex items-center gap-1 rounded-md bg-warn/10 px-2.5 min-h-11 text-[11px] font-medium text-warn hover:bg-warn/20 transition-colors cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
             >
-              <AlertTriangle className="h-3 w-3" />
+              <AlertTriangle className="h-3.5 w-3.5" />
               {lastResult.failed.length} {lastResult.failed.length === 1 ? 'falló' : 'fallaron'} · Ver
             </button>
           )}
@@ -52,9 +52,10 @@ export function PricesStatusBar({
       <button
         onClick={onRefresh}
         disabled={isRefreshing}
-        className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-surface-2 border-[1.5px] border-border px-2.5 py-1 text-[11px] font-medium text-muted hover:text-text transition-all disabled:opacity-50"
+        aria-label="Actualizar precios de los activos"
+        className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-surface-2 border-[1.5px] border-border px-3 min-h-11 text-xs font-medium text-muted hover:text-text transition-all disabled:opacity-50 cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
       >
-        <RefreshCw className={cn('h-3 w-3', isRefreshing && 'animate-spin')} />
+        <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
         {isRefreshing ? 'Actualizando…' : 'Actualizar'}
       </button>
     </div>
