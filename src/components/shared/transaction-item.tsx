@@ -74,12 +74,15 @@ interface TransactionItemProps {
   paymentMethodType?: string;
   showDate?: boolean;
   grouped?: boolean;
+  /** Reproduce un "peek" del swipe al montar (hint de descubribilidad, reemplaza el indicador estático). */
+  peekOnMount?: boolean;
 }
 
 const SWIPE_THRESHOLD = 80;
 const UNDO_WINDOW_MS = 4000;
+const PEEK_OFFSET = 46;
 
-export function TransactionItem({ transaction, paymentMethodName, paymentMethodType, showDate = true, grouped = false }: TransactionItemProps) {
+export function TransactionItem({ transaction, paymentMethodName, paymentMethodType, showDate = true, grouped = false, peekOnMount = false }: TransactionItemProps) {
   const router = useRouter();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -95,6 +98,24 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
   const x = useMotionValue(0);
   const editBgOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
   const deleteBgOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
+
+  // Hint de descubribilidad: al entrar a la pantalla, la primera fila deslizable se
+  // mueve sola una vez mostrando la acción de eliminar, en vez de un indicador estático.
+  useEffect(() => {
+    if (!peekOnMount || prefersReducedMotion || !isMobile || transaction.installment_plan_id) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+      await animate(x, -PEEK_OFFSET, { duration: 0.35, ease: 'easeOut' });
+      if (cancelled) return;
+      await animate(x, 0, { duration: 0.35, ease: 'easeOut', delay: 0.5 });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Undo tras eliminar: el borrado real se demora UNDO_WINDOW_MS. Si el usuario no
   // navega ni hace "Deshacer", el timer sigue vivo aunque este componente se desmonte
@@ -217,14 +238,6 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
       onClick={isMobile ? handleRowActivate : undefined}
       onKeyDown={isMobile ? handleRowKeyDown : undefined}
     >
-      {/* Hint sutil de swipe (atajo) en filas deslizables */}
-      {canSwipe && (
-        <>
-          <span aria-hidden className="absolute inset-y-2 left-0 w-1 rounded-full bg-accent/25 pointer-events-none" />
-          <span aria-hidden className="absolute inset-y-2 right-0 w-1 rounded-full bg-bad/25 pointer-events-none" />
-        </>
-      )}
-
       {/* Left: Icon & Info */}
       <div className="flex items-center gap-3 overflow-hidden">
         <div className="w-9 h-9 min-w-9 rounded-xl bg-surface-2 border-[1.5px] border-border grid place-items-center shrink-0 text-[18px]">

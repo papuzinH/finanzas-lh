@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { MonthSelector } from '@/components/dashboard/month-selector';
 import { isSameDay, isSameMonth, parse, format } from 'date-fns';
@@ -15,16 +16,26 @@ import { updateExchangeRates } from '@/app/movimientos/actions';
 import { TransactionListSkeleton } from '@/components/ui/skeletons';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { Chip } from '@/components/ui/chip';
+
+/** Tamaño de fuente del monto según cantidad de dígitos, para que nunca overflowee la card. */
+const amountFontClass = (formatted: string) => {
+  const digits = formatted.replace(/[^\d]/g, '').length;
+  if (digits > 9) return 'text-[14px]';
+  if (digits > 7) return 'text-[16px]';
+  return 'text-[19px]';
+};
 
 interface TransactionWithPeriod extends Transaction {
   periodDate?: string;
 }
 
 export default function MovimientosPage() {
-  const [isFutureOpen, setIsFutureOpen] = useState(true);
+  const [isFutureOpen, setIsFutureOpen] = useState(false);
+  const [isPendingOpen, setIsPendingOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -38,6 +49,7 @@ export default function MovimientosPage() {
     fetchAllData,
     isInitialized,
     isLoading,
+    getPendingFixedExpenses,
   } = useFinanceStore();
 
   const searchParams = useSearchParams();
@@ -65,6 +77,12 @@ export default function MovimientosPage() {
   const currentMonthDate = parse(currentMonthStr, 'yyyy-MM', new Date());
 
   const filteredTransactions = transactions.filter(t => {
+    // Los pagos de tarjeta (card_payment_for) NO son consumo nuevo: las compras del
+    // resumen ya están itemizadas como transacciones propias, así que contar el pago
+    // duplicaría esa plata (se notaba sobre todo en meses ya pagados). Se excluyen de
+    // toda la vista —lista y totales— igual que hacen las analíticas del store.
+    if (t.card_payment_for) return false;
+
     // CAMBIO CLAVE: Usamos 'periodDate' (la fecha virtual del store) si existe
     // Si no existe (porque t no es del store modificado o es legacy), fallback a t.date
     const visualDateStr = (t as TransactionWithPeriod).periodDate || t.date;
@@ -134,6 +152,12 @@ export default function MovimientosPage() {
     .filter(key => key !== 'futuro' && key !== 'hoy')
     .sort((a, b) => b.localeCompare(a));
 
+  // Primer ítem deslizable REALMENTE visible al entrar a la pantalla (Hoy → días pasados).
+  // "Proyección Futura" arranca colapsada, así que sus filas no están montadas todavía
+  // y no pueden mostrar el peek; por eso queda afuera de este cálculo.
+  const firstSwipeableId = [...groups.hoy, ...pastDates.flatMap((d) => groups[d])]
+    .find((t) => !t.installment_plan_id)?.id ?? null;
+
   // Función para actualizar filtros en URL
   const handleFilterChange = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -169,9 +193,20 @@ export default function MovimientosPage() {
     }
   };
 
-  const netBalance = monthlyIncome - monthlyExpense;
+  // getPendingFixedExpenses() está anclado al mes real de hoy (no al mes que se esté
+  // viendo acá), así que solo aplica cuando currentMonthStr es el mes actual.
+  const isViewingCurrentMonth = currentMonthStr === format(new Date(), 'yyyy-MM');
+  const pendingFixed = isViewingCurrentMonth ? getPendingFixedExpenses() : { total: 0, items: [] };
+  // "Gastos" incluye las mensualidades pendientes (las transacciones de Proyección
+  // Futura ya están en monthlyExpense, son transacciones reales con fecha futura dentro
+  // del mes) para que Neto = Ingresos − Gastos cierre con lo que se ve en pantalla.
+  const displayedExpense = monthlyExpense + pendingFixed.total;
+  const netBalance = monthlyIncome - displayedExpense;
   const activeFilterCount = (selectedPaymentMethodId !== 'all' ? 1 : 0) + (selectedCategoryId !== 'all' ? 1 : 0);
   const hasActiveFilters = activeFilterCount > 0;
+  // Las mensualidades pendientes no tienen medio de pago/categoría propios: no son
+  // parte del resultado de una búsqueda o filtro, así que solo se muestran en la vista default.
+  const showPendingSection = isViewingCurrentMonth && !debouncedQuery && !hasActiveFilters && pendingFixed.items.length > 0;
 
   const clearFilters = () => {
     const params = new URLSearchParams(searchParams);
@@ -180,18 +215,15 @@ export default function MovimientosPage() {
     router.replace(`${pathname}?${params.toString()}`);
   };
 
-  // Chips de filtro reutilizables: 'scroll' (mobile, scroll horizontal) | 'wrap' (rail desktop)
-  const renderFilters = (variant: 'scroll' | 'wrap') => {
-    const rowClass = variant === 'scroll'
-      ? 'flex gap-2 overflow-x-auto pb-1 scrollbar-hide'
-      : 'flex flex-wrap gap-2';
-    const groupLabel = (text: string) =>
-      variant === 'wrap' ? (
-        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.14em] text-muted mb-1.5">{text}</p>
-      ) : null;
+  // Chips de filtro: se usan tanto en el bottom sheet (mobile) como en el rail (desktop).
+  const renderFilters = () => {
+    const rowClass = 'flex flex-wrap gap-2';
+    const groupLabel = (text: string) => (
+      <p className="font-sans text-[10px] font-bold uppercase tracking-[0.14em] text-muted mb-1.5">{text}</p>
+    );
 
     return (
-      <div className={variant === 'wrap' ? 'space-y-3.5' : 'space-y-2'}>
+      <div className="space-y-3.5">
         <div>
           {groupLabel('Medio de pago')}
           <div className={rowClass}>
@@ -294,7 +326,7 @@ export default function MovimientosPage() {
                 onClick={onToggle}
                 aria-expanded={isOpen}
                 aria-controls={collapsiblePanelId}
-                className="flex items-center gap-2 -m-1 p-1 rounded-md hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                className="flex items-center gap-2 -m-1 p-1 rounded-md hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg uppercase"
               >
                 <Clock className="h-3 w-3 text-muted" aria-hidden="true" />
                 {title}
@@ -325,6 +357,7 @@ export default function MovimientosPage() {
                     paymentMethodName={paymentMethod?.name}
                     paymentMethodType={paymentMethod?.type}
                     showDate={showItemDate}
+                    peekOnMount={t.id === firstSwipeableId}
                     grouped
                   />
                 </div>
@@ -345,27 +378,17 @@ export default function MovimientosPage() {
       {/* Header Sticky */}
       <header className="sticky top-0 z-20 bg-bg-2/95 backdrop-blur-md border-b-[1.5px] border-border">
         <div className="mx-auto max-w-[1160px]">
-          {/* Fila título + selector + plus: una sola línea en desktop; en mobile el selector
-              baja a su propia fila (basis-full). Un único MonthSelector → data-tour intacto. */}
+          {/* El selector de mes reemplaza al título de la pantalla (es tappable: abre
+              el picker de mes/año; el chevron es la pista visual de que se puede tocar). */}
           <div className="px-5 pt-3 md:pt-4 pb-2.5 md:pb-3">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
-              <div className="min-w-0 mr-auto order-1">
-                <p className="font-sans text-[10px] font-extrabold uppercase tracking-[0.22em] text-accent-deep mb-0.5">
-                  Tus mangos
-                </p>
-                <h1 className="font-poster text-text text-[24px] md:text-[26px] leading-none">Movimientos</h1>
-              </div>
-              {/* Crear: solo mobile (en desktop va a la derecha del buscador) */}
-              <div className="order-2 md:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
+              <div className="md:hidden shrink-0">
                 <AnimatedPlusButton
                   label="Crear transacción"
                   onClick={() => setIsCreateOpen(true)}
                   ariaLabel="Nueva transacción"
                 />
-              </div>
-              {/* Selector de mes: mobile fila propia (basis-full); desktop pill al extremo derecho con badge arriba */}
-              <div className="order-3 md:order-2 basis-full md:basis-auto">
-                <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" compact />
               </div>
             </div>
           </div>
@@ -401,12 +424,10 @@ export default function MovimientosPage() {
               )}
               </div>
 
-              {/* Filtros: solo mobile/tablet (en desktop viven siempre visibles en el rail) */}
+              {/* Filtros: solo mobile/tablet (en desktop viven siempre visibles en el rail). Abre un bottom sheet, no afecta el layout de la página. */}
               <button
                 type="button"
-                onClick={() => setFiltersOpen((v) => !v)}
-                aria-expanded={filtersOpen}
-                aria-controls="movimientos-filtros-mobile"
+                onClick={() => setFiltersOpen(true)}
                 className="lg:hidden relative shrink-0 min-h-11 min-w-11 flex items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-border bg-surface px-3 text-sm font-semibold text-text transition-colors hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
               >
                 <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -438,70 +459,127 @@ export default function MovimientosPage() {
 
       <CreateTransactionDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
+      {/* Filtros (mobile): bottom sheet, no afecta el layout de la página al abrir/cerrar. */}
+      <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto bg-surface border-border text-text">
+          <DialogHeader>
+            <DialogTitle className="text-text">Filtros</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5">
+            {renderFilters()}
+            <div className="flex justify-center pt-3 border-t-[1.5px] border-border">
+              {ratesButton}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <main className="mx-auto max-w-[1160px] px-5 py-6">
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start">
           {/* ===================== Columna ledger ===================== */}
           <div className="min-w-0">
-            {/* Resumen + cotización + filtros: solo mobile/tablet (en desktop viven en el rail) */}
+            {/* Resumen: solo mobile/tablet (en desktop vive en el rail) */}
             <div className="lg:hidden">
-              {/* Resumen del mes */}
-              <div className="grid grid-cols-2 gap-2.5 mb-4">
-                <Card className="p-3.5">
-                  <div className="flex items-center gap-1.5 text-good text-[10.5px] font-bold uppercase tracking-wider mb-1">
-                    <ArrowDownLeft className="h-3 w-3" aria-hidden="true" />
-                    Ingresos
+              <Card className="p-3.5 mb-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 text-good text-[10.5px] font-bold uppercase tracking-wider mb-1">
+                      <ArrowDownLeft className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      Ingresos
+                    </div>
+                    <p
+                      title={formatCurrency(monthlyIncome)}
+                      className={cn("font-poster text-good tnum leading-none truncate", amountFontClass(formatCurrency(monthlyIncome)))}
+                    >
+                      {formatCurrency(monthlyIncome)}
+                    </p>
                   </div>
-                  <p className="font-poster text-good text-[20px] tnum leading-none">
-                    {formatCurrency(monthlyIncome)}
-                  </p>
-                </Card>
-                <Card className="p-3.5">
-                  <div className="flex items-center gap-1.5 text-bad text-[10.5px] font-bold uppercase tracking-wider mb-1">
-                    <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
-                    Gastos
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 text-bad text-[10.5px] font-bold uppercase tracking-wider mb-1">
+                      <ArrowUpRight className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      Gastos
+                    </div>
+                    <p
+                      title={formatCurrency(displayedExpense)}
+                      className={cn("font-poster text-bad tnum leading-none truncate", amountFontClass(formatCurrency(displayedExpense)))}
+                    >
+                      {formatCurrency(displayedExpense)}
+                    </p>
                   </div>
-                  <p className="font-poster text-bad text-[20px] tnum leading-none">
-                    {formatCurrency(monthlyExpense)}
-                  </p>
-                </Card>
-              </div>
-
-              {/* Neto del mes */}
-              <Card className="p-3.5 mb-4 flex items-center justify-between">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted">
-                  Neto
-                </span>
-                <span className={cn(
-                  "font-poster text-[18px] tnum leading-none",
-                  netBalance >= 0 ? "text-good" : "text-bad"
-                )}>
-                  {netBalance >= 0 ? '+' : ''}{formatCurrency(netBalance)}
-                </span>
-              </Card>
-
-              {/* Botón de actualizar cotización */}
-              <div className="flex justify-end mb-3">
-                {ratesButton}
-              </div>
-
-              {/* Filtros: se despliegan con el botón "Filtros".
-                  Animamos la altura con el truco de grid-rows 0fr→1fr para no generar CLS. */}
-              <div
-                id="movimientos-filtros-mobile"
-                inert={!filtersOpen}
-                aria-hidden={!filtersOpen}
-                className={cn(
-                  'grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out motion-reduce:transition-none',
-                  filtersOpen
-                    ? 'grid-rows-[1fr] opacity-100 mb-5'
-                    : 'grid-rows-[0fr] opacity-0 mb-0 pointer-events-none'
-                )}
-              >
-                <div className="min-h-0 overflow-hidden">
-                  {renderFilters('scroll')}
                 </div>
-              </div>
+
+                <div className="h-px bg-border my-3" />
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted shrink-0">
+                    Neto
+                  </span>
+                  <span
+                    title={formatCurrency(netBalance)}
+                    className={cn(
+                      "font-poster tnum leading-none truncate",
+                      netBalance >= 0 ? "text-good" : "text-bad",
+                      amountFontClass(formatCurrency(netBalance))
+                    )}
+                  >
+                    {netBalance >= 0 ? '+' : ''}{formatCurrency(netBalance)}
+                  </span>
+                </div>
+              </Card>
             </div>
+
+            {/* Mensualidades pendientes del mes: no tienen transacción propia todavía
+                (por eso no aparecían acá) y el Neto de arriba ya las descuenta.
+                Colapsada por defecto, mismo patrón que "Proyección Futura". */}
+            {showPendingSection && (
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-1.5 px-1 select-none">
+                  <h3 className="font-sans text-[11px] font-extrabold uppercase tracking-[0.15em] text-muted">
+                    <button
+                      type="button"
+                      onClick={() => setIsPendingOpen((v) => !v)}
+                      aria-expanded={isPendingOpen}
+                      aria-controls="movimientos-pendientes-panel"
+                      className="flex items-center gap-2 -m-1 p-1 rounded-md hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg uppercase"
+                    >
+                      <Clock className="h-3 w-3 text-muted" aria-hidden="true" />
+                      Mensualidades pendientes
+                      {isPendingOpen ? <ChevronDown className="h-3 w-3 text-muted" aria-hidden="true" /> : <ChevronRight className="h-3 w-3 text-muted" aria-hidden="true" />}
+                    </button>
+                  </h3>
+                  <span className="font-sans text-[11px] font-bold tnum text-bad">
+                    -{formatCurrency(pendingFixed.total)}
+                  </span>
+                </div>
+                {isPendingOpen && (
+                  <Card id="movimientos-pendientes-panel" className="overflow-hidden border-dashed">
+                    {pendingFixed.items.map((item, i) => (
+                      <Link
+                        key={item.id}
+                        href="/compromisos"
+                        className={cn(
+                          "flex items-center justify-between gap-3 p-3 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset",
+                          i > 0 && "border-t-[1.5px] border-border"
+                        )}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 min-w-9 rounded-xl bg-surface-2 border-[1.5px] border-border grid place-items-center shrink-0">
+                            <Clock className="h-4 w-4 text-muted" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-sans font-bold text-[13.5px] text-text truncate">{item.name}</span>
+                            <span className="text-[11px] text-muted">Pendiente este mes · ver en Compromisos</span>
+                          </div>
+                        </div>
+                        <span className="font-poster tnum text-[15px] text-muted whitespace-nowrap shrink-0">
+                          {formatCurrency(item.amount)}
+                        </span>
+                      </Link>
+                    ))}
+                  </Card>
+                )}
+              </div>
+            )}
 
             {/* Lista de movimientos */}
             {filteredTransactions.length === 0 ? (
@@ -524,6 +602,8 @@ export default function MovimientosPage() {
               </div>
             ) : (
               <>
+                {renderSection('Proyección Futura', groups.futuro, "text-muted", true, isFutureOpen, () => setIsFutureOpen(!isFutureOpen), true)}
+
                 {renderSection('Hoy', groups.hoy, "text-good")}
 
                 {pastDates.map(dateKey => {
@@ -540,8 +620,6 @@ export default function MovimientosPage() {
                     </div>
                   );
                 })}
-
-                {renderSection('Proyección Futura', groups.futuro, "text-muted", true, isFutureOpen, () => setIsFutureOpen(!isFutureOpen), true)}
               </>
             )}
           </div>
@@ -555,44 +633,86 @@ export default function MovimientosPage() {
               </p>
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-1.5 text-good text-[11px] font-bold uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5 text-good text-[11px] font-bold uppercase tracking-wider shrink-0">
                     <ArrowDownLeft className="h-3 w-3" aria-hidden="true" />
                     Ingresos
                   </span>
-                  <span className="font-poster text-good text-[16px] tnum leading-none">
+                  <span
+                    title={formatCurrency(monthlyIncome)}
+                    className={cn("font-poster text-good tnum leading-none truncate min-w-0", amountFontClass(formatCurrency(monthlyIncome)))}
+                  >
                     {formatCurrency(monthlyIncome)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-1.5 text-bad text-[11px] font-bold uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5 text-bad text-[11px] font-bold uppercase tracking-wider shrink-0">
                     <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
                     Gastos
                   </span>
-                  <span className="font-poster text-bad text-[16px] tnum leading-none">
-                    {formatCurrency(monthlyExpense)}
+                  <span
+                    title={formatCurrency(displayedExpense)}
+                    className={cn("font-poster text-bad tnum leading-none truncate min-w-0", amountFontClass(formatCurrency(displayedExpense)))}
+                  >
+                    {formatCurrency(displayedExpense)}
                   </span>
                 </div>
                 <div className="h-px bg-border" />
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted shrink-0">
                     Neto
                   </span>
-                  <span className={cn(
-                    "font-poster text-[18px] tnum leading-none",
-                    netBalance >= 0 ? "text-good" : "text-bad"
-                  )}>
+                  <span
+                    title={formatCurrency(netBalance)}
+                    className={cn(
+                      "font-poster tnum leading-none truncate min-w-0",
+                      netBalance >= 0 ? "text-good" : "text-bad",
+                      amountFontClass(formatCurrency(netBalance))
+                    )}
+                  >
                     {netBalance >= 0 ? '+' : ''}{formatCurrency(netBalance)}
                   </span>
                 </div>
               </div>
             </Card>
 
+            {showPendingSection && (
+              <Card className="p-4 border-dashed">
+                <button
+                  type="button"
+                  onClick={() => setIsPendingOpen((v) => !v)}
+                  aria-expanded={isPendingOpen}
+                  aria-controls="movimientos-pendientes-rail-panel"
+                  className="w-full flex items-center justify-between gap-2 -m-1 p-1 rounded-md font-sans text-[11px] font-extrabold uppercase tracking-[0.15em] text-muted hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  <span className="flex items-center gap-1.5 uppercase">
+                    <Clock className="h-3 w-3" aria-hidden="true" />
+                    Mensualidades pendientes
+                  </span>
+                  {isPendingOpen ? <ChevronDown className="h-3 w-3" aria-hidden="true" /> : <ChevronRight className="h-3 w-3" aria-hidden="true" />}
+                </button>
+                {isPendingOpen && (
+                  <div id="movimientos-pendientes-rail-panel" className="space-y-2 mt-3 uppercase">
+                    {pendingFixed.items.map((item) => (
+                      <Link
+                        key={item.id}
+                        href="/compromisos"
+                        className="flex items-center justify-between gap-3 rounded-lg -mx-1.5 px-1.5 py-1 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent uppercase"
+                      >
+                        <span className="text-[12.5px] text-text truncate uppercase">{item.name}</span>
+                        <span className="text-[12.5px] text-muted tnum shrink-0">{formatCurrency(item.amount)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            )}
+
             {/* Filtros */}
             <Card className="p-4">
               <p className="font-sans text-[10px] font-extrabold uppercase tracking-[0.2em] text-accent-deep mb-3">
                 Filtros
               </p>
-              {renderFilters('wrap')}
+              {renderFilters()}
             </Card>
 
             {/* Cotización */}

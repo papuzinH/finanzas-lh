@@ -1,24 +1,31 @@
 'use client';
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { format, addMonths, subMonths, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import { MonthPickerDialog } from '@/components/dashboard/month-picker-dialog';
 
 interface MonthSelectorProps {
   currentMonth: string;
   baseUrl?: string;
-  /** Variante inline compacta (pill) para header de desktop. Mobile mantiene el control completo con swipe. */
-  compact?: boolean;
 }
 
-export function MonthSelector({ currentMonth, baseUrl = '/', compact = false }: MonthSelectorProps) {
+/**
+ * Selector de mes que actúa como título de la pantalla (reemplaza el <h1> visual):
+ * tap abre el picker de mes/año, swipe va al mes anterior/siguiente. El chevron
+ * junto al mes es la pista visual de que es tappable (no un simple texto).
+ */
+export function MonthSelector({ currentMonth, baseUrl = '/' }: MonthSelectorProps) {
   const router = useRouter();
   const [direction, setDirection] = useState(0);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const prefersReducedMotion = useReducedMotion();
+  const hasDraggedRef = useRef(false);
   const getMonthlyComparison = useFinanceStore((s) => s.getMonthlyComparison);
   const comparison = getMonthlyComparison(currentMonth);
 
@@ -45,10 +52,23 @@ export function MonthSelector({ currentMonth, baseUrl = '/', compact = false }: 
   const { percentageChange } = comparison;
   const absChange = Math.abs(percentageChange);
   const isHigher = percentageChange > 0;
+  const comparisonText = absChange >= 0.5
+    ? `${isHigher ? 'subió' : 'bajó'} ${absChange.toFixed(0)}% vs ${realPrevLabel}`
+    : null;
 
-  const navigate = (dir: number) => {
-    setDirection(dir);
-    router.push(`${baseUrl}?month=${dir > 0 ? nextMonth : prevMonth}`);
+  const goToMonth = (targetMonth: string) => {
+    setDirection(targetMonth > currentMonth ? 1 : -1);
+    router.push(`${baseUrl}?month=${targetMonth}`);
+  };
+
+  const navigate = (dir: number) => goToMonth(dir > 0 ? nextMonth : prevMonth);
+
+  const handleDragStart = () => {
+    hasDraggedRef.current = false;
+  };
+
+  const handleDrag = (_: unknown, info: { offset: { x: number } }) => {
+    if (Math.abs(info.offset.x) > 5) hasDraggedRef.current = true;
   };
 
   const handleDragEnd = (_: unknown, info: { offset: { x: number } }) => {
@@ -57,22 +77,39 @@ export function MonthSelector({ currentMonth, baseUrl = '/', compact = false }: 
     else if (info.offset.x > THRESHOLD) navigate(-1);
   };
 
-  // Control completo con swipe (mobile / variante por defecto)
-  const fullControl = (
-    <div className="flex items-center justify-between gap-3 md:gap-6 py-2 md:py-4 w-full">
-      <button
-        onClick={() => navigate(-1)}
-        className="group flex h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-border bg-surface text-muted transition-all hover:border-accent/40 hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-        aria-label="Mes anterior"
-      >
-        <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 transition-transform group-hover:-translate-x-0.5" />
-      </button>
+  const handleTap = () => {
+    if (hasDraggedRef.current) {
+      hasDraggedRef.current = false;
+      return;
+    }
+    setIsPickerOpen(true);
+  };
+
+  return (
+    <div data-tour="month-selector">
+      {/* Encabezado real para lectores de pantalla/SEO: el mes reemplaza visualmente
+          al título, pero la jerarquía de headings de la página se mantiene. */}
+      <h1 className="sr-only">Movimientos</h1>
 
       <motion.div
-        className="flex min-w-[150px] w-full cursor-grab select-none flex-col items-center active:cursor-grabbing"
+        role="button"
+        tabIndex={0}
+        aria-label={`Mes actual: ${format(date, 'MMMM yyyy', { locale: es })}${
+          comparisonText ? `, ${comparisonText}` : ''
+        }. Tocar para elegir otro mes, deslizar para ir al anterior o siguiente.`}
+        onClick={handleTap}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsPickerOpen(true);
+          }
+        }}
+        className="inline-flex cursor-grab select-none flex-col items-start gap-0.5 rounded-lg -m-1 p-1 transition-opacity active:cursor-grabbing active:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.15}
+        onDragStart={handleDragStart}
+        onDrag={handleDrag}
         onDragEnd={handleDragEnd}
       >
         <AnimatePresence mode="wait" custom={direction}>
@@ -84,20 +121,15 @@ export function MonthSelector({ currentMonth, baseUrl = '/', compact = false }: 
             animate="center"
             exit="exit"
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeInOut' }}
-            className="flex flex-col items-center gap-1"
+            className="flex flex-col gap-0.5"
           >
-            <span className="font-sans text-[12.5px] font-extrabold capitalize text-text">
+            <span className="flex items-center gap-1 font-poster text-text text-[24px] md:text-[26px] leading-none capitalize">
               {format(date, 'MMMM yyyy', { locale: es })}
+              <ChevronDown className="h-5 w-5 text-muted shrink-0" aria-hidden="true" />
             </span>
 
-            {absChange >= 0.5 && (
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-medium leading-none ${
-                  isHigher
-                    ? 'bg-bad/10 text-bad'
-                    : 'bg-good/10 text-good'
-                }`}
-              >
+            {comparisonText && (
+              <span className={cn('text-[11px] font-semibold', isHigher ? 'text-bad' : 'text-good')}>
                 {isHigher ? '↑' : '↓'} {absChange.toFixed(0)}% vs {realPrevLabel}
               </span>
             )}
@@ -105,65 +137,12 @@ export function MonthSelector({ currentMonth, baseUrl = '/', compact = false }: 
         </AnimatePresence>
       </motion.div>
 
-      <button
-        onClick={() => navigate(1)}
-        className="group flex h-11 w-11 items-center justify-center rounded-full border-[1.5px] border-border bg-surface text-muted transition-all hover:border-accent/40 hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-        aria-label="Mes siguiente"
-      >
-        <ChevronRight className="h-4 w-4 md:h-5 md:w-5 transition-transform group-hover:translate-x-0.5" />
-      </button>
-    </div>
-  );
-
-  // Variante compacta (pill) para desktop: badge de % arriba, pill debajo, alineado a la derecha
-  const compactControl = (
-    <div className="flex flex-col items-end gap-1.5">
-      {absChange >= 0.5 && (
-        <span
-          className={`rounded-full px-2 py-1 text-[10px] font-bold leading-none ${
-            isHigher ? 'bg-bad/10 text-bad' : 'bg-good/10 text-good'
-          }`}
-        >
-          {isHigher ? '↑' : '↓'} {absChange.toFixed(0)}% vs {realPrevLabel}
-        </span>
-      )}
-      <div className="inline-flex items-center gap-0.5 rounded-full border-[1.5px] border-border bg-surface p-1">
-        <button
-          onClick={() => navigate(-1)}
-          aria-label="Mes anterior"
-          className="grid h-8 w-8 place-items-center rounded-full text-muted transition-colors hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span
-          aria-live="polite"
-          className="min-w-[116px] px-1 text-center font-sans text-[13px] font-extrabold capitalize text-text"
-        >
-          {format(date, 'MMMM yyyy', { locale: es })}
-        </span>
-        <button
-          onClick={() => navigate(1)}
-          aria-label="Mes siguiente"
-          className="grid h-8 w-8 place-items-center rounded-full text-muted transition-colors hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
-
-  // Un único wrapper con data-tour (visible en ambos breakpoints → el tour de onboarding
-  // siempre encuentra un elemento con rect válido). En compact: full en mobile, pill en desktop.
-  return (
-    <div data-tour="month-selector" className={compact ? 'w-full md:w-auto' : 'w-full'}>
-      {compact ? (
-        <>
-          <div className="md:hidden">{fullControl}</div>
-          <div className="hidden md:block">{compactControl}</div>
-        </>
-      ) : (
-        fullControl
-      )}
+      <MonthPickerDialog
+        open={isPickerOpen}
+        onOpenChange={setIsPickerOpen}
+        currentMonth={currentMonth}
+        onSelect={goToMonth}
+      />
     </div>
   );
 }
