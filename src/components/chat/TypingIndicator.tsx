@@ -1,8 +1,27 @@
 "use client"
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 
+const FRASES = [
+  'Pensando… 🐷',
+  'Revisando tus cuentas…',
+  'Haciendo números…',
+  'Consultando tus movimientos…',
+  'Ya casi…',
+]
+
 export function TypingIndicator() {
+  const [phraseIndex, setPhraseIndex] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPhraseIndex((prev) => (prev + 1) % FRASES.length)
+    }, 2500)
+
+    return () => clearInterval(interval)
+  }, [])
+
   const dotVariants = {
     hidden: { opacity: 0.4, y: 0 },
     visible: (i: number) => ({
@@ -23,8 +42,9 @@ export function TypingIndicator() {
         🐷
       </div>
 
-      {/* Burbuja con puntos */}
-      <div className="bg-surface text-text border-[1.5px] border-border rounded-2xl rounded-bl-md px-4 py-3 flex gap-1.5 items-end">
+      {/* Burbuja con frase y puntos */}
+      <div className="bg-surface text-muted border-[1.5px] border-border rounded-2xl rounded-bl-md px-4 py-3 flex gap-1.5 items-end font-sans">
+        <span>{FRASES[phraseIndex]}</span>
         {[0, 1, 2].map((i) => (
           <motion.div
             key={i}
@@ -32,7 +52,7 @@ export function TypingIndicator() {
             variants={dotVariants}
             initial="hidden"
             animate="visible"
-            className="w-2 h-2 bg-muted rounded-full"
+            className="w-2 h-2 bg-muted rounded-full flex-shrink-0"
           />
         ))}
       </div>
