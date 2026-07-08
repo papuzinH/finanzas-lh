@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🐷 Chanchito
 
-## Getting Started
+PWA de finanzas personales pensada para el día a día argentino: movimientos en ARS/USD (dólar blue), tarjetas de crédito con ciclos de cierre/vencimiento reales, mensualidades, cuotas, objetivos de ahorro, presupuestos, inversiones y un asistente IA conversacional.
 
-First, run the development server:
+## Stack
+
+- **Next.js** (App Router) + **TypeScript** — Server Components por defecto
+- **Supabase** — PostgreSQL + Auth
+- **Zustand** — estado cliente (`src/lib/store/financeStore.ts`, única fuente de verdad)
+- **Tailwind CSS** con tokens semánticos propios (design system Chanchito)
+- **Gemini 2.5 Flash** (`@google/genai`) — asistente IA agéntico con tools tipadas
+- **Vitest** — tests · **@ducanh2912/next-pwa** — PWA
+
+## Comandos
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev      # Desarrollo (Turbopack)
+npm run build    # Build de producción (Webpack)
+npm run lint     # ESLint
+npm test         # Vitest
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Arquitectura en 30 segundos
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `src/app/` — rutas: `/` (home con Disponible Real), `/movimientos`, `/compromisos`, `/objetivos`, `/inversiones`, `/ajustes/*`, `/api/chat` (asistente IA).
+- `src/lib/finance/` — funciones **puras** de cálculo financiero, compartidas por el store (cliente) y el chatbot (servidor): garantía de que el chat y el home dicen el mismo número.
+- `src/lib/store/financeStore.ts` — store Zustand; sus getters son wrappers finos sobre `lib/finance/`.
+- `src/lib/ai/` — agent loop del asistente (tools con schema Zod, registry, handlers).
+- `supabase/migrations/` — schema SQL (aplicar a PROD **antes** de mergear a master).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Documentación
 
-## Learn More
+- [CLAUDE.md](CLAUDE.md) — convenciones y reglas del proyecto (leer primero).
+- [docs/features/](docs/features/) — un documento por gran feature: arquitectura, archivos clave, tablas e invariantes.
+- [docs/superpowers/](docs/superpowers/) — specs y planes históricos por fecha.
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`master` deploya automático a producción en Vercel (Supabase PROD). El entorno local usa `.env.local` con Supabase DEV.

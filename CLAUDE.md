@@ -1,6 +1,9 @@
 # Chanchito – PWA de finanzas personales
 Next.js App Router · Supabase (PostgreSQL + Auth) · Zustand · TypeScript
 
+## Documentación por feature: `docs/features/`
+Un doc por gran feature (arquitectura, archivos clave, tablas DB, invariantes y gotchas) pensado como contexto para iteraciones agénticas — **leer el de la feature que vayas a tocar**: `home-dashboard`, `movimientos`, `compromisos`, `objetivos`, `inversiones`, `medios-de-pago`, `categorias`, `asistente-ia`, `onboarding-auth`, `ajustes-perfil`, `transferencias-internas`, `pwa-plataforma`. Los planes/specs históricos por fecha viven en `docs/superpowers/`.
+
 ## Comandos
 ```bash
 npm run dev      # Desarrollo (Turbopack)
@@ -34,7 +37,7 @@ Getters disponibles:
 - `getRecurringBackfillPreview()` – meses de mensualidades sin registrar (`missingMonths`) y exceso a borrar (`excessMonths`), con piso en la primera transacción real del usuario.
 - `getDefaultPaymentMethod()` – medio de pago marcado `is_default`.
 - `getUnassignedTransactionsCount()` – transacciones con `payment_method_id == null`.
-- `isCreditCardCyclePaid(methodId)` – true si existe un pago (`card_payment_for`) en el mes del vencimiento del ciclo vigente. Reemplaza el viejo flag `paidCycles`/localStorage.
+- `isCreditCardCyclePaid(methodId)` – true si existe un pago (`card_payment_for`) en el mes del vencimiento del ciclo vigente. (El viejo flag `paidCycles`/localStorage fue eliminado del store.)
 
 `fetchAllData()` → Promise.all desde Supabase + API dólar blue (non-blocking).
 
@@ -57,7 +60,7 @@ Funciones PURAS (sin Zustand ni Supabase) — **fuente única de cálculos** par
 - **Confirmaciones de borrado**: dos pasos SIN estado en servidor (serverless-safe): `delete_entity` con `confirmed=false` devuelve las dependencias; el modelo pregunta al usuario y recién en el mensaje siguiente llama con `confirmed=true` (+ `reasignar_a` opcional).
 - **Costos**: `usageGuard` (cuota diaria por usuario + presupuesto global con corte duro) acumula los tokens de TODO el loop; `maxDuration = 60` en la route.
 - **GOTCHA `user_id`** (fuente de 5 bugs silenciosos ya corregidos): `transactions`/`payment_methods`/`recurring_plans`/`installment_plans` filtran por id **numérico** (`users.id`); `categories`/`internal_transfers`/`savings_goals`/`category_budgets` por **UUID de auth** (`getAuthUserId()` en handlers, `ctx.authUserId` en tools). Confundirlos produce queries que nunca matchean, sin error.
-- El chat de onboarding (`/api/chat/onboarding`, `lib/ai/onboarding*`) es un flujo aparte: no usa el agente.
+- El onboarding es un flujo manual con slides (`src/app/onboarding/` + `onboarding-flow.tsx`): NO usa el agente. El viejo chat conversacional de onboarding (`/api/chat/onboarding`, `lib/ai/onboarding*`) fue eliminado.
 - Diseño y decisiones: spec en `docs/superpowers/specs/2026-07-07-chatbot-asistente-ia-design.md` (incluye roadmap: UI híbrida, proactividad, contexto macro).
 
 ## Medios de pago
@@ -70,7 +73,7 @@ Funciones PURAS (sin Zustand ni Supabase) — **fuente única de cálculos** par
 - **baja el saldo del medio financiador** (`getPaymentMethodStatus` débito la cuenta),
 - es **neutra para el Disponible Real global y las analíticas de consumo**: `isExpenseInCurrentMonthScope` y los totales de `getGlobalBalance`/`getGlobalEffectiveExpenses`/`getExpensesByCategory` excluyen `card_payment_for` (las compras ya están itemizadas → no doble-contar),
 - usa una categoría get-or-create "Pagos de tarjeta" (`category_id` es NOT NULL).
-UI: selector de medio en el chip de Compromisos (`credit-card-cycle-card.tsx`) + diálogo "Registrar pago" para meses anteriores (`register-card-payment-dialog.tsx`). El viejo `markCreditCardCyclePaid`/`paidCycles` (localStorage) quedó **deprecado**.
+UI: selector de medio en el chip de Compromisos (`credit-card-cycle-card.tsx`) + diálogo "Registrar pago" para meses anteriores (`register-card-payment-dialog.tsx`). El viejo `markCreditCardCyclePaid`/`paidCycles` (localStorage) fue **eliminado** del store.
 
 ## Fechas y ciclos de tarjeta
 - `periodDate` → fecha visual para agrupación mensual (puede diferir de la real)
@@ -101,7 +104,7 @@ UI: selector de medio en el chip de Compromisos (`credit-card-cycle-card.tsx`) +
 - **Chips de filtro**: `<Chip>` de `@/components/ui/chip`.
 - **Banners**: `<BannerDS>` de `@/components/ui/banner-ds`.
 - **Íconos**: `lucide-react` directo (importar específicos) O `<Icon name="..." />` de `@/components/ui/icon`.
-- **ScreenHeader**: `<ScreenHeader kicker="..." title="..." sub="..." right={...} />` de `@/components/shared/screen-header`. Reemplaza cualquier `PageHeader`.
+- **ScreenHeader**: `<ScreenHeader kicker="..." title="..." sub="..." right={...} />` de `@/components/shared/screen-header` para todo encabezado de pantalla (el viejo `PageHeader` ya no existe).
 - **Mobile-first**: canvas base 392px. Margen lateral `px-5`. Touch targets ≥44px. `pb-28` para clearear BottomNav.
 
 ## Prototipos de referencia
