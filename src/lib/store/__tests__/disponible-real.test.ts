@@ -10,7 +10,7 @@ beforeEach(() => {
   useFinanceStore.setState({
     transactions: [], installmentPlans: [], paymentMethods: [], recurringPlans: [],
     categories: [], exchangeRates: [], dolarBlue: null, displayCurrency: 'ARS',
-    inflationSeries: [], internalTransfers: [], paidCycles: {},
+    inflationSeries: [], internalTransfers: [],
   } as never);
 });
 

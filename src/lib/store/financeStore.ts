@@ -198,11 +198,6 @@ interface FinanceState {
   getDefaultPaymentMethod: () => PaymentMethod | undefined;
   getUnassignedTransactionsCount: () => number;
   isCreditCardCyclePaid: (methodId: number) => boolean;
-
-  // Credit card cycle tracking (localStorage-backed)
-  paidCycles: Record<number, { year: number; month: number }>;
-  markCreditCardCyclePaid: (methodId: number) => void;
-  unmarkCreditCardCyclePaid: (methodId: number) => void;
   getPendingCreditCardByCard: () => CreditCardCycleSummary[];
 
   // Dashboard Helpers
@@ -454,14 +449,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   isLoading: true, // Start loading by default to prevent flash of empty content
   error: null,
   isInitialized: false,
-  paidCycles: (() => {
-    if (typeof window === 'undefined') return {}
-    try {
-      return JSON.parse(localStorage.getItem('chanchito_paid_cycles') ?? '{}') as Record<number, { year: number; month: number }>
-    } catch {
-      return {}
-    }
-  })(),
 
   fetchAllData: async () => {
     set({ isLoading: true, error: null });
@@ -1550,38 +1537,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     });
   },
 
-  markCreditCardCyclePaid: (methodId: number) => {
-    const { getPaymentMethodStatus, paidCycles } = get()
-    const status = getPaymentMethodStatus(methodId)
-    if (!status.nextPaymentDate) return
-    const entry = {
-      year: status.nextPaymentDate.getFullYear(),
-      month: status.nextPaymentDate.getMonth(), // 0-indexed (Date.prototype.getMonth)
-    }
-    const updated = { ...paidCycles, [methodId]: entry }
-    set({ paidCycles: updated })
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('chanchito_paid_cycles', JSON.stringify(updated))
-      } catch {
-        // Storage quota exceeded or private browsing — in-memory state already updated
-      }
-    }
-  },
-
-  unmarkCreditCardCyclePaid: (methodId: number) => {
-    const { paidCycles } = get()
-    const updated = { ...paidCycles }
-    delete updated[methodId]
-    set({ paidCycles: updated })
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('chanchito_paid_cycles', JSON.stringify(updated))
-      } catch {
-        // Storage quota exceeded or private browsing — in-memory state already updated
-      }
-    }
-  },
 
   /**
    * Retorna el progreso de una meta de ahorro específica.
