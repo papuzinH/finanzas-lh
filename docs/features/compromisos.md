@@ -26,13 +26,13 @@ Hub de deudas y gastos comprometidos del usuario: **cuotas** (planes de financia
 ## Tablas DB
 | Tabla | Filtro de usuario |
 |---|---|
-| `recurring_plans` | `user_id` **numérico** (`users.id`) |
-| `installment_plans` | `user_id` **numérico** |
-| `transactions` | `user_id` **numérico** (las cuotas, mensualidades pagadas y pagos de tarjeta son filas acá) |
-| `payment_methods` | `user_id` **numérico** |
+| `recurring_plans` | `user_id` = **id interno** (`users.id`) |
+| `installment_plans` | `user_id` = **id interno** (`users.id`) |
+| `transactions` | `user_id` = **id interno** (`users.id`) (las cuotas, mensualidades pagadas y pagos de tarjeta son filas acá) |
+| `payment_methods` | `user_id` = **id interno** (`users.id`) |
 | `categories` | `user_id` = **UUID de auth** (relevante en el get-or-create "Pagos de tarjeta") |
 
-Gotcha crítico (documentado en CLAUDE.md, fuente de bugs silenciosos en el chatbot): las 4 primeras tablas filtran por el id numérico de `public.users`; `categories` por el UUID de `auth.users`. En las server actions se usa `supabase.auth.getUser().id` + RLS; en la capa IA la distinción es explícita (`ctx.userId` vs `ctx.authUserId`).
+Gotcha crítico (documentado en CLAUDE.md, fuente de bugs silenciosos en el chatbot): las 4 primeras tablas filtran por el id interno de `public.users` (`users.id`); `categories` por el UUID de `auth.users`. En las server actions se usa `supabase.auth.getUser().id` + RLS; en la capa IA la distinción es explícita (`ctx.userId` vs `ctx.authUserId`).
 
 ## Flujos principales
 1. **Marcar mensualidad pagada** (`markRecurringPlanPaid`): crea una transacción `expense` real con `recurring_plan_id` (guard anti-duplicado por mes; hereda `original_currency`/`original_amount`/`rate_pair`/`exchange_rate` del plan si es USD). `unmarkRecurringPlanPaid` borra la transacción vinculada del mes actual. El estado "pagada este mes" NO se guarda: se deriva de que el plan ya no figure en `getPendingFixedExpenses().items`.

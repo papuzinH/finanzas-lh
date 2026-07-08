@@ -26,9 +26,9 @@ Etiquetas de clasificación de movimientos, cuotas y mensualidades, con **tipo**
 | Tabla | Filtro de usuario |
 |---|---|
 | `categories` | `user_id` = **UUID de auth** (`id` de la categoría también es UUID/string) |
-| `transactions` / `installment_plans` / `recurring_plans` | `user_id` **numérico** (`users.id`) — se tocan al contar dependencias, reasignar o desvincular |
+| `transactions` / `installment_plans` / `recurring_plans` | `user_id` = **id interno** (`users.id`) — se tocan al contar dependencias, reasignar o desvincular |
 
-Gotcha crítico (CLAUDE.md): `categories` filtra por el **UUID de auth**, mientras que las tablas de movimientos filtran por el **id numérico** de `public.users`. Por eso `getCategoryDependencies`/`deleteCategoryReassign`/`deleteCategoryUnlink` resuelven primero `dbUser` desde la tabla `users` antes de tocar `transactions`/planes. En la capa IA: `ctx.authUserId` para categorías, `ctx.userId` para el resto — confundirlos da queries que nunca matchean, sin error.
+Gotcha crítico (CLAUDE.md): `categories` filtra por el **UUID de auth**, mientras que las tablas de movimientos filtran por el **id interno** de `public.users`. Por eso `getCategoryDependencies`/`deleteCategoryReassign`/`deleteCategoryUnlink` resuelven primero `dbUser` desde la tabla `users` antes de tocar `transactions`/planes. En la capa IA: `ctx.authUserId` para categorías, `ctx.userId` para el resto — confundirlos da queries que nunca matchean, sin error.
 
 ## Flujos principales
 1. **Alta**: `createCategory` valida con Zod e inserta con `is_system: false`. El diálogo defaultea `type: 'expense'` y ofrece el botón "IA" que llama `generateCategoryDescription` para autocompletar la descripción (crucial: esa descripción entrena la clasificación automática del asistente).
@@ -54,6 +54,6 @@ Gotcha crítico (CLAUDE.md): `categories` filtra por el **UUID de auth**, mientr
 
 ## Docs relacionados
 - `docs/superpowers/specs/2026-07-06-categorias-tipo-ingreso-gasto-design.md` — diseño completo del campo `type` (problema, backfill, filtrado de pickers, presupuestos, IA).
-- `CLAUDE.md` — gotcha `user_id` (UUID vs numérico) y regla de pago de tarjeta / categoría "Pagos de tarjeta".
+- `CLAUDE.md` — gotcha `user_id` (id interno vs UUID de auth) y regla de pago de tarjeta / categoría "Pagos de tarjeta".
 - `docs/features/compromisos.md` — dónde y por qué se crea "Pagos de tarjeta".
 - `docs/superpowers/specs/2026-07-07-chatbot-asistente-ia-design.md` — uso del diccionario de categorías por el agente.

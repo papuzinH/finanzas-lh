@@ -24,12 +24,15 @@ Todo lo que sostiene a Chanchito por debajo de las features: PWA instalable con 
 | `.claude/skills/migrar-schema/SKILL.md` | Checklist DEV → tipos → Zod → **PROD antes del merge** |
 | `REGLAS_PARA_DEPLOY.md` (raíz) | Ciclo de vida de una feature: SQL en DEV → PROD, previews de Vercel por PR, checklist pre-merge (menciona n8n, capa histórica del bot de Telegram) |
 
-## Tablas DB (¿users.id numérico o UUID de auth?)
+## Tablas DB (¿qué `user_id` usa cada tabla?)
 Esta feature no posee tablas propias, pero el middleware y los clientes tocan el corazón del **gotcha crítico** (documentado en `supabase/migrations/20260323_enable_rls_core_tables.sql`):
 - **Grupo A — UUID de auth (`auth.uid()`)**: `categories`, `investments`, `savings`, `internal_transfers`, `savings_goals`, `savings_goal_contributions`, `category_budgets`, `investment_assets`, `investment_transactions`.
-- **Grupo B — id numérico de `public.users`**: `transactions`, `payment_methods`, `installment_plans`, `recurring_plans`.
-- `users`: `id` numérico + columna `auth_user_id` (backfill manual documentado en la migración). El middleware consulta `users.onboarding_completed` con `.eq('id', user.id)`.
+- **Grupo B — id interno de `public.users` (`users.id`)**: `transactions`, `payment_methods`, `installment_plans`, `recurring_plans`.
 - Filtrar con el id equivocado produce queries que **nunca matchean sin error** (fuente de 5 bugs del chat ya corregidos).
+
+> **Verificado contra la DB real (2026-07-08, SQL directo)**: `users.id` es un **UUID que ES el `auth.uid()`** (FK directa a `auth.users(id)`); la columna `users.auth_user_id` está **NULL en todos los usuarios** (el backfill manual nunca corrió) y toda query/política que filtre por ella matchea 0 filas. `types/database.ts` (`users.id: number`) está desactualizado. En la práctica los valores de Grupo A y B coinciden hoy, pero la convención por tabla se mantiene porque las FKs difieren.
+>
+> **Deuda de seguridad RLS (pendiente, NO tocar sin plan)**: `transactions`/`payment_methods`/`recurring_plans`/`installment_plans`/`investments` y las tablas `legacy_*` tienen políticas permisivas `ALL/qual=true/public` que anulan el aislamiento por usuario; las políticas `*_owner` correctas existen pero (a) quedan neutralizadas por el OR de políticas permisivas y (b) dependen de `auth_user_id` (NULL) → **la app hoy funciona GRACIAS a las políticas abiertas**. Remediación segura: backfillear `auth_user_id = id` (o reescribir los helpers a `id = auth.uid()`), verificar las políticas owner con un JWT real, y recién entonces dropear las `qual=true`. `market_prices` además permite `ALL` a `public` (cualquiera puede pisar precios).
 
 ## Flujos principales
 1. **Request autenticado**: middleware → excluye `/auth`, `/login`, `/signup`, `/_next`, `/api` y paths con `.` → `supabase.auth.getUser()` → sin usuario redirige a `/login` → con usuario y fuera de `/onboarding`, consulta `users.onboarding_completed`; si no completó, redirige a `/onboarding` **copiando las cookies** de sesión al redirect (evita loops de sesión).

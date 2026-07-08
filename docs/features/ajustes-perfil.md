@@ -27,15 +27,15 @@ Hub de configuración de la app (`/ajustes`) con tres sub-pantallas — medios d
 | `src/components/layout/main-nav.tsx` | Navegación única: BottomNav mobile (6 ítems: Inicio, Movimientos, Compromisos, Objetivos, Inversiones, **Más→/ajustes**) + sidebar desktop fija `w-64` (el `<main>` compensa con `md:pl-64`) |
 | `src/components/medios-pago/*` | Cards y diálogos de medios (institutional-card, personal-debt-card, create-payment-method-dialog, register-card-payment-dialog) |
 
-## Tablas DB (¿users.id numérico o UUID de auth?)
+## Tablas DB (¿qué `user_id` usa cada tabla?)
 | Tabla | user_id |
 |---|---|
-| `payment_methods` | **numérico** (`users.id`) — así filtra el financeStore y el chat |
-| `transactions` (para `assignDefaultToUnassignedTransactions`) | **numérico** |
+| `payment_methods` | **id interno** (`users.id`) — así filtra el financeStore y el chat |
+| `transactions` (para `assignDefaultToUnassignedTransactions`) | **id interno** (`users.id`) |
 | `categories` | **UUID de auth** (`auth.uid()`); `/ajustes/categorias/page.tsx:13` filtra `.eq('user_id', user.id)` con el UUID — correcto para esta tabla |
-| `users` (perfil, `first_name`, `tour_completed`) | doble identidad `id` numérico + `auth_user_id` UUID — ver gotcha detallado en `docs/features/onboarding-auth.md` |
+| `users` (perfil, `first_name`, `tour_completed`) | identidad `id` (UUID = auth.uid(); `auth_user_id` vestigial NULL) — ver gotcha detallado en `docs/features/onboarding-auth.md` |
 
-Confundir numérico y UUID produce queries que **nunca matchean sin tirar error** (gotcha crítico de todo el repo).
+Confundir ambos ids produce queries que **nunca matchean sin tirar error** (gotcha crítico de todo el repo).
 
 ## Flujos principales
 1. **Marcar un medio como predeterminado**: toggle "Predeterminado" en crear/editar (oculto para `is_personal`). La action resetea `is_default=false` en todos los medios del usuario y recién después marca el elegido → invariante de un solo default. El default es el que usa el chatbot cuando el usuario no aclara medio.

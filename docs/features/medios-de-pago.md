@@ -27,11 +27,11 @@ Gestión de los medios de pago del usuario (tarjetas de crédito, débito, efect
 ## Tablas DB
 | Tabla | Filtro de usuario |
 |---|---|
-| `payment_methods` | `user_id` **numérico** (`users.id`) |
-| `transactions` | `user_id` **numérico** (reasignación, pagos de tarjeta, sin-asignar) |
-| `recurring_plans` / `installment_plans` | `user_id` **numérico** (reasignación al borrar un medio) |
+| `payment_methods` | `user_id` = **id interno** (`users.id`) |
+| `transactions` | `user_id` = **id interno** (`users.id`) (reasignación, pagos de tarjeta, sin-asignar) |
+| `recurring_plans` / `installment_plans` | `user_id` = **id interno** (`users.id`) (reasignación al borrar un medio) |
 
-Gotcha crítico: estas tablas usan el id numérico de `public.users`, NO el UUID de auth (que usan `categories`/`internal_transfers`/`savings_goals`/`category_budgets`). En la capa IA se distingue `ctx.userId` (numérico) de `ctx.authUserId` (UUID); confundirlos produce queries que nunca matchean, sin error.
+Gotcha crítico: estas tablas usan el id interno de `public.users` (`users.id`), NO el UUID de auth (que usan `categories`/`internal_transfers`/`savings_goals`/`category_budgets`). En la capa IA se distingue `ctx.userId` (id interno) de `ctx.authUserId` (UUID); confundirlos produce queries que nunca matchean, sin error.
 
 ## Flujos principales
 1. **Alta/edición**: validación Zod (para crédito, `default_closing_day !== default_payment_day`). Invariante de **un solo `is_default` por usuario**: si el nuevo/editado queda como default, la action primero resetea `is_default = false` en TODOS los medios del usuario y después marca este.

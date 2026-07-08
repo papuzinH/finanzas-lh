@@ -32,17 +32,19 @@ Chat conversacional dentro de la app que registra movimientos, cuotas, mensualid
 ## Tablas DB (gotcha crítico de `user_id`)
 | Tabla | Filtro correcto |
 |---|---|
-| `transactions`, `payment_methods`, `recurring_plans`, `installment_plans` | `users.id` **numérico** → `ctx.userId` |
-| `categories`, `internal_transfers`, `savings_goals`, `category_budgets` | **UUID de auth** → `ctx.authUserId` (en handlers: `getAuthUserId()`) |
+| `transactions`, `payment_methods`, `recurring_plans`, `installment_plans` | **id interno** `users.id` → `ctx.userId` |
+| `categories`, `internal_transfers`, `savings_goals`, `category_budgets`, `investment_assets`, `investment_transactions` | **UUID de auth** → `ctx.authUserId` (en handlers: `getAuthUserId()`) |
 
 Confundirlos produce **queries que nunca matchean, sin error** (fuente de 5 bugs silenciosos ya corregidos, ej. `handlers.ts:654`, `:912`). `categories` además usa `.or('user_id.eq.<uuid>,is_system.eq.true')` para incluir las del sistema.
 
-- `chat_usage`: PK `(user_id, usage_date)`, `request_count`. **Ojo con el tipo**: la migración declara `user_id UUID REFERENCES users(id)` y la firma TS de `checkAndIncrementUsage` tipa `userId: string`, pero la route le pasa `dbUser.id` (numérico según `types/database.ts`). Solo se escribe vía RPC `SECURITY DEFINER`; verificar contra la DB real antes de tocar esta zona.
+> **Verificado contra la DB real (2026-07-08)**: `users.id` es un **UUID que coincide con `auth.uid()`** (FK directa a `auth.users(id)`); la columna `users.auth_user_id` está **NULL en todos los usuarios** (el backfill de la migración 20260323 nunca corrió). `types/database.ts` (`id: number`) está **desactualizado**. En runtime `ctx.userId` === `ctx.authUserId` hoy, pero la convención por tabla se mantiene (las FKs difieren); lo que NUNCA funciona es filtrar por `auth_user_id`.
+
+- `chat_usage`: PK `(user_id, usage_date)`, `request_count`. `user_id` = `users.id` (UUID interno); la route le pasa `dbUser.id` y funciona (24 filas reales de uso — la cuota está operativa, no hay fail-open). Solo se escribe vía RPC `SECURITY DEFINER`.
 - `chat_budget`: PK `period` (`YYYY-MM`), acumula `input_tokens`/`output_tokens`/`estimated_cost_usd`, kill switch `is_killed`. Sin políticas de cliente.
 - `users.chat_tier`: `'free' | 'pro'`.
 
 ## Flujos principales
-1. **Request**: route autentica (`supabase.auth.getUser()`), resuelve el `users.id` numérico (`.select('id, chat_tier, first_name').limit(1).single()`, solo RLS), chequea cuota (`checkAndIncrementUsage`; si el guard falla, **fail-open**), arma `cardAlerts` (tarjetas cuyo `default_payment_day` venció ayer), construye el prompt y corre el loop con historial truncado (últimos 10 mensajes, máx 2000 chars).
+1. **Request**: route autentica (`supabase.auth.getUser()`), resuelve el `users.id` interno (`.select('id, chat_tier, first_name').limit(1).single()`, solo RLS), chequea cuota (`checkAndIncrementUsage`; si el guard falla, **fail-open**), arma `cardAlerts` (tarjetas cuyo `default_payment_day` venció ayer), construye el prompt y corre el loop con historial truncado (últimos 10 mensajes, máx 2000 chars).
 2. **Agent loop** (`runAgent`): hasta 6 pasos. En cada paso el modelo responde con texto (fin) o un `functionCall`; se ejecuta la tool y su resultado vuelve como `functionResponse`. Si `inputTokens+outputTokens > 50k`, el siguiente llamado va `withTools:false`. **Anti-bucle**: misma tool con mismos args dos veces → corta sin re-ejecutar y fuerza cierre final sin tools (`FORCED_FINAL_MESSAGE`).
 3. **Tools**: `executeToolWith` valida args con Zod (`safeParse`) antes de `execute` y atrapa cualquier throw → siempre devuelve `{ ok, data?, error?, mutated? }`. Lecturas: JSON compacto, máx. 20 filas, montos redondeados de `lib/finance` (`computeGlobalBalance`, `computePendingCreditCards`, etc.). Escrituras: envuelven `lib/ai/handlers.ts`; `mutated: true` en la respuesta final del endpoint hace que `chatStore` llame `useFinanceStore.getState().fetchAllData()`.
 4. **Snapshot de datos**: `loadFinanceData(ctx)` = 7 queries (`assertNoQueryError` en cada una: un error de PostgREST lanza y se convierte en `{ok:false}` visible al usuario, nunca snapshot truncado en silencio) + dólar blue (`dolarapi.com`, timeout 2s, degrada a `null` → `resolveRate` cae al `exchange_rate` de cada fila). Se procesa con el MISMO pipeline `prepareTransactions`/`prepareRecurringPlans` de `lib/finance/prepare.ts` que usa el cliente. **Memoizado como PROMESA** en `ctx._financeCache` (evita carreras); `runAgent` lo invalida tras una escritura `mutated` (`agent.ts:104`); si la promesa rechaza NO queda cacheada (bug ya corregido, `dataLoader.ts:137`).

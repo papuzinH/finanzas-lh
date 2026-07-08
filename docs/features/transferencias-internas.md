@@ -22,7 +22,7 @@
 
 ## Tabla DB
 
-`internal_transfers` — **`user_id` es UUID de auth (`auth.uid()`)**, NO el id numérico de `public.users`. Este es EL gotcha del repo: filtrar esta tabla con el id numérico produce una query que nunca matchea, sin error (mismo patrón que `categories`/`savings_goals`/`category_budgets`; en cambio `transactions` y compañía usan el id numérico).
+`internal_transfers` — **`user_id` es UUID de auth (`auth.uid()`)**, NO el id interno de `public.users` (`users.id`). Este es EL gotcha del repo: filtrar esta tabla con el id interno produce una query que nunca matchea, sin error (mismo patrón que `categories`/`savings_goals`/`category_budgets`; en cambio `transactions` y compañía usan el id interno (`users.id`)).
 
 | Columna | Tipo / regla |
 |---|---|
@@ -44,7 +44,7 @@
 
 ## Invariantes y gotchas
 
-- **UUID, no numérico** (repetido porque es el bug silencioso #1 del repo). En handlers/tools usar `ctx.authUserId` / `getAuthUserId()`.
+- **UUID de auth, no el id interno** (repetido porque es el bug silencioso #1 del repo). En handlers/tools usar `ctx.authUserId` / `getAuthUserId()`.
 - `computeGlobalBalance` resta `Math.abs(amount)` **sin convertir moneda**: una fila con `currency='USD'` restaría su número nominal como si fuera ARS (no hay `resolveRate` acá, a diferencia de transactions/recurring_plans). Hoy no parece haber flujo que cree filas USD, pero si se agrega UI de alta hay que resolver esto primero.
 - El fetch del store es **non-blocking**: si la tabla no existe (DEV sin migración) solo hace `console.warn` y sigue con `internalTransfers: []` (línea ~597 de financeStore.ts).
 - `getMonthlyLiquidityBreakdown` existe y está tipado en el store, pero **ningún componente lo consume actualmente** (verificado por grep; quedó del diseño del layout desktop del home). No borrarlo sin revisar el roadmap; no asumir que hay una card de liquidez viva.

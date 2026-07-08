@@ -43,7 +43,7 @@ Tracker de inversiones v2 basado en **activos + transacciones** (`investment_ass
 | `market_prices` | **global, sin user_id** (keyed por `ticker` único) | RLS: solo policy de SELECT en migraciones versionadas (ver gotchas) |
 | `exchange_rates` | **global** (keyed por `pair` único: `USD_ARS_BLUE/MEP/CCL`, `USDT_ARS`) | RLS: SELECT authenticated; INSERT/UPDATE **solo service_role** |
 
-Las server actions usan `user.id` de `supabase.auth.getUser()` (el UUID) — correcto para todas estas tablas. **Nunca** usar acá el id numérico de `public.users` (ese es para `transactions`/`payment_methods`/etc.).
+Las server actions usan `user.id` de `supabase.auth.getUser()` (el UUID) — correcto para todas estas tablas. **Nunca** usar acá el id interno de `public.users` (`users.id`) (ese es para `transactions`/`payment_methods`/etc.).
 
 ## Flujos principales
 1. **Alta (quickAdd)**: normaliza ticker base para bonos/ONs/BOPREAL (`AL30D/AL30C → AL30`), busca o crea el `investment_asset` (metadata: `tna` guardada como decimal /100, `end_date`, `entity`, `start_date` para PF/MM), crea la `investment_transaction` tipo `buy`, y si el asset es nuevo (y no PF/MM) intenta un fetch inicial de precio → upsert en `market_prices`.
@@ -55,7 +55,7 @@ Las server actions usan `user.id` de `supabase.auth.getUser()` (el UUID) — cor
 ## Invariantes y gotchas
 - **Todos los cálculos internos son en ARS**; `displayCurrency` solo convierte al final (`convertArsToDisplay`). Las compras en USD se convierten a ARS por MEP para el costo.
 - **RLS vs. escritura de precios**: según las migraciones versionadas, `market_prices` solo tiene policy de SELECT y `exchange_rates` solo permite escritura a `service_role`; sin embargo `runUpdatePrices` upsertea con el **cliente del usuario autenticado**. Si las policies reales de la DB no fueron ampliadas por fuera del repo, esos upserts fallan silenciosamente (error solo logueado, `failed[]`/`rates_updated=false`). Revisar el dashboard antes de asumir un bug de scraping.
-- **`get_portfolio_status` del chat lee `investments` (v1) filtrando por `ctx.userId` numérico**, pero `investments.user_id` es UUID → en la práctica no matchea (deuda conocida; el chat responde "no tenés inversiones"). No "arreglar" copiando lógica: migrar la tool al modelo v2 reusando cálculos puros.
+- La valuación del portfolio es la función pura `computePortfolioStatus` (`lib/finance/portfolio.ts`): el store (`getPortfolioStatus`) y la tool `get_portfolio_status` del chat (`handlePortfolio`, tablas v2 filtradas por `ctx.authUserId`) son wrappers sobre ella. (El viejo bug de leer la tabla legacy `investments` v1 vacía quedó corregido acá.)
 - `updateMarketPrices` existe como server action pero la UI usa el endpoint POST (permite leer `failed[]`).
 - Los precios `plazo_fijo`/`money_market` **no** vienen del mercado: se devengan en el getter.
 - La `metadata.tna` se guarda como **decimal** (`data.tna / 100` en `quickAdd`).

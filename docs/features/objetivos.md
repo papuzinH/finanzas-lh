@@ -41,7 +41,7 @@ Pantalla `/objetivos` con dos sub-features en tabs:
 | `category_budgets` | **UUID de auth** | `UNIQUE (user_id, category_id)`; `category_id` es `TEXT` FK a `categories` |
 | `savings` | **UUID de auth** | Tabla aparte (tenencias sueltas) — vive en la feature Inversiones, NO confundir con metas |
 
-Las actions usan `user.id` de `supabase.auth.getUser()` (UUID) — correcto. Este trío fue fuente del bug clásico del chat: `category_budgets` filtrado por el id numérico nunca matcheaba (ya corregido, ver `handlers.ts:101` y `checkBudgetAlert.test.ts`).
+Las actions usan `user.id` de `supabase.auth.getUser()` (UUID) — correcto. Este trío fue fuente del bug clásico del chat: `category_budgets` filtrado por el id interno nunca matcheaba (ya corregido, ver `handlers.ts:101` y `checkBudgetAlert.test.ts`).
 
 ## Flujos principales
 1. **Crear meta** → dialog → `createSavingsGoal` → `fetchGoalsData()` refresca el store.
@@ -66,4 +66,4 @@ Las actions usan `user.id` de `supabase.auth.getUser()` (UUID) — correcto. Est
 ## Docs relacionados
 - `supabase/migrations/20260322_add_goals_tables.sql` (schema + RLS + instrucciones de deploy).
 - `docs/superpowers/specs/2026-07-06-home-presupuestos-metas-visual-design.md` y `docs/superpowers/plans/2026-07-06-home-presupuestos-metas-visual-implementation.md` — cards de metas/presupuestos en el home.
-- `CLAUDE.md` — gotcha `user_id` numérico vs UUID (sección Asistente IA).
+- `CLAUDE.md` — gotcha `user_id` (id interno vs UUID de auth) (sección Asistente IA).

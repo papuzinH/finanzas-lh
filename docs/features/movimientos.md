@@ -27,8 +27,8 @@
 
 | Tabla | Filtro de usuario | Notas |
 |---|---|---|
-| `transactions` | `users.id` **numérico** | Columnas especiales abajo |
-| `payment_methods` | `users.id` **numérico** | `type` credit/débito/efectivo, `default_closing_day`/`default_payment_day`, `is_default` |
+| `transactions` | `users.id` (**id interno**) | Columnas especiales abajo |
+| `payment_methods` | `users.id` (**id interno**) | `type` credit/débito/efectivo, `default_closing_day`/`default_payment_day`, `is_default` |
 | `categories` | **UUID de auth** (+ `is_system`) | `category_id` en transactions es UUID |
 | `exchange_rates` | global (sin user) | upsert por `pair` desde `updateExchangeRates()` |
 

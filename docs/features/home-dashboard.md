@@ -33,11 +33,11 @@
 
 | Tabla | Filtro de usuario |
 |---|---|
-| `transactions`, `payment_methods`, `recurring_plans`, `installment_plans` | `users.id` **numérico** (FK a `public.users`) |
+| `transactions`, `payment_methods`, `recurring_plans`, `installment_plans` | `users.id` (**id interno**, FK a `public.users`) |
 | `categories`, `internal_transfers`, `savings_goals`, `savings_goal_contributions`, `category_budgets`, `savings` | **UUID de auth** (`auth.uid()`) |
 | `exchange_rates`, `market_prices` | globales, sin filtro de usuario |
 
-Gotcha crítico del repo: confundir id numérico con UUID produce queries que **nunca matchean sin error** (fuente de 5 bugs en el chat). El criterio canónico por tabla está documentado en `src/lib/ai/tools/dataLoader.ts` (comentario "Step 0"). El store cliente pasa `authUser.id` a todos los filtros y se apoya en RLS; en server-side (tools/handlers del chat) hay que elegir el id correcto a mano.
+Gotcha crítico del repo: confundir el id interno con el UUID de auth produce queries que **nunca matchean sin error** (fuente de 5 bugs en el chat). El criterio canónico por tabla está documentado en `src/lib/ai/tools/dataLoader.ts` (comentario "Step 0"). El store cliente pasa `authUser.id` a todos los filtros y se apoya en RLS; en server-side (tools/handlers del chat) hay que elegir el id correcto a mano.
 
 ## Flujos principales
 

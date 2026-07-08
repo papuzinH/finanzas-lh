@@ -26,20 +26,20 @@ Alta y acceso de usuarios: login con **Google OAuth (único proveedor)** vía Su
 | `src/lib/store/onboardingStore.ts` | Zustand persistido (`chanchito-tour`): estado del tour, `TOUR_ROUTE_ORDER`, sync con `users.tour_completed` |
 | `src/components/layout/app-shell.tsx` | Monta `OnboardingTour` (dynamic, ssr:false) y llama `syncTourFromSupabase(user.id)` una vez |
 
-## Tablas DB — doble identidad (gotcha crítico)
-La tabla `users` tiene **dos identidades**:
-- `users.id`: **numérico** (`number` en `types/database.ts:54`; "INTEGER PK interna" según la migración `20260323_enable_rls_core_tables.sql`).
-- `users.auth_user_id`: **UUID** de `auth.users`, agregado por esa migración como puente con `auth.uid()`. **NO figura en el tipo `users.Row` de `types/database.ts`** (tipo desactualizado — el código que lo usa castea o ignora el tipado).
+## Tablas DB — identidad de `users` (gotcha crítico, VERIFICADO contra la DB real 2026-07-08)
+Realidad de la DB (consultada por SQL directo):
+- `users.id`: **UUID que ES el `auth.uid()`** — FK directa `users.id → auth.users(id)`, y los 6 usuarios existentes matchean. Lo que dicen `types/database.ts:54` (`id: number`) y el comentario "INTEGER PK interna" de la migración `20260323_enable_rls_core_tables.sql` está **desactualizado/equivocado** respecto de la DB real.
+- `users.auth_user_id`: columna **vestigial, NULL en el 100% de los usuarios** (el backfill manual de la migración nunca corrió). Cualquier query o política RLS que filtre por `auth_user_id` matchea **0 filas, sin error**.
 
-RLS de `users`: select/update solo filas propias vía `auth_user_id = auth.uid()`; helper SQL `SELECT id FROM users WHERE auth_user_id = auth.uid()`.
+RLS efectiva de `users`: funciona por la política `"Users access own data"` (`auth.uid() = id`). Las políticas `users_select_own`/`users_update_own` (`auth_user_id = auth.uid()`) están **muertas** (NULL).
 
-**GOTCHA — call-sites mixtos (verificar contra la DB real antes de tocar):**
-- Filtran `users` con `.eq('id', user.id)` pasando el **UUID de auth**: `src/utils/supabase/middleware.ts:62`, `src/app/onboarding/page.tsx:17`, `src/app/onboarding/actions.ts:42/201`, `src/lib/store/financeStore.ts:517`, `src/app/categorias/actions.ts:87`. Funcionan en producción, lo que contradice el "id INTEGER" de la migración/tipos — inconsistencia documental abierta.
-- Filtran por `.eq('auth_user_id', <uuid>)`: `onboardingStore.skipTour/completeTour/resetTour`.
-- No filtran (solo RLS + `.single()`): `src/app/api/chat/route.ts:86-90`.
+**Call-sites, releídos con esa realidad:**
+- Filtran `users` con `.eq('id', user.id)` pasando el UUID de auth (`src/utils/supabase/middleware.ts:62`, `src/app/onboarding/page.tsx:17`, `src/app/onboarding/actions.ts:42/201`, `src/lib/store/financeStore.ts:517`, `src/app/categorias/actions.ts:87`): **CORRECTOS** — `id` es el auth uid.
+- Filtran por `.eq('auth_user_id', <uuid>)` (`onboardingStore.skipTour/completeTour/resetTour`): **ROTOS** — actualizan 0 filas: `tour_completed` nunca persiste en Supabase (solo en localStorage; en otro dispositivo el tour vuelve a arrancar). Fix pendiente: filtrar por `id`.
+- No filtran (solo RLS + `.single()`): `src/app/api/chat/route.ts:86-90` — funciona vía la política `auth.uid() = id`.
 
 Columnas de estado: `users.onboarding_completed` (gate del middleware), `users.tour_completed`, `users.first_name`.
-Tablas escritas por el onboarding: `categories` (**user_id UUID de auth**), `payment_methods` (**user_id numérico** según tipos; ojo: las actions de onboarding insertan `user_id: user.id` con el UUID — misma zona ambigua de arriba).
+Tablas escritas por el onboarding: `categories` y `payment_methods` — ambas insertan `user_id: user.id` (auth UUID), correcto en la DB real.
 
 ## Flujos principales
 1. **Login**: `/login` → `signInWithGoogle()` (server action) → Google → `/auth/callback?code=...` → `exchangeCodeForSession` → cookies de sesión → redirect `/`.
@@ -50,7 +50,7 @@ Tablas escritas por el onboarding: `categories` (**user_id UUID de auth**), `pay
    - `suggestCategoriesFromDescription(texto)` (opcional, "Personalizar con IA"): Gemini 2.5 Flash (`@google/genai`) devuelve JSON de 5-10 categorías; se renderizan como chips editables, **no se guardan automáticamente**.
    - `saveOnboardingPaymentMethods(methods, defaultName?)`: idempotente (delete + insert), setea días de cierre/vencimiento solo para `credit`, y marca `is_default` (reset de todos + marca el elegido).
    - `completeOnboarding()`: `users.onboarding_completed = true` → el middleware deja de redirigir; el flow hace `router.push('/')`.
-4. **Tour post-registro**: `AppShell` monta `OnboardingTour` en toda ruta autenticada. Recorre `TOUR_ROUTE_ORDER` (`/`, `/movimientos`, `/compromisos`, `/objetivos`, `/ajustes`, `/`) con pasos por ruta (`TOUR_STEPS_BY_ROUTE`) que apuntan a `data-tour="..."` (ej. `balance-card`, `fab`, `section-medios`). `advanceTour()` devuelve la próxima ruta a navegar o `null`. Completar/saltear persiste `tour_completed=true` en Supabase y en localStorage; `syncTourFromSupabase(user.id numérico)` lo baja al iniciar. Se puede reiniciar desde `/ajustes/perfil` (`resetTour`).
+4. **Tour post-registro**: `AppShell` monta `OnboardingTour` en toda ruta autenticada. Recorre `TOUR_ROUTE_ORDER` (`/`, `/movimientos`, `/compromisos`, `/objetivos`, `/ajustes`, `/`) con pasos por ruta (`TOUR_STEPS_BY_ROUTE`) que apuntan a `data-tour="..."` (ej. `balance-card`, `fab`, `section-medios`). `advanceTour()` devuelve la próxima ruta a navegar o `null`. Completar/saltear persiste `tour_completed=true` en Supabase y en localStorage; `syncTourFromSupabase(user.id)` lo baja al iniciar. Se puede reiniciar desde `/ajustes/perfil` (`resetTour`).
 
 ## Invariantes y gotchas
 - El middleware excluye `/api/*`: los endpoints hacen su propia auth (ej. `/api/chat`).
