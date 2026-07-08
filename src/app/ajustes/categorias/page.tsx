@@ -1,8 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
-import { PageHeader } from '@/components/shared/page-header';
+import { ScreenHeader } from '@/components/shared/screen-header';
 import { CreateCategoryDialog } from '@/components/categories/create-category-dialog';
 import { CategoriesWithStats } from '@/app/categorias/_components/categories-with-stats';
-import { Tag } from 'lucide-react';
 
 export default async function AjustesCategoriasPage() {
   const supabase = await createClient();
@@ -16,13 +15,11 @@ export default async function AjustesCategoriasPage() {
 
   return (
     <div className="min-h-screen bg-bg text-text font-sans selection:bg-accent/30 pb-24">
-      <PageHeader
+      <ScreenHeader
+        kicker="Ajustes"
         title="Mis Categorías"
-        icon={<Tag className="h-5 w-5" />}
-        containerClassName="max-w-[1440px]"
-      >
-        <CreateCategoryDialog />
-      </PageHeader>
+        right={<CreateCategoryDialog />}
+      />
 
       <main className="mx-auto max-w-[1440px] px-4 md:px-6 py-6 md:py-8">
         <p className="text-sm text-muted mb-6">
