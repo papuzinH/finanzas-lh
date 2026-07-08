@@ -533,18 +533,21 @@ describe('create_payment_method', () => {
 })
 
 describe('writeTools registry', () => {
-  it('expone exactamente 6 tools de kind write', () => {
-    expect(writeTools).toHaveLength(6)
-    expect(writeTools.every((t) => t.kind === 'write')).toBe(true)
-    expect(writeTools.map((t) => t.name).sort()).toEqual(
-      [
+  // El conteo/listado exacto de las 12 tools (Tasks 11 + 13) vive en
+  // writeToolsB.test.ts junto a las tools nuevas; acá solo verificamos que las
+  // 6 de Task 11 siguen presentes y son 'write', sin duplicar el assert exacto.
+  it('incluye las 6 tools de Task 11, todas de kind write', () => {
+    const names = writeTools.map((t) => t.name)
+    expect(names).toEqual(
+      expect.arrayContaining([
         'create_category',
         'create_installment_plan',
         'create_payment_method',
         'create_recurring_plan',
         'create_transaction',
         'set_card_dates',
-      ].sort(),
+      ]),
     )
+    expect(writeTools.every((t) => t.kind === 'write')).toBe(true)
   })
 })

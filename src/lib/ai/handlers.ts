@@ -1061,7 +1061,7 @@ async function handleUltimosMovimientos(supabase: any, userId: number, filters: 
 /**
  * Maneja la edición de entidades existentes.
  */
-async function handleEdit(data: EditData, userId: number): Promise<ChatResponse> {
+export async function handleEdit(data: EditData, userId: number): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
 
@@ -1167,10 +1167,17 @@ async function handleEdit(data: EditData, userId: number): Promise<ChatResponse>
       }
 
       case 'categoria': {
+        // Bug fix: categories.user_id es el UUID de auth (no el id numérico interno
+        // que usan transactions/payment_methods), por eso el filtro con `userId`
+        // nunca matcheaba. Usamos getAuthUserId() para obtener el UUID correcto
+        // (mismo fix que Task 12 aplicó a handleDelete).
+        const authId = await getAuthUserId()
+        if (!authId) return { success: false, message: 'No autorizado' }
+
         const { data: cats, error } = await supabase
           .from('categories')
           .select('id, name, emoji')
-          .eq('user_id', userId)
+          .eq('user_id', authId)
           .ilike('name', `%${data.search}%`)
           .limit(1)
 
@@ -1192,7 +1199,7 @@ async function handleEdit(data: EditData, userId: number): Promise<ChatResponse>
           .from('categories')
           .update(updates)
           .eq('id', cat.id)
-          .eq('user_id', userId)
+          .eq('user_id', authId)
 
         if (updateError) {
           return { success: false, message: 'Error al actualizar la categoría.' }
@@ -1688,7 +1695,7 @@ async function getAuthUserId(): Promise<string | null> {
   return user?.id ?? null
 }
 
-async function handleCreateGoal(data: CreateGoalData): Promise<ChatResponse> {
+export async function handleCreateGoal(data: CreateGoalData): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
     const authId = await getAuthUserId()
@@ -1716,7 +1723,7 @@ async function handleCreateGoal(data: CreateGoalData): Promise<ChatResponse> {
   }
 }
 
-async function handleCreateBudget(data: CreateBudgetData): Promise<ChatResponse> {
+export async function handleCreateBudget(data: CreateBudgetData): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
     const authId = await getAuthUserId()
@@ -1938,7 +1945,7 @@ async function handleQueryGoal(data: GoalQueryData): Promise<ChatResponse> {
   }
 }
 
-async function handleEditGoal(data: GoalEditData): Promise<ChatResponse> {
+export async function handleEditGoal(data: GoalEditData): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
     const authId = await getAuthUserId()
@@ -2003,7 +2010,7 @@ async function handleEditGoal(data: GoalEditData): Promise<ChatResponse> {
   }
 }
 
-async function handleDeleteGoal(data: GoalDeleteData): Promise<ChatResponse> {
+export async function handleDeleteGoal(data: GoalDeleteData): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
     const authId = await getAuthUserId()
@@ -2058,7 +2065,7 @@ async function handleDeleteGoal(data: GoalDeleteData): Promise<ChatResponse> {
   }
 }
 
-async function handleGoalContribution(data: GoalContributionData): Promise<ChatResponse> {
+export async function handleGoalContribution(data: GoalContributionData): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
     const authId = await getAuthUserId()

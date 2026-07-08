@@ -5,8 +5,27 @@ import {
   handleInstallment,
   handleSubscription,
   handleCardConfig,
+  handleEdit,
+  handleDelete,
+  handleCreateGoal,
+  handleCreateBudget,
+  handleEditGoal,
+  handleDeleteGoal,
+  handleGoalContribution,
 } from '@/lib/ai/handlers'
-import type { TransactionData, InstallmentData, SubscriptionData, CardConfigData } from '@/lib/ai/intentParser'
+import type {
+  TransactionData,
+  InstallmentData,
+  SubscriptionData,
+  CardConfigData,
+  EditData,
+  DeleteData,
+  CreateGoalData,
+  CreateBudgetData,
+  GoalEditData,
+  GoalDeleteData,
+  GoalContributionData,
+} from '@/lib/ai/intentParser'
 
 // Campos compartidos entre create_transaction y create_installment_plan: misma forma
 // y misma descripción orientada al modelo (diccionario de categorías del prompt,
@@ -87,6 +106,66 @@ const createPaymentMethodSchema = z.object({
 function normalizeName(name: string): string {
   return name.trim().toLowerCase()
 }
+
+// --- Tools de Task 13 (Fase 2 cierre): edición/borrado genérico + objetivos y
+// presupuestos. `entidad` reutiliza el mismo enum que `EntityType` de intentParser.
+const entityEnum = z.enum(['transaccion', 'medio_pago', 'categoria', 'suscripcion', 'cuota', 'objetivo', 'presupuesto'])
+const deletableEntityEnum = z.enum(['transaccion', 'medio_pago', 'categoria', 'suscripcion', 'cuota'])
+const goalOrBudgetEnum = z.enum(['objetivo', 'presupuesto'])
+
+const updateEntitySchema = z.object({
+  entidad: entityEnum,
+  busqueda: z.string().min(1).describe('Texto para encontrar la entidad (nombre/descripción, coincidencia parcial)'),
+  cambios: z
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+    .describe(
+      'Campos a modificar. Según `entidad`: transaccion (description, amount, type, category, payment_method), ' +
+        'medio_pago (name, type, closing_day, payment_day), categoria (name, emoji), suscripcion (description, ' +
+        'amount, currency, is_active), objetivo (nombre, monto_objetivo, fecha_objetivo, moneda), presupuesto ' +
+        '(monto_limite, moneda).',
+    ),
+})
+
+const deleteEntitySchema = z.object({
+  entidad: deletableEntityEnum,
+  busqueda: z.string().min(1).describe('Texto para encontrar la entidad a eliminar (coincidencia parcial)'),
+  confirmed: z
+    .boolean()
+    .default(false)
+    .describe('true SOLO si el usuario ya confirmó explícitamente en este hilo'),
+  reasignar_a: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('Nombre de la entidad destino para reasignar dependencias antes de borrar (solo si aplica)'),
+})
+
+const deleteGoalOrBudgetSchema = z.object({
+  entidad: goalOrBudgetEnum,
+  busqueda: z.string().min(1).describe('Nombre de la meta o categoría del presupuesto a eliminar'),
+})
+
+const createGoalSchema = z.object({
+  nombre: z.string().min(1),
+  tipo: z.enum(['one_time', 'monthly']).describe('one_time: meta puntual con fecha límite; monthly: meta que se reinicia cada mes'),
+  monto_objetivo: z.number().positive(),
+  moneda: z.enum(['ARS', 'USD']).default('ARS'),
+  fecha_objetivo: z.string().nullable().describe('YYYY-MM-DD; null si no aplica (ej. metas mensuales)'),
+})
+
+const createBudgetSchema = z.object({
+  categoria_id: z.string().min(1).describe('UUID del DICCIONARIO DE CATEGORÍAS del prompt (obligatoria, un presupuesto es siempre por categoría)'),
+  monto_limite: z.number().positive(),
+  moneda: z.enum(['ARS', 'USD']).default('ARS'),
+})
+
+const contributeToGoalSchema = z.object({
+  busqueda: z.string().min(1).describe('Nombre de la meta a la que se aporta (coincidencia parcial)'),
+  monto: z.number().positive(),
+  moneda: z.enum(['ARS', 'USD']).default('ARS'),
+  nota: z.string().nullable(),
+  fecha: fechaField,
+})
 
 export const writeTools: ToolDef[] = [
   {
@@ -267,6 +346,156 @@ export const writeTools: ToolDef[] = [
       }
 
       return { ok: true, data: { mensaje: `✅ Medio de pago "${args.nombre}" creado.` }, mutated: true }
+    },
+  },
+  {
+    name: 'update_entity',
+    description:
+      'Edita una entidad existente: transacción, medio de pago, categoría, suscripción, cuota, objetivo (meta de ' +
+      'ahorro) o presupuesto. Usar cuando el usuario pide corregir o cambiar algo ya registrado (ej. "cambiale el ' +
+      'monto a la compra del supermercado", "la meta del viaje ahora es de $800.000"). `busqueda` matchea por ' +
+      'nombre/descripción (coincidencia parcial); si hay varias coincidencias, se edita la más reciente/relevante. ' +
+      '`cambios` solo debe incluir los campos que el usuario efectivamente quiere modificar.',
+    kind: 'write',
+    schema: updateEntitySchema,
+    execute: async (rawArgs, ctx) => {
+      const args = rawArgs as z.infer<typeof updateEntitySchema>
+
+      // objetivo/presupuesto viven en tablas propias (savings_goals/category_budgets,
+      // filtradas por el UUID de auth) y su handler no toma userId; el resto pasa por
+      // handleEdit (mismo patrón que delete_entity/delete_goal_or_budget más abajo).
+      if (args.entidad === 'objetivo' || args.entidad === 'presupuesto') {
+        const data: GoalEditData = { entity: args.entidad, search: args.busqueda, changes: args.cambios }
+        const res = await handleEditGoal(data)
+        return { ok: res.success, data: { mensaje: res.message }, mutated: res.success }
+      }
+
+      const data: EditData = { entity: args.entidad, search: args.busqueda, changes: args.cambios }
+      const res = await handleEdit(data, ctx.userId)
+      return { ok: res.success, data: { mensaje: res.message }, mutated: res.success }
+    },
+  },
+  {
+    name: 'delete_entity',
+    description:
+      'Elimina una transacción, medio de pago, categoría, suscripción o cuota. Para metas de ahorro o presupuestos ' +
+      'usar delete_goal_or_budget en su lugar. IMPORTANTE — flujo de confirmación en dos pasos: la PRIMERA llamada ' +
+      'para una eliminación siempre debe ir con `confirmed=false`. Si la respuesta trae un mensaje que empieza con ' +
+      '⚠️ (la entidad tiene otras cosas asociadas), NO vuelvas a llamar la tool en el mismo turno: preguntale al ' +
+      'usuario si quiere reasignar esas dependencias a otra entidad (usando `reasignar_a`) o cancelar, y recién en ' +
+      'el PRÓXIMO mensaje del usuario, con su confirmación explícita, volvé a llamar esta tool con `confirmed=true`.',
+    kind: 'write',
+    schema: deleteEntitySchema,
+    execute: async (rawArgs, ctx) => {
+      const args = rawArgs as z.infer<typeof deleteEntitySchema>
+      const data: DeleteData & { confirmed?: boolean; reassignTo?: string | null } = {
+        entity: args.entidad,
+        search: args.busqueda,
+        confirmed: args.confirmed,
+        reassignTo: args.reasignar_a ?? null,
+      }
+      const res = await handleDelete(data, ctx.userId)
+      // El mensaje ⚠️ es una PREGUNTA de confirmación, no un borrado real: no mutó nada
+      // aunque success sea true (mismo criterio que Task 12 documentó en handleDelete).
+      const mutated = res.success && !res.message.startsWith('⚠️')
+      return { ok: res.success, data: { mensaje: res.message }, mutated }
+    },
+  },
+  {
+    name: 'delete_goal_or_budget',
+    description:
+      'Elimina una meta de ahorro o un presupuesto por categoría. A diferencia de delete_entity, esta eliminación ' +
+      'es directa (no tiene dependencias que reasignar), así que confirmá con el usuario en la conversación ANTES ' +
+      'de llamar esta tool — la acción no se puede deshacer (borra la meta con todos sus aportes).',
+    kind: 'write',
+    schema: deleteGoalOrBudgetSchema,
+    execute: async (rawArgs, _ctx) => {
+      const args = rawArgs as z.infer<typeof deleteGoalOrBudgetSchema>
+      const data: GoalDeleteData = { entity: args.entidad, search: args.busqueda }
+      const res = await handleDeleteGoal(data)
+      return { ok: res.success, data: { mensaje: res.message }, mutated: res.success }
+    },
+  },
+  {
+    name: 'create_goal',
+    description:
+      'Crea una meta de ahorro nueva. Usar cuando el usuario dice que quiere ahorrar para algo (ej. "quiero ' +
+      'ahorrar $500.000 para un viaje", "quiero juntar $50.000 por mes"). `tipo` es "one_time" para una meta ' +
+      'puntual con fecha límite, o "monthly" si se reinicia cada mes (sin fecha límite). Después se le pueden ' +
+      'registrar aportes con contribute_to_goal.',
+    kind: 'write',
+    schema: createGoalSchema,
+    execute: async (rawArgs, _ctx) => {
+      const args = rawArgs as z.infer<typeof createGoalSchema>
+      const data: CreateGoalData = {
+        name: args.nombre,
+        type: args.tipo,
+        targetAmount: args.monto_objetivo,
+        currency: args.moneda,
+        targetDate: args.fecha_objetivo,
+      }
+      const res = await handleCreateGoal(data)
+      return { ok: res.success, data: { mensaje: res.message }, mutated: res.success }
+    },
+  },
+  {
+    name: 'create_budget',
+    description:
+      'Configura un presupuesto mensual para una categoría de gasto. Usar cuando el usuario quiere ponerse un ' +
+      'límite de gasto por categoría (ej. "poneme un presupuesto de $100.000 en Comida"). Si ya existe un ' +
+      'presupuesto para esa categoría, lo reemplaza. Chanchito avisará cuando el usuario se acerque al límite.',
+    kind: 'write',
+    schema: createBudgetSchema,
+    execute: async (rawArgs, ctx) => {
+      const args = rawArgs as z.infer<typeof createBudgetSchema>
+      const { supabase, authUserId } = ctx
+
+      // handleCreateBudget usa `categoryName` solo para armar el mensaje de
+      // confirmación (no se persiste): se resuelve acá con una query directa a
+      // `categories` filtrada por `authUserId` (columna UUID — mismo criterio
+      // documentado en dataLoader.ts Step 0), en vez de reusar loadFinanceData
+      // completo (trae transacciones/tasas/etc.) solo para este lookup. Si no se
+      // encuentra, cae al id crudo como fallback (mismo patrón que
+      // list_goals_and_budgets: `cat?.name ?? b.category_id`).
+      const { data: cat } = await supabase
+        .from('categories')
+        .select('name, emoji')
+        .eq('id', args.categoria_id)
+        .eq('user_id', authUserId)
+        .maybeSingle()
+
+      const found = cat as { name: string; emoji: string | null } | null
+      const categoryName = found ? [found.emoji, found.name].filter(Boolean).join(' ') : args.categoria_id
+
+      const data: CreateBudgetData = {
+        categoryName,
+        categoryId: args.categoria_id,
+        limitAmount: args.monto_limite,
+        currency: args.moneda,
+      }
+      const res = await handleCreateBudget(data)
+      return { ok: res.success, data: { mensaje: res.message }, mutated: res.success }
+    },
+  },
+  {
+    name: 'contribute_to_goal',
+    description:
+      'Registra un aporte a una meta de ahorro existente. Usar cuando el usuario dice que ahorró o puso plata en ' +
+      'una meta (ej. "aporté $10.000 a mi meta del viaje"). `busqueda` matchea por nombre de la meta (coincidencia ' +
+      'parcial). Devuelve el progreso actualizado y avisa si la meta se completó.',
+    kind: 'write',
+    schema: contributeToGoalSchema,
+    execute: async (rawArgs, _ctx) => {
+      const args = rawArgs as z.infer<typeof contributeToGoalSchema>
+      const data: GoalContributionData = {
+        search: args.busqueda,
+        amount: args.monto,
+        currency: args.moneda,
+        note: args.nota,
+        date: args.fecha,
+      }
+      const res = await handleGoalContribution(data)
+      return { ok: res.success, data: { mensaje: res.message }, mutated: res.success }
     },
   },
 ]
