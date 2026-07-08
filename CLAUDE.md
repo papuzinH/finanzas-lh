@@ -19,7 +19,7 @@ Tests en `src/**/__tests__/`. Los del store (`lib/store/__tests__/analysis-gette
 
 ## Store: `lib/store/financeStore.ts`
 Única fuente de verdad cliente. **Leer antes de modificar componentes.**
-Toda lógica de negocio (sumas, cálculos, porcentajes) va en el store, NO en componentes.
+Nada de lógica de negocio en componentes. Los getters de cálculo del store son **wrappers finos sobre las funciones puras de `lib/finance/`** (ver sección propia): cambios de lógica financiera van ahí, no en el cuerpo del getter.
 
 Getters disponibles:
 - `getPortfolioStatus()` – portafolio de inversiones
@@ -40,9 +40,29 @@ Getters disponibles:
 
 **Mensualidades = transacciones reales.** Marcar una mensualidad como pagada (o "Regularizar/Corregir historial") crea/borra transacciones con `recurring_plan_id` vía `src/app/compromisos/actions.ts` (`markRecurringPlanPaid`, `unmarkRecurringPlanPaid`, `backfillRecurringPlansHistory`). Usar `original_currency`/`original_amount` (NO `currency`, que no existe en `transactions`). El backfill nunca genera antes del mes de la primera transacción real (piso) y limpia el exceso previo.
 
+## Lógica financiera compartida: `lib/finance/`
+Funciones PURAS (sin Zustand ni Supabase) — **fuente única de cálculos** para el store (cliente) y el chatbot (servidor). Garantía estructural de que el chat y el home dicen el mismo número:
+- `creditCycle.ts` — `getCreditCycleDates`, `isExpenseInCurrentMonthScope`, `sameMonthYear`
+- `prepare.ts` — `resolveRate`, `prepareTransactions` (periodDate + USD→ARS), `prepareRecurringPlans`
+- `balances.ts` — `computeGlobalBalance`, `computePaymentMethodStatus`, `computePendingCreditCards`, `hasCardPaymentInCycle`
+- `pending.ts` — `computePendingFixedExpenses` · `analysis.ts` — `computeExpensesByCategory`, `computeMonthlyBalance`
+- Tipos compartidos (`ProcessedTransaction`, `CreditCardCycleSummary`, `DolarBlue`) en `types.ts`.
+**Cambios de lógica financiera van acá**, nunca duplicados en tools/handlers/componentes. Tests directos en `lib/finance/__tests__/`.
+
+## Asistente IA (chat agéntico)
+`POST /api/chat` (`src/app/api/chat/route.ts`) corre un **agent loop** (`lib/ai/agent.ts`): Gemini 2.5 Flash vía `@google/genai` elige tools tipadas en pasos sucesivos (máx. 6, techo 50k tokens por mensaje, anti-bucle) hasta responder. El SDK viejo `@google/generative-ai` fue desinstalado — NO reintroducirlo.
+- **Tools** (`lib/ai/tools/`): registro en `registry.ts` (22 tools). Cada tool = `{ name, description (es, orientada al modelo), kind, schema Zod, execute(args, ctx) }`; `executeToolWith` valida con Zod antes de ejecutar y nunca lanza. Lecturas: JSON compacto, máx. 20 filas, números SIEMPRE de `lib/finance` (**regla de oro: ningún número lo genera el LLM**). Escrituras: envuelven los handlers de `lib/ai/handlers.ts` (tipos en `lib/ai/handlerTypes.ts`); `mutated: true` en la respuesta hace que el cliente refresque el store.
+- **Datos**: `tools/dataLoader.ts` → `loadFinanceData(ctx)` fetchea filas crudas y las procesa con el MISMO pipeline de `lib/finance/prepare.ts` que usa el cliente. Snapshot memoizado por request en `ctx._financeCache` (se invalida tras una escritura exitosa).
+- **Prompt**: `lib/ai/agentPrompt.ts` (identidad Chanchito + reglas duras + diccionario de categorías con UUIDs + medios). "¿Qué significa X?" sale del diccionario estático de `tools/appHelp.ts` — mantenerlo fiel a este CLAUDE.md.
+- **Confirmaciones de borrado**: dos pasos SIN estado en servidor (serverless-safe): `delete_entity` con `confirmed=false` devuelve las dependencias; el modelo pregunta al usuario y recién en el mensaje siguiente llama con `confirmed=true` (+ `reasignar_a` opcional).
+- **Costos**: `usageGuard` (cuota diaria por usuario + presupuesto global con corte duro) acumula los tokens de TODO el loop; `maxDuration = 60` en la route.
+- **GOTCHA `user_id`** (fuente de 5 bugs silenciosos ya corregidos): `transactions`/`payment_methods`/`recurring_plans`/`installment_plans` filtran por id **numérico** (`users.id`); `categories`/`internal_transfers`/`savings_goals`/`category_budgets` por **UUID de auth** (`getAuthUserId()` en handlers, `ctx.authUserId` en tools). Confundirlos produce queries que nunca matchean, sin error.
+- El chat de onboarding (`/api/chat/onboarding`, `lib/ai/onboarding*`) es un flujo aparte: no usa el agente.
+- Diseño y decisiones: spec en `docs/superpowers/specs/2026-07-07-chatbot-asistente-ia-design.md` (incluye roadmap: UI híbrida, proactividad, contexto macro).
+
 ## Medios de pago
 - **Predeterminado** (`payment_methods.is_default`): un solo default por usuario (las actions de `src/app/medios-pago/actions.ts` resetean el resto al marcar uno). Se configura con el toggle "Predeterminado" en crear/editar medio (oculto para `is_personal`).
-- **Chatbot**: si el usuario no aclara el medio, `resolvePaymentMethod(..., exactMatch=true)` usa el `is_default`. Aplica en `handleTransaction`/`handleInstallment`/`handleSubscription` (`src/lib/ai/handlers.ts`).
+- **Chatbot**: si el usuario no aclara el medio, `resolvePaymentMethod(..., exactMatch=true)` usa el `is_default`. Aplica en `handleTransaction`/`handleInstallment`/`handleSubscription` (`src/lib/ai/handlers.ts`), hoy envueltos como tools del agente (ver «Asistente IA»).
 - **Editar el medio** de una transacción: `payment_method_id` está en `transactionSchema` y en `updateTransaction`; el diálogo de edición usa `PaymentMethodField`. Al cambiar a crédito se recalcula la fecha SOLO si el medio cambió.
 - **Arreglo masivo**: `assignDefaultToUnassignedTransactions()` (`src/app/dashboard/transactions/actions.ts`) asigna el default a las transacciones sin medio (banner en `/ajustes/medios`).
 
