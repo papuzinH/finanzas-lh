@@ -101,7 +101,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         const supabase = createClient()
         supabase.auth.getUser().then(({ data }) => {
           if (data.user) {
-            supabase.from('users').update({ tour_completed: true }).eq('auth_user_id', data.user.id).then(() => {})
+            supabase.from('users').update({ tour_completed: true }).eq('id', data.user.id).then(() => {})
           }
         })
       },
@@ -111,7 +111,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         const supabase = createClient()
         supabase.auth.getUser().then(({ data }) => {
           if (data.user) {
-            supabase.from('users').update({ tour_completed: true }).eq('auth_user_id', data.user.id).then(() => {})
+            supabase.from('users').update({ tour_completed: true }).eq('id', data.user.id).then(() => {})
           }
         })
       },
@@ -121,7 +121,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         const supabase = createClient()
         supabase.auth.getUser().then(({ data }) => {
           if (data.user) {
-            supabase.from('users').update({ tour_completed: false }).eq('auth_user_id', data.user.id).then(() => {})
+            supabase.from('users').update({ tour_completed: false }).eq('id', data.user.id).then(() => {})
           }
         })
       },
