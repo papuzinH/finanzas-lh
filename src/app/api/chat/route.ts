@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     // IMPORTANTE: Necesitamos el user_id numérico para las inserciones
     const { data: dbUser, error: userFetchError } = await supabase
       .from('users')
-      .select('id, chat_tier')
+      .select('id, chat_tier, first_name')
       .limit(1)
       .single()
 
@@ -179,6 +179,7 @@ export async function POST(req: NextRequest) {
       })),
       today: ctx.today,
       cardAlerts,
+      userName: dbUser.first_name ?? null,
     })
     const model = createGeminiModel(process.env.GOOGLE_API_KEY || '')
 

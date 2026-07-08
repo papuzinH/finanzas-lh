@@ -85,4 +85,18 @@ describe('buildAgentPrompt', () => {
     expect(prompt).not.toContain('undefined')
     expect(prompt).not.toContain('null')
   })
+
+  it('con userName presenta al usuario por su nombre y aclara que Chanchito es el asistente', () => {
+    const prompt = buildAgentPrompt({ ...baseOpts, userName: 'Lautaro' })
+    expect(prompt).toContain('**Lautaro**')
+    expect(prompt).toMatch(/llamalo por su nombre/i)
+    expect(prompt).toMatch(/nunca llames "Chanchito" al usuario/i)
+  })
+
+  it('sin userName igual aclara que Chanchito es el asistente y pide no usar nombre', () => {
+    const prompt = buildAgentPrompt(baseOpts)
+    expect(prompt).toMatch(/nunca llames "Chanchito" al usuario/i)
+    expect(prompt).toMatch(/no uses ninguno/i)
+    expect(prompt).not.toContain('undefined')
+  })
 })

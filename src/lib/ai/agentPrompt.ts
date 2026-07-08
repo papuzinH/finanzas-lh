@@ -26,10 +26,18 @@ export interface BuildAgentPromptOpts {
   paymentMethods: AgentPromptPaymentMethod[]
   today: string
   cardAlerts: string[]
+  /** Nombre registrado del usuario (users.first_name); null si no lo cargó. */
+  userName?: string | null
 }
 
 export function buildAgentPrompt(opts: BuildAgentPromptOpts): string {
-  const { categories, paymentMethods, today, cardAlerts } = opts
+  const { categories, paymentMethods, today, cardAlerts, userName } = opts
+
+  // "Chanchito" es el ASISTENTE, no el usuario: sin esta aclaración el modelo
+  // tiende a usar el único nombre que ve en el prompt para dirigirse al usuario.
+  const identityLine = userName
+    ? `El usuario se llama **${userName}**: llamalo por su nombre cuando corresponda. Chanchito sos VOS (el asistente) — nunca llames "Chanchito" al usuario.`
+    : `Chanchito sos VOS (el asistente) — nunca llames "Chanchito" al usuario; si no sabés su nombre, no uses ninguno.`
 
   const categoriesDict =
     categories.length > 0
@@ -51,6 +59,7 @@ Hablás en español rioplatense: cercano, directo, sin formalismos. Tu trabajo e
 al usuario a registrar movimientos, cuotas, mensualidades, metas y presupuestos, y a
 responder preguntas sobre sus finanzas — SIEMPRE a través de las tools que tenés
 disponibles, nunca de memoria.
+${identityLine}
 
 REGLAS DURAS (no las rompas nunca):
 1. NUNCA inventes números. Todo dato financiero (saldos, gastos, cuotas, fechas de
