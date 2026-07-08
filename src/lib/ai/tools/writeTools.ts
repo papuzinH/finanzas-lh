@@ -108,21 +108,30 @@ function normalizeName(name: string): string {
 }
 
 // --- Tools de Task 13 (Fase 2 cierre): edición/borrado genérico + objetivos y
-// presupuestos. `entidad` reutiliza el mismo enum que `EntityType` de intentParser.
-const entityEnum = z.enum(['transaccion', 'medio_pago', 'categoria', 'suscripcion', 'cuota', 'objetivo', 'presupuesto'])
+// presupuestos. Los enums de `entidad` son subconjuntos de `EntityType` de intentParser:
+// update_entity NO incluye 'cuota' (handleEdit no tiene case para editarla — caería al
+// default "no soportada"), delete_entity sí (handleDelete la soporta).
+const updatableEntityEnum = z.enum(['transaccion', 'medio_pago', 'categoria', 'suscripcion', 'objetivo', 'presupuesto'])
 const deletableEntityEnum = z.enum(['transaccion', 'medio_pago', 'categoria', 'suscripcion', 'cuota'])
 const goalOrBudgetEnum = z.enum(['objetivo', 'presupuesto'])
 
 const updateEntitySchema = z.object({
-  entidad: entityEnum,
+  entidad: updatableEntityEnum,
   busqueda: z.string().min(1).describe('Texto para encontrar la entidad (nombre/descripción, coincidencia parcial)'),
+  // z.record pierde su schema de valores al convertirse para Gemini (queda en
+  // additionalProperties, que clean() de schema.ts borra): toda la guía de forma y
+  // tipos tiene que viajar en este describe.
   cambios: z
     .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
     .describe(
-      'Campos a modificar. Según `entidad`: transaccion (description, amount, type, category, payment_method), ' +
-        'medio_pago (name, type, closing_day, payment_day), categoria (name, emoji), suscripcion (description, ' +
-        'amount, currency, is_active), objetivo (nombre, monto_objetivo, fecha_objetivo, moneda), presupuesto ' +
-        '(monto_limite, moneda).',
+      'Objeto PLANO campo→valor con los campos a modificar (sin objetos ni arrays anidados). Cada valor debe ser ' +
+        'string, number o boolean. Campos válidos según `entidad` — transaccion: description (string), amount ' +
+        '(number), type ("expense"|"income"), category (string, nombre de la categoría), payment_method (string, ' +
+        'nombre del medio); medio_pago: name (string), type ("credit"|"debit"|"cash"), closing_day (number), ' +
+        'payment_day (number); categoria: name (string), emoji (string); suscripcion: description (string), ' +
+        'amount (number), currency ("ARS"|"USD"), is_active (boolean); objetivo: nombre (string), monto_objetivo ' +
+        '(number), fecha_objetivo (string YYYY-MM-DD), moneda ("ARS"|"USD"); presupuesto: monto_limite (number), ' +
+        'moneda ("ARS"|"USD").',
     ),
 })
 
@@ -351,7 +360,7 @@ export const writeTools: ToolDef[] = [
   {
     name: 'update_entity',
     description:
-      'Edita una entidad existente: transacción, medio de pago, categoría, suscripción, cuota, objetivo (meta de ' +
+      'Edita una entidad existente: transacción, medio de pago, categoría, suscripción, objetivo (meta de ' +
       'ahorro) o presupuesto. Usar cuando el usuario pide corregir o cambiar algo ya registrado (ej. "cambiale el ' +
       'monto a la compra del supermercado", "la meta del viaje ahora es de $800.000"). `busqueda` matchea por ' +
       'nombre/descripción (coincidencia parcial); si hay varias coincidencias, se edita la más reciente/relevante. ' +

@@ -140,6 +140,19 @@ describe('update_entity', () => {
     expect(handleEdit).not.toHaveBeenCalled()
     expect(handleEditGoal).not.toHaveBeenCalled()
   })
+
+  it('entidad cuota rechazada por Zod (handleEdit no soporta editar cuotas; delete_entity sí la acepta)', async () => {
+    const res = await executeToolWith(
+      writeTools,
+      'update_entity',
+      { entidad: 'cuota', busqueda: 'Notebook', cambios: { amount: 100 } },
+      ctx,
+    )
+
+    expect(res.ok).toBe(false)
+    expect(handleEdit).not.toHaveBeenCalled()
+    expect(handleEditGoal).not.toHaveBeenCalled()
+  })
 })
 
 describe('delete_entity', () => {

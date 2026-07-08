@@ -63,10 +63,11 @@ export async function fetchDolarBlue(): Promise<DolarBlue | null> {
  *   `ctx.authUserId`, replicando el patrón `.or('user_id.eq.<uuid>,is_system.eq.true')`
  *   que usan tanto `src/app/api/chat/route.ts:152` como `financeStore.fetchAllData`
  *   (`financeStore.ts:522-526`) para traer también las categorías del sistema.
- *   BUG preexistente: `src/lib/ai/handlers.ts` (casos `categoria` en editar/borrar,
- *   líneas ~1188, 1210, 1390) filtra `categories` con el `userId` NUMÉRICO en vez del
- *   UUID — criterio equivocado que queda fuera del alcance de este task (se corrige
- *   al envolver `handlers.ts`, Task 13). El dataLoader NO reproduce ese bug.
+ *   Nota histórica: `src/lib/ai/handlers.ts` filtraba `categories` con el `userId`
+ *   NUMÉRICO en los casos `categoria` de editar/borrar (bug: la columna es UUID,
+ *   nunca matcheaba). Ya está corregido: tanto `handleDelete` (Task 12) como
+ *   `handleEdit` (Task 13) filtran por el UUID vía `getAuthUserId()`. El dataLoader
+ *   usa el mismo criterio.
  */
 export async function loadFinanceData(ctx: AgentContext): Promise<FinanceData> {
   const { supabase, userId, authUserId } = ctx
