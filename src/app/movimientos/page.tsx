@@ -396,7 +396,7 @@ export default function MovimientosPage() {
           {/* Search + crear (desktop: botón a la derecha del input) */}
           <div className="px-5 pb-2.5 md:pb-3">
             <div className="flex items-center gap-3">
-              <div className="relative flex-1 md:flex-none md:w-[420px]">
+              <div data-tour="search-input" className="relative flex-1 md:flex-none md:w-[420px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
               <input
                 type="text"

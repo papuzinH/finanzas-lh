@@ -90,14 +90,16 @@ export function ObjetivosClient({ initialTab }: { initialTab: ActiveTab }) {
         </div>
 
         {/* Tabs */}
-        <TabsDS
-          tabs={[
-            { id: 'metas', label: 'Metas', icon: 'piggy' },
-            { id: 'presupuestos', label: 'Presupuestos', icon: 'wallet' },
-          ]}
-          active={activeTab}
-          onChange={(id) => setActiveTab(id as ActiveTab)}
-        />
+        <div data-tour="tabs-list">
+          <TabsDS
+            tabs={[
+              { id: 'metas', label: 'Metas', icon: 'piggy' },
+              { id: 'presupuestos', label: 'Presupuestos', icon: 'wallet' },
+            ]}
+            active={activeTab}
+            onChange={(id) => setActiveTab(id as ActiveTab)}
+          />
+        </div>
 
         {/* ── TAB: METAS ── */}
         {activeTab === 'metas' && (

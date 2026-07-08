@@ -537,7 +537,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
         )}
 
         {/* Segmented Tabs */}
-        <div className="px-5">
+        <div data-tour="compromisos-tabs" className="px-5">
           <TabsDS
             idBase="compromisos"
             ariaLabel="Tipo de compromiso"

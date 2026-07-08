@@ -218,6 +218,40 @@ export function OnboardingTour() {
         transition={{ duration: 0.3 }}
       />
 
+      {/* Salvavidas: si el target no existe en el DOM (ej. un rediseño le sacó
+          el data-tour), el tooltip igual se muestra centrado — los botones
+          Siguiente/Saltar NUNCA pueden quedar inaccesibles con el backdrop puesto. */}
+      {!targetRect && (
+        <motion.div
+          key={`fallback-${tourRouteIndex}-${tourStepInRoute}`}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="absolute left-1/2 top-1/2 w-72 -translate-x-1/2 -translate-y-1/2 bg-accent text-accent-ink rounded-xl p-4 shadow-2xl"
+        >
+          <p className="text-sm font-medium leading-snug mb-3">{currentStepData.text}</p>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-accent-ink/80">
+              {globalStep} de {TOUR_TOTAL_STEPS}
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSkip}
+                className="text-xs text-accent-ink/70 hover:text-accent-ink transition-colors underline underline-offset-2"
+              >
+                Saltar tour
+              </button>
+              <button
+                onClick={handleNext}
+                className="bg-accent-ink text-accent-deep rounded-lg px-4 py-1.5 text-sm font-semibold hover:bg-cream transition-colors"
+              >
+                {isLastStep ? 'Entendido' : 'Siguiente'}
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       <AnimatePresence mode="wait">
         {targetRect && tooltipPos && (
           <motion.div
