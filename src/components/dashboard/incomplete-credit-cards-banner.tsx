@@ -81,7 +81,7 @@ export function IncompleteCreditCardsBanner() {
           </div>
 
           <Link
-            href="/medios-pago"
+            href="/ajustes/medios"
             className="inline-flex items-center gap-1 mt-2.5 text-xs font-medium text-warn hover:text-warn/80 transition-colors"
           >
             Completar ahora

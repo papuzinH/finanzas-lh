@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { categorySchema, type CategoryFormValues } from '@/lib/schemas/category'
 
 function revalidateAll() {
-  revalidatePath('/categorias')
+  revalidatePath('/ajustes/categorias')
   revalidatePath('/dashboard/categories')
 }
 

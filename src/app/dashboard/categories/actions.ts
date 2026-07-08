@@ -27,6 +27,6 @@ export async function createCategory(data: CategoryFormValues) {
   if (error) return { error: error.message }
 
   revalidatePath('/dashboard/categories')
-  revalidatePath('/categorias')
+  revalidatePath('/ajustes/categorias')
   return { success: true }
 }

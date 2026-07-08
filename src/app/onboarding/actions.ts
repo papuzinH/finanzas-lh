@@ -109,7 +109,7 @@ export async function saveOnboardingCategories(
       return { error: 'No se pudieron guardar las categorías. Intentá de nuevo.' }
     }
 
-    revalidatePath('/categorias')
+    revalidatePath('/ajustes/categorias')
     return { success: true }
   } catch (err) {
     console.error('Unexpected error in saveOnboardingCategories:', err)
@@ -178,7 +178,7 @@ export async function saveOnboardingPaymentMethods(
       }
     }
 
-    revalidatePath('/medios-pago')
+    revalidatePath('/ajustes/medios')
     return { success: true, data: { defaultMethodId: defaultId } }
   } catch (err) {
     console.error('Unexpected error in saveOnboardingPaymentMethods:', err)

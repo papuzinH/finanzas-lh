@@ -104,7 +104,7 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
       return { error: 'Error al crear las cuotas. El plan fue revertido.' };
     }
 
-    revalidatePath('/cuotas');
+    revalidatePath('/compromisos');
     revalidatePath('/movimientos');
     return { success: true };
   } catch (error) {
@@ -183,7 +183,7 @@ export async function updateInstallmentPlan(id: string, data: InstallmentPlanSch
       await Promise.all(updatePromises);
     }
 
-    revalidatePath('/cuotas');
+    revalidatePath('/compromisos');
     revalidatePath('/movimientos');
     revalidatePath('/');
     return { success: true };
@@ -248,7 +248,7 @@ export async function deleteInstallmentPlan(id: string): Promise<ActionResponse>
       }
     }
 
-    revalidatePath('/cuotas');
+    revalidatePath('/compromisos');
     return { success: true };
   } catch (error) {
     console.error('Unexpected error:', error);

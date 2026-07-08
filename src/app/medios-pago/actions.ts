@@ -45,7 +45,7 @@ export async function createPaymentMethod(data: CreatePaymentMethodSchema): Prom
       return { error: 'Error al crear el medio de pago' }
     }
 
-    revalidatePath('/medios-pago')
+    revalidatePath('/ajustes/medios')
     return { success: true }
   } catch (error) {
     console.error('Unexpected error:', error)
@@ -91,7 +91,7 @@ export async function updatePaymentMethod(id: number, data: CreatePaymentMethodS
       return { error: 'Error al actualizar el medio de pago' }
     }
 
-    revalidatePath('/medios-pago')
+    revalidatePath('/ajustes/medios')
     return { success: true }
   } catch (error) {
     console.error('Unexpected error:', error)
@@ -126,7 +126,7 @@ export async function deletePaymentMethod(id: number): Promise<ActionResponse> {
       return { error: 'Error al eliminar el medio de pago' }
     }
 
-    revalidatePath('/medios-pago')
+    revalidatePath('/ajustes/medios')
     return { success: true }
   } catch (error) {
     console.error('Unexpected error:', error)
@@ -198,7 +198,7 @@ export async function reassignAndDeletePaymentMethod(
       return { error: 'Error al eliminar el medio de pago' }
     }
 
-    revalidatePath('/medios-pago')
+    revalidatePath('/ajustes/medios')
     return { success: true }
   } catch (error) {
     console.error('Unexpected error:', error)

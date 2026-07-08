@@ -56,7 +56,7 @@ export async function createSubscription(data: CreateSubscriptionSchema): Promis
       return { error: 'Error al crear la suscripción' };
     }
 
-    revalidatePath('/mensualidades');
+    revalidatePath('/compromisos');
     return { success: true };
   } catch (error) {
     console.error('Unexpected error:', error);
@@ -112,7 +112,7 @@ export async function updateSubscription(id: string, data: SubscriptionSchema): 
       return { error: 'Error al actualizar la suscripción' };
     }
 
-    revalidatePath('/mensualidades');
+    revalidatePath('/compromisos');
     return { success: true };
   } catch (error) {
     console.error('Unexpected error:', error);
@@ -143,7 +143,7 @@ export async function deleteSubscription(id: string): Promise<ActionResponse> {
       return { error: 'Error al eliminar la suscripción' };
     }
 
-    revalidatePath('/mensualidades');
+    revalidatePath('/compromisos');
     return { success: true };
   } catch (error) {
     console.error('Unexpected error:', error);
