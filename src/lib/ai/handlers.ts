@@ -1569,7 +1569,13 @@ export async function handleDelete(
             }
           }
 
-          // Confirmado: eliminar cuotas futuras + plan (cuota no soporta reasignación)
+          // Cuota no soporta reasignación: si piden reasignar, rechazar sin borrar
+          // (mismo comportamiento que el viejo handleConfirmAction).
+          if (data.reassignTo) {
+            return { success: false, message: 'Reasignación no soportada para este tipo de entidad.' }
+          }
+
+          // Confirmado: eliminar cuotas futuras + plan
           await supabase
             .from('transactions')
             .delete()

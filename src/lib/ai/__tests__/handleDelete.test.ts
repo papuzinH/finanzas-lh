@@ -202,6 +202,32 @@ describe('handleDelete - statelessness (sin Map compartido entre requests)', () 
   })
 })
 
+describe('handleDelete - cuota no soporta reasignación', () => {
+  it('confirmed: true + reassignTo → rechaza con el mensaje de no soportado y no llama .delete()', async () => {
+    const plansChain = createChain({ data: [{ id: 3, description: 'Notebook', total_amount: 1200000, installments_count: 12 }] })
+    const futureCountChain = createChain({ count: 6 })
+    const chains = [plansChain, futureCountChain]
+    const supabase = createSupabaseMock(chains)
+    mockedCreateClient.mockResolvedValueOnce(supabase as never)
+
+    const result = await handleDelete(
+      { entity: 'cuota', search: 'notebook', confirmed: true, reassignTo: 'Visa' },
+      1
+    )
+
+    expect(result).toEqual({
+      success: false,
+      message: 'Reasignación no soportada para este tipo de entidad.',
+    })
+
+    // Solo lookup del plan + conteo de cuotas futuras; nada se borra.
+    expect(supabase.from).toHaveBeenCalledTimes(2)
+    for (const chain of chains) {
+      expect(hasCall(chain, 'delete')).toBe(false)
+    }
+  })
+})
+
 describe('handleDelete - categoria filtra por UUID de auth (bug fix)', () => {
   it('busca y borra la categoría usando el UUID de auth, no el userId numérico', async () => {
     const authUuid = 'auth-uuid-42'
