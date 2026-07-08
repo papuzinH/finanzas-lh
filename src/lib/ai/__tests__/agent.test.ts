@@ -140,6 +140,50 @@ describe('runAgent', () => {
     expect(result.message).toBe('Listo, lo registré')
   })
 
+  it('write tool mutada invalida ctx._financeCache (snapshot cacheado por un read tool previo queda stale)', async () => {
+    const localCtx = {} as AgentContext
+    localCtx._financeCache = Promise.resolve({} as never) // simula un snapshot ya cacheado en este mismo loop
+
+    const execute = vi.fn(async () => ({ ok: true, data: { id: 'tx-1' }, mutated: true }))
+    const { model } = scripted([
+      { functionCalls: [{ name: 'create_transaction', args: { amount: 100 } }], inputTokens: 5, outputTokens: 1 },
+      { text: 'Listo, lo registré', inputTokens: 5, outputTokens: 2 },
+    ])
+
+    await runAgent({
+      message: 'gasté 100 en comida',
+      history: [],
+      ctx: localCtx,
+      model,
+      execute,
+      systemInstruction,
+    })
+
+    expect(localCtx._financeCache).toBeUndefined()
+  })
+
+  it('tool ok pero sin mutar no toca un ctx._financeCache existente', async () => {
+    const localCtx = {} as AgentContext
+    const cachedPromise = Promise.resolve({} as never)
+    localCtx._financeCache = cachedPromise
+
+    const { model } = scripted([
+      { functionCalls: [{ name: 'get_balance', args: {} }], inputTokens: 5, outputTokens: 1 },
+      { text: 'Tenés $10.000', inputTokens: 5, outputTokens: 2 },
+    ])
+
+    await runAgent({
+      message: 'cuánto tengo',
+      history: [],
+      ctx: localCtx,
+      model,
+      execute: okTool,
+      systemInstruction,
+    })
+
+    expect(localCtx._financeCache).toBe(cachedPromise)
+  })
+
   it('mutated se queda en false si la tool no mutó (ok true pero mutated ausente)', async () => {
     const { model } = scripted([
       { functionCalls: [{ name: 'get_balance', args: {} }], inputTokens: 5, outputTokens: 1 },

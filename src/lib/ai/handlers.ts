@@ -98,10 +98,18 @@ async function checkBudgetAlert(
 ): Promise<string | null> {
   if (!categoryId) return null
 
+  // Bug fix: category_budgets.user_id es el UUID de auth (no el id numérico interno
+  // que usan transactions/payment_methods), por eso el filtro con `userId` nunca
+  // matcheaba y las alertas de presupuesto no disparaban nunca. Usamos
+  // getAuthUserId() para obtener el UUID correcto (mismo fix que los casos
+  // 'categoria' de handleEdit/handleDelete).
+  const authId = await getAuthUserId()
+  if (!authId) return null
+
   const { data: budget } = await supabase
     .from('category_budgets')
     .select('amount, currency, categories(name, emoji)')
-    .eq('user_id', userId)
+    .eq('user_id', authId)
     .eq('category_id', categoryId)
     .eq('is_active', true)
     .single()
@@ -109,8 +117,11 @@ async function checkBudgetAlert(
   if (!budget) return null
 
   const now = new Date()
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString()
+  // NOTA: se compara contra `date` (string YYYY-MM-DD) con formatLocalDate en vez de
+  // toISOString() para evitar el corrimiento de día por UTC (regla del proyecto);
+  // la comparación sigue siendo por fecha calendario cruda, sin componente de hora.
+  const firstDay = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1))
+  const lastDay = formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0))
 
   const { data: txs } = await supabase
     .from('transactions')
@@ -547,17 +558,25 @@ export async function handleEdit(data: EditData, userId: number): Promise<ChatRe
         if (data.changes.amount) updates.amount = Number(data.changes.amount)
         if (data.changes.type) updates.type = data.changes.type
 
-        // Resolver categoría por nombre si se proporcionó
+        // Resolver categoría por nombre si se proporcionó.
+        // Bug fix: categories.user_id es el UUID de auth (no el id numérico interno
+        // que usan transactions/payment_methods), por eso el filtro con `userId`
+        // nunca matcheaba y el cambio de categoría se ignoraba en silencio. Usamos
+        // getAuthUserId() + el mismo patrón `.or(...)` que dataLoader.ts para incluir
+        // también las categorías del sistema (mismo fix que el case 'categoria').
         if (data.changes.category) {
-          const { data: cats } = await supabase
-            .from('categories')
-            .select('id, name')
-            .eq('user_id', userId)
-            .ilike('name', `%${data.changes.category}%`)
-            .limit(1)
+          const authId = await getAuthUserId()
+          if (authId) {
+            const { data: cats } = await supabase
+              .from('categories')
+              .select('id, name')
+              .or(`user_id.eq.${authId},is_system.eq.true`)
+              .ilike('name', `%${data.changes.category}%`)
+              .limit(1)
 
-          if (cats && cats.length > 0) {
-            updates.category_id = cats[0].id
+            if (cats && cats.length > 0) {
+              updates.category_id = cats[0].id
+            }
           }
         }
 

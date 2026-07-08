@@ -19,6 +19,7 @@ interface MockChain {
   select: (...args: unknown[]) => MockChain
   eq: (...args: unknown[]) => MockChain
   ilike: (...args: unknown[]) => MockChain
+  or: (...args: unknown[]) => MockChain
   order: (...args: unknown[]) => MockChain
   limit: (...args: unknown[]) => MockChain
   update: (...args: unknown[]) => MockChain
@@ -28,7 +29,7 @@ interface MockChain {
 function createChain(result: ChainResult): MockChain {
   const calls: RecordedCall[] = []
   const chain = {} as MockChain
-  const chainMethods = ['select', 'eq', 'ilike', 'order', 'limit', 'update'] as const
+  const chainMethods = ['select', 'eq', 'ilike', 'or', 'order', 'limit', 'update'] as const
   for (const method of chainMethods) {
     chain[method] = (...args: unknown[]) => {
       calls.push({ method, args })
@@ -107,5 +108,45 @@ describe('handleEdit - transaccion sigue usando el userId numérico (no se toca 
     expect(result.success).toBe(true)
     expect(hasCall(txChain, 'eq', ['user_id', 7])).toBe(true)
     expect(hasCall(updateChain, 'eq', ['user_id', 7])).toBe(true)
+  })
+})
+
+describe('handleEdit - transaccion resuelve `changes.category` con el UUID de auth (bug fix)', () => {
+  it('busca la categoría con .or(user_id.eq.<uuid>,is_system.eq.true), no con el userId numérico', async () => {
+    const authUuid = 'auth-uuid-99'
+    const txChain = createChain({
+      data: [{ id: 't1', description: 'Super', amount: 5000, type: 'expense', date: '2026-07-08', category_id: null, payment_method_id: null }],
+    })
+    const catsChain = createChain({ data: [{ id: 'cat-9', name: 'Comida' }] })
+    const updateChain = createChain({ error: null })
+    const supabase = createSupabaseMock([txChain, catsChain, updateChain], authUuid)
+    mockedCreateClient.mockResolvedValue(supabase as never)
+
+    const result = await handleEdit({ entity: 'transaccion', search: 'Super', changes: { category: 'comida' } }, 7)
+
+    expect(result.success).toBe(true)
+    expect(result.message).toContain('category_id → cat-9')
+
+    // El lookup de categories filtra con .or(user_id.eq.<uuid>,is_system.eq.true)...
+    expect(hasCall(catsChain, 'or', [`user_id.eq.${authUuid},is_system.eq.true`])).toBe(true)
+    // ...nunca con .eq('user_id', <numérico>) (ese es el bug que se corrige).
+    expect(hasCall(catsChain, 'eq', ['user_id', 7])).toBe(false)
+
+    // El update de la transacción en sí sigue filtrando por el userId numérico.
+    expect(hasCall(updateChain, 'eq', ['user_id', 7])).toBe(true)
+  })
+
+  it('sin usuario autenticado no resuelve la categoría (no rompe, sólo no aplica ese cambio)', async () => {
+    const txChain = createChain({
+      data: [{ id: 't1', description: 'Super', amount: 5000, type: 'expense', date: '2026-07-08', category_id: null, payment_method_id: null }],
+    })
+    const supabase = createSupabaseMock([txChain], null)
+    mockedCreateClient.mockResolvedValue(supabase as never)
+
+    const result = await handleEdit({ entity: 'transaccion', search: 'Super', changes: { category: 'comida' } }, 7)
+
+    expect(result).toEqual({ success: false, message: 'No se especificaron cambios válidos.' })
+    // Sólo se llamó from() para buscar la transacción; nunca se llegó a categories.
+    expect(supabase.from).toHaveBeenCalledTimes(1)
   })
 })

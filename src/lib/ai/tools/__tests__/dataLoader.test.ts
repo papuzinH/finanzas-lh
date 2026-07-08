@@ -37,6 +37,32 @@ function makeSupabase(tables: Record<string, unknown[]>) {
   return { from } as unknown as AgentContext['supabase'] & { from: typeof from }
 }
 
+/** Builder encadenable que resuelve con `.error` seteado, para probar la propagación. */
+function makeErrorTable(message: string) {
+  const builder: {
+    select: ReturnType<typeof vi.fn>
+    eq: ReturnType<typeof vi.fn>
+    or: ReturnType<typeof vi.fn>
+    order: ReturnType<typeof vi.fn>
+    then: (resolve: (v: { data: null; error: { message: string } }) => void) => void
+  } = {
+    select: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    or: vi.fn(() => builder),
+    order: vi.fn(() => builder),
+    then: (resolve) => resolve({ data: null, error: { message } }),
+  }
+  return builder
+}
+
+/** Mismo mock que `makeSupabase`, pero la tabla `errorTable` devuelve `.error`. */
+function makeSupabaseWithError(tables: Record<string, unknown[]>, errorTable: string, message: string) {
+  const from = vi.fn((table: string) =>
+    table === errorTable ? makeErrorTable(message) : makeTable(tables[table] ?? [])
+  )
+  return { from } as unknown as AgentContext['supabase'] & { from: typeof from }
+}
+
 const visa = {
   id: 1,
   user_id: USER_ID,
@@ -235,6 +261,92 @@ describe('loadFinanceData', () => {
     // (dolarBlue tiene prioridad sobre el fallback). Este test ya lo cubre indirectamente
     // pero lo hacemos explícito llamando fetchDolarBlue por separado abajo.
     expect(result.recurringPlans[0].amount).toBe(9000)
+  })
+})
+
+describe('loadFinanceData - propaga errores de PostgREST (no los traga con `?? []`)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('si transactions trae .error, lanza con el nombre de la tabla y el mensaje original', async () => {
+    const supabase = makeSupabaseWithError(allTables, 'transactions', 'permission denied for table transactions')
+    const ctx: AgentContext = { supabase, userId: USER_ID, authUserId: AUTH_USER_ID, today: '2026-07-08' }
+
+    await expect(loadFinanceData(ctx)).rejects.toThrow(
+      'No pude leer tus datos (transactions): permission denied for table transactions'
+    )
+  })
+
+  it.each([
+    'payment_methods',
+    'recurring_plans',
+    'internal_transfers',
+    'categories',
+    'installment_plans',
+    'exchange_rates',
+  ])('también lanza si %s trae .error', async (table) => {
+    const supabase = makeSupabaseWithError(allTables, table, 'boom')
+    const ctx: AgentContext = { supabase, userId: USER_ID, authUserId: AUTH_USER_ID, today: '2026-07-08' }
+
+    await expect(loadFinanceData(ctx)).rejects.toThrow(new RegExp(`No pude leer tus datos \\(${table}\\): boom`))
+  })
+
+  it('fetchDolarBlue NO se chequea por error: un rechazo de fetch sigue degradando a null sin tirar', async () => {
+    // Ya lo cubre el resto de los tests (fetch mockeado para rechazar en el beforeEach
+    // de este describe), pero lo hacemos explícito: si dolarBlue tuviera un chequeo de
+    // error igual que las tablas, este loadFinanceData exitoso fallaría.
+    const ctx = ctxWithTables(allTables)
+    await expect(loadFinanceData(ctx)).resolves.toBeDefined()
+  })
+})
+
+describe('loadFinanceData - memoiza el snapshot en ctx._financeCache (cache de promesa por request)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('llamadas concurrentes con el mismo ctx comparten UNA sola ronda de queries', async () => {
+    const ctx = ctxWithTables(allTables)
+    const fromSpy = ctx.supabase.from as unknown as ReturnType<typeof vi.fn>
+
+    const [a, b] = await Promise.all([loadFinanceData(ctx), loadFinanceData(ctx)])
+
+    expect(a).toBe(b) // mismo objeto: ambas llamadas resolvieron la MISMA promesa cacheada
+    expect(fromSpy).toHaveBeenCalledTimes(7) // 7 tablas × 1 sola ronda, no 14
+  })
+
+  it('llamadas secuenciales con el mismo ctx también reutilizan el cache', async () => {
+    const ctx = ctxWithTables(allTables)
+    const fromSpy = ctx.supabase.from as unknown as ReturnType<typeof vi.fn>
+
+    await loadFinanceData(ctx)
+    await loadFinanceData(ctx)
+
+    expect(fromSpy).toHaveBeenCalledTimes(7)
+  })
+
+  it('un ctx nuevo (o con el cache invalidado) dispara una ronda de queries propia', async () => {
+    const ctx1 = ctxWithTables(allTables)
+    const ctx2 = ctxWithTables(allTables)
+
+    await loadFinanceData(ctx1)
+    await loadFinanceData(ctx2)
+
+    expect(ctx1.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(7)
+    expect(ctx2.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(7)
+
+    // Invalidar el cache (como hace runAgent tras una write mutada) fuerza una segunda
+    // ronda sobre el MISMO ctx.
+    ctx1._financeCache = undefined
+    await loadFinanceData(ctx1)
+    expect(ctx1.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(14)
   })
 })
 

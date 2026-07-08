@@ -39,6 +39,20 @@ export async function fetchDolarBlue(): Promise<DolarBlue | null> {
 }
 
 /**
+ * Lanza si el resultado de una query de PostgREST vino con `.error`. Sin este check,
+ * el `?? []` de más abajo tragaba errores en silencio (permisos, columna inexistente,
+ * timeout de red) y las tools calculaban sobre un snapshot truncado sin avisar.
+ * `executeToolWith` (registry.ts) atrapa este throw y lo convierte en
+ * `{ ok:false, error }`, que el prompt obliga al modelo a comunicarle al usuario.
+ */
+function assertNoQueryError<T extends { error: { message: string } | null }>(result: T, table: string): T {
+  if (result.error) {
+    throw new Error(`No pude leer tus datos (${table}): ${result.error.message}`)
+  }
+  return result
+}
+
+/**
  * Carga el snapshot financiero completo del usuario autenticado y lo procesa con el
  * MISMO pipeline (`prepareTransactions`/`prepareRecurringPlans` de lib/finance/prepare.ts)
  * que usa `financeStore.fetchAllData()` en el cliente, para que el chat calcule sobre
@@ -69,7 +83,7 @@ export async function fetchDolarBlue(): Promise<DolarBlue | null> {
  *   `handleEdit` (Task 13) filtran por el UUID vía `getAuthUserId()`. El dataLoader
  *   usa el mismo criterio.
  */
-export async function loadFinanceData(ctx: AgentContext): Promise<FinanceData> {
+async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> {
   const { supabase, userId, authUserId } = ctx
 
   const [tx, pm, rp, it, cat, ip, er, blue] = await Promise.all([
@@ -80,8 +94,16 @@ export async function loadFinanceData(ctx: AgentContext): Promise<FinanceData> {
     supabase.from('categories').select('*').or(`user_id.eq.${authUserId},is_system.eq.true`),
     supabase.from('installment_plans').select('*').eq('user_id', userId),
     supabase.from('exchange_rates').select('*'),
-    fetchDolarBlue(),
+    fetchDolarBlue(), // legítimamente degrada a null (nunca trae `.error`): no se chequea acá.
   ])
+
+  assertNoQueryError(tx, 'transactions')
+  assertNoQueryError(pm, 'payment_methods')
+  assertNoQueryError(rp, 'recurring_plans')
+  assertNoQueryError(it, 'internal_transfers')
+  assertNoQueryError(cat, 'categories')
+  assertNoQueryError(ip, 'installment_plans')
+  assertNoQueryError(er, 'exchange_rates')
 
   const methods = (pm.data ?? []) as PaymentMethod[]
   const rates = (er.data ?? []) as ExchangeRate[]
@@ -94,4 +116,20 @@ export async function loadFinanceData(ctx: AgentContext): Promise<FinanceData> {
     categories: (cat.data ?? []) as Category[],
     installmentPlans: (ip.data ?? []) as InstallmentPlan[],
   }
+}
+
+/**
+ * Memoiza el snapshot por request en `ctx._financeCache`: varias read tools dentro
+ * del mismo loop de `runAgent` comparten UNA sola ronda de queries en vez de repetir
+ * las 7 queries + fetch del dólar blue por cada llamada (hasta 6 veces en un loop
+ * largo). Cachear la PROMESA (no el resultado ya resuelto) evita también condiciones
+ * de carrera si dos tools la piden "al mismo tiempo" antes de que la primera resuelva.
+ * `runAgent` invalida el cache (`ctx._financeCache = undefined`) después de ejecutar
+ * una write tool mutada, para que las lecturas siguientes no vean datos stale.
+ */
+export async function loadFinanceData(ctx: AgentContext): Promise<FinanceData> {
+  if (!ctx._financeCache) {
+    ctx._financeCache = loadFinanceDataUncached(ctx)
+  }
+  return ctx._financeCache
 }

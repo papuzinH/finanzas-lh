@@ -96,7 +96,13 @@ export async function runAgent({
     seenCalls.add(key)
 
     const result = await execute(call.name, call.args, ctx)
-    if (result.ok && result.mutated) mutated = true
+    if (result.ok && result.mutated) {
+      mutated = true
+      // El snapshot cacheado por loadFinanceData (si algún read tool ya lo pidió en
+      // este mismo loop) quedó stale tras la escritura: se invalida para que las
+      // próximas lecturas disparen una carga fresca.
+      ctx._financeCache = undefined
+    }
 
     contents.push({ role: 'model', parts: [{ functionCall: { name: call.name, args: call.args } }] })
     contents.push({
