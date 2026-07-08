@@ -50,3 +50,6 @@ public/workbox-*.js.map
 
 # git worktrees
 .worktrees/
+
+# Temporales de sesiones de Claude Code
+tmpclaude-*
