@@ -49,7 +49,6 @@ export function CreateSavingsGoalDialog({
 
   const watchedAmount = form.watch('target_amount');
   const watchedType = form.watch('type');
-  const watchedCurrency = form.watch('currency');
 
   const handleOpenChange = (v: boolean) => {
     setOpen(v);

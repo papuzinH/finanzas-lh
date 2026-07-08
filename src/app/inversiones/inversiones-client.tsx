@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { TrendingUp, BarChart3, Plus, Clock } from 'lucide-react'
+import { TrendingUp, Plus, Clock } from 'lucide-react'
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { ScreenHeader } from '@/components/shared/screen-header'
 import { TabsDS } from '@/components/ui/tabs-ds'

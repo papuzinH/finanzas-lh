@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { Form, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { cn } from '@/lib/utils';
 import { categoryBudgetSchema, type CategoryBudgetSchema } from '@/lib/schemas/category-budget';
 import { createCategoryBudget } from '@/app/dashboard/goals/actions';
@@ -55,7 +55,6 @@ export function CreateBudgetDialog({
   });
 
   const watchedAmount = form.watch('amount');
-  const watchedCategoryId = form.watch('category_id');
 
   const handleOpenChange = (v: boolean) => {
     setOpen(v);

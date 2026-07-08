@@ -18,7 +18,7 @@ import {
   FormMessage,
   FormDescription,
 } from '@/components/ui/form'
-import { Loader2, Plus, CheckCircle2, CreditCard, Wallet, Banknote } from 'lucide-react'
+import { Loader2, CheckCircle2, CreditCard, Wallet, Banknote } from 'lucide-react'
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'

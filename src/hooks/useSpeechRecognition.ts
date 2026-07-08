@@ -20,11 +20,6 @@ interface UseSpeechRecognitionReturn {
 }
 
 // Tipos para SpeechRecognition
-interface SpeechRecognitionResult {
-  isFinal: boolean
-  transcript: string
-}
-
 interface SpeechRecognitionResultList {
   [index: number]: {
     [index: number]: {

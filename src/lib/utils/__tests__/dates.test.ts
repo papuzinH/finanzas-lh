@@ -170,7 +170,7 @@ describe('dates.ts', () => {
     it('calcula período correcto en medio del mes (antes del cierre)', () => {
       // Referencia: 15 de Marzo → aún no cerró el 24
       const reference = new Date(2024, 2, 15) // 15 Marzo
-      const { periodStart, periodEnd, paymentDate } = getCreditCardPeriod(
+      const { periodEnd, paymentDate } = getCreditCardPeriod(
         closingDay,
         paymentDay,
         reference

@@ -16,6 +16,10 @@ const eslintConfig = defineConfig([
     "public/sw.js",
     "public/swe-worker-*.js",
     "public/workbox-*.js",
+    // Prototipos JSX de referencia visual (no son código de la app):
+    "design_handoff_chanchito/**",
+    // Scripts de skills de Claude:
+    ".claude/**",
   ]),
 ]);
 

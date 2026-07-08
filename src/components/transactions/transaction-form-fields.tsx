@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { type Control, type FieldValues, type Path, type UseFormSetValue } from 'react-hook-form';
-import { AlignLeft, Grid3X3, Minus, Plus, Wallet, ChevronRight, Check } from 'lucide-react';
+import { AlignLeft, Grid3X3, Minus, Plus, Wallet, ChevronRight } from 'lucide-react';
 import { parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
 
 import {
@@ -29,16 +29,6 @@ type BaseTransactionFields = {
   date: string;
   category_id: string;
   type: 'income' | 'expense';
-};
-
-type BaseSubscriptionFields = {
-  description: string;
-  amount: number;
-  start_date?: string;
-  category_id: string;
-  frequency?: 'monthly' | 'yearly';
-  payment_method_id?: string;
-  debit_payment_day?: number;
 };
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

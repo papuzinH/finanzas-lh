@@ -76,7 +76,6 @@ export function EditSubscriptionDialog({
   });
 
   const watchedAmount = form.watch('amount');
-  const watchedPaymentMethodId = form.watch('payment_method_id');
   const watchedDebitDay = form.watch('debit_payment_day');
   const watchedFrequency = form.watch('frequency');
   const watchedCurrency = form.watch('currency');

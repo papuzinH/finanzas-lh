@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { Transaction, RecurringPlan, PaymentMethod } from '@/types/database'
+import type { Transaction, RecurringPlan } from '@/types/database'
 
 /**
  * FUNCIONES PURAS EXTRAÍDAS DEL STORE PARA TESTING
