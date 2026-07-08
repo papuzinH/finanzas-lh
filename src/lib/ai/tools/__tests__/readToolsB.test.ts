@@ -658,12 +658,38 @@ describe('readTools (B)', () => {
   })
 
   describe('get_portfolio_status', () => {
-    it('devuelve el resumen de handlePortfolio cuando hay inversiones', async () => {
+    it('devuelve el resumen de handlePortfolio cuando hay inversiones (tablas v2)', async () => {
       const ctx: AgentContext = {
         ...baseCtx,
         supabase: createSupabaseMock({
-          investments: [{ ticker: 'GGAL', name: 'Grupo Galicia', quantity: 10, avg_buy_price: 100, currency: 'ARS' }],
+          investment_assets: [
+            {
+              id: 'a1',
+              user_id: 'uuid-1',
+              ticker: 'GGAL',
+              name: 'Grupo Galicia',
+              asset_type: 'stock',
+              currency: 'ARS',
+              metadata: {},
+              is_active: true,
+            },
+          ],
+          investment_transactions: [
+            {
+              id: 't1',
+              asset_id: 'a1',
+              user_id: 'uuid-1',
+              type: 'buy',
+              quantity: 10,
+              price_per_unit: 100,
+              total_amount: 1000,
+              fees: 0,
+              currency: 'ARS',
+              date: '2026-06-01',
+            },
+          ],
           market_prices: [{ ticker: 'GGAL', last_price: 150, last_update: '2026-07-08' }],
+          // exchange_rates y savings ausentes → el mock devuelve []
         }),
       }
       vi.mocked(loadFinanceData).mockResolvedValue(baseFinanceData())
@@ -671,10 +697,12 @@ describe('readTools (B)', () => {
       expect(r.ok).toBe(true)
       const data = r.data as { resumen: string }
       expect(data.resumen).toContain('Grupo Galicia')
+      // 10 × 150 con PPC 100 → +50.0% (número calculado por lib/finance, no por el LLM)
+      expect(data.resumen).toContain('+50.0%')
     })
 
     it('sin inversiones devuelve el mensaje correspondiente', async () => {
-      const ctx: AgentContext = { ...baseCtx, supabase: createSupabaseMock({ investments: [] }) }
+      const ctx: AgentContext = { ...baseCtx, supabase: createSupabaseMock({ investment_assets: [] }) }
       const r = await executeToolWith(readTools, 'get_portfolio_status', {}, ctx)
       expect(r.ok).toBe(true)
       const data = r.data as { resumen: string }
@@ -682,7 +710,7 @@ describe('readTools (B)', () => {
     })
 
     it('si la query falla devuelve ok:false con el mensaje de error', async () => {
-      const ctx: AgentContext = { ...baseCtx, supabase: createSupabaseMock({ investments: 'ERROR' }) }
+      const ctx: AgentContext = { ...baseCtx, supabase: createSupabaseMock({ investment_assets: 'ERROR' }) }
       const r = await executeToolWith(readTools, 'get_portfolio_status', {}, ctx)
       expect(r.ok).toBe(false)
       expect(r.error).toBeDefined()

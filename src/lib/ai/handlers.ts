@@ -5,6 +5,14 @@
 import { createClient } from '@/utils/supabase/server'
 import { addMonths } from 'date-fns'
 import { formatLocalDate, parseLocalDate, calculateCreditPaymentDate } from '@/lib/utils/dates'
+import { computePortfolioStatus } from '@/lib/finance/portfolio'
+import type {
+  InvestmentAsset,
+  InvestmentTransaction,
+  MarketPrice,
+  ExchangeRate,
+  Saving,
+} from '@/types/database'
 import type {
   TransactionData,
   InstallmentData,
@@ -486,43 +494,70 @@ function formatMoney(amount: number): string {
   }).format(amount)
 }
 
-export async function handlePortfolio(supabase: any, userId: number): Promise<ChatResponse> {
-  const { data: investments, error: invError } = await supabase
-    .from('investments')
-    .select('ticker, name, quantity, avg_buy_price, currency')
-    .eq('user_id', userId)
+export async function handlePortfolio(supabase: any, authUserId: string): Promise<ChatResponse> {
+  // Portfolio v2: investment_assets/investment_transactions filtran por el UUID de
+  // auth (authUserId), NO por users.id numérico. La tabla legacy `investments` (v1)
+  // quedó vacía y ya no se consulta.
+  const { data: assetsData, error: assetsError } = await supabase
+    .from('investment_assets')
+    .select('*')
+    .eq('user_id', authUserId)
+    .eq('is_active', true)
 
-  if (invError) return { success: false, message: 'No pude obtener esa información.' }
-  if (!investments || investments.length === 0) return { success: true, message: '📈 No tenés inversiones registradas.' }
+  if (assetsError) return { success: false, message: 'No pude obtener esa información.' }
 
-  const tickers = investments.map((i: any) => i.ticker)
-  const { data: prices } = await supabase
-    .from('market_prices')
-    .select('ticker, last_price, last_update')
-    .in('ticker', tickers)
+  const assets = (assetsData ?? []) as InvestmentAsset[]
+  if (assets.length === 0) return { success: true, message: '📈 No tenés inversiones registradas.' }
 
-  const priceMap: Record<string, number> = {}
-  if (prices) {
-    for (const p of prices) {
-      priceMap[p.ticker] = p.last_price
-    }
+  const tickers = assets.map((a) => a.ticker)
+  const [
+    { data: invTxs, error: txError },
+    { data: prices, error: pricesError },
+    { data: rates, error: ratesError },
+    { data: savingsData, error: savingsError },
+  ] = await Promise.all([
+    supabase.from('investment_transactions').select('*').eq('user_id', authUserId),
+    supabase.from('market_prices').select('*').in('ticker', tickers),
+    supabase.from('exchange_rates').select('*'),
+    // savings también está keyeada por el UUID de auth (ver fetchAllData del store).
+    supabase.from('savings').select('*').eq('user_id', authUserId),
+  ])
+
+  if (txError || pricesError || ratesError || savingsError) {
+    return { success: false, message: 'No pude obtener esa información.' }
   }
 
-  const lines = investments.map((inv: any) => {
-    const currentPrice = priceMap[inv.ticker]
-    const invested = inv.quantity * inv.avg_buy_price
-    if (currentPrice) {
-      const currentValue = inv.quantity * currentPrice
-      const pctChange = invested > 0 ? ((currentValue - invested) / invested) * 100 : 0
-      const arrow = pctChange >= 0 ? '▲' : '▼'
-      return `• ${inv.name || inv.ticker}: ${inv.quantity} × $${currentPrice} = $${Math.round(currentValue)} (${arrow}${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(1)}%)`
-    }
-    return `• ${inv.name || inv.ticker}: ${inv.quantity} acciones @ $${inv.avg_buy_price} (sin precio actual)`
+  // Misma valuación pura que usa el store en getPortfolioStatus (regla de oro:
+  // ningún número lo genera el LLM ni se duplica en handlers).
+  const status = computePortfolioStatus({
+    investmentAssets: assets,
+    investmentTransactions: (invTxs ?? []) as InvestmentTransaction[],
+    marketPrices: (prices ?? []) as MarketPrice[],
+    exchangeRates: (rates ?? []) as ExchangeRate[],
+    dolarBlue: null,
+    savings: (savingsData ?? []) as Saving[],
   })
+
+  const lines = status.assets
+    .filter((a) => a.position > 0)
+    .map((a) => {
+      const arrow = a.plPercent >= 0 ? '▲' : '▼'
+      const sign = a.plPercent >= 0 ? '+' : ''
+      return `• ${a.name || a.ticker}: ${a.position} × ${formatMoney(a.currentPrice)} = ${formatMoney(a.currentValue)} (${arrow}${sign}${a.plPercent.toFixed(1)}%)`
+    })
+
+  const totalPL = status.totalUnrealizedPL + status.totalRealizedPL
+  const totalSign = totalPL >= 0 ? '+' : ''
+  const totals = [
+    `Valor total: ${formatMoney(status.totalValue)}`,
+    `Invertido: ${formatMoney(status.totalInvested)}`,
+    `P/L: ${totalSign}${formatMoney(totalPL)} (${totalSign}${status.totalPLPercent.toFixed(1)}%)`,
+  ]
+  if (status.totalSavings > 0) totals.push(`Ahorros sueltos: ${formatMoney(status.totalSavings)}`)
 
   return {
     success: true,
-    message: `📈 Portfolio:\n${lines.join('\n')}`,
+    message: `📈 Portfolio:\n${lines.join('\n')}\n${totals.join(' · ')}`,
   }
 }
 

@@ -438,7 +438,7 @@ export const readTools: ToolDef[] = [
     kind: 'read',
     schema: portfolioStatusSchema,
     execute: async (_rawArgs, ctx) => {
-      const res = await handlePortfolio(ctx.supabase, ctx.userId)
+      const res = await handlePortfolio(ctx.supabase, ctx.authUserId)
       if (!res.success) return { ok: false, error: res.message }
       return { ok: true, data: { resumen: res.message } }
     },
