@@ -25,7 +25,7 @@ import type {
   GoalEditData,
   GoalDeleteData,
   GoalContributionData,
-} from '@/lib/ai/intentParser'
+} from '@/lib/ai/handlerTypes'
 
 // Campos compartidos entre create_transaction y create_installment_plan: misma forma
 // y misma descripción orientada al modelo (diccionario de categorías del prompt,
@@ -108,7 +108,7 @@ function normalizeName(name: string): string {
 }
 
 // --- Tools de Task 13 (Fase 2 cierre): edición/borrado genérico + objetivos y
-// presupuestos. Los enums de `entidad` son subconjuntos de `EntityType` de intentParser:
+// presupuestos. Los enums de `entidad` son subconjuntos de `EntityType` de handlerTypes:
 // update_entity NO incluye 'cuota' (handleEdit no tiene case para editarla — caería al
 // default "no soportada"), delete_entity sí (handleDelete la soporta).
 const updatableEntityEnum = z.enum(['transaccion', 'medio_pago', 'categoria', 'suscripcion', 'objetivo', 'presupuesto'])

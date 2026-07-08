@@ -1,6 +1,6 @@
 ﻿'use server';
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 export async function generateCategoryDescription(categoryName: string) {
   const apiKey = process.env.GOOGLE_API_KEY;
@@ -15,9 +15,7 @@ export async function generateCategoryDescription(categoryName: string) {
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    // Intentamos con gemini-2.5-flash
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
       Actúa como Chanchito, un asistente experto en finanzas personales y arquitectura de datos.
@@ -35,9 +33,11 @@ export async function generateCategoryDescription(categoryName: string) {
       Devuelve SOLO el texto de la descripción, sin comillas, sin introducciones, sin puntos finales innecesarios.
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+    const text = result.text;
 
     if (!text) {
       throw new Error('La IA devolvió una respuesta vacía');

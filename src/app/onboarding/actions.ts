@@ -2,7 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 
 type OnboardingCategoryInput = {
   emoji: string
@@ -233,8 +233,7 @@ export async function suggestCategoriesFromDescription(
       return { error: 'La IA no está configurada. Podés agregar categorías manualmente.' }
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    const ai = new GoogleGenAI({ apiKey })
 
     const systemPrompt = `Sos un asistente financiero argentino. El usuario describe sus gastos típicos en lenguaje natural. Generá una lista de 5 a 10 categorías personalizadas.
 
@@ -251,12 +250,15 @@ Reglas:
 - No agregues texto fuera del JSON.
 - JSON válido siempre.`
 
-    const result = await model.generateContent({
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
       contents: [{ role: 'user', parts: [{ text: trimmed }] }],
-      systemInstruction: { role: 'user', parts: [{ text: systemPrompt }] },
+      config: {
+        systemInstruction: { role: 'user', parts: [{ text: systemPrompt }] },
+      },
     })
 
-    const raw = result.response.text()
+    const raw = result.text ?? ''
     const cleaned = raw.replace(/```json|```/g, '').trim()
 
     let parsed: { categories?: Array<{ emoji?: string; name?: string; description?: string }> }
