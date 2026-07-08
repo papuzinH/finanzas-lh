@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { CreditCard, Check, Clock, Loader2, Undo2 } from 'lucide-react';
+import { CreditCard, Check, Clock, Loader2, Undo2, AlertTriangle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,17 +80,16 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
 
     return (
       <>
-        <span
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
           onClick={() => setOpen(true)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(true); } }}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-good/10 text-good border border-good/20 cursor-pointer select-none hover:bg-good/15 transition-colors"
+          aria-label={`Deshacer pago de ${card.name}`}
+          className="inline-flex items-center gap-1 min-h-11 px-3 rounded-full text-[11px] font-bold bg-good/10 text-good border border-good/20 cursor-pointer select-none hover:bg-good/15 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         >
-          <Check className="h-3 w-3" />
+          <Check className="h-3.5 w-3.5" aria-hidden="true" />
           Pagada
-          <Undo2 className="h-3 w-3 opacity-60" />
-        </span>
+          <Undo2 className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />
+        </button>
 
         <AlertDialog open={open} onOpenChange={(v) => !confirming && setOpen(v)}>
           <AlertDialogContent className="bg-surface border-[1.5px] border-border text-text">
@@ -150,16 +149,15 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
 
   return (
     <>
-      <span
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         onClick={() => setOpen(true)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(true); } }}
-        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-warn/10 text-warn border border-warn/20 cursor-pointer select-none hover:bg-warn/15 transition-colors"
+        aria-label={`Registrar pago de ${card.name}`}
+        className="inline-flex items-center gap-1 min-h-11 px-3 rounded-full text-[11px] font-bold bg-warn/10 text-warn border border-warn/20 cursor-pointer select-none hover:bg-warn/15 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
       >
-        <Clock className="h-3 w-3" />
+        <Clock className="h-3.5 w-3.5" aria-hidden="true" />
         Pendiente
-      </span>
+      </button>
 
       <AlertDialog open={open} onOpenChange={(v) => !confirming && setOpen(v)}>
         <AlertDialogContent className="bg-surface border-[1.5px] border-border text-text">
@@ -176,7 +174,7 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
             </AlertDialogDescription>
             {cycleNotClosedYet && (
               <p className="mt-2 text-[12px] text-warn flex items-start gap-1.5">
-                <span aria-hidden="true">⚠️</span>
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" aria-hidden="true" />
                 <span>
                   El resumen todavía no cerró (cierra el {closingDateLabel}). Compras nuevas hasta
                   esa fecha se restarán de tu Disponible Real al instante.
@@ -235,7 +233,7 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-surface-2 border-[1.5px] border-border">
-            <CreditCard className="h-4 w-4 text-muted" />
+            <CreditCard className="h-4 w-4 text-muted" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <p className="font-sans font-bold text-text truncate">{card.name}</p>

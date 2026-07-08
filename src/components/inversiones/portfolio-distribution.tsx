@@ -31,10 +31,24 @@ export function PortfolioDistribution({ data }: PortfolioDistributionProps) {
     );
   }
 
+  const total = data.reduce((sum, d) => sum + d.value, 0)
+  const withPct = data.map((d) => ({
+    ...d,
+    pct: total > 0 ? (d.value / total) * 100 : 0,
+  }))
+  const summary =
+    'Composición de cartera: ' +
+    withPct.map((d) => `${d.name} ${d.pct.toFixed(0)}%`).join(', ')
+
   return (
     <div className="h-full rounded-xl border-[1.5px] border-border bg-surface p-3 md:p-4 flex flex-col">
       <h3 className="text-xs md:text-sm font-bold text-text mb-3 md:mb-4">Composición de Cartera</h3>
-      <div className="flex-1 w-full min-h-0">
+      <ul className="sr-only">
+        {withPct.map((d) => (
+          <li key={d.name}>{`${d.name}: ${d.pct.toFixed(1)}%`}</li>
+        ))}
+      </ul>
+      <div className="flex-1 w-full min-h-0" role="img" aria-label={summary}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie

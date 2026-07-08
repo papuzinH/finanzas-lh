@@ -64,7 +64,11 @@ export function AmountField<T extends FieldValues>({
   type = 'expense',
 }: AmountFieldProps<T>) {
   const amountInputRef = useRef<HTMLInputElement>(null);
-  const quickAmounts = useFinanceStore((s) => s.getQuickAmounts(type, currency, 3));
+  // Seleccionamos la función (referencia estable), no su resultado: getQuickAmounts
+  // arma un array nuevo en cada llamada y usarlo como selector rompe el cacheo de
+  // getSnapshot de Zustand ("infinite loop"). Se llama en el cuerpo del componente.
+  const getQuickAmounts = useFinanceStore((s) => s.getQuickAmounts);
+  const quickAmounts = getQuickAmounts(type, currency, 3);
 
   const displayAmount =
     watchedAmount === 0

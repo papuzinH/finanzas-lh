@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useState } from 'react'
-import { ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react'
+import { ChevronDown, ChevronUp, ArrowUpDown, Trash2 } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -9,6 +9,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { AssetTypeBadge, getAssetTypeLabel } from './asset-type-badge'
 import { PriceSourceBadge } from './price-source-badge'
 import { cn, formatRelativeTime, isStale } from '@/lib/utils'
@@ -91,6 +101,7 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
   const [sortKey, setSortKey] = useState<SortKey>('value')
   const [sortAsc, setSortAsc] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; ticker: string } | null>(null)
 
   const filtered = assets.filter((a) => filterType === 'all' || a.asset_type === filterType)
 
@@ -114,7 +125,10 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
       {/* Filtros */}
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-44 bg-surface-2 border-[1.5px] border-border text-text text-xs h-8">
+          <SelectTrigger
+            aria-label="Filtrar por tipo de activo"
+            className="w-44 bg-surface-2 border-[1.5px] border-border text-text text-xs h-11"
+          >
             <SelectValue placeholder="Todos los tipos" />
           </SelectTrigger>
           <SelectContent className="bg-surface border-border">
@@ -127,22 +141,33 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
           </SelectContent>
         </Select>
 
-        <div className="flex gap-1">
-          {(['value', 'plPercent', 'name'] as SortKey[]).map((k) => (
-            <button
-              key={k}
-              onClick={() => toggleSort(k)}
-              className={cn(
-                'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all border-[1.5px]',
-                sortKey === k
-                  ? 'bg-accent/15 text-accent-deep border-accent/30'
-                  : 'text-muted border-border hover:text-text'
-              )}
-            >
-              {k === 'value' ? 'Valor' : k === 'plPercent' ? 'Variación' : 'Nombre'}
-              <ArrowUpDown className="h-2.5 w-2.5" />
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-1">
+          {(['value', 'plPercent', 'name'] as SortKey[]).map((k) => {
+            const activeSort = sortKey === k
+            const label = k === 'value' ? 'Valor' : k === 'plPercent' ? 'Variación' : 'Nombre'
+            return (
+              <button
+                key={k}
+                onClick={() => toggleSort(k)}
+                aria-pressed={activeSort}
+                aria-label={`Ordenar por ${label}${activeSort ? (sortAsc ? ', ascendente' : ', descendente') : ''}`}
+                className={cn(
+                  'flex items-center gap-1 min-h-11 px-3 rounded-md text-xs font-medium transition-colors border-[1.5px] cursor-pointer touch-manipulation',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+                  activeSort
+                    ? 'bg-accent/15 text-accent-deep border-accent/30'
+                    : 'text-muted border-border hover:text-text'
+                )}
+              >
+                {label}
+                {activeSort
+                  ? sortAsc
+                    ? <ChevronUp className="h-3 w-3" />
+                    : <ChevronDown className="h-3 w-3" />
+                  : <ArrowUpDown className="h-3 w-3 opacity-60" />}
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -218,26 +243,26 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
               {isExpanded && (
                 <div className="px-3 pb-3 border-t border-border pt-3 space-y-3 bg-surface-2">
                   <div className="grid grid-cols-2 gap-2 text-[10px]">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-muted uppercase font-bold">PPC</p>
-                      <p className="text-text tnum">{fmtNumber(asset.ppc, 2)}</p>
+                      <p className="text-text tnum break-words">{fmtNumber(asset.ppc, 2)}</p>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-muted uppercase font-bold">V. Inicial</p>
-                      <p className="text-text tnum">{fmtCurrency(asset.investedValue, currencyLabel)}</p>
+                      <p className="text-text tnum break-words">{fmtCurrency(asset.investedValue, currencyLabel)}</p>
                     </div>
                     {asset.realizedPL !== 0 && (
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-muted uppercase font-bold">Realizado</p>
-                        <p className={cn('tnum', plColor(asset.realizedPL))}>
+                        <p className={cn('tnum break-words', plColor(asset.realizedPL))}>
                           {fmtSignedCurrency(asset.realizedPL, currencyLabel)}
                         </p>
                       </div>
                     )}
                     {asset.realizedPL !== 0 && (
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-muted uppercase font-bold">Total P/L</p>
-                        <p className={cn('tnum', plColor(asset.totalPL))}>
+                        <p className={cn('tnum break-words', plColor(asset.totalPL))}>
                           {fmtSignedCurrency(asset.totalPL, currencyLabel)}
                         </p>
                       </div>
@@ -275,9 +300,11 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
 
                   {onDeleteAsset && (
                     <button
-                      onClick={() => onDeleteAsset(asset.id)}
-                      className="text-[10px] text-bad/70 hover:text-bad transition-colors"
+                      type="button"
+                      onClick={() => setDeleteTarget({ id: asset.id, ticker: asset.ticker })}
+                      className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-lg border-[1.5px] border-bad/30 text-bad text-xs font-medium hover:bg-bad/10 transition-colors cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad focus-visible:ring-offset-2 focus-visible:ring-offset-surface-2"
                     >
+                      <Trash2 className="h-3.5 w-3.5" />
                       Dar de baja activo
                     </button>
                   )}
@@ -349,7 +376,7 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                           </span>
                           <div className="flex items-center gap-1.5">
                             <PriceSourceBadge source={asset.source} />
-                            <span className="text-[9px] text-faint">
+                            <span className="text-[10px] text-muted">
                               {formatRelativeTime(asset.lastUpdate)}
                             </span>
                           </div>
@@ -424,9 +451,11 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                         </div>
                         {onDeleteAsset && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); onDeleteAsset(asset.id) }}
-                            className="text-[10px] text-bad/70 hover:text-bad transition-colors"
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: asset.id, ticker: asset.ticker }) }}
+                            className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-lg border-[1.5px] border-bad/30 text-bad text-xs font-medium hover:bg-bad/10 transition-colors cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad focus-visible:ring-offset-2 focus-visible:ring-offset-surface-2"
                           >
+                            <Trash2 className="h-3.5 w-3.5" />
                             Dar de baja activo
                           </button>
                         )}
@@ -439,6 +468,34 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
           </tbody>
         </table>
       </div>
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent className="bg-surface border-border text-text">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Dar de baja {deleteTarget?.ticker}?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted">
+              La posición dejará de aparecer en tu portfolio. El historial de transacciones se conserva y podés volver a cargarla más adelante.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border bg-transparent text-text hover:bg-surface-2 hover:text-text">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) onDeleteAsset?.(deleteTarget.id)
+                setDeleteTarget(null)
+              }}
+              className="bg-bad hover:bg-[color:var(--btn-destructive-border)] text-accent-ink"
+            >
+              Dar de baja
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

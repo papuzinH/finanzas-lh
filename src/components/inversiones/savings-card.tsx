@@ -7,6 +7,11 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -45,6 +50,7 @@ export function SavingsCard({ displayCurrency = 'ARS' }: SavingsCardProps) {
   const [isPending, setIsPending] = useState(false)
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState<'ARS' | 'USD'>('USD')
+  const [deleteTarget, setDeleteTarget] = useState<Saving | null>(null)
 
   const totalARS = savings
     .filter(s => s.currency === 'ARS')
@@ -124,7 +130,7 @@ export function SavingsCard({ displayCurrency = 'ARS' }: SavingsCardProps) {
           <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">
             Ahorros (sin invertir)
           </p>
-          <p className="text-lg md:text-xl font-poster tnum text-text">
+          <p className="text-lg md:text-xl font-poster tnum text-text break-words">
             {fmtMoney(totalInDisplay, displayLabel)}
           </p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5 text-[11px] text-muted">
@@ -221,17 +227,54 @@ export function SavingsCard({ displayCurrency = 'ARS' }: SavingsCardProps) {
               </div>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 disabled={isPending}
-                onClick={() => handleDelete(s)}
-                className="h-5 w-5 p-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 text-bad hover:text-bad hover:bg-bad/10 transition-opacity"
+                aria-label={`Eliminar ahorro de ${fmtMoney(Number(s.amount), s.currency as 'ARS' | 'USD')}`}
+                onClick={() => setDeleteTarget(s)}
+                className="min-h-11 min-w-11 shrink-0 p-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 text-bad hover:text-bad hover:bg-bad/10 transition-opacity"
               >
-                <Trash2 className="w-3 h-3" />
+                <Trash2 className="w-4 h-4" />
               </Button>
             </div>
           ))}
         </div>
       )}
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent className="bg-surface border-border text-text">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este ahorro?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted">
+              {deleteTarget && (
+                <>
+                  Se quitará el registro de{' '}
+                  <span className="font-bold text-text">
+                    {fmtMoney(Number(deleteTarget.amount), deleteTarget.currency as 'ARS' | 'USD')}
+                  </span>
+                  . Esta acción no se puede deshacer.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border bg-transparent text-text hover:bg-surface-2 hover:text-text">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) handleDelete(deleteTarget)
+                setDeleteTarget(null)
+              }}
+              className="bg-bad hover:bg-[color:var(--btn-destructive-border)] text-accent-ink"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

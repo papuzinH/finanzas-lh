@@ -56,19 +56,19 @@ export function AnimatedPlusButton({
   }, [triggerKey, prefersReducedMotion]);
 
   return (
-    // Mobile: contenedor fijo w-9; el botón absoluto se expande sin empujar el layout.
+    // Mobile: contenedor fijo 44px; el botón absoluto se expande sin empujar el layout.
     // Desktop (md+): siempre ampliado → contenedor y botón en flujo normal, ancho al contenido.
-    <div className={cn("relative h-9 w-9 shrink-0 md:w-fit", className)}>
+    <div className={cn("relative h-11 w-11 shrink-0 md:w-fit", className)}>
       <button
         onClick={onClick}
         disabled={disabled}
         className={cn(
           "absolute right-0 top-0 flex items-center justify-center rounded-full bg-accent text-accent-ink border-[1.5px] border-accent-deep shadow-offset disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 z-10",
           // En desktop la pill queda fija y expandida, sin depender del estado de animación.
-          "md:static md:h-9 md:w-fit md:px-3 md:min-w-9",
+          "md:static md:h-11 md:w-fit md:px-3.5 md:min-w-11",
           isExpanded
-            ? "h-9 px-3 min-w-9"
-            : "h-9 w-9",
+            ? "h-11 px-3.5 min-w-11"
+            : "h-11 w-11",
         )}
         aria-label={ariaLabel || label}
       >

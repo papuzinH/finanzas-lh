@@ -354,3 +354,61 @@ export function SubscriptionsSkeleton() {
     </div>
   )
 }
+
+/* -- Compromisos (hero + tabs) Skeleton ------------------ */
+
+export function CompromisosSkeleton() {
+  return (
+    <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
+      {/* ScreenHeader */}
+      <div className="px-5 pt-3 pb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            <Skeleton className="h-2.5 w-24" />
+            <Skeleton className="h-7 w-40" />
+          </div>
+          <Skeleton className="h-11 w-11 rounded-full" />
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-[1440px] space-y-5 pb-4">
+        {/* Hero: placeholders claros sobre fondo navy */}
+        <div className="mx-5 rounded-2xl bg-hero p-5">
+          <div className="h-3 w-40 rounded bg-cream-light/15" />
+          <div className="mt-2 h-9 w-52 rounded bg-cream-light/20" />
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {[1, 2].map(i => (
+              <div key={i} className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2 space-y-1.5">
+                <div className="h-2.5 w-16 rounded bg-cream-light/15" />
+                <div className="h-3.5 w-20 rounded bg-cream-light/20" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="px-5">
+          <Skeleton className="h-11 w-full rounded-full" />
+        </div>
+
+        {/* Fila de stats */}
+        <div className="px-5 grid grid-cols-2 gap-3">
+          {[1, 2].map(i => (
+            <div key={i} className="rounded-2xl bg-surface border-[1.5px] border-border p-5 flex flex-col items-center gap-2">
+              <Skeleton className="h-2.5 w-20" />
+              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-2.5 w-16" />
+            </div>
+          ))}
+        </div>
+
+        {/* Grid de cards */}
+        <div className="px-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <InstallmentPlanCardSkeleton key={i} />
+          ))}
+        </div>
+      </main>
+    </div>
+  )
+}

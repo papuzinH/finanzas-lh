@@ -7,8 +7,9 @@ import { useFinanceStore } from '@/lib/store/financeStore'
 import { ScreenHeader } from '@/components/shared/screen-header'
 import { TabsDS } from '@/components/ui/tabs-ds'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { CurrencyToggle, type DisplayCurrency } from '@/components/inversiones/currency-toggle'
-import { AssetTypeBadge } from '@/components/inversiones/asset-type-badge'
+import { AssetTypeBadge, getAssetTypeLabel } from '@/components/inversiones/asset-type-badge'
 import { ProfitBadge } from '@/components/inversiones/profit-badge'
 import { PortfolioList } from '@/components/inversiones/portfolio-list'
 import { QuickAddForm } from '@/components/inversiones/quick-add-form'
@@ -125,7 +126,7 @@ export function InversionesClient() {
 
   const pieData = Object.entries(groupedByType)
     .filter(([, value]) => value > 0)
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, value]) => ({ name: getAssetTypeLabel(name), value }))
 
   return (
     <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
@@ -157,25 +158,26 @@ export function InversionesClient() {
           <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
             Valor Total del Portfolio
           </p>
-          <p className="font-poster tnum text-[36px] leading-[0.95] mt-1 text-cream-light">
+          <p className="font-poster tnum text-[clamp(1.65rem,8vw,2.25rem)] leading-[0.95] mt-1 text-cream-light break-words">
             {fmtCurrency(portfolio.totalValue, currencyLabel)}
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="rounded-xl bg-cream-light/10 border-[1.5px] border-cream-light/15 px-3 py-2">
+            <div className="min-w-0 rounded-xl bg-cream-light/10 border-[1.5px] border-cream-light/15 px-3 py-2">
               <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">Invertido</p>
-              <p className="font-poster tnum text-[15px] mt-0.5 text-cream-light">
+              <p className="font-poster tnum text-[15px] mt-0.5 text-cream-light break-words">
                 {fmtCurrency(portfolio.totalInvested, currencyLabel)}
               </p>
             </div>
-            <div className="rounded-xl bg-cream-light/10 border-[1.5px] border-cream-light/15 px-3 py-2">
+            <div className="min-w-0 rounded-xl bg-cream-light/10 border-[1.5px] border-cream-light/15 px-3 py-2">
               <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">P&L</p>
-              <div className="mt-0.5">
+              <div className="mt-0.5 min-w-0">
                 {portfolio.totalInvested > 0 ? (
                   <ProfitBadge
                     percent={portfolio.totalPLPercent}
                     amount={portfolio.totalUnrealizedPL}
                     currency={currencyLabel}
                     showAmount
+                    className="max-w-full [overflow-wrap:anywhere]"
                   />
                 ) : (
                   <p className="font-poster tnum text-[15px] text-cream-light/50">—</p>
@@ -184,7 +186,7 @@ export function InversionesClient() {
             </div>
           </div>
           {portfolio.totalSavings > 0 && (
-            <p className="text-[11px] text-celeste/70 mt-2">
+            <p className="text-[11px] text-celeste/70 mt-2 break-words">
               Ahorros: {fmtCurrency(portfolio.totalSavings, currencyLabel)}
             </p>
           )}
@@ -192,23 +194,23 @@ export function InversionesClient() {
 
         {/* Metric Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="p-4">
+          <Card className="p-4 min-w-0">
             <p className="text-[10px] uppercase text-muted font-bold mb-1">Ganancia Total</p>
-            <p className="font-poster tnum text-[20px] text-text">
+            <p className="font-poster tnum text-[20px] text-text break-words">
               {fmtCurrency(portfolio.totalUnrealizedPL + portfolio.totalRealizedPL, currencyLabel)}
             </p>
             {portfolio.totalPLPercent !== 0 && (
-              <ProfitBadge percent={portfolio.totalPLPercent} className="mt-1" />
+              <ProfitBadge percent={portfolio.totalPLPercent} className="mt-1 max-w-full [overflow-wrap:anywhere]" />
             )}
           </Card>
 
-          <Card className="p-4">
+          <Card className="p-4 min-w-0">
             <p className="text-[10px] uppercase text-muted font-bold mb-1">Mejor activo</p>
             {best ? (
               <>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-sans font-bold text-sm text-text">{best.ticker}</span>
-                  <AssetTypeBadge assetType={best.asset_type} />
+                <div className="flex items-center gap-2 mb-1 min-w-0">
+                  <span className="font-sans font-bold text-sm text-text truncate">{best.ticker}</span>
+                  <AssetTypeBadge assetType={best.asset_type} className="shrink-0" />
                 </div>
                 <ProfitBadge percent={best.plPercent} />
               </>
@@ -217,13 +219,13 @@ export function InversionesClient() {
             )}
           </Card>
 
-          <Card className="p-4">
+          <Card className="p-4 min-w-0">
             <p className="text-[10px] uppercase text-muted font-bold mb-1">Peor activo</p>
             {worst && worst.id !== best?.id ? (
               <>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-sans font-bold text-sm text-text">{worst.ticker}</span>
-                  <AssetTypeBadge assetType={worst.asset_type} />
+                <div className="flex items-center gap-2 mb-1 min-w-0">
+                  <span className="font-sans font-bold text-sm text-text truncate">{worst.ticker}</span>
+                  <AssetTypeBadge assetType={worst.asset_type} className="shrink-0" />
                 </div>
                 <ProfitBadge percent={worst.plPercent} />
               </>
@@ -252,8 +254,12 @@ export function InversionesClient() {
                 <TrendingUp className="h-14 w-14 text-faint" />
                 <h3 className="font-sans font-bold text-text text-lg">Sin activos registrados</h3>
                 <p className="text-muted text-sm max-w-xs">
-                  Usá la pestaña &quot;Cargar&quot; para registrar tus primeras inversiones.
+                  Registrá tus primeras inversiones para ver tu portfolio y rendimiento.
                 </p>
+                <Button variant="accent" onClick={() => setActiveTab('cargar')} className="mt-1">
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Cargar mi primera inversión
+                </Button>
               </div>
             ) : (
               <div className="h-80">
@@ -274,14 +280,14 @@ export function InversionesClient() {
                       <div key={asset.id} className="px-4 py-2.5 flex items-center justify-between gap-3 bg-surface">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="font-sans font-bold text-sm text-text shrink-0">{asset.ticker}</span>
-                          <AssetTypeBadge assetType={asset.asset_type} />
+                          <AssetTypeBadge assetType={asset.asset_type} className="shrink-0" />
                           <span className="text-xs text-muted truncate hidden sm:block">{asset.name}</span>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="font-poster tnum text-sm text-text">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="font-poster tnum text-sm text-text truncate">
                             {fmtCurrency(asset.currentValue, currencyLabel)}
                           </span>
-                          <ProfitBadge percent={asset.plPercent} />
+                          <ProfitBadge percent={asset.plPercent} className="shrink-0" />
                         </div>
                       </div>
                     ))}
@@ -310,6 +316,10 @@ export function InversionesClient() {
               <div className="rounded-2xl border-[1.5px] border-dashed border-border py-16 text-center flex flex-col items-center gap-3">
                 <Clock className="h-14 w-14 text-faint" />
                 <p className="text-muted text-sm">Sin posiciones abiertas</p>
+                <Button variant="accent" onClick={() => setActiveTab('cargar')} className="mt-1">
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Cargar una inversión
+                </Button>
               </div>
             ) : (
               <PortfolioList
