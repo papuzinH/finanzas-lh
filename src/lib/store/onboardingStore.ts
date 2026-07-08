@@ -63,7 +63,7 @@ interface OnboardingState {
   completeTour: () => void
   resetTour: () => void
   /** Sincroniza tourCompleted desde/hacia Supabase */
-  syncTourFromSupabase: (userId: number) => Promise<void>
+  syncTourFromSupabase: (userId: string) => Promise<void>
   /** Llamar al arribar a una ruta para sincronizar el índice */
   setTourRoute: (pathname: string) => void
 }
@@ -101,7 +101,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         const supabase = createClient()
         supabase.auth.getUser().then(({ data }) => {
           if (data.user) {
-            supabase.from('users').update({ tour_completed: true }).eq('auth_user_id', data.user.id).then(() => {})
+            supabase.from('users').update({ tour_completed: true }).eq('id', data.user.id).then(() => {})
           }
         })
       },
@@ -111,7 +111,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         const supabase = createClient()
         supabase.auth.getUser().then(({ data }) => {
           if (data.user) {
-            supabase.from('users').update({ tour_completed: true }).eq('auth_user_id', data.user.id).then(() => {})
+            supabase.from('users').update({ tour_completed: true }).eq('id', data.user.id).then(() => {})
           }
         })
       },
@@ -121,12 +121,12 @@ export const useOnboardingStore = create<OnboardingState>()(
         const supabase = createClient()
         supabase.auth.getUser().then(({ data }) => {
           if (data.user) {
-            supabase.from('users').update({ tour_completed: false }).eq('auth_user_id', data.user.id).then(() => {})
+            supabase.from('users').update({ tour_completed: false }).eq('id', data.user.id).then(() => {})
           }
         })
       },
 
-      syncTourFromSupabase: async (userId: number) => {
+      syncTourFromSupabase: async (userId: string) => {
         const supabase = createClient()
         const { data } = await supabase
           .from('users')
