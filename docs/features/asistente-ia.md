@@ -37,7 +37,7 @@ Chat conversacional dentro de la app que registra movimientos, cuotas, mensualid
 
 Confundirlos produce **queries que nunca matchean, sin error** (fuente de 5 bugs silenciosos ya corregidos, ej. `handlers.ts:654`, `:912`). `categories` además usa `.or('user_id.eq.<uuid>,is_system.eq.true')` para incluir las del sistema.
 
-> **Verificado contra la DB real (2026-07-08)**: `users.id` es un **UUID que coincide con `auth.uid()`** (FK directa a `auth.users(id)`); la columna `users.auth_user_id` está **NULL en todos los usuarios** (el backfill de la migración 20260323 nunca corrió). `types/database.ts` (`id: number`) está **desactualizado**. En runtime `ctx.userId` === `ctx.authUserId` hoy, pero la convención por tabla se mantiene (las FKs difieren); lo que NUNCA funciona es filtrar por `auth_user_id`.
+> **Verificado contra la DB real (2026-07-08)**: `users.id` es un **UUID que coincide con `auth.uid()`** (FK directa a `auth.users(id)`), y TODOS los ids de las tablas de la app son UUID (`types/database.ts` fue regenerado desde el schema real; los numéricos son solo `legacy_*`). En runtime `ctx.userId` === `ctx.authUserId`, pero la convención por tabla se mantiene (las FKs difieren); lo que NUNCA funciona es filtrar por `users.auth_user_id` (vestigial; la migración `20260708_fix_rls_open_policies.sql` la backfillea igual por robustez).
 
 - `chat_usage`: PK `(user_id, usage_date)`, `request_count`. `user_id` = `users.id` (UUID interno); la route le pasa `dbUser.id` y funciona (24 filas reales de uso — la cuota está operativa, no hay fail-open). Solo se escribe vía RPC `SECURITY DEFINER`.
 - `chat_budget`: PK `period` (`YYYY-MM`), acumula `input_tokens`/`output_tokens`/`estimated_cost_usd`, kill switch `is_killed`. Sin políticas de cliente.

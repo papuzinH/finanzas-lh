@@ -28,14 +28,14 @@ Alta y acceso de usuarios: login con **Google OAuth (único proveedor)** vía Su
 
 ## Tablas DB — identidad de `users` (gotcha crítico, VERIFICADO contra la DB real 2026-07-08)
 Realidad de la DB (consultada por SQL directo):
-- `users.id`: **UUID que ES el `auth.uid()`** — FK directa `users.id → auth.users(id)`, y los 6 usuarios existentes matchean. Lo que dicen `types/database.ts:54` (`id: number`) y el comentario "INTEGER PK interna" de la migración `20260323_enable_rls_core_tables.sql` está **desactualizado/equivocado** respecto de la DB real.
-- `users.auth_user_id`: columna **vestigial, NULL en el 100% de los usuarios** (el backfill manual de la migración nunca corrió). Cualquier query o política RLS que filtre por `auth_user_id` matchea **0 filas, sin error**.
+- `users.id`: **UUID que ES el `auth.uid()`** — FK directa `users.id → auth.users(id)`, y los 6 usuarios existentes matchean. (`types/database.ts` fue regenerado desde el schema real; el comentario "INTEGER PK interna" de la migración `20260323_enable_rls_core_tables.sql` quedó como registro histórico equivocado.)
+- `users.auth_user_id`: columna **vestigial, NULL en el 100% de los usuarios** (el backfill manual de la migración nunca corrió). Cualquier query o política RLS que filtre por `auth_user_id` matchea **0 filas, sin error**. La migración `20260708_fix_rls_open_policies.sql` la backfillea (`auth_user_id = id`) y actualiza `handle_new_user` para mantener el invariante, pero la regla sigue: **no filtrar por ella**.
 
 RLS efectiva de `users`: funciona por la política `"Users access own data"` (`auth.uid() = id`). Las políticas `users_select_own`/`users_update_own` (`auth_user_id = auth.uid()`) están **muertas** (NULL).
 
 **Call-sites, releídos con esa realidad:**
 - Filtran `users` con `.eq('id', user.id)` pasando el UUID de auth (`src/utils/supabase/middleware.ts:62`, `src/app/onboarding/page.tsx:17`, `src/app/onboarding/actions.ts:42/201`, `src/lib/store/financeStore.ts:517`, `src/app/categorias/actions.ts:87`): **CORRECTOS** — `id` es el auth uid.
-- Filtran por `.eq('auth_user_id', <uuid>)` (`onboardingStore.skipTour/completeTour/resetTour`): **ROTOS** — actualizan 0 filas: `tour_completed` nunca persiste en Supabase (solo en localStorage; en otro dispositivo el tour vuelve a arrancar). Fix pendiente: filtrar por `id`.
+- `onboardingStore.skipTour/completeTour/resetTour`: filtraban por `.eq('auth_user_id', <uuid>)` → actualizaban 0 filas y `tour_completed` nunca persistía en Supabase (el tour reaparecía en cada dispositivo). **Corregido** (commit `92c003f`): ahora filtran por `id`, igual que `syncTourFromSupabase`.
 - No filtran (solo RLS + `.single()`): `src/app/api/chat/route.ts:86-90` — funciona vía la política `auth.uid() = id`.
 
 Columnas de estado: `users.onboarding_completed` (gate del middleware), `users.tour_completed`, `users.first_name`.
