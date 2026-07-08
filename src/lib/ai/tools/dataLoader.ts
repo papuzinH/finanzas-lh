@@ -129,7 +129,15 @@ async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> 
  */
 export async function loadFinanceData(ctx: AgentContext): Promise<FinanceData> {
   if (!ctx._financeCache) {
-    ctx._financeCache = loadFinanceDataUncached(ctx)
+    const promise = loadFinanceDataUncached(ctx)
+    // Si la carga falla, NO dejar la promesa rechazada cacheada: las tools
+    // siguientes del mismo loop deben poder reintentar en vez de re-consumir el
+    // mismo error. Esta rama es solo un side-effect (el rechazo original igual
+    // viaja al caller); el guard evita pisar un cache más nuevo.
+    promise.catch(() => {
+      if (ctx._financeCache === promise) ctx._financeCache = undefined
+    })
+    ctx._financeCache = promise
   }
   return ctx._financeCache
 }

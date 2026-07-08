@@ -348,6 +348,34 @@ describe('loadFinanceData - memoiza el snapshot en ctx._financeCache (cache de p
     await loadFinanceData(ctx1)
     expect(ctx1.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(14)
   })
+
+  it('una promesa RECHAZADA no queda cacheada: la siguiente llamada del mismo ctx reintenta y puede resolver', async () => {
+    // Primera ronda: transactions falla (error transitorio). Segunda ronda: todo OK.
+    let failFirstRound = true
+    const tables: Record<string, unknown[]> = allTables
+    const from = vi.fn((table: string) =>
+      failFirstRound && table === 'transactions'
+        ? makeErrorTable('boom transitorio')
+        : makeTable(tables[table] ?? [])
+    )
+    const supabase = { from } as unknown as AgentContext['supabase']
+    const ctx: AgentContext = { supabase, userId: USER_ID, authUserId: AUTH_USER_ID, today: '2026-07-08' }
+
+    await expect(loadFinanceData(ctx)).rejects.toThrow(
+      'No pude leer tus datos (transactions): boom transitorio'
+    )
+
+    // El rechazo NO quedó cacheado (si quedara, toda tool posterior del mismo loop
+    // re-consumiría el mismo error sin reintentar)...
+    expect(ctx._financeCache).toBeUndefined()
+
+    // ...así que el próximo intento, con la DB "recuperada", vuelve a hacer las
+    // queries y resuelve normalmente.
+    failFirstRound = false
+    const result = await loadFinanceData(ctx)
+    expect(result.paymentMethods).toEqual([visa])
+    expect(from).toHaveBeenCalledTimes(14) // 7 de la ronda fallida + 7 del reintento
+  })
 })
 
 describe('fetchDolarBlue', () => {
