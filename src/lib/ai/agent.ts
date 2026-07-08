@@ -121,18 +121,27 @@ export async function runAgent({
  * (Task 14a): `GoogleGenAI({ apiKey })`, `ai.models.generateContent({ model,
  * contents, config })`, `response.text`/`response.functionCalls`/
  * `response.usageMetadata.{promptTokenCount,candidatesTokenCount}` — todo matchea
- * el plan tal cual. Dos casts necesarios (documentados en el reporte):
- * - `contents`: nuestro loop lo tipa `unknown[]` a propósito para no acoplar
- *   `agent.ts` al SDK; acá se castea a `Content[]`.
- * - `getFunctionDeclarations()`: devuelve `parameters` como JSON Schema plano
- *   (`zodToGeminiSchema`, Task 6), mientras que `FunctionDeclaration.parameters`
- *   del SDK espera su propio `Schema` (enum `Type` en mayúsculas). Son
- *   estructuralmente distintos así que hace falta `as unknown as`; tocar
- *   `schema.ts` para emitir el enum de Gemini queda fuera del alcance de esta
- *   task (no está en la lista de archivos a modificar).
+ * el plan tal cual.
+ *
+ * Tools: las declarations van en `FunctionDeclaration.parametersJsonSchema`
+ * (node.d.ts:4435), el campo oficial del SDK para JSON Schema estándar crudo —
+ * exactamente lo que produce `zodToGeminiSchema` (Task 6). El propio SDK lo usa
+ * así para tools MCP (dist/index.mjs:3643), o sea que no hay mismatch de tipos ni
+ * hace falta castear. (`parameters`, en cambio, espera el `Schema` propio del SDK
+ * con el enum `Type` en mayúsculas — es mutuamente excluyente con
+ * `parametersJsonSchema`, no usarlos juntos.)
+ *
+ * Único cast restante: `contents` — nuestro loop lo tipa `unknown[]` a propósito
+ * para no acoplar `agent.ts` (ni los tests) al SDK; acá se castea a `Content[]`.
  */
 export function createGeminiModel(apiKey: string): AgentModel {
   const ai = new GoogleGenAI({ apiKey })
+  // El registro de tools es estático: las declarations se arman una sola vez.
+  const functionDeclarations: FunctionDeclaration[] = getFunctionDeclarations().map((d) => ({
+    name: d.name,
+    description: d.description,
+    parametersJsonSchema: d.parameters,
+  }))
   return {
     async generate({ contents, systemInstruction, withTools }) {
       const response = await ai.models.generateContent({
@@ -140,9 +149,7 @@ export function createGeminiModel(apiKey: string): AgentModel {
         contents: contents as unknown as Content[],
         config: {
           systemInstruction,
-          ...(withTools
-            ? { tools: [{ functionDeclarations: getFunctionDeclarations() as unknown as FunctionDeclaration[] }] }
-            : {}),
+          ...(withTools ? { tools: [{ functionDeclarations }] } : {}),
         },
       })
       return {
