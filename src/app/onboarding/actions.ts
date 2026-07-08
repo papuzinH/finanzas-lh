@@ -123,7 +123,7 @@ export async function saveOnboardingCategories(
 export async function saveOnboardingPaymentMethods(
   methods: OnboardingPaymentMethodInput[],
   defaultMethodName?: string | null
-): Promise<ActionResponse<{ defaultMethodId: number | null }>> {
+): Promise<ActionResponse<{ defaultMethodId: string | null }>> {
   try {
     if (!Array.isArray(methods) || methods.length === 0) {
       return { error: 'Necesito al menos un medio de pago' }
@@ -159,7 +159,7 @@ export async function saveOnboardingPaymentMethods(
     }
 
     // Marcar el default si se especificó (vía flag is_default en payment_methods)
-    let defaultId: number | null = null
+    let defaultId: string | null = null
     if (defaultMethodName) {
       const match = inserted.find(
         (m) => m.name.toLowerCase() === defaultMethodName.trim().toLowerCase()

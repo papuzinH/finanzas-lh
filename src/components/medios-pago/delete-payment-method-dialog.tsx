@@ -50,7 +50,7 @@ export function DeletePaymentMethodDialog({
           toast.error('Seleccioná a qué medio de pago reasignar los datos')
           return
         }
-        result = await reassignAndDeletePaymentMethod(paymentMethod.id, Number(reassignTo))
+        result = await reassignAndDeletePaymentMethod(paymentMethod.id, reassignTo)
       } else {
         result = await deletePaymentMethod(paymentMethod.id)
       }

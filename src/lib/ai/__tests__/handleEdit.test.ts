@@ -72,7 +72,7 @@ describe('handleEdit - categoria filtra por UUID de auth (bug fix)', () => {
     const supabase = createSupabaseMock([catsChain, updateChain], authUuid)
     mockedCreateClient.mockResolvedValue(supabase as never)
 
-    const result = await handleEdit({ entity: 'categoria', search: 'comida', changes: { emoji: '🌮' } }, 1)
+    const result = await handleEdit({ entity: 'categoria', search: 'comida', changes: { emoji: '🌮' } }, '1')
 
     expect(result.success).toBe(true)
     expect(result.message).toContain('Comida')
@@ -81,15 +81,15 @@ describe('handleEdit - categoria filtra por UUID de auth (bug fix)', () => {
     expect(hasCall(catsChain, 'eq', ['user_id', authUuid])).toBe(true)
     expect(hasCall(updateChain, 'eq', ['user_id', authUuid])).toBe(true)
     // ...nunca por el userId numérico (ese es el bug que se corrige).
-    expect(hasCall(catsChain, 'eq', ['user_id', 1])).toBe(false)
-    expect(hasCall(updateChain, 'eq', ['user_id', 1])).toBe(false)
+    expect(hasCall(catsChain, 'eq', ['user_id', '1'])).toBe(false)
+    expect(hasCall(updateChain, 'eq', ['user_id', '1'])).toBe(false)
   })
 
   it('sin usuario autenticado devuelve "No autorizado" sin consultar categories', async () => {
     const supabase = createSupabaseMock([], null)
     mockedCreateClient.mockResolvedValue(supabase as never)
 
-    const result = await handleEdit({ entity: 'categoria', search: 'comida', changes: { emoji: '🌮' } }, 1)
+    const result = await handleEdit({ entity: 'categoria', search: 'comida', changes: { emoji: '🌮' } }, '1')
 
     expect(result).toEqual({ success: false, message: 'No autorizado' })
     expect(supabase.from).not.toHaveBeenCalled()
@@ -103,11 +103,11 @@ describe('handleEdit - transaccion sigue usando el userId numérico (no se toca 
     const supabase = createSupabaseMock([txChain, updateChain])
     mockedCreateClient.mockResolvedValue(supabase as never)
 
-    const result = await handleEdit({ entity: 'transaccion', search: 'Café', changes: { amount: 3000 } }, 7)
+    const result = await handleEdit({ entity: 'transaccion', search: 'Café', changes: { amount: 3000 } }, '7')
 
     expect(result.success).toBe(true)
-    expect(hasCall(txChain, 'eq', ['user_id', 7])).toBe(true)
-    expect(hasCall(updateChain, 'eq', ['user_id', 7])).toBe(true)
+    expect(hasCall(txChain, 'eq', ['user_id', '7'])).toBe(true)
+    expect(hasCall(updateChain, 'eq', ['user_id', '7'])).toBe(true)
   })
 })
 
@@ -122,7 +122,7 @@ describe('handleEdit - transaccion resuelve `changes.category` con el UUID de au
     const supabase = createSupabaseMock([txChain, catsChain, updateChain], authUuid)
     mockedCreateClient.mockResolvedValue(supabase as never)
 
-    const result = await handleEdit({ entity: 'transaccion', search: 'Super', changes: { category: 'comida' } }, 7)
+    const result = await handleEdit({ entity: 'transaccion', search: 'Super', changes: { category: 'comida' } }, '7')
 
     expect(result.success).toBe(true)
     expect(result.message).toContain('category_id → cat-9')
@@ -130,10 +130,10 @@ describe('handleEdit - transaccion resuelve `changes.category` con el UUID de au
     // El lookup de categories filtra con .or(user_id.eq.<uuid>,is_system.eq.true)...
     expect(hasCall(catsChain, 'or', [`user_id.eq.${authUuid},is_system.eq.true`])).toBe(true)
     // ...nunca con .eq('user_id', <numérico>) (ese es el bug que se corrige).
-    expect(hasCall(catsChain, 'eq', ['user_id', 7])).toBe(false)
+    expect(hasCall(catsChain, 'eq', ['user_id', '7'])).toBe(false)
 
     // El update de la transacción en sí sigue filtrando por el userId numérico.
-    expect(hasCall(updateChain, 'eq', ['user_id', 7])).toBe(true)
+    expect(hasCall(updateChain, 'eq', ['user_id', '7'])).toBe(true)
   })
 
   it('sin usuario autenticado no resuelve la categoría (no rompe, sólo no aplica ese cambio)', async () => {
@@ -143,7 +143,7 @@ describe('handleEdit - transaccion resuelve `changes.category` con el UUID de au
     const supabase = createSupabaseMock([txChain], null)
     mockedCreateClient.mockResolvedValue(supabase as never)
 
-    const result = await handleEdit({ entity: 'transaccion', search: 'Super', changes: { category: 'comida' } }, 7)
+    const result = await handleEdit({ entity: 'transaccion', search: 'Super', changes: { category: 'comida' } }, '7')
 
     expect(result).toEqual({ success: false, message: 'No se especificaron cambios válidos.' })
     // Sólo se llamó from() para buscar la transacción; nunca se llegó a categories.

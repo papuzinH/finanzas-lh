@@ -62,7 +62,7 @@ export function computePaymentMethodStatus(
   // lista de movimientos del medio.
   // ===================================================================
   if (nextPaymentDate) {
-    const recurringPlanIdsInCycle = new Set<number>()
+    const recurringPlanIdsInCycle = new Set<string>()
     let expensesInCycleArs = 0 // total en ARS (USD convertido) → alimenta projectedTotal
     let usdExpenses = 0 // desglose: importe original USD
     let arsExpenses = 0 // desglose: importe ARS puro

@@ -1,3 +1,18 @@
+// ============================================================
+// Tipos de la base de datos — regenerados desde el schema REAL
+// (MCP Supabase generate_typescript_types, 2026-07-08), con las
+// uniones literales de dominio preservadas a mano ('income' |
+// 'expense', 'credit' | 'debit' | 'cash', etc.).
+//
+// IMPORTANTE: en la DB real TODOS los ids de las tablas de la app
+// son UUID (string): users.id ES el auth.uid(); transactions,
+// payment_methods, recurring_plans, installment_plans, etc. usan
+// uuid. Los ids numéricos existen solo en las tablas legacy_* de
+// la era del bot de Telegram (omitidas acá: sin uso en la app y
+// sin acceso de cliente). La versión anterior de este archivo
+// tipaba los ids como number y estaba desactualizada.
+// ============================================================
+
 export type Json =
   | string
   | number
@@ -11,738 +26,678 @@ export interface Database {
     Tables: {
       categories: {
         Row: {
-          id: string
-          user_id: string
-          name: string
+          created_at: string | null
           description: string | null
           emoji: string | null
+          id: string
           is_system: boolean | null
+          name: string
           type: 'income' | 'expense'
-          created_at: string | null
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          name: string
-          description?: string | null
-          emoji?: string | null
-          is_system?: boolean | null
-          type: 'income' | 'expense'
           created_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          name?: string
           description?: string | null
           emoji?: string | null
+          id?: string
           is_system?: boolean | null
+          name: string
           type?: 'income' | 'expense'
+          user_id: string
+        }
+        Update: {
           created_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "categories_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      users: {
-        Row: {
-          id: number
-          telegram_chat_id: string | null
-          first_name: string | null
-          onboarding_completed: boolean
-          tour_completed: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: number
-          telegram_chat_id?: string | null
-          first_name?: string | null
-          onboarding_completed?: boolean
-          tour_completed?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: number
-          telegram_chat_id?: string | null
-          first_name?: string | null
-          onboarding_completed?: boolean
-          tour_completed?: boolean
-          created_at?: string
-        }
-        Relationships: []
-      }
-      payment_methods: {
-        Row: {
-          id: number
-          user_id: number
-          name: string
-          type: 'credit' | 'debit' | 'cash'
-          default_closing_day: number | null
-          default_payment_day: number | null
-          is_personal?: boolean
-          is_default?: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: number
-          user_id: number
-          name: string
-          type: 'credit' | 'debit' | 'cash'
-          default_closing_day?: number | null
-          default_payment_day?: number | null
-          is_personal?: boolean
-          is_default?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: number
-          user_id?: number
+          description?: string | null
+          emoji?: string | null
+          id?: string
+          is_system?: boolean | null
           name?: string
-          type?: 'credit' | 'debit' | 'cash'
-          default_closing_day?: number | null
-          default_payment_day?: number | null
-          is_personal?: boolean
-          is_default?: boolean
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_methods_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      installment_plans: {
-        Row: {
-          id: number
-          user_id: number
-          description: string
-          total_amount: number
-          installments_count: number
-          purchase_date: string
-          category_id: string | null
-          created_at: string
-          payment_method_id: number | null
-        }
-        Insert: {
-          id?: number
-          user_id: number
-          description: string
-          total_amount: number
-          installments_count: number
-          purchase_date: string
-          category_id?: string | null
-          created_at?: string
-          payment_method_id?: number | null
-        }
-        Update: {
-          id?: number
-          user_id?: number
-          description?: string
-          total_amount?: number
-          installments_count?: number
-          purchase_date?: string
-          category_id?: string | null
-          created_at?: string
-          payment_method_id?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "installment_plans_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "installment_plans_category_id_fkey"
-            columns: ["category_id"]
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "installment_plans_payment_method_id_fkey"
-            columns: ["payment_method_id"]
-            referencedRelation: "payment_methods"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      recurring_plans: {
-        Row: {
-          id: number
-          user_id: number
-          description: string
-          amount: number
-          currency: string | null
-          frequency: string | null
-          is_active: boolean | null
-          category_id: string | null
-          created_at: string
-          payment_method_id: number | null
-          original_amount: number | null
-          rate_pair: string | null
-          exchange_rate: number | null
-        }
-        Insert: {
-          id?: number
-          user_id: number
-          description: string
-          amount: number
-          currency?: string | null
-          frequency?: string | null
-          is_active?: boolean | null
-          category_id?: string | null
-          created_at?: string
-          payment_method_id?: number | null
-          original_amount?: number | null
-          rate_pair?: string | null
-          exchange_rate?: number | null
-        }
-        Update: {
-          id?: number
-          user_id?: number
-          description?: string
-          amount?: number
-          currency?: string | null
-          frequency?: string | null
-          is_active?: boolean | null
-          category_id?: string | null
-          created_at?: string
-          payment_method_id?: number | null
-          original_amount?: number | null
-          rate_pair?: string | null
-          exchange_rate?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "recurring_plans_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recurring_plans_category_id_fkey"
-            columns: ["category_id"]
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recurring_plans_payment_method_id_fkey"
-            columns: ["payment_method_id"]
-            referencedRelation: "payment_methods"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      transactions: {
-        Row: {
-          id: number
-          user_id: number
-          description: string
-          category_id: string | null
-          amount: number
-          date: string
-          type: 'expense' | 'income' | null
-          installment_plan_id: number | null
-          recurring_plan_id: number | null
-          created_at: string
-          payment_method_id: number | null
-          original_currency: string
-          original_amount: number | null
-          rate_pair: string | null
-          exchange_rate: number | null
-          card_payment_for: number | null
-        }
-        Insert: {
-          id?: number
-          user_id: number
-          description: string
-          category_id?: string | null
-          amount: number
-          date: string
-          type?: 'expense' | 'income' | null
-          installment_plan_id?: number | null
-          recurring_plan_id?: number | null
-          created_at?: string
-          payment_method_id?: number | null
-          original_currency?: string
-          original_amount?: number | null
-          rate_pair?: string | null
-          exchange_rate?: number | null
-          card_payment_for?: number | null
-        }
-        Update: {
-          id?: number
-          user_id?: number
-          description?: string
-          category_id?: string | null
-          amount?: number
-          date?: string
-          type?: 'expense' | 'income' | null
-          installment_plan_id?: number | null
-          recurring_plan_id?: number | null
-          created_at?: string
-          payment_method_id?: number | null
-          original_currency?: string
-          original_amount?: number | null
-          rate_pair?: string | null
-          exchange_rate?: number | null
-          card_payment_for?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "transactions_installment_plan_id_fkey"
-            columns: ["installment_plan_id"]
-            referencedRelation: "installment_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_recurring_plan_id_fkey"
-            columns: ["recurring_plan_id"]
-            referencedRelation: "recurring_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_category_id_fkey"
-            columns: ["category_id"]
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_payment_method_id_fkey"
-            columns: ["payment_method_id"]
-            referencedRelation: "payment_methods"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      investments: {
-        Row: {
-          id: string
-          user_id: string
-          ticker: string
-          name: string
-          type: string
-          quantity: number
-          avg_buy_price: number | null
-          currency: string | null
-          created_at: string
-          data_source_url: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          ticker: string
-          name: string
-          type: string
-          quantity: number
-          avg_buy_price?: number | null
-          currency?: string | null
-          created_at?: string
-          data_source_url?: string | null
-        }
-        Update: {
-          id?: string
+          type?: 'income' | 'expense'
           user_id?: string
-          ticker?: string
-          name?: string
-          type?: string
-          quantity?: number
-          avg_buy_price?: number | null
-          currency?: string | null
-          created_at?: string
-          data_source_url?: string | null
         }
-        Relationships: []
       }
-      investment_assets: {
+      category_budgets: {
         Row: {
-          id: string
-          user_id: string
-          ticker: string
-          name: string
-          asset_type: 'stock' | 'cedear' | 'bond' | 'on' | 'bopreal' | 'lecap' | 'boncap' | 'plazo_fijo' | 'money_market' | 'crypto' | 'stablecoin' | 'fci' | 'etf'
-          currency: string | null
-          data_source_url: string | null
-          metadata: Record<string, unknown>
-          is_active: boolean
+          amount: number
+          category_id: string
           created_at: string
+          currency: 'ARS' | 'USD'
+          id: string
+          is_active: boolean
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category_id: string
+          created_at?: string
+          currency?: 'ARS' | 'USD'
+          id?: string
+          is_active?: boolean
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string
+          currency?: 'ARS' | 'USD'
+          id?: string
+          is_active?: boolean
+          user_id?: string
+        }
+      }
+      chat_budget: {
+        Row: {
+          estimated_cost_usd: number
+          input_tokens: number
+          is_killed: boolean
+          output_tokens: number
+          period: string
+          request_count: number
           updated_at: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          ticker: string
-          name: string
-          asset_type: 'stock' | 'cedear' | 'bond' | 'on' | 'bopreal' | 'lecap' | 'boncap' | 'plazo_fijo' | 'money_market' | 'crypto' | 'stablecoin' | 'fci' | 'etf'
-          currency?: string | null
-          data_source_url?: string | null
-          metadata?: Record<string, unknown>
-          is_active?: boolean
-          created_at?: string
+          estimated_cost_usd?: number
+          input_tokens?: number
+          is_killed?: boolean
+          output_tokens?: number
+          period: string
+          request_count?: number
           updated_at?: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          ticker?: string
-          name?: string
-          asset_type?: 'stock' | 'cedear' | 'bond' | 'on' | 'bopreal' | 'lecap' | 'boncap' | 'plazo_fijo' | 'money_market' | 'crypto' | 'stablecoin' | 'fci' | 'etf'
-          currency?: string | null
-          data_source_url?: string | null
-          metadata?: Record<string, unknown>
-          is_active?: boolean
-          created_at?: string
+          estimated_cost_usd?: number
+          input_tokens?: number
+          is_killed?: boolean
+          output_tokens?: number
+          period?: string
+          request_count?: number
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "investment_assets_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
       }
-      investment_transactions: {
+      chat_usage: {
         Row: {
-          id: string
-          asset_id: string
+          request_count: number
+          usage_date: string
           user_id: string
-          type: 'buy' | 'sell' | 'dividend' | 'coupon' | 'interest'
-          quantity: number
-          price_per_unit: number
-          total_amount: number
-          fees: number
-          currency: string
-          date: string
-          notes: string | null
-          created_at: string
         }
         Insert: {
-          id?: string
-          asset_id: string
+          request_count?: number
+          usage_date?: string
           user_id: string
-          type: 'buy' | 'sell' | 'dividend' | 'coupon' | 'interest'
-          quantity: number
-          price_per_unit: number
-          total_amount: number
-          fees?: number
-          currency: string
-          date: string
-          notes?: string | null
-          created_at?: string
         }
         Update: {
-          id?: string
-          asset_id?: string
+          request_count?: number
+          usage_date?: string
           user_id?: string
-          type?: 'buy' | 'sell' | 'dividend' | 'coupon' | 'interest'
-          quantity?: number
-          price_per_unit?: number
-          total_amount?: number
-          fees?: number
-          currency?: string
-          date?: string
-          notes?: string | null
-          created_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "investment_transactions_asset_id_fkey"
-            columns: ["asset_id"]
-            referencedRelation: "investment_assets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "investment_transactions_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
       }
       exchange_rates: {
         Row: {
           id: string
+          last_update: string | null
           pair: string
           rate: number
           source: string | null
-          last_update: string
         }
         Insert: {
           id?: string
+          last_update?: string | null
           pair: string
           rate: number
           source?: string | null
-          last_update?: string
         }
         Update: {
           id?: string
+          last_update?: string | null
           pair?: string
           rate?: number
           source?: string | null
-          last_update?: string
         }
-        Relationships: []
       }
-      market_prices: {
+      installment_plans: {
         Row: {
-          ticker: string
-          last_price: number
-          last_update: string | null
-          currency: string | null
-          price_usd: number | null
-          ccl_implicit: number | null
-          tir: number | null
-          next_coupon_date: string | null
-          next_coupon_amount: number | null
-          tna: number | null
-          source: string | null
-        }
-        Insert: {
-          ticker: string
-          last_price: number
-          last_update?: string | null
-          currency?: string | null
-          price_usd?: number | null
-          ccl_implicit?: number | null
-          tir?: number | null
-          next_coupon_date?: string | null
-          next_coupon_amount?: number | null
-          tna?: number | null
-          source?: string | null
-        }
-        Update: {
-          ticker?: string
-          last_price?: number
-          last_update?: string | null
-          currency?: string | null
-          price_usd?: number | null
-          ccl_implicit?: number | null
-          tir?: number | null
-          next_coupon_date?: string | null
-          next_coupon_amount?: number | null
-          tna?: number | null
-          source?: string | null
-        }
-        Relationships: []
-      }
-      savings: {
-        Row: {
-          id: string
-          user_id: string
-          amount: number
-          currency: 'ARS' | 'USD'
-          date: string
+          category_id: string
           created_at: string
+          description: string
+          id: string
+          installments_count: number
+          payment_method_id: string | null
+          purchase_date: string
+          total_amount: number
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          amount: number
-          currency?: 'ARS' | 'USD'
-          date?: string
+          category_id: string
           created_at?: string
+          description: string
+          id?: string
+          installments_count: number
+          payment_method_id?: string | null
+          purchase_date: string
+          total_amount: number
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          amount?: number
-          currency?: 'ARS' | 'USD'
-          date?: string
+          category_id?: string
           created_at?: string
+          description?: string
+          id?: string
+          installments_count?: number
+          payment_method_id?: string | null
+          purchase_date?: string
+          total_amount?: number
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "savings_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
       }
       internal_transfers: {
         Row: {
-          id: string
-          user_id: string
           amount: number
+          created_at: string
           currency: 'ARS' | 'USD'
+          description: string | null
+          id: string
           period_date: string
           real_transfer_date: string
           transfer_type: 'end_of_month_surplus' | 'manual'
-          description: string | null
-          created_at: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
           amount: number
+          created_at?: string
           currency?: 'ARS' | 'USD'
+          description?: string | null
+          id?: string
           period_date: string
           real_transfer_date?: string
           transfer_type?: 'end_of_month_surplus' | 'manual'
-          description?: string | null
-          created_at?: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
           amount?: number
+          created_at?: string
           currency?: 'ARS' | 'USD'
+          description?: string | null
+          id?: string
           period_date?: string
           real_transfer_date?: string
           transfer_type?: 'end_of_month_surplus' | 'manual'
-          description?: string | null
-          created_at?: string
+          user_id?: string
         }
-        Relationships: []
       }
-      savings_goals: {
+      investment_assets: {
         Row: {
+          asset_type: 'stock' | 'cedear' | 'bond' | 'on' | 'bopreal' | 'lecap' | 'boncap' | 'plazo_fijo' | 'money_market' | 'crypto' | 'stablecoin' | 'fci' | 'etf'
+          created_at: string | null
+          currency: string | null
+          data_source_url: string | null
           id: string
-          user_id: string
+          is_active: boolean | null
+          metadata: Json | null
           name: string
-          type: 'one_time' | 'monthly'
-          target_amount: number
-          currency: 'ARS' | 'USD'
-          target_date: string | null
-          is_active: boolean
-          created_at: string
+          ticker: string
+          updated_at: string | null
+          user_id: string
         }
         Insert: {
+          asset_type: 'stock' | 'cedear' | 'bond' | 'on' | 'bopreal' | 'lecap' | 'boncap' | 'plazo_fijo' | 'money_market' | 'crypto' | 'stablecoin' | 'fci' | 'etf'
+          created_at?: string | null
+          currency?: string | null
+          data_source_url?: string | null
           id?: string
-          user_id: string
+          is_active?: boolean | null
+          metadata?: Json | null
           name: string
-          type: 'one_time' | 'monthly'
-          target_amount: number
-          currency?: 'ARS' | 'USD'
-          target_date?: string | null
-          is_active?: boolean
-          created_at?: string
+          ticker: string
+          updated_at?: string | null
+          user_id: string
         }
         Update: {
+          asset_type?: 'stock' | 'cedear' | 'bond' | 'on' | 'bopreal' | 'lecap' | 'boncap' | 'plazo_fijo' | 'money_market' | 'crypto' | 'stablecoin' | 'fci' | 'etf'
+          created_at?: string | null
+          currency?: string | null
+          data_source_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          name?: string
+          ticker?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+      }
+      investment_transactions: {
+        Row: {
+          asset_id: string
+          created_at: string | null
+          currency: string
+          date: string
+          fees: number | null
+          id: string
+          notes: string | null
+          price_per_unit: number
+          quantity: number
+          total_amount: number
+          type: 'buy' | 'sell' | 'dividend' | 'coupon' | 'interest'
+          user_id: string
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string | null
+          currency: string
+          date: string
+          fees?: number | null
+          id?: string
+          notes?: string | null
+          price_per_unit: number
+          quantity: number
+          total_amount: number
+          type: 'buy' | 'sell' | 'dividend' | 'coupon' | 'interest'
+          user_id: string
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string | null
+          currency?: string
+          date?: string
+          fees?: number | null
+          id?: string
+          notes?: string | null
+          price_per_unit?: number
+          quantity?: number
+          total_amount?: number
+          type?: 'buy' | 'sell' | 'dividend' | 'coupon' | 'interest'
+          user_id?: string
+        }
+      }
+      investments: {
+        Row: {
+          avg_buy_price: number | null
+          created_at: string
+          currency: string | null
+          data_source_url: string | null
+          id: string
+          name: string
+          quantity: number
+          ticker: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          avg_buy_price?: number | null
+          created_at?: string
+          currency?: string | null
+          data_source_url?: string | null
+          id?: string
+          name: string
+          quantity: number
+          ticker: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          avg_buy_price?: number | null
+          created_at?: string
+          currency?: string | null
+          data_source_url?: string | null
+          id?: string
+          name?: string
+          quantity?: number
+          ticker?: string
+          type?: string
+          user_id?: string
+        }
+      }
+      market_prices: {
+        Row: {
+          ccl_implicit: number | null
+          currency: string | null
+          last_price: number
+          last_update: string
+          next_coupon_amount: number | null
+          next_coupon_date: string | null
+          price_usd: number | null
+          source: string | null
+          ticker: string
+          tir: number | null
+          tna: number | null
+        }
+        Insert: {
+          ccl_implicit?: number | null
+          currency?: string | null
+          last_price: number
+          last_update?: string
+          next_coupon_amount?: number | null
+          next_coupon_date?: string | null
+          price_usd?: number | null
+          source?: string | null
+          ticker: string
+          tir?: number | null
+          tna?: number | null
+        }
+        Update: {
+          ccl_implicit?: number | null
+          currency?: string | null
+          last_price?: number
+          last_update?: string
+          next_coupon_amount?: number | null
+          next_coupon_date?: string | null
+          price_usd?: number | null
+          source?: string | null
+          ticker?: string
+          tir?: number | null
+          tna?: number | null
+        }
+      }
+      payment_methods: {
+        Row: {
+          created_at: string
+          default_closing_day: number | null
+          default_payment_day: number | null
+          id: string
+          is_default: boolean | null
+          is_personal: boolean | null
+          name: string
+          type: 'credit' | 'debit' | 'cash'
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_closing_day?: number | null
+          default_payment_day?: number | null
+          id?: string
+          is_default?: boolean | null
+          is_personal?: boolean | null
+          name: string
+          type: 'credit' | 'debit' | 'cash'
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_closing_day?: number | null
+          default_payment_day?: number | null
+          id?: string
+          is_default?: boolean | null
+          is_personal?: boolean | null
+          name?: string
+          type?: 'credit' | 'debit' | 'cash'
+          user_id?: string
+        }
+      }
+      recurring_plans: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string
+          currency: string | null
+          description: string
+          exchange_rate: number | null
+          frequency: string | null
+          id: string
+          is_active: boolean | null
+          original_amount: number | null
+          payment_method_id: string | null
+          rate_pair: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category_id: string
+          created_at?: string
+          currency?: string | null
+          description: string
+          exchange_rate?: number | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          original_amount?: number | null
+          payment_method_id?: string | null
+          rate_pair?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string
+          currency?: string | null
+          description?: string
+          exchange_rate?: number | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean | null
+          original_amount?: number | null
+          payment_method_id?: string | null
+          rate_pair?: string | null
+          user_id?: string
+        }
+      }
+      savings: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: 'ARS' | 'USD'
+          date: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: 'ARS' | 'USD'
+          date?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: 'ARS' | 'USD'
+          date?: string
           id?: string
           user_id?: string
-          name?: string
-          type?: 'one_time' | 'monthly'
-          target_amount?: number
-          currency?: 'ARS' | 'USD'
-          target_date?: string | null
-          is_active?: boolean
-          created_at?: string
         }
-        Relationships: []
       }
       savings_goal_contributions: {
         Row: {
-          id: string
-          goal_id: string
-          user_id: string
           amount: number
+          created_at: string
           currency: 'ARS' | 'USD'
-          note: string | null
           date: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
           goal_id: string
-          user_id: string
-          amount: number
-          currency?: 'ARS' | 'USD'
-          note?: string | null
-          date?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          goal_id?: string
-          user_id?: string
-          amount?: number
-          currency?: 'ARS' | 'USD'
-          note?: string | null
-          date?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "savings_goal_contributions_goal_id_fkey"
-            columns: ["goal_id"]
-            referencedRelation: "savings_goals"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      category_budgets: {
-        Row: {
           id: string
+          note: string | null
           user_id: string
-          category_id: string
-          amount: number
-          currency: 'ARS' | 'USD'
-          is_active: boolean
-          created_at: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          category_id: string
           amount: number
-          currency?: 'ARS' | 'USD'
-          is_active?: boolean
           created_at?: string
+          currency?: 'ARS' | 'USD'
+          date?: string
+          goal_id: string
+          id?: string
+          note?: string | null
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          category_id?: string
           amount?: number
-          currency?: 'ARS' | 'USD'
-          is_active?: boolean
           created_at?: string
+          currency?: 'ARS' | 'USD'
+          date?: string
+          goal_id?: string
+          id?: string
+          note?: string | null
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "category_budgets_category_id_fkey"
-            columns: ["category_id"]
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          }
-        ]
+      }
+      savings_goals: {
+        Row: {
+          created_at: string
+          currency: 'ARS' | 'USD'
+          id: string
+          is_active: boolean
+          name: string
+          target_amount: number
+          target_date: string | null
+          type: 'one_time' | 'monthly'
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: 'ARS' | 'USD'
+          id?: string
+          is_active?: boolean
+          name: string
+          target_amount: number
+          target_date?: string | null
+          type: 'one_time' | 'monthly'
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: 'ARS' | 'USD'
+          id?: string
+          is_active?: boolean
+          name?: string
+          target_amount?: number
+          target_date?: string | null
+          type?: 'one_time' | 'monthly'
+          user_id?: string
+        }
+      }
+      transactions: {
+        Row: {
+          amount: number
+          card_payment_for: string | null
+          category_id: string
+          confirmation_status: string
+          created_at: string
+          date: string
+          description: string
+          exchange_rate: number | null
+          id: string
+          installment_plan_id: string | null
+          original_amount: number | null
+          original_currency: string
+          payment_method_id: string | null
+          rate_pair: string | null
+          recurring_plan_id: string | null
+          source: string
+          type: 'expense' | 'income' | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          card_payment_for?: string | null
+          category_id: string
+          confirmation_status?: string
+          created_at?: string
+          date: string
+          description: string
+          exchange_rate?: number | null
+          id?: string
+          installment_plan_id?: string | null
+          original_amount?: number | null
+          original_currency?: string
+          payment_method_id?: string | null
+          rate_pair?: string | null
+          recurring_plan_id?: string | null
+          source?: string
+          type?: 'expense' | 'income' | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          card_payment_for?: string | null
+          category_id?: string
+          confirmation_status?: string
+          created_at?: string
+          date?: string
+          description?: string
+          exchange_rate?: number | null
+          id?: string
+          installment_plan_id?: string | null
+          original_amount?: number | null
+          original_currency?: string
+          payment_method_id?: string | null
+          rate_pair?: string | null
+          recurring_plan_id?: string | null
+          source?: string
+          type?: 'expense' | 'income' | null
+          user_id?: string
+        }
+      }
+      users: {
+        Row: {
+          auth_user_id: string | null
+          avatar_url: string | null
+          chat_tier: string
+          created_at: string | null
+          custom_categories_prompt: string | null
+          email: string | null
+          first_name: string | null
+          id: string
+          interaction_mode: string | null
+          onboarding_completed: boolean | null
+          telegram_chat_id: number | null
+          tour_completed: boolean
+        }
+        Insert: {
+          auth_user_id?: string | null
+          avatar_url?: string | null
+          chat_tier?: string
+          created_at?: string | null
+          custom_categories_prompt?: string | null
+          email?: string | null
+          first_name?: string | null
+          id: string
+          interaction_mode?: string | null
+          onboarding_completed?: boolean | null
+          telegram_chat_id?: number | null
+          tour_completed?: boolean
+        }
+        Update: {
+          auth_user_id?: string | null
+          avatar_url?: string | null
+          chat_tier?: string
+          created_at?: string | null
+          custom_categories_prompt?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          interaction_mode?: string | null
+          onboarding_completed?: boolean | null
+          telegram_chat_id?: number | null
+          tour_completed?: boolean
+        }
       }
     }
-    Views: {
-      [_ in never]: never
-    }
+    Views: Record<string, never>
     Functions: {
-      [_ in never]: never
+      accumulate_chat_budget: {
+        Args: {
+          p_input_price_per_1m: number
+          p_input_tokens: number
+          p_output_price_per_1m: number
+          p_output_tokens: number
+        }
+        Returns: undefined
+      }
+      check_and_increment_chat_usage: {
+        Args: {
+          p_daily_limit: number
+          p_monthly_budget_usd: number
+          p_user_id: string
+        }
+        Returns: string
+      }
+      get_current_user_int_id: { Args: never; Returns: string }
     }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+    Enums: Record<string, never>
   }
 }
-export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
-export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T]
 
-// Helper interfaces for easier usage in components
+export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
+
+// Tipos específicos para facilitar el uso
 export type User = Tables<'users'>
 export type Category = Tables<'categories'>
 export type InstallmentPlan = Tables<'installment_plans'>

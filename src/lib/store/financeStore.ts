@@ -176,7 +176,7 @@ interface FinanceState {
   getGlobalBalance: () => number;
   getExchangeRate: (pair: string) => number;
   getMonthlyBurnRate: () => number;
-  getInstallmentStatus: (planId: number) => {
+  getInstallmentStatus: (planId: string) => {
     paid: number;
     remaining: number;
     progress: number;
@@ -186,7 +186,7 @@ interface FinanceState {
     plan: InstallmentPlan | undefined;
   } | null;
 
-  getPaymentMethodStatus: (methodId: number) => {
+  getPaymentMethodStatus: (methodId: string) => {
     currentConsumption: number;
     fixedCosts: number;
     projectedTotal: number;
@@ -197,7 +197,7 @@ interface FinanceState {
   };
   getDefaultPaymentMethod: () => PaymentMethod | undefined;
   getUnassignedTransactionsCount: () => number;
-  isCreditCardCyclePaid: (methodId: number) => boolean;
+  isCreditCardCyclePaid: (methodId: string) => boolean;
   getPendingCreditCardByCard: () => CreditCardCycleSummary[];
 
   // Dashboard Helpers
@@ -210,7 +210,7 @@ interface FinanceState {
   getMonthlyBalance: (monthStr: string, paymentMethodId: string) => number;
   getPendingFixedExpenses: () => {
     total: number;
-    items: Array<{ id: number; name: string; amount: number }>;
+    items: Array<{ id: string; name: string; amount: number }>;
   };
 
   getRecurringBackfillPreview: () => {
@@ -222,7 +222,7 @@ interface FinanceState {
   getRealAvailableBalance: () => {
     saldoBruto: number;
     pendingFixedExpenses: number;
-    pendingFixedItems: Array<{ id: number; name: string; amount: number }>;
+    pendingFixedItems: Array<{ id: string; name: string; amount: number }>;
     pendingCardTotal: number;
     pendingCardItems: CreditCardCycleSummary[];
     disponibleReal: number;
@@ -235,7 +235,7 @@ interface FinanceState {
       percentage: number;
     }>;
   };
-  getPaymentMethodTransactionsForCurrentMonth: (methodId: number) => ProcessedTransaction[];
+  getPaymentMethodTransactionsForCurrentMonth: (methodId: string) => ProcessedTransaction[];
   getMonthlyIncome: () => number;
   getMonthlyIncomeTransactions: () => ProcessedTransaction[];
   getMonthlyVariableExpenses: () => number;
@@ -849,7 +849,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       .reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0);
   },
 
-  getInstallmentStatus: (planId: number) => {
+  getInstallmentStatus: (planId: string) => {
     const { installmentPlans, transactions } = get();
     const plan = installmentPlans.find((p) => p.id === planId);
 
@@ -919,13 +919,13 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     return get().transactions.filter((t) => t.payment_method_id == null).length;
   },
 
-  isCreditCardCyclePaid: (methodId: number) => {
+  isCreditCardCyclePaid: (methodId: string) => {
     const { transactions, paymentMethods } = get();
     const method = paymentMethods.find((m) => m.id === methodId);
     return method ? hasCardPaymentInCycle(transactions, method, new Date()) : false;
   },
 
-  getPaymentMethodStatus: (methodId: number) => {
+  getPaymentMethodStatus: (methodId: string) => {
     const { transactions, recurringPlans, paymentMethods } = get();
     return computePaymentMethodStatus(paymentMethods.find((m) => m.id === methodId), transactions, recurringPlans, new Date());
   },
@@ -1024,7 +1024,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     // Meses ya cubiertos por plan (por fecha real de la transacción) y
     // exceso: pagos generados en meses anteriores al piso.
-    const covered = new Map<number, Set<string>>();
+    const covered = new Map<string, Set<string>>();
     let excessMonths = 0;
     let excessAmount = 0;
     for (const t of transactions) {
@@ -1283,7 +1283,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           !t.installment_plan_id &&
           !t.recurring_plan_id &&
           isExpenseInCurrentMonthScope(t, paymentMethods, now) &&
-          !pendingCardIds.has(t.payment_method_id ?? -1),
+          !pendingCardIds.has(t.payment_method_id ?? ''),
       )
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
@@ -1294,13 +1294,13 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           t.type === 'expense' &&
           !!t.installment_plan_id &&
           isExpenseInCurrentMonthScope(t, paymentMethods, now) &&
-          !pendingCardIds.has(t.payment_method_id ?? -1),
+          !pendingCardIds.has(t.payment_method_id ?? ''),
       )
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
     // Mensualidades activas EXCLUYENDO las de tarjetas pendientes
     const liquidSubscriptions = recurringPlans
-      .filter((p) => p.is_active && !pendingCardIds.has(p.payment_method_id ?? -1))
+      .filter((p) => p.is_active && !pendingCardIds.has(p.payment_method_id ?? ''))
       .reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0);
 
     const savingsTransfers = internalTransfers
@@ -1660,7 +1660,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       // el monto del plan para los planes activos que ya existian ese mes y que todavia no
       // tienen una transaccion cargada ese mes (evita duplicar si el usuario ya la registro).
       const recurringPlanIdsInMonth = new Set(
-        monthTxs.filter((t) => t.recurring_plan_id).map((t) => t.recurring_plan_id as number),
+        monthTxs.filter((t) => t.recurring_plan_id).map((t) => t.recurring_plan_id as string),
       );
       const monthEnd = endOfMonth(ref);
       const recurringProjected = recurringPlans

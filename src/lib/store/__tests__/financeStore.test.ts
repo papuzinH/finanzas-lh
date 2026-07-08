@@ -6,11 +6,34 @@ import type { Transaction, RecurringPlan } from '@/types/database'
  * Estas son versiones testables que no dependen de Zustand
  */
 
+// Fixtures mínimos: solo los campos de Transaction/RecurringPlan que usan las
+// funciones puras de este archivo (evita repetir columnas nuevas de la DB en
+// cada literal). Los tipos de los campos compartidos vienen del Row real.
+type TestTransaction = Pick<
+  Transaction,
+  | 'id'
+  | 'user_id'
+  | 'type'
+  | 'amount'
+  | 'date'
+  | 'description'
+  | 'payment_method_id'
+  | 'category_id'
+  | 'installment_plan_id'
+  | 'recurring_plan_id'
+  | 'created_at'
+>
+
+type TestRecurringPlan = Pick<
+  RecurringPlan,
+  'id' | 'user_id' | 'amount' | 'is_active' | 'payment_method_id' | 'created_at'
+> & { name: string; recurring_plan_id: null }
+
 // Calcular balance global
 // currentMonth: 'YYYY-MM' del mes a considerar para cuotas (default: mes actual)
 function calculateGlobalBalance(
-  transactions: Transaction[],
-  recurringPlans: RecurringPlan[] = [],
+  transactions: TestTransaction[],
+  recurringPlans: TestRecurringPlan[] = [],
   currentMonthStr?: string,
 ): number {
   const now = new Date()
@@ -44,7 +67,7 @@ function calculateGlobalBalance(
 }
 
 // Calcular monthly burn rate
-function calculateMonthlyBurnRate(recurringPlans: RecurringPlan[]): number {
+function calculateMonthlyBurnRate(recurringPlans: TestRecurringPlan[]): number {
   return recurringPlans
     .filter((p) => p.is_active)
     .reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0)
@@ -52,7 +75,7 @@ function calculateMonthlyBurnRate(recurringPlans: RecurringPlan[]): number {
 
 // Calcular monthly variable expenses
 function calculateMonthlyVariableExpenses(
-  transactions: Transaction[],
+  transactions: TestTransaction[],
   now: Date
 ): number {
   return transactions
@@ -77,29 +100,29 @@ function calculateMonthlyVariableExpenses(
 describe('financeStore - Pure Functions', () => {
   describe('calculateGlobalBalance', () => {
     it('calcula balance correcto con solo ingresos', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'income',
           amount: 1000,
           date: '2024-03-15',
           description: 'Salary',
-          payment_method_id: 1,
-          category_id: 1,
+          payment_method_id: '1',
+          category_id: '1',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-15',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'income',
           amount: 500,
           date: '2024-03-20',
           description: 'Freelance',
-          payment_method_id: 1,
-          category_id: 1,
+          payment_method_id: '1',
+          category_id: '1',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-20',
@@ -111,42 +134,42 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('calcula balance correcto con ingresos y gastos', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'income',
           amount: 1000,
           date: '2024-03-15',
           description: 'Salary',
-          payment_method_id: 1,
-          category_id: 1,
+          payment_method_id: '1',
+          category_id: '1',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-15',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'expense',
           amount: -300,
           date: '2024-03-16',
           description: 'Groceries',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-16',
         },
         {
-          id: 3,
+          id: '3',
           user_id: 'user1',
           type: 'expense',
           amount: -200,
           date: '2024-03-17',
           description: 'Gas',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-17',
@@ -158,29 +181,29 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('maneja montos negativos en gastos correctamente', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'income',
           amount: 2000,
           date: '2024-03-15',
           description: 'Salary',
-          payment_method_id: 1,
-          category_id: 1,
+          payment_method_id: '1',
+          category_id: '1',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-15',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'expense',
           amount: -1500,
           date: '2024-03-16',
           description: 'Rent',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-16',
@@ -192,35 +215,35 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('retorna 0 cuando no hay transacciones', () => {
-      const transactions: Transaction[] = []
+      const transactions: TestTransaction[] = []
       const balance = calculateGlobalBalance(transactions)
       expect(balance).toBe(0)
     })
 
     it('balance negativo cuando gastos superen ingresos', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'income',
           amount: 500,
           date: '2024-03-15',
           description: 'Salary',
-          payment_method_id: 1,
-          category_id: 1,
+          payment_method_id: '1',
+          category_id: '1',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-15',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'expense',
           amount: -1000,
           date: '2024-03-16',
           description: 'Emergency',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-16',
@@ -234,56 +257,56 @@ describe('financeStore - Pure Functions', () => {
     it('solo resta las cuotas del mes actual, no las de otros meses', () => {
       // Plan de 9000 en 3 cuotas de 3000 (marzo, abril, mayo)
       // Evaluado en marzo: solo resta la cuota de marzo
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'income',
           amount: 10000,
           date: '2024-03-01',
           description: 'Salary',
-          payment_method_id: 1,
-          category_id: 1,
+          payment_method_id: '1',
+          category_id: '1',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-01',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'expense',
           amount: -3000,
           date: '2024-03-20', // mes actual ✓
           description: 'TV cuota 1/3',
-          payment_method_id: 1,
-          category_id: 2,
-          installment_plan_id: 1,
+          payment_method_id: '1',
+          category_id: '2',
+          installment_plan_id: '1',
           recurring_plan_id: null,
           created_at: '2024-03-01',
         },
         {
-          id: 3,
+          id: '3',
           user_id: 'user1',
           type: 'expense',
           amount: -3000,
           date: '2024-04-20', // otro mes → NO contar
           description: 'TV cuota 2/3',
-          payment_method_id: 1,
-          category_id: 2,
-          installment_plan_id: 1,
+          payment_method_id: '1',
+          category_id: '2',
+          installment_plan_id: '1',
           recurring_plan_id: null,
           created_at: '2024-03-01',
         },
         {
-          id: 4,
+          id: '4',
           user_id: 'user1',
           type: 'expense',
           amount: -3000,
           date: '2024-05-20', // otro mes → NO contar
           description: 'TV cuota 3/3',
-          payment_method_id: 1,
-          category_id: 2,
-          installment_plan_id: 1,
+          payment_method_id: '1',
+          category_id: '2',
+          installment_plan_id: '1',
           recurring_plan_id: null,
           created_at: '2024-03-01',
         },
@@ -294,56 +317,56 @@ describe('financeStore - Pure Functions', () => {
 
     it('no resta cuotas de meses anteriores ni futuros', () => {
       // En mayo: solo resta la cuota de mayo aunque haya cuotas pasadas (mar, abr)
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'income',
           amount: 10000,
           date: '2024-03-01',
           description: 'Salary',
-          payment_method_id: 1,
-          category_id: 1,
+          payment_method_id: '1',
+          category_id: '1',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-01',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'expense',
           amount: -3000,
           date: '2024-03-20',
           description: 'TV cuota 1/3',
-          payment_method_id: 1,
-          category_id: 2,
-          installment_plan_id: 1,
+          payment_method_id: '1',
+          category_id: '2',
+          installment_plan_id: '1',
           recurring_plan_id: null,
           created_at: '2024-03-01',
         },
         {
-          id: 3,
+          id: '3',
           user_id: 'user1',
           type: 'expense',
           amount: -3000,
           date: '2024-04-20',
           description: 'TV cuota 2/3',
-          payment_method_id: 1,
-          category_id: 2,
-          installment_plan_id: 1,
+          payment_method_id: '1',
+          category_id: '2',
+          installment_plan_id: '1',
           recurring_plan_id: null,
           created_at: '2024-03-01',
         },
         {
-          id: 4,
+          id: '4',
           user_id: 'user1',
           type: 'expense',
           amount: -3000,
           date: '2024-05-20',
           description: 'TV cuota 3/3',
-          payment_method_id: 1,
-          category_id: 2,
-          installment_plan_id: 1,
+          payment_method_id: '1',
+          category_id: '2',
+          installment_plan_id: '1',
           recurring_plan_id: null,
           created_at: '2024-03-01',
         },
@@ -355,34 +378,34 @@ describe('financeStore - Pure Functions', () => {
 
   describe('calculateMonthlyBurnRate', () => {
     it('suma correcta de Mensualidades activas', () => {
-      const recurringPlans: RecurringPlan[] = [
+      const recurringPlans: TestRecurringPlan[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           name: 'Netflix',
           amount: 100,
           is_active: true,
-          payment_method_id: 1,
+          payment_method_id: '1',
           created_at: '2024-03-01',
           recurring_plan_id: null,
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           name: 'Spotify',
           amount: 50,
           is_active: true,
-          payment_method_id: 1,
+          payment_method_id: '1',
           created_at: '2024-03-01',
           recurring_plan_id: null,
         },
         {
-          id: 3,
+          id: '3',
           user_id: 'user1',
           name: 'Gym',
           amount: 75,
           is_active: true,
-          payment_method_id: 1,
+          payment_method_id: '1',
           created_at: '2024-03-01',
           recurring_plan_id: null,
         },
@@ -393,34 +416,34 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('ignora Mensualidades inactivas', () => {
-      const recurringPlans: RecurringPlan[] = [
+      const recurringPlans: TestRecurringPlan[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           name: 'Netflix',
           amount: 100,
           is_active: true,
-          payment_method_id: 1,
+          payment_method_id: '1',
           created_at: '2024-03-01',
           recurring_plan_id: null,
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           name: 'Old Service',
           amount: 50,
           is_active: false,
-          payment_method_id: 1,
+          payment_method_id: '1',
           created_at: '2024-03-01',
           recurring_plan_id: null,
         },
         {
-          id: 3,
+          id: '3',
           user_id: 'user1',
           name: 'Gym',
           amount: 75,
           is_active: true,
-          payment_method_id: 1,
+          payment_method_id: '1',
           created_at: '2024-03-01',
           recurring_plan_id: null,
         },
@@ -431,30 +454,30 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('retorna 0 si no hay Mensualidades', () => {
-      const recurringPlans: RecurringPlan[] = []
+      const recurringPlans: TestRecurringPlan[] = []
       const burnRate = calculateMonthlyBurnRate(recurringPlans)
       expect(burnRate).toBe(0)
     })
 
     it('retorna 0 si todas las Mensualidades están inactivas', () => {
-      const recurringPlans: RecurringPlan[] = [
+      const recurringPlans: TestRecurringPlan[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           name: 'Old Service 1',
           amount: 100,
           is_active: false,
-          payment_method_id: 1,
+          payment_method_id: '1',
           created_at: '2024-03-01',
           recurring_plan_id: null,
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           name: 'Old Service 2',
           amount: 50,
           is_active: false,
-          payment_method_id: 1,
+          payment_method_id: '1',
           created_at: '2024-03-01',
           recurring_plan_id: null,
         },
@@ -465,14 +488,14 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('maneja montos negativos correctamente (usa absolute value)', () => {
-      const recurringPlans: RecurringPlan[] = [
+      const recurringPlans: TestRecurringPlan[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           name: 'Netflix',
           amount: -100,
           is_active: true,
-          payment_method_id: 1,
+          payment_method_id: '1',
           created_at: '2024-03-01',
           recurring_plan_id: null,
         },
@@ -487,29 +510,29 @@ describe('financeStore - Pure Functions', () => {
     const now = new Date(2024, 2, 19) // 19 Marzo 2024
 
     it('incluye gastos variables del mes actual', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'expense',
           amount: -100,
           date: '2024-03-10',
           description: 'Groceries',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-10',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'expense',
           amount: -50,
           date: '2024-03-15',
           description: 'Gas',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-15',
@@ -521,30 +544,30 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('excluye gastos de installment_plan', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'expense',
           amount: -100,
           date: '2024-03-10',
           description: 'Variable expense',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-10',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'expense',
           amount: -200,
           date: '2024-03-15',
           description: 'Installment payment',
-          payment_method_id: 1,
-          category_id: 2,
-          installment_plan_id: 1, // Esta es una cuota
+          payment_method_id: '1',
+          category_id: '2',
+          installment_plan_id: '1', // Esta es una cuota
           recurring_plan_id: null,
           created_at: '2024-03-15',
         },
@@ -555,31 +578,31 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('excluye gastos de recurring_plan', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'expense',
           amount: -100,
           date: '2024-03-10',
           description: 'Variable expense',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-10',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'expense',
           amount: -150,
           date: '2024-03-15',
           description: 'Subscription payment',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
-          recurring_plan_id: 1, // Esta es una suscripción
+          recurring_plan_id: '1', // Esta es una suscripción
           created_at: '2024-03-15',
         },
       ]
@@ -589,29 +612,29 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('excluye gastos de meses anteriores', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'expense',
           amount: -100,
           date: '2024-02-28',
           description: 'Previous month',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-02-28',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'expense',
           amount: -50,
           date: '2024-03-10',
           description: 'Current month',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-10',
@@ -623,29 +646,29 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('excluye gastos de meses posteriores', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'expense',
           amount: -100,
           date: '2024-03-10',
           description: 'Current month',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-10',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'expense',
           amount: -50,
           date: '2024-04-15',
           description: 'Next month',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-04-15',
@@ -657,29 +680,29 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('excluye ingresos', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'income',
           amount: 1000,
           date: '2024-03-15',
           description: 'Salary',
-          payment_method_id: 1,
-          category_id: 1,
+          payment_method_id: '1',
+          category_id: '1',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-15',
         },
         {
-          id: 2,
+          id: '2',
           user_id: 'user1',
           type: 'expense',
           amount: -100,
           date: '2024-03-20',
           description: 'Groceries',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-20',
@@ -691,16 +714,16 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('retorna 0 cuando no hay gastos variables en el mes', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'income',
           amount: 1000,
           date: '2024-03-15',
           description: 'Salary',
-          payment_method_id: 1,
-          category_id: 1,
+          payment_method_id: '1',
+          category_id: '1',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-15',
@@ -712,16 +735,16 @@ describe('financeStore - Pure Functions', () => {
     })
 
     it('maneja montos negativos correctamente (usa absolute value)', () => {
-      const transactions: Transaction[] = [
+      const transactions: TestTransaction[] = [
         {
-          id: 1,
+          id: '1',
           user_id: 'user1',
           type: 'expense',
           amount: -100,
           date: '2024-03-10',
           description: 'Groceries',
-          payment_method_id: 1,
-          category_id: 2,
+          payment_method_id: '1',
+          category_id: '2',
           installment_plan_id: null,
           recurring_plan_id: null,
           created_at: '2024-03-10',

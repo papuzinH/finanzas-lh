@@ -28,7 +28,7 @@ interface EditInstallmentPlanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   plan: {
-    id: number;
+    id: string;
     description: string;
     total_amount: number;
     installments_count: number;

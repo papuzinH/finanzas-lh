@@ -63,9 +63,9 @@ function assertNoQueryError<T extends { error: { message: string } | null }>(res
  * y el uso real en el codebase (no solo el tipo, por si estuviera desactualizado):
  *
  * - `transactions`, `payment_methods`, `recurring_plans`, `installment_plans`:
- *   `user_id: number` (FK a `public.users.id`) → se filtra con `ctx.userId`.
+ *   `user_id` (FK a `public.users.id`, UUID string) → se filtra con `ctx.userId`.
  *   Coincide con `src/lib/ai/handlers.ts` (chat actual en producción, ej. líneas 74,
- *   180, 239, 300, 381), que usa el mismo `userId: number`.
+ *   180, 239, 300, 381), que usa el mismo `userId: string`.
  *
  * - `internal_transfers`: `user_id: string` (UUID) en `types/database.ts` → se filtra
  *   con `ctx.authUserId`. ¡OJO! El único otro lugar del codebase que consulta esta

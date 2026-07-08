@@ -442,7 +442,7 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                                   <span className="text-muted w-24">{tx.date}</span>
                                   <span className="text-text tnum">{fmtNumber(tx.quantity, 4)} u</span>
                                   <span className="text-muted tnum">@ {fmtNumber(tx.price_per_unit, 2)}</span>
-                                  {tx.fees > 0 && <span className="text-faint tnum">comisión: {fmtNumber(tx.fees, 2)}</span>}
+                                  {tx.fees != null && tx.fees > 0 && <span className="text-faint tnum">comisión: {fmtNumber(tx.fees, 2)}</span>}
                                   {tx.notes && <span className="text-faint italic truncate max-w-xs">{tx.notes}</span>}
                                 </div>
                               ))}

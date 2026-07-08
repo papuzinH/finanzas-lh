@@ -57,15 +57,15 @@ function useIsMobile() {
 
 interface TransactionItemProps {
   transaction: {
-    id: number;
+    id: string;
     amount: number;
     description: string;
     date: string;
     category_id: string | null;
     type: 'expense' | 'income' | null;
-    payment_method_id: number | null;
-    installment_plan_id?: number | null;
-    recurring_plan_id?: number | null;
+    payment_method_id: string | null;
+    installment_plan_id?: string | null;
+    recurring_plan_id?: string | null;
     original_currency?: string | null;
     original_amount?: number | null;
     rate_pair?: string | null;

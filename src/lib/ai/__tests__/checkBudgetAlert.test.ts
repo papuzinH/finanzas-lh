@@ -99,7 +99,7 @@ describe('handleTransaction - checkBudgetAlert filtra category_budgets por el UU
     const supabase = createSupabaseMock([pmChain, categoryTypeChain, insertChain, budgetChain, spentChain], authUuid)
     mockedCreateClient.mockResolvedValue(supabase as never)
 
-    const result = await handleTransaction(baseTx, 7)
+    const result = await handleTransaction(baseTx, '7')
 
     expect(result.success).toBe(true)
     expect(result.message).toContain('⚠️')
@@ -108,10 +108,10 @@ describe('handleTransaction - checkBudgetAlert filtra category_budgets por el UU
     // category_budgets se consulta con el UUID de auth...
     expect(hasCall(budgetChain, 'eq', ['user_id', authUuid])).toBe(true)
     // ...nunca con el userId numérico (ese es el bug que se corrige).
-    expect(hasCall(budgetChain, 'eq', ['user_id', 7])).toBe(false)
+    expect(hasCall(budgetChain, 'eq', ['user_id', '7'])).toBe(false)
 
     // El conteo de gasto del mes sí sigue usando transactions.user_id (numérico).
-    expect(hasCall(spentChain, 'eq', ['user_id', 7])).toBe(true)
+    expect(hasCall(spentChain, 'eq', ['user_id', '7'])).toBe(true)
 
     // Las fechas del rango van con formatLocalDate (YYYY-MM-DD), no toISOString()
     // (que puede correrse de día por UTC).
@@ -131,7 +131,7 @@ describe('handleTransaction - checkBudgetAlert filtra category_budgets por el UU
     const supabase = createSupabaseMock([pmChain, categoryTypeChain, insertChain], null)
     mockedCreateClient.mockResolvedValue(supabase as never)
 
-    const result = await handleTransaction(baseTx, 7)
+    const result = await handleTransaction(baseTx, '7')
 
     expect(result.success).toBe(true)
     expect(result.message).not.toContain('⚠️')

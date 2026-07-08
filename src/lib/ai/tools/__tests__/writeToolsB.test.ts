@@ -50,7 +50,7 @@ function createSupabaseMock(tables: Record<string, TableFixture>) {
 
 const ctx: AgentContext = {
   supabase: {} as AgentContext['supabase'],
-  userId: 1,
+  userId: '1',
   authUserId: 'uuid-1',
   today: '2026-07-08',
 }

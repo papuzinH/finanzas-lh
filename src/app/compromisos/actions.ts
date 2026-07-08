@@ -14,7 +14,7 @@ type ActionResponse = {
  * vinculada (recurring_plan_id). El Disponible Real no cambia: el monto pasa
  * del bucket "pendiente" al saldo ya gastado.
  */
-export async function markRecurringPlanPaid(planId: number): Promise<ActionResponse> {
+export async function markRecurringPlanPaid(planId: string): Promise<ActionResponse> {
   try {
     const supabase = await createClient();
     const {
@@ -83,7 +83,7 @@ export async function markRecurringPlanPaid(planId: number): Promise<ActionRespo
  * Deshace el pago del mes actual de una mensualidad (borra la transacción
  * vinculada de este mes).
  */
-export async function unmarkRecurringPlanPaid(planId: number): Promise<ActionResponse> {
+export async function unmarkRecurringPlanPaid(planId: string): Promise<ActionResponse> {
   try {
     const supabase = await createClient();
     const {
@@ -127,8 +127,8 @@ export async function unmarkRecurringPlanPaid(planId: number): Promise<ActionRes
  * vencimiento del ciclo pagado, así el estado "pagada" se deriva de su existencia.
  */
 export async function payCreditCardCycle(params: {
-  cardMethodId: number;
-  fundingMethodId: number;
+  cardMethodId: string;
+  fundingMethodId: string;
   amountArs: number;
   date: string; // yyyy-MM-dd (vencimiento / fecha del pago)
   cardName: string;
@@ -216,7 +216,7 @@ export async function payCreditCardCycle(params: {
  * (`card_payment_for`) cuya fecha cae en el mes del vencimiento indicado.
  */
 export async function undoCreditCardPayment(params: {
-  cardMethodId: number;
+  cardMethodId: string;
   year: number;
   month: number; // 0-indexed
 }): Promise<ActionResponse> {
@@ -318,7 +318,7 @@ export async function backfillRecurringPlansHistory(): Promise<ActionResponse & 
     }
 
     // Meses ya cubiertos por plan: { planId: Set<'yyyy-MM'> } (solo desde el piso)
-    const coveredMonths = new Map<number, Set<string>>();
+    const coveredMonths = new Map<string, Set<string>>();
     for (const t of existingTxs ?? []) {
       if (!t.recurring_plan_id) continue;
       const m = String(t.date).slice(0, 7);

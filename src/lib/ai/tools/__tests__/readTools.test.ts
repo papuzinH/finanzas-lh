@@ -13,15 +13,15 @@ vi.mock('@/lib/ai/tools/dataLoader', () => ({
 
 const ctx: AgentContext = {
   supabase: {} as AgentContext['supabase'],
-  userId: 1,
+  userId: '1',
   authUserId: 'uuid-1',
   today: '2026-07-08',
 }
 
 // --- Dataset fijo: "hoy" = 2026-07-08. Visa cierra el 20, vence el 10. ---
 const pmVisa = {
-  id: 1,
-  user_id: 1,
+  id: '1',
+  user_id: '1',
   name: 'Visa',
   type: 'credit',
   default_closing_day: 20,
@@ -32,8 +32,8 @@ const pmVisa = {
 } as PaymentMethod
 
 const pmDebito = {
-  id: 2,
-  user_id: 1,
+  id: '2',
+  user_id: '1',
   name: 'Débito Galicia',
   type: 'debit',
   default_closing_day: null,
@@ -44,14 +44,14 @@ const pmDebito = {
 } as PaymentMethod
 
 const planNetflix = {
-  id: 1,
-  user_id: 1,
+  id: '1',
+  user_id: '1',
   description: 'Netflix',
   amount: 5000,
   currency: 'ARS',
   frequency: 'monthly',
   is_active: true,
-  category_id: null,
+  category_id: 'c1',
   created_at: '2026-01-01',
   payment_method_id: null,
   original_amount: null,
@@ -61,8 +61,8 @@ const planNetflix = {
 
 function tx(overrides: Partial<ProcessedTransaction>): ProcessedTransaction {
   return {
-    id: 0,
-    user_id: 1,
+    id: '0',
+    user_id: '1',
     description: '',
     category_id: null,
     amount: 0,
@@ -85,36 +85,36 @@ function tx(overrides: Partial<ProcessedTransaction>): ProcessedTransaction {
 
 // Sueldo: ingreso de julio en Débito.
 const txSueldo = tx({
-  id: 1,
+  id: '1',
   description: 'Sueldo',
   amount: 200000,
   date: '2026-07-05',
   type: 'income',
-  payment_method_id: 2,
+  payment_method_id: '2',
   periodDate: '2026-07-05',
   realPaymentDate: '2026-07-05',
 })
 
 // Super: gasto variable en Débito.
 const txSuper = tx({
-  id: 2,
+  id: '2',
   description: 'Super',
   amount: 30000,
   date: '2026-07-06',
   type: 'expense',
-  payment_method_id: 2,
+  payment_method_id: '2',
   periodDate: '2026-07-06',
   realPaymentDate: '2026-07-06',
 })
 
 // Compra en Visa cuyo vencimiento (t.date) cae en el ciclo vigente (nextPaymentDate 2026-07-10).
 const txVisaCompra = tx({
-  id: 3,
+  id: '3',
   description: 'Compra',
   amount: 15000,
   date: '2026-07-10',
   type: 'expense',
-  payment_method_id: 1,
+  payment_method_id: '1',
   periodDate: '2026-07-10',
   realPaymentDate: '2026-07-10',
 })
@@ -161,7 +161,7 @@ describe('readTools', () => {
         saldoBruto: 170000,
         mensualidadesPendientes: {
           total: 5000,
-          items: [{ id: 1, name: 'Netflix', amount: 5000 }],
+          items: [{ id: '1', name: 'Netflix', amount: 5000 }],
         },
         tarjetasPendientes: [
           { tarjeta: 'Visa', total: 15000, vence: '2026-07-10', estado: 'cerrado' },

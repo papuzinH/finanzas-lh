@@ -36,14 +36,14 @@ function createSupabaseMock(tables: Record<string, TableFixture>): AgentContext[
 
 const baseCtx: AgentContext = {
   supabase: {} as AgentContext['supabase'],
-  userId: 1,
+  userId: '1',
   authUserId: 'uuid-1',
   today: '2026-07-08',
 }
 
 const pmVisa = {
-  id: 1,
-  user_id: 1,
+  id: '1',
+  user_id: '1',
   name: 'Visa',
   type: 'credit',
   default_closing_day: 20,
@@ -54,8 +54,8 @@ const pmVisa = {
 } as PaymentMethod
 
 const pmDebito = {
-  id: 2,
-  user_id: 1,
+  id: '2',
+  user_id: '1',
   name: 'Débito Galicia',
   type: 'debit',
   default_closing_day: null,
@@ -100,8 +100,8 @@ const catSueldo = {
 
 function tx(overrides: Partial<ProcessedTransaction>): ProcessedTransaction {
   return {
-    id: 0,
-    user_id: 1,
+    id: '0',
+    user_id: '1',
     description: '',
     category_id: null,
     amount: 0,
@@ -147,34 +147,34 @@ describe('readTools (B)', () => {
 
   describe('get_expenses_by_category', () => {
     const txSuper = tx({
-      id: 1,
+      id: '1',
       description: 'Super',
       category_id: 'c1',
       amount: 20000,
       date: '2026-07-05',
       periodDate: '2026-07-05',
       type: 'expense',
-      payment_method_id: 2,
+      payment_method_id: '2',
     })
     const txNafta = tx({
-      id: 2,
+      id: '2',
       description: 'Nafta',
       category_id: 'c2',
       amount: 10000,
       date: '2026-07-06',
       periodDate: '2026-07-06',
       type: 'expense',
-      payment_method_id: 2,
+      payment_method_id: '2',
     })
     const txSueldo = tx({
-      id: 3,
+      id: '3',
       description: 'Sueldo',
       category_id: 'c3',
       amount: 100000,
       date: '2026-07-01',
       periodDate: '2026-07-01',
       type: 'income',
-      payment_method_id: 2,
+      payment_method_id: '2',
     })
 
     it('sin mes desglosa gastos del mes actual, ordenado desc con porcentaje', async () => {
@@ -210,24 +210,24 @@ describe('readTools (B)', () => {
 
     it('con mes histórico filtra por periodDate (semántica de ciclo vía scope global pre-filtrado)', async () => {
       const txSuperJunio = tx({
-        id: 4,
+        id: '4',
         description: 'Super junio',
         category_id: 'c1',
         amount: 6000,
         date: '2026-06-10',
         periodDate: '2026-06-10',
         type: 'expense',
-        payment_method_id: 2,
+        payment_method_id: '2',
       })
       const txNaftaJunio = tx({
-        id: 5,
+        id: '5',
         description: 'Nafta junio',
         category_id: 'c2',
         amount: 3000,
         date: '2026-06-15',
         periodDate: '2026-06-15',
         type: 'expense',
-        payment_method_id: 2,
+        payment_method_id: '2',
       })
       vi.mocked(loadFinanceData).mockResolvedValue(
         // Incluye también transacciones de julio para probar que NO se filtran en el mes pedido.
@@ -263,14 +263,14 @@ describe('readTools (B)', () => {
         } as Category)
         transactions.push(
           tx({
-            id: 100 + i,
+            id: '100' + i,
             description: `Gasto ${i}`,
             category_id: id,
             amount: 1000 + i, // montos distintos, sin empates
             date: '2026-07-02',
             periodDate: '2026-07-02',
             type: 'expense',
-            payment_method_id: 2,
+            payment_method_id: '2',
           }),
         )
       }
@@ -296,27 +296,27 @@ describe('readTools (B)', () => {
       for (let i = 1; i <= 12; i++) {
         rows.push(
           tx({
-            id: i,
+            id: String(i),
             description: `Compra ${i}`,
             category_id: 'c1',
             amount: 1000 * i,
             date: `2026-07-${String(i).padStart(2, '0')}`,
             periodDate: `2026-07-${String(i).padStart(2, '0')}`,
             type: 'expense',
-            payment_method_id: 2,
+            payment_method_id: '2',
           }),
         )
       }
       rows.push(
         tx({
-          id: 20,
+          id: '20',
           description: 'Netflix suscripción',
           category_id: 'c2',
           amount: 5000,
           date: '2026-07-15',
           periodDate: '2026-07-15',
           type: 'expense',
-          payment_method_id: 1,
+          payment_method_id: '1',
         }),
       )
       return rows
@@ -326,7 +326,7 @@ describe('readTools (B)', () => {
       vi.mocked(loadFinanceData).mockResolvedValue(baseFinanceData({ transactions: makeSearchDataset() }))
       const r = await executeToolWith(readTools, 'search_transactions', {}, baseCtx)
       expect(r.ok).toBe(true)
-      const rows = r.data as Array<{ id: number; fecha: string }>
+      const rows = r.data as Array<{ id: string; fecha: string }>
       expect(rows).toHaveLength(10)
       expect(rows[0].fecha >= rows[rows.length - 1].fecha).toBe(true)
     })
@@ -336,7 +336,7 @@ describe('readTools (B)', () => {
       const r = await executeToolWith(readTools, 'search_transactions', { texto: 'netflix' }, baseCtx)
       expect(r.ok).toBe(true)
       expect(r.data).toEqual([
-        { id: 20, fecha: '2026-07-15', descripcion: 'Netflix suscripción', monto: 5000, categoria: 'Transporte', medio: 'Visa' },
+        { id: '20', fecha: '2026-07-15', descripcion: 'Netflix suscripción', monto: 5000, categoria: 'Transporte', medio: 'Visa' },
       ])
     })
 
@@ -346,7 +346,7 @@ describe('readTools (B)', () => {
       expect(r.ok).toBe(true)
       const rows = r.data as Array<{ descripcion: string }>
       expect(rows).toEqual([
-        { id: 20, fecha: '2026-07-15', descripcion: 'Netflix suscripción', monto: 5000, categoria: 'Transporte', medio: 'Visa' },
+        { id: '20', fecha: '2026-07-15', descripcion: 'Netflix suscripción', monto: 5000, categoria: 'Transporte', medio: 'Visa' },
       ])
     })
 
@@ -359,8 +359,8 @@ describe('readTools (B)', () => {
         baseCtx,
       )
       expect(r.ok).toBe(true)
-      const rows = r.data as Array<{ id: number }>
-      expect(rows.map((row) => row.id).sort()).toEqual([10, 11, 12])
+      const rows = r.data as Array<{ id: string }>
+      expect(rows.map((row) => row.id).sort()).toEqual(['10', '11', '12'])
     })
 
     it('respeta limite explícito por debajo del tope', async () => {
@@ -381,30 +381,30 @@ describe('readTools (B)', () => {
 
   describe('get_installments_status', () => {
     const planNotebook = {
-      id: 1,
-      user_id: 1,
+      id: '1',
+      user_id: '1',
       description: 'Notebook',
       total_amount: 60000,
       installments_count: 6,
       purchase_date: '2026-01-08',
-      category_id: null,
+      category_id: 'c1',
       created_at: '2026-01-08',
-      payment_method_id: 1,
+      payment_method_id: '1',
     } as InstallmentPlan
 
     const planHeladera = {
-      id: 2,
-      user_id: 1,
+      id: '2',
+      user_id: '1',
       description: 'Heladera',
       total_amount: 30000,
       installments_count: 3,
       purchase_date: '2026-02-01',
-      category_id: null,
+      category_id: 'c1',
       created_at: '2026-02-01',
-      payment_method_id: 1,
+      payment_method_id: '1',
     } as InstallmentPlan
 
-    function cuota(id: number, planId: number, date: string, amount = 10000): ProcessedTransaction {
+    function cuota(id: string, planId: string, date: string, amount = 10000): ProcessedTransaction {
       return tx({
         id,
         description: `Cuota ${id}`,
@@ -413,19 +413,19 @@ describe('readTools (B)', () => {
         date,
         periodDate: date,
         type: 'expense',
-        payment_method_id: 1,
+        payment_method_id: '1',
       })
     }
 
     it('calcula cuotas pagadas/restantes y monto restante por plan', async () => {
       const transactions = [
-        cuota(1, 1, '2026-04-08'),
-        cuota(2, 1, '2026-05-08'),
-        cuota(3, 1, '2026-06-08'),
+        cuota('1', '1', '2026-04-08'),
+        cuota('2', '1', '2026-05-08'),
+        cuota('3', '1', '2026-06-08'),
         // 3 cuotas de Notebook pagadas (<= hoy 2026-07-08), 3 restantes.
-        cuota(4, 2, '2026-02-01', 10000),
-        cuota(5, 2, '2026-03-01', 10000),
-        cuota(6, 2, '2026-04-01', 10000),
+        cuota('4', '2', '2026-02-01', 10000),
+        cuota('5', '2', '2026-03-01', 10000),
+        cuota('6', '2', '2026-04-01', 10000),
         // Heladera: las 3 cuotas ya pagadas → finalizado.
       ]
       vi.mocked(loadFinanceData).mockResolvedValue(
@@ -435,7 +435,7 @@ describe('readTools (B)', () => {
       expect(r.ok).toBe(true)
       expect(r.data).toEqual([
         {
-          id: 1,
+          id: '1',
           descripcion: 'Notebook',
           cuotasPagadas: 3,
           cuotasRestantes: 3,
@@ -444,7 +444,7 @@ describe('readTools (B)', () => {
           finalizado: false,
         },
         {
-          id: 2,
+          id: '2',
           descripcion: 'Heladera',
           cuotasPagadas: 3,
           cuotasRestantes: 0,
@@ -470,13 +470,13 @@ describe('readTools (B)', () => {
       const plans: InstallmentPlan[] = []
       for (let i = 0; i < 25; i++) {
         plans.push({
-          id: i,
-          user_id: 1,
+          id: String(i),
+          user_id: '1',
           description: `Plan ${i}`,
           total_amount: 1000,
           installments_count: 1,
           purchase_date: '2026-01-01',
-          category_id: null,
+          category_id: 'c1',
           created_at: '2026-01-01',
           payment_method_id: null,
         } as InstallmentPlan)
@@ -490,14 +490,14 @@ describe('readTools (B)', () => {
 
   describe('list_recurring_plans', () => {
     const planNetflix = {
-      id: 1,
-      user_id: 1,
+      id: '1',
+      user_id: '1',
       description: 'Netflix',
       amount: 5000,
       currency: 'ARS',
       frequency: 'monthly',
       is_active: true,
-      category_id: null,
+      category_id: 'c1',
       created_at: '2026-01-01',
       payment_method_id: null,
       original_amount: null,
@@ -506,14 +506,14 @@ describe('readTools (B)', () => {
     } as RecurringPlan
 
     const planSpotify = {
-      id: 2,
-      user_id: 1,
+      id: '2',
+      user_id: '1',
       description: 'Spotify',
       amount: 2000,
       currency: 'ARS',
       frequency: 'monthly',
       is_active: true,
-      category_id: null,
+      category_id: 'c1',
       created_at: '2026-01-01',
       payment_method_id: null,
       original_amount: null,
@@ -522,14 +522,14 @@ describe('readTools (B)', () => {
     } as RecurringPlan
 
     const planGimnasio = {
-      id: 3,
-      user_id: 1,
+      id: '3',
+      user_id: '1',
       description: 'Gimnasio',
       amount: 8000,
       currency: 'ARS',
       frequency: 'monthly',
       is_active: false, // inactiva: no debe listarse
-      category_id: null,
+      category_id: 'c1',
       created_at: '2026-01-01',
       payment_method_id: null,
       original_amount: null,
@@ -539,14 +539,14 @@ describe('readTools (B)', () => {
 
     it('lista activas con monto y pendienteEsteMes según transacciones del mes', async () => {
       const txSpotify = tx({
-        id: 1,
+        id: '1',
         description: 'Spotify',
-        recurring_plan_id: 2,
+        recurring_plan_id: '2',
         amount: 2000,
         date: '2026-07-03',
         periodDate: '2026-07-03',
         type: 'expense',
-        payment_method_id: 2,
+        payment_method_id: '2',
       })
       vi.mocked(loadFinanceData).mockResolvedValue(
         baseFinanceData({ recurringPlans: [planNetflix, planSpotify, planGimnasio], transactions: [txSpotify] }),
@@ -554,8 +554,8 @@ describe('readTools (B)', () => {
       const r = await executeToolWith(readTools, 'list_recurring_plans', {}, baseCtx)
       expect(r.ok).toBe(true)
       expect(r.data).toEqual([
-        { id: 1, descripcion: 'Netflix', monto: 5000, frecuencia: 'monthly', pendienteEsteMes: true },
-        { id: 2, descripcion: 'Spotify', monto: 2000, frecuencia: 'monthly', pendienteEsteMes: false },
+        { id: '1', descripcion: 'Netflix', monto: 5000, frecuencia: 'monthly', pendienteEsteMes: true },
+        { id: '2', descripcion: 'Spotify', monto: 2000, frecuencia: 'monthly', pendienteEsteMes: false },
       ])
     })
 
@@ -563,14 +563,14 @@ describe('readTools (B)', () => {
       const plans: RecurringPlan[] = []
       for (let i = 0; i < 25; i++) {
         plans.push({
-          id: i,
-          user_id: 1,
+          id: String(i),
+          user_id: '1',
           description: `Plan ${i}`,
           amount: 100,
           currency: 'ARS',
           frequency: 'monthly',
           is_active: true,
-          category_id: null,
+          category_id: 'c1',
           created_at: '2026-01-01',
           payment_method_id: null,
           original_amount: null,
@@ -624,14 +624,14 @@ describe('readTools (B)', () => {
         }),
       }
       const txComida = tx({
-        id: 1,
+        id: '1',
         description: 'Super',
         category_id: 'c1',
         amount: 26000,
         date: '2026-07-08',
         periodDate: '2026-07-08',
         type: 'expense',
-        payment_method_id: 2,
+        payment_method_id: '2',
       })
       vi.mocked(loadFinanceData).mockResolvedValue(baseFinanceData({ transactions: [txComida] }))
 

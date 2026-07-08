@@ -18,25 +18,25 @@ describe('getPendingFixedExpenses', () => {
   it('cuenta mensualidad activa sin transacción este mes como pendiente', () => {
     seed({
       recurringPlans: [
-        { id: 1, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null },
-        { id: 2, description: 'Internet', amount: 20000, is_active: true, payment_method_id: null },
+        { id: '1', description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null },
+        { id: '2', description: 'Internet', amount: 20000, is_active: true, payment_method_id: null },
       ],
       transactions: [],
     });
     const res = useFinanceStore.getState().getPendingFixedExpenses();
     expect(res.total).toBe(120000);
     expect(res.items).toHaveLength(2);
-    expect(res.items.find((i) => i.id === 1)?.name).toBe('Alquiler');
+    expect(res.items.find((i) => i.id === '1')?.name).toBe('Alquiler');
   });
 
   it('excluye mensualidad que ya tiene transacción vinculada este mes', () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     seed({
       recurringPlans: [
-        { id: 1, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null },
+        { id: '1', description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null },
       ],
       transactions: [
-        { id: 50, type: 'expense', amount: -100000, date: today, periodDate: today, recurring_plan_id: 1, installment_plan_id: null, payment_method_id: null },
+        { id: '50', type: 'expense', amount: -100000, date: today, periodDate: today, recurring_plan_id: '1', installment_plan_id: null, payment_method_id: null },
       ],
     });
     const res = useFinanceStore.getState().getPendingFixedExpenses();
@@ -47,7 +47,7 @@ describe('getPendingFixedExpenses', () => {
   it('ignora mensualidades inactivas', () => {
     seed({
       recurringPlans: [
-        { id: 1, description: 'Viejo', amount: 5000, is_active: false, payment_method_id: null },
+        { id: '1', description: 'Viejo', amount: 5000, is_active: false, payment_method_id: null },
       ],
     });
     expect(useFinanceStore.getState().getPendingFixedExpenses().total).toBe(0);
@@ -58,12 +58,12 @@ describe('getRealAvailableBalance', () => {
   it('saldoBruto = ingresos - gastos variables - cuotas historicas - mensualidades pagadas - ahorro', () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     seed({
-      paymentMethods: [{ id: 1, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
+      paymentMethods: [{ id: '1', name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
       transactions: [
-        { id: 1, type: 'income', amount: 200000, date: today, periodDate: today, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
-        { id: 2, type: 'expense', amount: -30000, date: today, periodDate: today, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: '1', type: 'income', amount: 200000, date: today, periodDate: today, payment_method_id: '1', installment_plan_id: null, recurring_plan_id: null },
+        { id: '2', type: 'expense', amount: -30000, date: today, periodDate: today, payment_method_id: '1', installment_plan_id: null, recurring_plan_id: null },
       ],
-      internalTransfers: [{ id: 1, amount: 10000, period_date: today }],
+      internalTransfers: [{ id: '1', amount: 10000, period_date: today }],
       recurringPlans: [],
     });
     const res = useFinanceStore.getState().getRealAvailableBalance();
@@ -77,12 +77,12 @@ describe('getRealAvailableBalance', () => {
   it('resta gastos fijos pendientes y NO cuenta su transaccion en saldoBruto', () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     seed({
-      paymentMethods: [{ id: 1, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
+      paymentMethods: [{ id: '1', name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
       transactions: [
-        { id: 1, type: 'income', amount: 200000, date: today, periodDate: today, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: '1', type: 'income', amount: 200000, date: today, periodDate: today, payment_method_id: '1', installment_plan_id: null, recurring_plan_id: null },
       ],
       recurringPlans: [
-        { id: 9, description: 'Alquiler', amount: 50000, is_active: true, payment_method_id: 1 },
+        { id: '9', description: 'Alquiler', amount: 50000, is_active: true, payment_method_id: '1' },
       ],
     });
     const res = useFinanceStore.getState().getRealAvailableBalance();
@@ -96,14 +96,14 @@ describe('getRealAvailableBalance', () => {
   it('INVARIANTE: pagar la mensualidad no cambia disponibleReal', () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     const base = {
-      paymentMethods: [{ id: 1, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
-      recurringPlans: [{ id: 9, description: 'Alquiler', amount: 50000, is_active: true, payment_method_id: 1 }],
+      paymentMethods: [{ id: '1', name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
+      recurringPlans: [{ id: '9', description: 'Alquiler', amount: 50000, is_active: true, payment_method_id: '1' }],
     };
     // Antes de pagar
     seed({
       ...base,
       transactions: [
-        { id: 1, type: 'income', amount: 200000, date: today, periodDate: today, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: '1', type: 'income', amount: 200000, date: today, periodDate: today, payment_method_id: '1', installment_plan_id: null, recurring_plan_id: null },
       ],
     });
     const antes = useFinanceStore.getState().getRealAvailableBalance().disponibleReal;
@@ -111,8 +111,8 @@ describe('getRealAvailableBalance', () => {
     seed({
       ...base,
       transactions: [
-        { id: 1, type: 'income', amount: 200000, date: today, periodDate: today, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
-        { id: 2, type: 'expense', amount: -50000, date: today, periodDate: today, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: 9 },
+        { id: '1', type: 'income', amount: 200000, date: today, periodDate: today, payment_method_id: '1', installment_plan_id: null, recurring_plan_id: null },
+        { id: '2', type: 'expense', amount: -50000, date: today, periodDate: today, payment_method_id: '1', installment_plan_id: null, recurring_plan_id: '9' },
       ],
     });
     const despues = useFinanceStore.getState().getRealAvailableBalance().disponibleReal;
@@ -127,14 +127,14 @@ describe('getRealAvailableBalance', () => {
     const today = format(now, 'yyyy-MM-dd');
     const lastMonth = format(subMonths(now, 1), 'yyyy-MM-dd');
     seed({
-      paymentMethods: [{ id: 1, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
+      paymentMethods: [{ id: '1', name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null }],
       recurringPlans: [
-        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: 1 },
+        { id: '9', description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: '1' },
       ],
       transactions: [
-        { id: 1, type: 'income', amount: 1000000, date: today, periodDate: today, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: '1', type: 'income', amount: 1000000, date: today, periodDate: today, payment_method_id: '1', installment_plan_id: null, recurring_plan_id: null },
         // alquiler del mes pasado, YA PAGADO (transaccion vinculada al plan)
-        { id: 2, type: 'expense', amount: -100000, date: lastMonth, periodDate: lastMonth, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: 9 },
+        { id: '2', type: 'expense', amount: -100000, date: lastMonth, periodDate: lastMonth, payment_method_id: '1', installment_plan_id: null, recurring_plan_id: '9' },
       ],
     });
     const res = useFinanceStore.getState().getRealAvailableBalance();
@@ -156,15 +156,15 @@ describe('getRealAvailableBalance', () => {
       const cuotaAgo = format(new Date(2026, 7, 5), 'yyyy-MM-dd'); // cuota fechada en agosto
       seed({
         paymentMethods: [
-          { id: 1, name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null },
-          { id: 2, name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 },
+          { id: '1', name: 'Efectivo', type: 'cash', default_closing_day: null, default_payment_day: null },
+          { id: '2', name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 5 },
         ],
         transactions: [
-          { id: 1, type: 'income', amount: 3000000, date: enCiclo, periodDate: enCiclo, payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
-          { id: 2, type: 'expense', amount: -120000, date: enCiclo, periodDate: enCiclo, payment_method_id: 2, installment_plan_id: null, recurring_plan_id: null },
-          { id: 3, type: 'expense', amount: -80000, date: cuotaAgo, periodDate: cuotaAgo, payment_method_id: 2, installment_plan_id: 7, recurring_plan_id: null },
+          { id: '1', type: 'income', amount: 3000000, date: enCiclo, periodDate: enCiclo, payment_method_id: '1', installment_plan_id: null, recurring_plan_id: null },
+          { id: '2', type: 'expense', amount: -120000, date: enCiclo, periodDate: enCiclo, payment_method_id: '2', installment_plan_id: null, recurring_plan_id: null },
+          { id: '3', type: 'expense', amount: -80000, date: cuotaAgo, periodDate: cuotaAgo, payment_method_id: '2', installment_plan_id: '7', recurring_plan_id: null },
         ],
-        installmentPlans: [{ id: 7, description: 'Notebook', total_amount: 240000, installments_count: 3 }],
+        installmentPlans: [{ id: '7', description: 'Notebook', total_amount: 240000, installments_count: 3 }],
       });
       const state = useFinanceStore.getState();
       const res = state.getRealAvailableBalance();
@@ -184,11 +184,11 @@ describe('getRecurringBackfillPreview', () => {
     const twoMonthsAgo = format(subMonths(now, 2), 'yyyy-MM-dd');
     seed({
       recurringPlans: [
-        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
+        { id: '9', description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
       ],
       transactions: [
         // primera transaccion REAL fija el piso del historial hace 2 meses
-        { id: 1, type: 'income', amount: 500000, date: twoMonthsAgo, periodDate: twoMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
+        { id: '1', type: 'income', amount: 500000, date: twoMonthsAgo, periodDate: twoMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
       ],
     });
     const res = useFinanceStore.getState().getRecurringBackfillPreview();
@@ -204,11 +204,11 @@ describe('getRecurringBackfillPreview', () => {
     const twoMonthsAgo = format(subMonths(now, 2), 'yyyy-MM-dd');
     seed({
       recurringPlans: [
-        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
+        { id: '9', description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
       ],
       transactions: [
         // ...pero el historial real arranca hace 2 meses
-        { id: 1, type: 'income', amount: 500000, date: twoMonthsAgo, periodDate: twoMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
+        { id: '1', type: 'income', amount: 500000, date: twoMonthsAgo, periodDate: twoMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
       ],
     });
     const res = useFinanceStore.getState().getRecurringBackfillPreview();
@@ -227,13 +227,13 @@ describe('getRecurringBackfillPreview', () => {
     const twoMonthsAgo = format(subMonths(now, 2), 'yyyy-MM-dd'); // primer INGRESO real
     seed({
       recurringPlans: [
-        { id: 9, description: 'Netflix', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
+        { id: '9', description: 'Netflix', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
       ],
       transactions: [
         // gasto/cuota ANTES del primer ingreso: NO debe fijar el piso
-        { id: 1, type: 'expense', amount: -40000, date: fourMonthsAgo, periodDate: fourMonthsAgo, payment_method_id: null, installment_plan_id: 7, recurring_plan_id: null },
+        { id: '1', type: 'expense', amount: -40000, date: fourMonthsAgo, periodDate: fourMonthsAgo, payment_method_id: null, installment_plan_id: '7', recurring_plan_id: null },
         // primer INGRESO real hace 2 meses -> este es el piso
-        { id: 2, type: 'income', amount: 500000, date: twoMonthsAgo, periodDate: twoMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
+        { id: '2', type: 'income', amount: 500000, date: twoMonthsAgo, periodDate: twoMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
       ],
     });
     const res = useFinanceStore.getState().getRecurringBackfillPreview();
@@ -247,7 +247,7 @@ describe('getRecurringBackfillPreview', () => {
     const now = new Date();
     seed({
       recurringPlans: [
-        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: subMonths(now, 4).toISOString() },
+        { id: '9', description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: subMonths(now, 4).toISOString() },
       ],
       transactions: [],
     });
@@ -262,12 +262,12 @@ describe('getRecurringBackfillPreview', () => {
     const lastMonth = format(subMonths(now, 1), 'yyyy-MM-dd');
     seed({
       recurringPlans: [
-        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
+        { id: '9', description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: createdAt },
       ],
       transactions: [
         // piso del historial: income real el mes pasado
-        { id: 1, type: 'income', amount: 500000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
-        { id: 2, type: 'expense', amount: -100000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: 9 },
+        { id: '1', type: 'income', amount: 500000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
+        { id: '2', type: 'expense', amount: -100000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: '9' },
       ],
     });
     const res = useFinanceStore.getState().getRecurringBackfillPreview();
@@ -282,15 +282,15 @@ describe('getRecurringBackfillPreview', () => {
     const threeMonthsAgo = format(subMonths(now, 3), 'yyyy-MM-dd');
     seed({
       recurringPlans: [
-        { id: 9, description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: subMonths(now, 3).toISOString() },
+        { id: '9', description: 'Alquiler', amount: 100000, is_active: true, payment_method_id: null, created_at: subMonths(now, 3).toISOString() },
       ],
       transactions: [
         // piso: primera transaccion real hace 1 mes
-        { id: 1, type: 'income', amount: 500000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
+        { id: '1', type: 'income', amount: 500000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: null },
         // pago backfilleado ANTES del piso -> exceso a limpiar
-        { id: 2, type: 'expense', amount: -100000, date: threeMonthsAgo, periodDate: threeMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: 9 },
+        { id: '2', type: 'expense', amount: -100000, date: threeMonthsAgo, periodDate: threeMonthsAgo, payment_method_id: null, installment_plan_id: null, recurring_plan_id: '9' },
         // pago dentro del historial -> cubre su mes, no es exceso
-        { id: 3, type: 'expense', amount: -100000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: 9 },
+        { id: '3', type: 'expense', amount: -100000, date: lastMonth, periodDate: lastMonth, payment_method_id: null, installment_plan_id: null, recurring_plan_id: '9' },
       ],
     });
     const res = useFinanceStore.getState().getRecurringBackfillPreview();
@@ -308,10 +308,10 @@ describe('borde del vencimiento: el día del vencimiento sigue siendo el ciclo v
   // - consumo de julio -> vence 13 ago, $30.000
   function seedMaster() {
     seed({
-      paymentMethods: [{ id: 1, name: 'Master', type: 'credit', default_closing_day: 2, default_payment_day: 13 }],
+      paymentMethods: [{ id: '1', name: 'Master', type: 'credit', default_closing_day: 2, default_payment_day: 13 }],
       transactions: [
-        { id: 1, type: 'expense', amount: -50000, date: '2026-07-13', periodDate: '2026-07-13', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
-        { id: 2, type: 'expense', amount: -30000, date: '2026-08-13', periodDate: '2026-08-13', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
+        { id: '1', type: 'expense', amount: -50000, date: '2026-07-13', periodDate: '2026-07-13', payment_method_id: '1', installment_plan_id: null, recurring_plan_id: null },
+        { id: '2', type: 'expense', amount: -30000, date: '2026-08-13', periodDate: '2026-08-13', payment_method_id: '1', installment_plan_id: null, recurring_plan_id: null },
       ],
     });
   }
@@ -352,18 +352,18 @@ describe('isCycleClosed: distingue resumen cerrado vs ciclo en curso', () => {
     seed({
       paymentMethods: [
         // Master cerró el 2 jul (vence 13 jul) -> cerrado
-        { id: 1, name: 'Master', type: 'credit', default_closing_day: 2, default_payment_day: 13 },
+        { id: '1', name: 'Master', type: 'credit', default_closing_day: 2, default_payment_day: 13 },
         // Visa cierra el 23 jul (vence 3 ago) -> en curso
-        { id: 2, name: 'Visa', type: 'credit', default_closing_day: 23, default_payment_day: 3 },
+        { id: '2', name: 'Visa', type: 'credit', default_closing_day: 23, default_payment_day: 3 },
       ],
       transactions: [
-        { id: 1, type: 'expense', amount: -50000, date: '2026-07-13', periodDate: '2026-07-13', payment_method_id: 1, installment_plan_id: null, recurring_plan_id: null },
-        { id: 2, type: 'expense', amount: -90000, date: '2026-08-03', periodDate: '2026-08-03', payment_method_id: 2, installment_plan_id: null, recurring_plan_id: null },
+        { id: '1', type: 'expense', amount: -50000, date: '2026-07-13', periodDate: '2026-07-13', payment_method_id: '1', installment_plan_id: null, recurring_plan_id: null },
+        { id: '2', type: 'expense', amount: -90000, date: '2026-08-03', periodDate: '2026-08-03', payment_method_id: '2', installment_plan_id: null, recurring_plan_id: null },
       ],
     });
     const items = useFinanceStore.getState().getRealAvailableBalance().pendingCardItems;
-    const master = items.find((i) => i.methodId === 1)!;
-    const visa = items.find((i) => i.methodId === 2)!;
+    const master = items.find((i) => i.methodId === '1')!;
+    const visa = items.find((i) => i.methodId === '2')!;
     expect(master.isCycleClosed).toBe(true);
     expect(visa.isCycleClosed).toBe(false);
   });

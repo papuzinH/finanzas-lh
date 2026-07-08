@@ -13,7 +13,7 @@ export interface DolarBlue {
 }
 
 export type CreditCardCycleSummary = {
-  methodId: number
+  methodId: string
   name: string
   total: number
   totalARS: number

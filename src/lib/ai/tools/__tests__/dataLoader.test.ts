@@ -11,7 +11,7 @@ import type {
   ExchangeRate,
 } from '@/types/database'
 
-const USER_ID = 42
+const USER_ID = '42'
 const AUTH_USER_ID = 'auth-uuid-123'
 
 /** Builder encadenable mínimo: cada método devuelve el mismo objeto y es un thenable. */
@@ -64,7 +64,7 @@ function makeSupabaseWithError(tables: Record<string, unknown[]>, errorTable: st
 }
 
 const visa = {
-  id: 1,
+  id: '1',
   user_id: USER_ID,
   name: 'Visa',
   type: 'credit',
@@ -74,17 +74,17 @@ const visa = {
 } as PaymentMethod
 
 const tx = {
-  id: 1,
+  id: '1',
   user_id: USER_ID,
   description: 'Compra',
-  category_id: null,
+  category_id: 'c1',
   amount: 5000,
   date: '2026-07-08', // paymentDay(10) < closingDay(20) y day(8) <= 10+2 → retrocede un mes
   type: 'expense',
   installment_plan_id: null,
   recurring_plan_id: null,
   created_at: '2026-07-08',
-  payment_method_id: 1,
+  payment_method_id: '1',
   original_currency: 'ARS',
   original_amount: null,
   rate_pair: null,
@@ -93,7 +93,7 @@ const tx = {
 } as Transaction
 
 const netflix = {
-  id: 1,
+  id: '1',
   user_id: USER_ID,
   description: 'Netflix',
   amount: 0,
@@ -132,15 +132,15 @@ const category = {
 } as Category
 
 const installment = {
-  id: 1,
+  id: '1',
   user_id: USER_ID,
   description: 'Notebook',
   total_amount: 300000,
   installments_count: 6,
   purchase_date: '2026-06-01',
-  category_id: null,
+  category_id: 'c1',
   created_at: '2026-06-01',
-  payment_method_id: 1,
+  payment_method_id: '1',
 } as InstallmentPlan
 
 function ctxWithTables(tables: Record<string, unknown[]>): AgentContext {

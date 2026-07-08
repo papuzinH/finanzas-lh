@@ -6,7 +6,7 @@ export function computePendingFixedExpenses(
   recurringPlans: RecurringPlan[],
   transactions: ProcessedTransaction[],
   now: Date = new Date(),
-): { total: number; items: Array<{ id: number; name: string; amount: number }> } {
+): { total: number; items: Array<{ id: string; name: string; amount: number }> } {
   const currentMonth = format(now, 'yyyy-MM')
 
   const items = recurringPlans

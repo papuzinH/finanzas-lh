@@ -53,7 +53,7 @@ export async function createPaymentMethod(data: CreatePaymentMethodSchema): Prom
   }
 }
 
-export async function updatePaymentMethod(id: number, data: CreatePaymentMethodSchema): Promise<ActionResponse> {
+export async function updatePaymentMethod(id: string, data: CreatePaymentMethodSchema): Promise<ActionResponse> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -99,7 +99,7 @@ export async function updatePaymentMethod(id: number, data: CreatePaymentMethodS
   }
 }
 
-export async function deletePaymentMethod(id: number): Promise<ActionResponse> {
+export async function deletePaymentMethod(id: string): Promise<ActionResponse> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -135,8 +135,8 @@ export async function deletePaymentMethod(id: number): Promise<ActionResponse> {
 }
 
 export async function reassignAndDeletePaymentMethod(
-  id: number,
-  newMethodId: number | null
+  id: string,
+  newMethodId: string | null
 ): Promise<ActionResponse> {
   try {
     const supabase = await createClient()

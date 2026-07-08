@@ -52,7 +52,7 @@ function createSupabaseMock(tables: Record<string, TableFixture>) {
 
 const ctx: AgentContext = {
   supabase: {} as AgentContext['supabase'],
-  userId: 1,
+  userId: '1',
   authUserId: 'uuid-1',
   today: '2026-07-08',
 }
@@ -493,7 +493,7 @@ describe('create_payment_method', () => {
     expect(insertCalls.payment_methods[0]).toMatchObject({ name: 'Visa_' })
   })
 
-  it('crea el medio con user_id numérico y días de tarjeta si tipo=credit', async () => {
+  it('crea el medio con el user_id de ctx y días de tarjeta si tipo=credit', async () => {
     const { supabase, insertCalls } = createSupabaseMock({ payment_methods: { existing: [] } })
     const localCtx: AgentContext = { ...ctx, supabase }
 
@@ -507,7 +507,7 @@ describe('create_payment_method', () => {
     expect(res.ok).toBe(true)
     expect(res.mutated).toBe(true)
     expect(insertCalls.payment_methods[0]).toMatchObject({
-      user_id: 1,
+      user_id: '1',
       name: 'Visa',
       type: 'credit',
       default_closing_day: 20,

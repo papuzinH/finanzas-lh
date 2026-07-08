@@ -4,7 +4,7 @@ import type { PaymentMethod } from '@/types/database'
 import type { ProcessedTransaction } from '@/lib/finance/types'
 
 const credit = (over: Partial<PaymentMethod> = {}): PaymentMethod => ({
-  id: 1, user_id: 1, name: 'Visa', type: 'credit',
+  id: '1', user_id: '1', name: 'Visa', type: 'credit',
   default_closing_day: 19, default_payment_day: 1,
   is_default: false, is_personal: false, created_at: '2025-01-01',
   ...over,
@@ -37,8 +37,8 @@ describe('getCreditCycleDates', () => {
 
 describe('isExpenseInCurrentMonthScope', () => {
   const tx = (over: Partial<ProcessedTransaction>): ProcessedTransaction => ({
-    id: 1, user_id: 1, description: 'x', amount: 100, date: '2026-07-05',
-    type: 'expense', category_id: null, payment_method_id: 1,
+    id: '1', user_id: '1', description: 'x', amount: 100, date: '2026-07-05',
+    type: 'expense', category_id: null, payment_method_id: '1',
     installment_plan_id: null, recurring_plan_id: null, card_payment_for: null,
     periodDate: '2026-07-05', realPaymentDate: '2026-07-05',
     ...over,
@@ -47,13 +47,13 @@ describe('isExpenseInCurrentMonthScope', () => {
   it('excluye ingresos y pagos de tarjeta', () => {
     const now = new Date(2026, 6, 15)
     expect(isExpenseInCurrentMonthScope(tx({ type: 'income' }), [credit()], now)).toBe(false)
-    expect(isExpenseInCurrentMonthScope(tx({ card_payment_for: 2 }), [credit()], now)).toBe(false)
+    expect(isExpenseInCurrentMonthScope(tx({ card_payment_for: '2' }), [credit()], now)).toBe(false)
   })
 
   it('cuota de crédito pertenece al mes de su vencimiento', () => {
     // cierra 19, vence 1 → cuota con date 2026-08-01, hoy 15 de julio:
     // paymentDateForThisCycle = 1 de agosto → SÍ pertenece
-    const t = tx({ installment_plan_id: 9, date: '2026-08-01', periodDate: '2026-07-01' })
+    const t = tx({ installment_plan_id: '9', date: '2026-08-01', periodDate: '2026-07-01' })
     expect(isExpenseInCurrentMonthScope(t, [credit()], new Date(2026, 6, 15))).toBe(true)
   })
 

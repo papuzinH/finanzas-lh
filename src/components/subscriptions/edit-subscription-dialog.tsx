@@ -32,12 +32,12 @@ interface EditSubscriptionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   subscription: {
-    id: string | number;
+    id: string;
     description: string;
     amount: number;
     is_active: boolean | null;
     category_id: string | null;
-    payment_method_id: number | null;
+    payment_method_id: string | null;
     frequency?: string | null;
     debit_payment_day?: number | null;
     currency?: string | null;

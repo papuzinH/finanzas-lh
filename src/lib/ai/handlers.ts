@@ -37,7 +37,7 @@ export interface ChatResponse {
  * Interfaz para representar un payment method resuelto con todos sus detalles.
  */
 interface ResolvedPaymentMethod {
-  id: number
+  id: string
   name: string
   type: 'credit' | 'debit' | 'cash'
   closingDay: number | null
@@ -50,7 +50,7 @@ interface ResolvedPaymentMethod {
  */
 async function resolvePaymentMethod(
   supabase: any,
-  userId: number,
+  userId: string,
   paymentMethodName: string | null,
   exactMatch = false
 ): Promise<ResolvedPaymentMethod | null> {
@@ -101,7 +101,7 @@ function calculateRealPaymentDate(
  */
 async function checkBudgetAlert(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: number,
+  userId: string,
   categoryId: string | null
 ): Promise<string | null> {
   if (!categoryId) return null
@@ -160,7 +160,7 @@ async function checkBudgetAlert(
 /**
  * Maneja una transacción simple (gasto o ingreso)
  */
-export async function handleTransaction(data: TransactionData, userId: number): Promise<ChatResponse> {
+export async function handleTransaction(data: TransactionData, userId: string): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
 
@@ -234,7 +234,7 @@ export async function handleTransaction(data: TransactionData, userId: number): 
 /**
  * Maneja una compra en cuotas
  */
-export async function handleInstallment(data: InstallmentData, userId: number): Promise<ChatResponse> {
+export async function handleInstallment(data: InstallmentData, userId: string): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
 
@@ -321,7 +321,7 @@ export async function handleInstallment(data: InstallmentData, userId: number): 
 /**
  * Maneja una suscripción o gasto fijo
  */
-export async function handleSubscription(data: SubscriptionData, userId: number): Promise<ChatResponse> {
+export async function handleSubscription(data: SubscriptionData, userId: string): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
 
@@ -371,7 +371,7 @@ export async function handleSubscription(data: SubscriptionData, userId: number)
 /**
  * Maneja la configuración de tarjeta de crédito
  */
-export async function handleCardConfig(data: CardConfigData, userId: number): Promise<ChatResponse> {
+export async function handleCardConfig(data: CardConfigData, userId: string): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
 
@@ -428,12 +428,12 @@ export async function handleCardConfig(data: CardConfigData, userId: number): Pr
         console.warn('Warning: could not fetch future transactions:', fetchError)
       } else if (futureTxns && futureTxns.length > 0) {
         // Separar cuotas de transacciones simples
-        const installmentTxns = futureTxns.filter((t: { installment_plan_id: number | null }) => t.installment_plan_id !== null)
-        const simpleTxns = futureTxns.filter((t: { installment_plan_id: number | null }) => t.installment_plan_id === null)
+        const installmentTxns = futureTxns.filter((t: { installment_plan_id: string | null }) => t.installment_plan_id !== null)
+        const simpleTxns = futureTxns.filter((t: { installment_plan_id: string | null }) => t.installment_plan_id === null)
 
         // Para cuotas: recalcular desde purchase_date del plan usando la nueva configuración
         if (installmentTxns.length > 0) {
-          const planIds = [...new Set(installmentTxns.map((t: { installment_plan_id: number }) => t.installment_plan_id))]
+          const planIds = [...new Set(installmentTxns.map((t: { installment_plan_id: string }) => t.installment_plan_id))]
           const { data: plans } = await supabase
             .from('installment_plans')
             .select('id, purchase_date, installments_count')
@@ -443,7 +443,7 @@ export async function handleCardConfig(data: CardConfigData, userId: number): Pr
           if (plans) {
             for (const plan of plans) {
               const firstDate = calculateCreditPaymentDate(plan.purchase_date, data.closingDay, data.paymentDay)
-              const planTxns = installmentTxns.filter((t: { installment_plan_id: number }) => t.installment_plan_id === plan.id)
+              const planTxns = installmentTxns.filter((t: { installment_plan_id: string }) => t.installment_plan_id === plan.id)
 
               for (const txn of planTxns) {
                 // Extraer el índice de cuota desde la descripción "(X/Y)"
@@ -568,7 +568,7 @@ export async function handlePortfolio(supabase: any, authUserId: string): Promis
 /**
  * Maneja la edición de entidades existentes.
  */
-export async function handleEdit(data: EditData, userId: number): Promise<ChatResponse> {
+export async function handleEdit(data: EditData, userId: string): Promise<ChatResponse> {
   try {
     const supabase = await createClient()
 
@@ -793,7 +793,7 @@ export async function handleEdit(data: EditData, userId: number): Promise<ChatRe
  */
 export async function handleDelete(
   data: DeleteData & { confirmed?: boolean; reassignTo?: string | null },
-  userId: number
+  userId: string
 ): Promise<ChatResponse> {
   try {
     const supabase = await createClient()

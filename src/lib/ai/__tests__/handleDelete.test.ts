@@ -88,7 +88,7 @@ describe('handleDelete - medio_pago con dependencias', () => {
     const supabase = createSupabaseMock(chains)
     mockedCreateClient.mockResolvedValueOnce(supabase as never)
 
-    const result = await handleDelete({ entity: 'medio_pago', search: 'visa', confirmed: false }, 1)
+    const result = await handleDelete({ entity: 'medio_pago', search: 'visa', confirmed: false }, '1')
 
     expect(result.success).toBe(true)
     expect(result.message).toContain('⚠️')
@@ -111,12 +111,12 @@ describe('handleDelete - medio_pago con dependencias', () => {
     const supabase = createSupabaseMock([methodsChain, txCountChain, planCountChain, subCountChain, deleteChain])
     mockedCreateClient.mockResolvedValueOnce(supabase as never)
 
-    const result = await handleDelete({ entity: 'medio_pago', search: 'visa', confirmed: true }, 1)
+    const result = await handleDelete({ entity: 'medio_pago', search: 'visa', confirmed: true }, '1')
 
     expect(result).toEqual({ success: true, message: '🗑️ Medio de pago "Visa" eliminado.' })
     expect(hasCall(deleteChain, 'delete')).toBe(true)
     expect(hasCall(deleteChain, 'eq', ['id', 5])).toBe(true)
-    expect(hasCall(deleteChain, 'eq', ['user_id', 1])).toBe(true)
+    expect(hasCall(deleteChain, 'eq', ['user_id', '1'])).toBe(true)
   })
 
   it('confirmed: true + reassignTo → reasigna dependencias y luego borra el medio original', async () => {
@@ -147,7 +147,7 @@ describe('handleDelete - medio_pago con dependencias', () => {
 
     const result = await handleDelete(
       { entity: 'medio_pago', search: 'visa', confirmed: true, reassignTo: 'Mercado Pago' },
-      1
+      '1'
     )
 
     expect(result).toEqual({
@@ -179,7 +179,7 @@ describe('handleDelete - statelessness (sin Map compartido entre requests)', () 
     const supabase1 = createSupabaseMock([methodsChain1, txCountChain1, planCountChain1, subCountChain1, deleteChain1])
     mockedCreateClient.mockResolvedValueOnce(supabase1 as never)
 
-    const result1 = await handleDelete({ entity: 'medio_pago', search: 'visa', confirmed: true }, 1)
+    const result1 = await handleDelete({ entity: 'medio_pago', search: 'visa', confirmed: true }, '1')
     expect(result1).toEqual({ success: true, message: '🗑️ Medio de pago "Visa" eliminado.' })
 
     // "Lambda" 2: mock completamente nuevo, otro userId, misma acción confirmada
@@ -193,7 +193,7 @@ describe('handleDelete - statelessness (sin Map compartido entre requests)', () 
     const supabase2 = createSupabaseMock([methodsChain2, txCountChain2, planCountChain2, subCountChain2, deleteChain2])
     mockedCreateClient.mockResolvedValueOnce(supabase2 as never)
 
-    const result2 = await handleDelete({ entity: 'medio_pago', search: 'naranja', confirmed: true }, 2)
+    const result2 = await handleDelete({ entity: 'medio_pago', search: 'naranja', confirmed: true }, '2')
     expect(result2).toEqual({ success: true, message: '🗑️ Medio de pago "Naranja X" eliminado.' })
 
     // Cada invocación llamó createClient() por su cuenta; no hay un Map de módulo
@@ -212,7 +212,7 @@ describe('handleDelete - cuota no soporta reasignación', () => {
 
     const result = await handleDelete(
       { entity: 'cuota', search: 'notebook', confirmed: true, reassignTo: 'Visa' },
-      1
+      '1'
     )
 
     expect(result).toEqual({
@@ -237,7 +237,7 @@ describe('handleDelete - categoria filtra por UUID de auth (bug fix)', () => {
     const supabase = createSupabaseMock([catsChain, txCountChain, deleteChain], authUuid)
     mockedCreateClient.mockResolvedValue(supabase as never)
 
-    const result = await handleDelete({ entity: 'categoria', search: 'comida', confirmed: false }, 1)
+    const result = await handleDelete({ entity: 'categoria', search: 'comida', confirmed: false }, '1')
 
     expect(result).toEqual({ success: true, message: '🗑️ Categoría "🍔 Comida" eliminada.' })
 
@@ -245,10 +245,10 @@ describe('handleDelete - categoria filtra por UUID de auth (bug fix)', () => {
     expect(hasCall(catsChain, 'eq', ['user_id', authUuid])).toBe(true)
     expect(hasCall(deleteChain, 'eq', ['user_id', authUuid])).toBe(true)
     // ...nunca por el userId numérico (ese es el bug que se corrige).
-    expect(hasCall(catsChain, 'eq', ['user_id', 1])).toBe(false)
-    expect(hasCall(deleteChain, 'eq', ['user_id', 1])).toBe(false)
+    expect(hasCall(catsChain, 'eq', ['user_id', '1'])).toBe(false)
+    expect(hasCall(deleteChain, 'eq', ['user_id', '1'])).toBe(false)
 
     // El conteo de dependencias sí usa transactions.user_id, que es numérico.
-    expect(hasCall(txCountChain, 'eq', ['user_id', 1])).toBe(true)
+    expect(hasCall(txCountChain, 'eq', ['user_id', '1'])).toBe(true)
   })
 })

@@ -5,7 +5,7 @@ import type { FinanceData } from './dataLoader'
 /** Contexto pasado a las tools para acceder al usuario autenticado y otras dependencias. */
 export interface AgentContext {
   supabase: SupabaseClient   // cliente del usuario autenticado (RLS)
-  userId: number             // public.users.id (transactions, payment_methods, …)
+  userId: string             // public.users.id (transactions, payment_methods, …)
   authUserId: string         // UUID de auth (savings_goals, category_budgets, …)
   today: string              // YYYY-MM-DD local
   /**
