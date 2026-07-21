@@ -127,3 +127,10 @@ Para verificar visualmente: `design_handoff_chanchito/prototypes/Chanchito App.h
 - `master` → producción automática en Vercel (Supabase PROD).
 - `.env.local` → Supabase DEV.
 - Cambios de schema SQL: aplicar a PROD **antes** del merge.
+
+## Panchito Kit
+- nivel: lite
+- status: 40-PROYECTOS/Chanchito/Chanchito - Status & Roadmap.md
+- fuente_producto: vault
+- verificacion: npm run lint && npx tsc --noEmit
+- branch_base: master
