@@ -73,10 +73,13 @@ export function getCreditCardPeriod(closingDay: number, paymentDay: number, refe
     closingDay + 1
   )
 
-  // La fecha de pago es después del cierre
-  const paymentMonth = periodEndMonth + 1 > 11 ? 0 : periodEndMonth + 1
-  const paymentYear = periodEndMonth + 1 > 11 ? periodEndYear + 1 : periodEndYear
-  const paymentDate = new Date(paymentYear, paymentMonth, paymentDay)
+  // La fecha de pago es después del cierre: cae en el MISMO mes del cierre si
+  // el día de vencimiento es posterior al de cierre (ej. cierra el 10, vence el
+  // 25), y recién el mes siguiente si es anterior (ej. cierra el 24, vence el 6).
+  // Mismo criterio que `calculateCreditPaymentDate`.
+  const paymentMonthOffset = paymentDay < closingDay ? 1 : 0
+  // El constructor normaliza el overflow de mes (12 → enero del año siguiente).
+  const paymentDate = new Date(periodEndYear, periodEndMonth + paymentMonthOffset, paymentDay)
 
   return { periodStart, periodEnd, paymentDate }
 }

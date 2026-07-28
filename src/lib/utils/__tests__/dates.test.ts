@@ -5,7 +5,7 @@ import {
   todayString,
   isInSameMonth,
   getCreditCardPeriod,
-  getInstallmentPaymentDate,
+  calculateCreditPaymentDate,
 } from '../dates'
 
 describe('dates.ts', () => {
@@ -107,59 +107,49 @@ describe('dates.ts', () => {
     })
   })
 
-  describe('getInstallmentPaymentDate', () => {
+  // Estos casos testeaban `getInstallmentPaymentDate`, una función que no
+  // existe (ni existió) en `dates.ts`. La lógica que describen es la de
+  // `calculateCreditPaymentDate`, que sí corre en producción: es la que fija
+  // `transactions.date` de las compras en crédito. Se reapuntaron ahí.
+  describe('calculateCreditPaymentDate', () => {
     // Cierre día 24, pago día 6
     const closingDay = 24
     const paymentDay = 6
 
     it('compra antes del cierre → paga el mes siguiente al cierre', () => {
       // Compra el 10 de Marzo → cierra el 24 de Marzo → paga el 6 de Abril
-      const payDate = getInstallmentPaymentDate('2024-03-10', closingDay, paymentDay)
-      expect(payDate.getMonth()).toBe(3) // Abril (0-indexed)
-      expect(payDate.getDate()).toBe(6)
+      expect(calculateCreditPaymentDate('2024-03-10', closingDay, paymentDay)).toBe('2024-04-06')
     })
 
     it('compra después del cierre → paga dos meses después', () => {
       // Compra el 27 de Marzo → cierra el 24 de Abril → paga el 6 de Mayo
-      const payDate = getInstallmentPaymentDate('2024-03-27', closingDay, paymentDay)
-      expect(payDate.getMonth()).toBe(4) // Mayo
-      expect(payDate.getDate()).toBe(6)
+      expect(calculateCreditPaymentDate('2024-03-27', closingDay, paymentDay)).toBe('2024-05-06')
     })
 
     it('compra en el día de cierre → paga el mes siguiente', () => {
       // Compra el 24 de Marzo → cierra el 24 de Marzo → paga el 6 de Abril
-      const payDate = getInstallmentPaymentDate('2024-03-24', closingDay, paymentDay)
-      expect(payDate.getMonth()).toBe(3) // Abril
-      expect(payDate.getDate()).toBe(6)
+      expect(calculateCreditPaymentDate('2024-03-24', closingDay, paymentDay)).toBe('2024-04-06')
     })
 
     it('compra en Diciembre después del cierre → paga en Febrero del año siguiente', () => {
       // Compra el 27 de Diciembre → cierra el 24 de Enero → paga el 6 de Febrero
-      const payDate = getInstallmentPaymentDate('2023-12-27', closingDay, paymentDay)
-      expect(payDate.getFullYear()).toBe(2024)
-      expect(payDate.getMonth()).toBe(1) // Febrero
-      expect(payDate.getDate()).toBe(6)
+      expect(calculateCreditPaymentDate('2023-12-27', closingDay, paymentDay)).toBe('2024-02-06')
     })
 
     it('compra el 1 del mes → cierra dentro del mismo mes → paga el mes siguiente', () => {
-      const payDate = getInstallmentPaymentDate('2024-01-01', closingDay, paymentDay)
-      expect(payDate.getMonth()).toBe(1) // Febrero
-      expect(payDate.getDate()).toBe(6)
+      expect(calculateCreditPaymentDate('2024-01-01', closingDay, paymentDay)).toBe('2024-02-06')
     })
 
-    it('respeta el payment day diferente al closing day', () => {
-      // Cierre día 15, pago día 25
-      const payDate = getInstallmentPaymentDate('2024-03-10', 15, 25)
-      expect(payDate.getMonth()).toBe(3) // Abril
-      expect(payDate.getDate()).toBe(25)
+    it('si el vencimiento cae después del cierre, se paga en el MISMO mes', () => {
+      // Cierre día 15, pago día 25: la compra del 10/03 entra en el resumen
+      // que cierra el 15/03 y vence el 25/03 — no el mes siguiente.
+      // (El test viejo esperaba Abril, contradiciendo al de getCreditCardPeriod.)
+      expect(calculateCreditPaymentDate('2024-03-10', 15, 25)).toBe('2024-03-25')
     })
 
     it('maneja correctamente años bisiestos', () => {
       // Compra en Febrero de año bisiesto
-      const payDate = getInstallmentPaymentDate('2024-02-15', 24, 6)
-      expect(payDate.getFullYear()).toBe(2024)
-      expect(payDate.getMonth()).toBe(2) // Marzo
-      expect(payDate.getDate()).toBe(6)
+      expect(calculateCreditPaymentDate('2024-02-15', 24, 6)).toBe('2024-03-06')
     })
   })
 
