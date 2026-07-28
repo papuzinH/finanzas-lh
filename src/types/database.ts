@@ -672,23 +672,19 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      // La política de cuotas NO viaja por la red: el usuario sale de
+      // auth.uid() y los límites/precios de chat_config. Las firmas viejas
+      // (con p_user_id, p_daily_limit, p_monthly_budget_usd y los precios)
+      // se dropearon el 2026-07-28 — ver
+      // supabase/migrations/20260728b_drop_chat_usage_rpc_wrappers.sql
       accumulate_chat_budget: {
         Args: {
-          p_input_price_per_1m: number
           p_input_tokens: number
-          p_output_price_per_1m: number
           p_output_tokens: number
         }
         Returns: undefined
       }
-      check_and_increment_chat_usage: {
-        Args: {
-          p_daily_limit: number
-          p_monthly_budget_usd: number
-          p_user_id: string
-        }
-        Returns: string
-      }
+      check_and_increment_chat_usage: { Args: never; Returns: string }
       get_current_user_int_id: { Args: never; Returns: string }
     }
     Enums: Record<string, never>

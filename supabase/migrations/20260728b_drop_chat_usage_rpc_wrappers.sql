@@ -1,0 +1,45 @@
+-- ============================================================
+-- MIGRACIÓN: dropear los wrappers de compatibilidad del guard de cuotas
+-- Fecha: 2026-07-28 (post-deploy de 20260728_harden_chat_usage_rpcs.sql)
+--
+-- Ejecuta el PENDIENTE anotado al pie de esa migración.
+--
+-- Contexto: al endurecer los RPC se conservaron las firmas viejas como
+-- wrappers que ignoran sus parámetros y delegan en las nuevas, porque en
+-- ese momento producción todavía corría el usageGuard.ts que mandaba la
+-- política por la red. Esa condición ya no aplica.
+--
+-- Precondiciones verificadas antes de correr esto (2026-07-28):
+--   * master pusheado y deploy de producción READY en Vercel (29bbe6e),
+--     o sea el runtime corre el usageGuard.ts sin parámetros de política.
+--   * Único consumidor en el repo: src/lib/chat/usageGuard.ts, que llama
+--     rpc('check_and_increment_chat_usage') sin args y
+--     rpc('accumulate_chat_budget', {p_input_tokens, p_output_tokens}).
+--     Ninguna referencia a las firmas viejas fuera de docs y del plan.
+--   * El guard es fail-open (src/app/api/chat/route.ts: si el RPC tira,
+--     usageStatus = 'ok'), así que ni un consumidor desconocido que
+--     todavía usara la firma vieja perdería el servicio — perdería el
+--     enforcement de cuota, que es exactamente lo que este drop busca
+--     hacer imposible.
+--
+-- Los wrappers no eran un agujero (ignoraban sus parámetros): esto es
+-- limpieza, para que no quede firma vieja viva que invite a volver a
+-- pasar política desde el cliente.
+--
+-- Reversible: si hiciera falta, se recrean con el bloque 5 de
+-- 20260728_harden_chat_usage_rpcs.sql.
+-- ============================================================
+
+DROP FUNCTION IF EXISTS public.check_and_increment_chat_usage(uuid, integer, numeric);
+DROP FUNCTION IF EXISTS public.accumulate_chat_budget(integer, integer, numeric, numeric);
+
+-- ============================================================
+-- Verificación (debe devolver exactamente 2 filas, ambas con la firma
+-- nueva y sin EXECUTE para anon):
+--
+--   SELECT p.proname, pg_get_function_arguments(p.oid), p.proacl
+--   FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+--   WHERE n.nspname = 'public'
+--     AND p.proname IN ('check_and_increment_chat_usage',
+--                       'accumulate_chat_budget');
+-- ============================================================
