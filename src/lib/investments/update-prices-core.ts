@@ -1,5 +1,6 @@
 import { fetchPriceForAsset } from './prices/dispatcher'
 import { fetchAllRates } from './prices/exchange-rates'
+import { createAdminClient } from '@/utils/supabase/admin'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { InvestmentAsset } from '@/types/database'
 import type { ASSET_TYPES } from '@/lib/schemas/investment-asset'
@@ -12,10 +13,19 @@ export interface UpdatePricesResult {
   rates_updated: boolean
 }
 
+/**
+ * Refresca precios y cotizaciones. `supabase` es el cliente de SESIÓN y se usa
+ * solo para leer los activos del usuario (RLS por `user_id`); las escrituras a
+ * las tablas globales `market_prices`/`exchange_rates` van con `service_role`,
+ * que es el único rol autorizado a escribirlas.
+ */
 export async function runUpdatePrices(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<UpdatePricesResult> {
+  // Fail fast: si falta la key es un error de configuración, no de scraping.
+  const admin = createAdminClient()
+
   const { data: assets, error: assetsError } = await supabase
     .from('investment_assets')
     .select('*')
@@ -65,7 +75,7 @@ export async function runUpdatePrices(
         continue
       }
 
-      const { error: upsertError } = await supabase.from('market_prices').upsert(
+      const { error: upsertError } = await admin.from('market_prices').upsert(
         {
           ticker: asset.ticker,
           last_price: priceResult.price_ars,
@@ -101,7 +111,7 @@ export async function runUpdatePrices(
     ].filter(Boolean) as { pair: string; rate: number; source: string }[]
 
     if (rateEntries.length > 0) {
-      const { error: ratesError } = await supabase.from('exchange_rates').upsert(
+      const { error: ratesError } = await admin.from('exchange_rates').upsert(
         rateEntries.map((entry) => ({ ...entry, last_update: now })),
         { onConflict: 'pair' },
       )

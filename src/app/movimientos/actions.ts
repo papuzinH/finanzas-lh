@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { fetchAllRates } from '@/lib/investments/prices/exchange-rates';
 import { revalidatePath } from 'next/cache';
 
@@ -31,7 +32,8 @@ export async function updateExchangeRates(): Promise<ActionResponse> {
       return { error: 'No se pudieron obtener cotizaciones' };
     }
 
-    const { error } = await supabase
+    // `exchange_rates` es global (sin user_id): la escritura va con service_role.
+    const { error } = await createAdminClient()
       .from('exchange_rates')
       .upsert(rateEntries.map((e) => ({ ...e, last_update: now })), { onConflict: 'pair' });
 

@@ -40,8 +40,8 @@ Tracker de inversiones v2 basado en **activos + transacciones** (`investment_ass
 | `investment_transactions` | **UUID de auth** | `type: buy/sell/dividend/coupon/interest`; `total_amount = qty × price` calculado en la action |
 | `investments` (v1, legacy) | **UUID de auth** (como texto; RLS `user_id = auth.uid()::text`) | Migrada a v2 por la migración; el store todavía la fetchea a `state.investments` |
 | `savings` | **UUID de auth** | Tenencias sueltas ARS/USD |
-| `market_prices` | **global, sin user_id** (keyed por `ticker` único) | RLS: solo policy de SELECT en migraciones versionadas (ver gotchas) |
-| `exchange_rates` | **global** (keyed por `pair` único: `USD_ARS_BLUE/MEP/CCL`, `USDT_ARS`) | RLS: SELECT authenticated; INSERT/UPDATE **solo service_role** |
+| `market_prices` | **global, sin user_id** (keyed por `ticker` único) | RLS: SELECT `authenticated`; INSERT/UPDATE **solo service_role** (ver gotchas) |
+| `exchange_rates` | **global** (keyed por `pair` único: `USD_ARS_BLUE/MEP/CCL`, `USDT_ARS`) | RLS: SELECT `authenticated`; INSERT/UPDATE **solo service_role** |
 
 Las server actions usan `user.id` de `supabase.auth.getUser()` (el UUID) — correcto para todas estas tablas. **Nunca** usar acá el id interno de `public.users` (`users.id`) (ese es para `transactions`/`payment_methods`/etc.).
 
@@ -54,7 +54,7 @@ Las server actions usan `user.id` de `supabase.auth.getUser()` (el UUID) — cor
 
 ## Invariantes y gotchas
 - **Todos los cálculos internos son en ARS**; `displayCurrency` solo convierte al final (`convertArsToDisplay`). Las compras en USD se convierten a ARS por MEP para el costo.
-- **RLS vs. escritura de precios**: según las migraciones versionadas, `market_prices` solo tiene policy de SELECT y `exchange_rates` solo permite escritura a `service_role`; sin embargo `runUpdatePrices` upsertea con el **cliente del usuario autenticado**. Si las policies reales de la DB no fueron ampliadas por fuera del repo, esos upserts fallan silenciosamente (error solo logueado, `failed[]`/`rates_updated=false`). Revisar el dashboard antes de asumir un bug de scraping.
+- **Escritura de precios = service_role**: `market_prices` y `exchange_rates` son globales (sin `user_id`), así que los upserts van con `createAdminClient()` (`utils/supabase/admin.ts`), no con el cliente de sesión. Aplica a los 4 puntos de escritura: `runUpdatePrices` (precios + cotizaciones), `updateExchangeRates` (`app/movimientos/actions.ts`) y el precio inicial de `createInvestment`/`quickAdd`. La lectura de los activos sigue con el cliente de sesión (RLS por `user_id`). Si falta `SUPABASE_SERVICE_ROLE_KEY`, `runUpdatePrices` lanza al entrar (error de configuración, no de scraping) y los fetch iniciales de precio quedan logueados sin cortar el alta.
 - La valuación del portfolio es la función pura `computePortfolioStatus` (`lib/finance/portfolio.ts`): el store (`getPortfolioStatus`) y la tool `get_portfolio_status` del chat (`handlePortfolio`, tablas v2 filtradas por `ctx.authUserId`) son wrappers sobre ella. (El viejo bug de leer la tabla legacy `investments` v1 vacía quedó corregido acá.)
 - `updateMarketPrices` existe como server action pero la UI usa el endpoint POST (permite leer `failed[]`).
 - Los precios `plazo_fijo`/`money_market` **no** vienen del mercado: se devengan en el getter.

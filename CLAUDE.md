@@ -19,6 +19,7 @@ Tests en `src/**/__tests__/`. Los del store (`lib/store/__tests__/analysis-gette
 - Server Components: fetch con `utils/supabase/server.ts`.
 - Client Components: NUNCA fetch directo → solo `useFinanceStore`.
 - Prohibido: `useEffect` para fetching, SWR, React Query.
+- **Tablas globales de mercado** (`market_prices`, `exchange_rates`, sin `user_id`): las **escrituras** van con `createAdminClient()` (`utils/supabase/admin.ts`, service_role, server-only), NUNCA con el cliente de sesión. Si no, hay que dejar INSERT/UPDATE abiertos a `authenticated` y cualquier usuario logueado puede escribir con la anon key los precios que ven todos. Las lecturas siguen con el cliente de sesión. Requiere `SUPABASE_SERVICE_ROLE_KEY` en el entorno.
 
 ## Store: `lib/store/financeStore.ts`
 Única fuente de verdad cliente. **Leer antes de modificar componentes.**

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { investmentSchema, type InvestmentSchema } from '@/lib/schemas/investment'
 import { investmentAssetSchema } from '@/lib/schemas/investment-asset'
@@ -74,7 +75,8 @@ export async function createInvestment(data: InvestmentSchema): Promise<ActionRe
           data_source_url: dataSourceUrl,
         })
         if (priceResult !== null) {
-          await supabase.from('market_prices').upsert(
+          // `market_prices` es global (sin user_id): la escritura va con service_role.
+          await createAdminClient().from('market_prices').upsert(
             {
               ticker: validated.data.ticker,
               last_price: priceResult.price_ars,
@@ -371,7 +373,8 @@ export async function quickAdd(data: {
             metadata: assetMetadata,
           })
           if (priceResult !== null) {
-            await supabase.from('market_prices').upsert(
+            // `market_prices` es global (sin user_id): la escritura va con service_role.
+            await createAdminClient().from('market_prices').upsert(
               {
                 ticker: baseTicker,
                 last_price: priceResult.price_ars,
