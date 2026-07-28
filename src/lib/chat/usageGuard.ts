@@ -2,25 +2,32 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type UsageCheckResult = 'ok' | 'budget_exceeded' | 'user_limit_exceeded'
 
-export function getDailyLimit(tier: 'free' | 'pro'): number {
-  if (tier === 'pro') return Number(process.env.CHAT_DAILY_LIMIT_PRO) || 300
-  return Number(process.env.CHAT_DAILY_LIMIT_FREE) || 30
-}
-
+/**
+ * Guard de cuotas del chat.
+ *
+ * SEGURIDAD: estos RPC son SECURITY DEFINER y están expuestos vía
+ * /rest/v1/rpc/ al rol `authenticated`, así que cualquiera con la anon key
+ * (que viaja en el bundle del browser) puede invocarlos. Por eso la política
+ * —usuario, tier, límite diario, presupuesto y precios— NO se manda por la
+ * red: vive en `public.chat_config` y en `users.chat_tier`, y la función la
+ * resuelve sola a partir de `auth.uid()`.
+ *
+ * No agregar parámetros de política a estas llamadas.
+ * Ver `supabase/migrations/20260728_harden_chat_usage_rpcs.sql`.
+ */
 export async function checkAndIncrementUsage(
-  supabase: SupabaseClient,
-  userId: string,
-  tier: 'free' | 'pro'
+  supabase: SupabaseClient
 ): Promise<UsageCheckResult> {
-  const { data, error } = await supabase.rpc('check_and_increment_chat_usage', {
-    p_user_id: userId,
-    p_daily_limit: getDailyLimit(tier),
-    p_monthly_budget_usd: Number(process.env.CHAT_MONTHLY_BUDGET_USD) || 50,
-  })
+  const { data, error } = await supabase.rpc('check_and_increment_chat_usage')
   if (error) throw error
   return data as UsageCheckResult
 }
 
+/**
+ * Suma el consumo del loop al presupuesto mensual global.
+ * Los precios por 1M de tokens salen de `chat_config`; los tokens que se
+ * pasan acá se clampean del lado de la DB (`chat_config.max_tokens_per_call`).
+ */
 export async function accumulateBudget(
   supabase: SupabaseClient,
   inputTokens: number,
@@ -29,8 +36,6 @@ export async function accumulateBudget(
   const { error } = await supabase.rpc('accumulate_chat_budget', {
     p_input_tokens: inputTokens,
     p_output_tokens: outputTokens,
-    p_input_price_per_1m: Number(process.env.GEMINI_INPUT_PRICE_PER_1M) || 0.30,
-    p_output_price_per_1m: Number(process.env.GEMINI_OUTPUT_PRICE_PER_1M) || 2.50,
   })
   if (error) console.error('accumulate_chat_budget failed:', error)
 }
