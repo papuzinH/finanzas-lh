@@ -1,0 +1,27 @@
+# Config del CLI de Supabase para Chanchito (finanzas-lh).
+#
+# Este archivo se agregó el 2026-07-28 para cerrar el drift histórico:
+# hasta entonces el proyecto NO estaba linkeado al CLI, las migraciones se
+# aplicaban a mano desde el SQL Editor y nada garantizaba que un archivo
+# del repo estuviera realmente aplicado en la base. Eso produjo el caso de
+# la RLS: la migración figuró como "PENDIENTE de aplicar" durante 18 días
+# cuando en realidad ya estaba aplicada hacía semanas.
+#
+# ⚠️ NO hay base DEV: existe una sola instancia (`LHStudio`) y es
+# PRODUCCIÓN. `db.port`/`db start` levantan una copia local en Docker; el
+# remoto se toca con `supabase db push --linked`.
+#
+# Flujo a partir de ahora:
+#   1. supabase migration new <nombre>     -> crea el archivo con timestamp
+#   2. escribir el SQL
+#   3. supabase db push --linked           -> aplica y registra en un paso
+#   4. supabase migration list             -> Local y Remote deben coincidir
+#
+# Nunca más aplicar SQL a mano sin que quede el renglón en
+# supabase_migrations.schema_migrations.
+
+project_id = "mkkgdjxaotgimqwhyesx"
+
+[db]
+# Versión mayor del Postgres remoto (17.6.1 al 2026-07-28).
+major_version = 17

@@ -53,3 +53,8 @@ public/workbox-*.js.map
 
 # Temporales de sesiones de Claude Code
 tmpclaude-*
+
+# CLI de Supabase: estado local del link (project-ref, credenciales de sesión).
+# El config.toml SÍ se versiona; .temp/ no.
+supabase/.temp/
+supabase/.branches/

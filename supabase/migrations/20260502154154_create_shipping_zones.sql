@@ -1,0 +1,24 @@
+-- ============================================================
+-- NO-OP — marcador de historial. No ejecuta nada.
+-- Versión: 20260502154154 (create_shipping_zones)
+--
+-- Esta versión figura en supabase_migrations.schema_migrations de la
+-- instancia `LHStudio` pero NO pertenece a Chanchito: es de **NatArt**,
+-- que durante un tiempo compartió esta misma instancia Supabase (schema
+-- `nat_ecommerce`). Nat migró después a PocketBase.
+--
+-- Estado verificado el 2026-07-28: la tabla `shipping_zones` no existe
+-- en ningún schema de esta base — quedó solo el renglón en el registro.
+--
+-- Se conserva como archivo vacío en vez de borrar el renglón para que
+-- `supabase migration list` no reporte drift, sin falsear el historial
+-- real de la instancia. Cuando se dropee el schema `nat_ecommerce`
+-- (tarjeta abierta en el Kanban) se puede borrar este archivo junto con
+-- su renglón:
+--
+--   DELETE FROM supabase_migrations.schema_migrations
+--   WHERE version = '20260502154154';
+-- ============================================================
+
+-- Intencionalmente sin sentencias.
+SELECT 1 WHERE FALSE;

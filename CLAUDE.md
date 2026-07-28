@@ -129,6 +129,25 @@ Para verificar visualmente: `design_handoff_chanchito/prototypes/Chanchito App.h
 - ⚠️ **NO existe base DEV: hay una sola instancia Supabase** (proyecto `LHStudio`, ref `mkkgdjxaotgimqwhyesx`) y `.env.local` apunta a ella. Desarrollar en local es operar sobre los datos reales de producción — cuidado con borrados, backfills y migraciones destructivas.
 - Cambios de schema SQL: aplicar **antes** del merge (van a producción en el acto, por lo de arriba). Si el cambio rompe la firma de algo que el deploy vigente ya usa, hacerlo compatible hacia atrás (ej. wrappers) para no abrir una ventana de fallas hasta el próximo deploy.
 
+## Migraciones (leer antes de escribir SQL)
+
+El proyecto está **linkeado al CLI de Supabase** desde el 2026-07-28 (`supabase/config.toml`). Antes no lo estaba: las migraciones se aplicaban a mano desde el SQL Editor y nada garantizaba que un archivo del repo estuviera realmente aplicado. Eso produjo el caso de la RLS —"PENDIENTE de aplicar" durante 18 días cuando ya estaba aplicada— y dejó 7 de 12 migraciones sin registrar. Saneado y verificado: repo y `supabase_migrations.schema_migrations` coinciden 1:1 (14 versiones).
+
+**Flujo obligatorio:**
+
+```bash
+supabase migration new <nombre>   # crea el archivo con timestamp de 14 dígitos
+# escribir el SQL
+supabase db push --linked         # aplica Y registra, en un solo paso
+supabase migration list           # Local y Remote deben coincidir
+```
+
+Reglas:
+- **Nunca** aplicar SQL a mano sin que quede el renglón en `schema_migrations`. Si por algún motivo hay que hacerlo (el CLI no está logueado, por ejemplo), registrar la versión a mano en la misma sesión — no "después".
+- Los archivos van con timestamp de **14 dígitos** (`YYYYMMDDHHMMSS_nombre.sql`). Con 8 el CLI los ignora.
+- El estado de la DB se verifica **contra la DB** (`pg_policies`, `pg_proc`, `information_schema`), nunca contra lo que diga un comentario del commit o el Status.
+- `20260502154154_create_shipping_zones.sql` es un **no-op** a propósito: esa versión es de NatArt, que compartió esta instancia antes de migrar a PocketBase. Ver el encabezado del archivo.
+
 ## Panchito Kit
 - nivel: lite
 - status: 40-PROYECTOS/Chanchito/Chanchito - Status & Roadmap.md
