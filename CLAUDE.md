@@ -143,6 +143,8 @@ supabase db push --linked         # aplica Y registra, en un solo paso
 supabase migration list           # Local y Remote deben coincidir
 ```
 
+⚠️ **`db push` necesita `SUPABASE_DB_PASSWORD`** (conexión directa a Postgres). Sin esa env var falla con `unexpected login role status 403` — el access token del CLI no alcanza. Alternativa verificada (28-jul): aplicar por la **API de Supabase** (`apply_migration`), que ejecuta el DDL **y** registra la versión en `schema_migrations`. Ojo: la API asigna su **propio timestamp**, distinto del que puso `migration new` → al terminar hay que **renombrar el archivo local a la versión que quedó registrada**, o queda drift. Verificar siempre con `list_migrations` contra el listado de `supabase/migrations/`.
+
 Reglas:
 - **Nunca** aplicar SQL a mano sin que quede el renglón en `schema_migrations`. Si por algún motivo hay que hacerlo (el CLI no está logueado, por ejemplo), registrar la versión a mano en la misma sesión — no "después".
 - Los archivos van con timestamp de **14 dígitos** (`YYYYMMDDHHMMSS_nombre.sql`). Con 8 el CLI los ignora.
