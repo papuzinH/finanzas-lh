@@ -59,7 +59,8 @@ Funciones PURAS (sin Zustand ni Supabase) — **fuente única de cálculos** par
 - **Prompt**: `lib/ai/agentPrompt.ts` (identidad Chanchito + reglas duras + diccionario de categorías con UUIDs + medios). "¿Qué significa X?" sale del diccionario estático de `tools/appHelp.ts` — mantenerlo fiel a este CLAUDE.md.
 - **Confirmaciones de borrado**: dos pasos SIN estado en servidor (serverless-safe): `delete_entity` con `confirmed=false` devuelve las dependencias; el modelo pregunta al usuario y recién en el mensaje siguiente llama con `confirmed=true` (+ `reasignar_a` opcional).
 - **Costos**: `usageGuard` (cuota diaria por usuario + presupuesto global con corte duro) acumula los tokens de TODO el loop; `maxDuration = 60` en la route.
-- **GOTCHA `types/database.ts` DESACTUALIZADO** (verificado contra el schema real vía `information_schema`, 2026-07-08): los tipos dicen que `users.id` y varios `user_id` son numéricos — **es falso**. En la base real TODOS los `id`/`user_id` son **UUID** y `users.id` = UID de auth (`dbUser.id` == `ctx.authUserId` == `getAuthUserId()`: mismo valor por distintas vías). Ante cualquier duda de columnas, verificar contra la DB real, NO contra los types. Pendiente: regenerar types (`supabase gen types` / MCP `generate_typescript_types`). OJO: `users.auth_user_id` existe pero está NULL para todas las filas — no usarla (bug conocido: `onboardingStore` persiste `tour_completed` filtrando por ella → el update nunca matchea y el tour reaparece en cada dispositivo).
+- **Identidad: TODO es UUID.** `users.id` = UID de auth (`dbUser.id` == `ctx.authUserId` == `getAuthUserId()`: mismo valor por distintas vías). Los types ya fueron regenerados desde el schema real (`c182662`, 2026-07-08), así que `types/database.ts` es confiable; ante una duda puntual, igual conviene verificar contra la DB. `users.auth_user_id` existe y desde 2026-07-08 está backfilleada (= `id`), pero es **vestigial**: filtrar por `users.id`, no por ella.
+- **Cuotas del chat: la política vive en la DB, no en el código.** `check_and_increment_chat_usage()` y `accumulate_chat_budget(tokens)` son `SECURITY DEFINER` expuestas al rol `authenticated` (o sea: invocables desde el browser con la anon key). Por eso **no reciben usuario, tier, límite, presupuesto ni precios como parámetros** — los resuelven de `auth.uid()`, `users.chat_tier` y la tabla `chat_config`. Para cambiar límites/precios se hace `UPDATE chat_config`, ya no se tocan env vars (`CHAT_DAILY_LIMIT_*`, `CHAT_MONTHLY_BUDGET_USD`, `GEMINI_*_PRICE_PER_1M` quedaron sin uso). NO volver a pasar parámetros de política desde `usageGuard.ts`: hay tests que lo impiden.
 - El chat de onboarding (`/api/chat/onboarding`, `lib/ai/onboarding*`) es un flujo aparte: no usa el agente.
 - Diseño y decisiones: spec en `docs/superpowers/specs/2026-07-07-chatbot-asistente-ia-design.md` (incluye roadmap: UI híbrida, proactividad, contexto macro).
 
@@ -124,9 +125,9 @@ Para verificar visualmente: `design_handoff_chanchito/prototypes/Chanchito App.h
 - Schemas Zod en `lib/schemas/` + React Hook Form + `@hookform/resolvers`.
 
 ## Deploy
-- `master` → producción automática en Vercel (Supabase PROD).
-- `.env.local` → Supabase DEV.
-- Cambios de schema SQL: aplicar a PROD **antes** del merge.
+- `master` → producción automática en Vercel.
+- ⚠️ **NO existe base DEV: hay una sola instancia Supabase** (proyecto `LHStudio`, ref `mkkgdjxaotgimqwhyesx`) y `.env.local` apunta a ella. Desarrollar en local es operar sobre los datos reales de producción — cuidado con borrados, backfills y migraciones destructivas.
+- Cambios de schema SQL: aplicar **antes** del merge (van a producción en el acto, por lo de arriba). Si el cambio rompe la firma de algo que el deploy vigente ya usa, hacerlo compatible hacia atrás (ej. wrappers) para no abrir una ventana de fallas hasta el próximo deploy.
 
 ## Panchito Kit
 - nivel: lite

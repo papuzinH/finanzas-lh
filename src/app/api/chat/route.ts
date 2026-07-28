@@ -95,12 +95,13 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = dbUser.id
-    const tier = (dbUser.chat_tier === 'pro' ? 'pro' : 'free') as 'free' | 'pro'
 
-    // Verificar cuota antes de llamar a Gemini
+    // Verificar cuota antes de llamar a Gemini.
+    // El tier y el límite los resuelve la propia función en la DB a partir de
+    // auth.uid(): no se mandan desde acá (ver lib/chat/usageGuard.ts).
     let usageStatus: UsageCheckResult
     try {
-      usageStatus = await checkAndIncrementUsage(supabase, userId, tier)
+      usageStatus = await checkAndIncrementUsage(supabase)
     } catch (err) {
       console.error('Error checking chat usage:', err)
       // Si el guard falla, dejamos pasar (fail open) para no romper UX

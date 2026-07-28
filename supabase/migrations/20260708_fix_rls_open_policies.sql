@@ -2,6 +2,12 @@
 -- MIGRACIÓN: Cerrar políticas RLS abiertas (qual=true) y sanear
 --            la identidad users.id / auth_user_id
 -- Fecha: 2026-07-08
+-- ESTADO: ✅ APLICADA en producción (verificada el 2026-07-28 contra
+--         pg_policies, pg_proc y users.auth_user_id: helper, trigger,
+--         backfill, políticas abiertas dropeadas, legacy_* sin políticas
+--         y staging_plans con RLS — todo coincide con este archivo).
+--         Es idempotente salvo los CREATE POLICY: re-correrla entera
+--         falla con "policy already exists".
 --
 -- Contexto (verificado por SQL directo contra la DB):
 --  * users.id ES el UUID de auth (FK a auth.users(id); el trigger
