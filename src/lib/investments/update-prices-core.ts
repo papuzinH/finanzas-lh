@@ -7,10 +7,21 @@ import type { ASSET_TYPES } from '@/lib/schemas/investment-asset'
 
 const BATCH_SIZE = 5
 
+/** Las 4 pairs que `fetchAllRates` intenta traer en cada corrida. */
+const RATE_PAIRS = ['USD_ARS_BLUE', 'USD_ARS_MEP', 'USD_ARS_CCL', 'USDT_ARS'] as const
+
 export interface UpdatePricesResult {
   updated: number
+  /** Tickers de activos cuyo precio no se pudo actualizar. */
   failed: string[]
+  /** `true` si se guardó AL MENOS una cotización — no implica que estén todas. */
   rates_updated: boolean
+  /**
+   * Pairs que no se pudieron actualizar. `rates_updated` solo no alcanza: con
+   * el blue caído y el MEP OK daba `true` y el blue quedaba con el valor viejo
+   * sin que nadie se enterara.
+   */
+  failedRates: string[]
 }
 
 /**
@@ -99,6 +110,7 @@ export async function runUpdatePrices(
 
   // Actualizar exchange_rates
   let rates_updated = false
+  let failedRates: string[] = [...RATE_PAIRS]
   try {
     const rates = await fetchAllRates()
     const now = new Date().toISOString()
@@ -116,11 +128,18 @@ export async function runUpdatePrices(
         { onConflict: 'pair' },
       )
       rates_updated = !ratesError
-      if (ratesError) console.error('Error upserting exchange rates:', ratesError)
+      if (ratesError) {
+        // El upsert es uno solo: si falla, no se guardó ninguna.
+        console.error('Error upserting exchange rates:', ratesError)
+      } else {
+        const saved = new Set(rateEntries.map((e) => e.pair))
+        failedRates = RATE_PAIRS.filter((p) => !saved.has(p))
+      }
     }
   } catch (e) {
+    // failedRates ya está en "todas": no se pudo traer ninguna cotización.
     console.error('Error fetching exchange rates:', e)
   }
 
-  return { updated, failed, rates_updated }
+  return { updated, failed, rates_updated, failedRates }
 }

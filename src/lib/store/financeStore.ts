@@ -48,6 +48,7 @@ import {
 } from '@/lib/finance/balances';
 import { computeExpensesByCategory, computeMonthlyBalance } from '@/lib/finance/analysis';
 import { computePortfolioStatus } from '@/lib/finance/portfolio';
+import type { PortfolioStatus, PortfolioDisplayCurrency } from '@/lib/finance/portfolio';
 
 export type { ProcessedTransaction } from '@/lib/finance/types';
 export { resolveRate } from '@/lib/finance/prepare';
@@ -100,43 +101,9 @@ interface FinanceState {
   getInflationSeries: () => Array<{ month: string; rate: number }>;
 
   // Computed Getters (Logic)
-  getPortfolioStatus: (displayCurrency?: 'ARS' | 'USD_MEP' | 'USD_CCL' | 'USDT') => {
-    assets: Array<{
-      id: string;
-      ticker: string;
-      name: string;
-      asset_type: string;
-      currency: string | null;
-      position: number;
-      ppc: number;
-      currentPrice: number;
-      currentValue: number;
-      investedValue: number;
-      unrealizedPL: number;
-      realizedPL: number;
-      totalPL: number;
-      plPercent: number;
-      lastUpdate: string | null;
-      source: string | null;
-      metadata: Record<string, unknown> | null;
-      profitAmount: number;
-      profitPercent: number;
-      lastPrice: number;
-    }>;
-    totalValue: number;
-    totalInvested: number;
-    totalUnrealizedPL: number;
-    totalRealizedPL: number;
-    totalPLPercent: number;
-    totalSavings: number;
-    savingsBreakdown: { ARS: number; USD: number };
-    displayCurrency: string;
-    lastUpdate: string | null;
-    totalBalanceARS: number;
-    totalBalanceUSD: number;
-    totalProfitARS: number;
-    totalProfitUSD: number;
-  };
+  // El tipo sale de la función pura, NO se re-declara acá: duplicarlo hizo que
+  // los campos nuevos de `PortfolioStatus` no llegaran a los consumidores.
+  getPortfolioStatus: (displayCurrency?: PortfolioDisplayCurrency) => PortfolioStatus;
   getPortfolioDistribution: () => Array<{
     assetType: string;
     value: number;
