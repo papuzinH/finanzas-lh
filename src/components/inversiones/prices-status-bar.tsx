@@ -1,12 +1,26 @@
 'use client'
 
 import { Clock, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react'
-import { cn, formatRelativeTime } from '@/lib/utils'
+import { cn, formatRelativeTime, isStale } from '@/lib/utils'
+
+/** Etiquetas legibles de las pairs de `failedRates`. */
+const RATE_LABELS: Record<string, string> = {
+  USD_ARS_BLUE: 'blue',
+  USD_ARS_MEP: 'MEP',
+  USD_ARS_CCL: 'CCL',
+  USDT_ARS: 'USDT',
+}
 
 interface PricesStatusBarProps {
   lastUpdate: string | null
   isRefreshing: boolean
-  lastResult: { updated: number; failed: string[]; timestamp: string } | null
+  lastResult: {
+    updated: number
+    failed: string[]
+    /** Cotizaciones que no se pudieron actualizar (pairs de `exchange_rates`). */
+    failedRates: string[]
+    timestamp: string
+  } | null
   onRefresh: () => void
   onOpenFailed: () => void
 }
@@ -19,13 +33,32 @@ export function PricesStatusBar({
   onOpenFailed,
 }: PricesStatusBarProps) {
   const hasFailed = (lastResult?.failed.length ?? 0) > 0
+  const failedRates = lastResult?.failedRates ?? []
+
+  // Pasadas 24 h los precios dejan de ser confiables y el estado tiene que
+  // notarse: antes "hace 3 días" se veía idéntico a "hace 2 minutos".
+  const stale = isStale(lastUpdate)
+  const needsAttention = !lastUpdate || stale
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border-[1.5px] border-border bg-surface px-3 py-2">
-      <div className="flex items-center gap-1.5 text-xs text-muted min-w-0">
-        <Clock className="h-3.5 w-3.5 shrink-0 text-faint" />
+      <div
+        className={cn(
+          'flex items-center gap-1.5 text-xs min-w-0',
+          needsAttention ? 'text-warn font-medium' : 'text-muted',
+        )}
+      >
+        {needsAttention ? (
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+        ) : (
+          <Clock className="h-3.5 w-3.5 shrink-0 text-faint" />
+        )}
         <span className="truncate">
-          {lastUpdate ? `Actualizado ${formatRelativeTime(lastUpdate)}` : 'Sin precios cargados'}
+          {!lastUpdate
+            ? 'Sin precios cargados'
+            : stale
+              ? `Precios de ${formatRelativeTime(lastUpdate)}`
+              : `Actualizado ${formatRelativeTime(lastUpdate)}`}
         </span>
       </div>
 
@@ -45,6 +78,15 @@ export function PricesStatusBar({
               <AlertTriangle className="h-3.5 w-3.5" />
               {lastResult.failed.length} {lastResult.failed.length === 1 ? 'falló' : 'fallaron'} · Ver
             </button>
+          )}
+          {failedRates.length > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-md bg-warn/10 px-2 py-0.5 text-[10px] font-medium text-warn"
+              title="No se pudieron actualizar estas cotizaciones; se sigue usando el último valor guardado."
+            >
+              <AlertTriangle className="h-3 w-3" />
+              sin {failedRates.map((p) => RATE_LABELS[p] ?? p).join(', ')}
+            </span>
           )}
         </div>
       )}

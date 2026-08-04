@@ -28,7 +28,7 @@ interface FailedPricesDialogProps {
   onOpenChange: (open: boolean) => void
   failedTickers: string[]
   assets: FailedAssetInfo[]
-  onRetried?: (result: { updated: number; failed: string[] }) => void
+  onRetried?: (result: { updated: number; failed: string[]; failedRates: string[] }) => void
 }
 
 export function FailedPricesDialog({
@@ -56,7 +56,9 @@ export function FailedPricesDialog({
       }
       const stillFailed: string[] = json.failed ?? []
       const updated: number = json.updated ?? 0
-      onRetried?.({ updated, failed: stillFailed })
+      // El retry pega al mismo endpoint, así que también reintenta cotizaciones.
+      const failedRates: string[] = json.failedRates ?? []
+      onRetried?.({ updated, failed: stillFailed, failedRates })
       await fetchAllData()
       if (stillFailed.length === 0) {
         toast.success('Todos los precios se actualizaron')

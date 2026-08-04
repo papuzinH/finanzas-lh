@@ -192,3 +192,83 @@ describe('computePortfolioStatus', () => {
     expect(r.totalValue).toBe(12000 + 6000)
   })
 })
+
+/**
+ * Sin ninguna cotización (ni exchange_rates ni dólar blue) el portfolio NO puede
+ * valuar nada que dependa de USD. Antes se usaba 1 como tasa: un activo de
+ * USD 10.000 se mostraba como ARS 10.000 (~1000x menos) con la misma pinta que
+ * un número correcto. Ahora se marca como no valuable y la UI muestra "—".
+ */
+describe('computePortfolioStatus · sin cotizaciones disponibles', () => {
+  const noRates = (overrides: Partial<PortfolioInputs> = {}) =>
+    baseInputs({ exchangeRates: [], dolarBlue: null, ...overrides })
+
+  it('NO valúa un activo en USD con tasa 1: lo marca no valuable', () => {
+    const r = computePortfolioStatus(
+      noRates({
+        investmentAssets: [asset({ ticker: 'AL30', name: 'Bono', asset_type: 'bond', currency: 'USD' })],
+        investmentTransactions: [invTx({ quantity: 1000, price_per_unit: 10, currency: 'USD' })],
+      }),
+    )
+    const a = r.assets[0]
+    expect(a.valuationUnavailable).toBe(true)
+    // lo importante: NO aparece 10.000 (el valor USD tomado como si fueran pesos)
+    expect(a.ppc).not.toBe(10)
+    expect(a.currentValue).not.toBe(10000)
+    expect(a.currentValue).toBe(0)
+    expect(r.valuationUnavailable).toBe(true)
+    expect(r.missingRates).toContain('USD_ARS_MEP')
+  })
+
+  it('un activo en ARS se valúa igual: no necesita cotización', () => {
+    const r = computePortfolioStatus(
+      noRates({
+        investmentAssets: [asset({})],
+        investmentTransactions: [invTx({ quantity: 10, price_per_unit: 100 })],
+        marketPrices: [mp({ last_price: 150 })],
+      }),
+    )
+    expect(r.assets[0].valuationUnavailable).toBe(false)
+    expect(r.assets[0].currentValue).toBe(1500)
+    expect(r.valuationUnavailable).toBe(false)
+    expect(r.missingRates).toEqual([])
+  })
+
+  it('savings en USD no se suman al total y quedan marcados', () => {
+    const r = computePortfolioStatus(
+      noRates({ savings: [saving('ARS', 5000), saving('USD', 10)] }),
+    )
+    // 10 USD NO valen 10 ARS: solo entra la parte en pesos
+    expect(r.totalSavings).toBe(5000)
+    expect(r.savingsBreakdown).toEqual({ ARS: 5000, USD: 10 })
+    expect(r.valuationUnavailable).toBe(true)
+    expect(r.missingRates).toContain('USD_ARS_MEP')
+  })
+
+  it('pedir el display en USD sin tasa marca todo el portfolio no valuable', () => {
+    const r = computePortfolioStatus(
+      noRates({
+        investmentAssets: [asset({})],
+        investmentTransactions: [invTx({ quantity: 10, price_per_unit: 100 })],
+        marketPrices: [mp({ last_price: 150 })],
+      }),
+      'USD_MEP',
+    )
+    expect(r.valuationUnavailable).toBe(true)
+    expect(r.missingRates).toContain('USD_ARS_MEP')
+    expect(r.totalValue).toBe(0)
+  })
+
+  it('con blue disponible sigue valuando (el fallback no se rompe)', () => {
+    const r = computePortfolioStatus(
+      baseInputs({
+        investmentAssets: [asset({ ticker: 'AL30', name: 'Bono', asset_type: 'bond', currency: 'USD' })],
+        investmentTransactions: [invTx({ quantity: 1, price_per_unit: 10, currency: 'USD' })],
+        dolarBlue: { compra: 1180, venta: 1200, fechaActualizacion: '2026-07-08' },
+      }),
+    )
+    expect(r.assets[0].valuationUnavailable).toBe(false)
+    expect(r.assets[0].ppc).toBe(12000)
+    expect(r.valuationUnavailable).toBe(false)
+  })
+})

@@ -17,6 +17,7 @@ import { PortfolioDistribution } from '@/components/inversiones/portfolio-distri
 import { PricesStatusBar } from '@/components/inversiones/prices-status-bar'
 import { FailedPricesDialog } from '@/components/inversiones/failed-prices-dialog'
 import { SavingsCard } from '@/components/inversiones/savings-card'
+import { BannerDS } from '@/components/ui/banner-ds'
 import { deleteAsset } from './actions'
 
 const STALE_THRESHOLD_MS = 60 * 60 * 1000
@@ -31,6 +32,14 @@ const fmtCurrency = (n: number, currency = 'ARS') =>
     maximumFractionDigits: 0,
   }).format(n)
 
+/** Nombres de las pairs de `missingRates` en criollo, para el banner. */
+const RATE_LABELS: Record<string, string> = {
+  USD_ARS_BLUE: 'dólar blue',
+  USD_ARS_MEP: 'dólar MEP',
+  USD_ARS_CCL: 'dólar CCL',
+  USDT_ARS: 'USDT',
+}
+
 export function InversionesClient() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard')
   const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('ARS')
@@ -38,6 +47,7 @@ export function InversionesClient() {
   const [lastRefreshResult, setLastRefreshResult] = useState<{
     updated: number
     failed: string[]
+    failedRates: string[]
     timestamp: string
   } | null>(null)
   const [failedDialogOpen, setFailedDialogOpen] = useState(false)
@@ -70,9 +80,16 @@ export function InversionesClient() {
       }
       const updated: number = json.updated ?? 0
       const failed: string[] = json.failed ?? []
-      setLastRefreshResult({ updated, failed, timestamp: new Date().toISOString() })
+      const failedRates: string[] = json.failedRates ?? []
+      setLastRefreshResult({ updated, failed, failedRates, timestamp: new Date().toISOString() })
       if (failed.length > 0) {
         toast.warning(`Precios actualizados: ${updated} OK · ${failed.length} fallaron`)
+      } else if (failedRates.length > 0) {
+        // Los activos pueden haber salido bien y las cotizaciones no: sin esto
+        // el usuario veía "todo OK" con el dólar sin actualizar.
+        toast.warning(
+          `Precios actualizados, pero no se pudo traer ${failedRates.map((p) => RATE_LABELS[p] ?? p).join(', ')}`,
+        )
       } else {
         toast.success(`Precios actualizados: ${updated} ${updated === 1 ? 'activo' : 'activos'}`)
       }
@@ -128,6 +145,12 @@ export function InversionesClient() {
     .filter(([, value]) => value > 0)
     .map(([name, value]) => ({ name: getAssetTypeLabel(name), value }))
 
+  // Sin cotización no hay total que mostrar: los montos vienen en 0 como
+  // placeholder y renderizarlos sería afirmar un número que no tenemos.
+  const unvaluedAssets = portfolio.assets.filter((a) => a.valuationUnavailable).length
+  const heroMoney = (n: number) =>
+    portfolio.valuationUnavailable ? '—' : fmtCurrency(n, currencyLabel)
+
   return (
     <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
       <ScreenHeader
@@ -148,6 +171,19 @@ export function InversionesClient() {
             onRefresh={handleRefresh}
             onOpenFailed={() => setFailedDialogOpen(true)}
           />
+
+          {portfolio.valuationUnavailable && (
+            <BannerDS
+              icon="alert"
+              tone="warn"
+              title="No pudimos valuar todo el portfolio"
+              body={
+                unvaluedAssets > 0
+                  ? `Falta la cotización (${portfolio.missingRates.map((p) => RATE_LABELS[p] ?? p).join(', ')}), así que ${unvaluedAssets === 1 ? '1 activo quedó' : `${unvaluedAssets} activos quedaron`} sin valuar. Los montos aparecen como "—" hasta que se actualice.`
+                  : `Falta la cotización (${portfolio.missingRates.map((p) => RATE_LABELS[p] ?? p).join(', ')}) para expresar los montos en esta moneda. Probá actualizar los precios.`
+              }
+            />
+          )}
         </div>
 
         {/* Hero Card */}
@@ -159,13 +195,13 @@ export function InversionesClient() {
             Valor Total del Portfolio
           </p>
           <p className="font-poster tnum text-[clamp(1.65rem,8vw,2.25rem)] leading-[0.95] mt-1 text-cream-light break-words">
-            {fmtCurrency(portfolio.totalValue, currencyLabel)}
+            {heroMoney(portfolio.totalValue)}
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div className="min-w-0 rounded-xl bg-cream-light/10 border-[1.5px] border-cream-light/15 px-3 py-2">
               <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">Invertido</p>
               <p className="font-poster tnum text-[15px] mt-0.5 text-cream-light break-words">
-                {fmtCurrency(portfolio.totalInvested, currencyLabel)}
+                {heroMoney(portfolio.totalInvested)}
               </p>
             </div>
             <div className="min-w-0 rounded-xl bg-cream-light/10 border-[1.5px] border-cream-light/15 px-3 py-2">
@@ -365,8 +401,8 @@ export function InversionesClient() {
           currency: a.currency,
           data_source_url: a.data_source_url,
         }))}
-        onRetried={({ updated, failed }) =>
-          setLastRefreshResult({ updated, failed, timestamp: new Date().toISOString() })
+        onRetried={({ updated, failed, failedRates }) =>
+          setLastRefreshResult({ updated, failed, failedRates, timestamp: new Date().toISOString() })
         }
       />
     </div>

@@ -42,6 +42,12 @@ export interface PortfolioAssetStatus {
   profitAmount: number
   profitPercent: number
   lastPrice: number
+  /**
+   * `true` cuando valuar este activo requería una cotización que no está
+   * disponible (ni en `exchange_rates` ni el dólar blue). Sus montos quedan en
+   * 0: son un placeholder, NO un valor real. La UI debe mostrar "—".
+   */
+  valuationUnavailable: boolean
 }
 
 export interface PortfolioStatus {
@@ -59,6 +65,10 @@ export interface PortfolioStatus {
   totalBalanceUSD: number
   totalProfitARS: number
   totalProfitUSD: number
+  /** `true` si alguna parte del portfolio no se pudo valuar por falta de cotización. */
+  valuationUnavailable: boolean
+  /** Pairs que hicieron falta y no se pudieron resolver (ej. `USD_ARS_MEP`). */
+  missingRates: string[]
 }
 
 /**
@@ -82,27 +92,46 @@ export function computePortfolioStatus(
   // la tabla exchange_rates aún no tiene la pair específica.
   const blueFallback = dolarBlue?.venta && dolarBlue.venta > 0 ? dolarBlue.venta : null
 
-  const getRate = (pair: string): number => {
+  // Devuelve la cotización o null. NUNCA inventa un valor: antes caía a 1, lo
+  // que convertía USD→ARS por 1 y mostraba un portfolio ~1000x más chico con la
+  // misma pinta que uno correcto.
+  const resolveRate = (pair: string): number | null => {
     const r = exchangeRates.find((e) => e.pair === pair)
     if (r && r.rate > 0) return r.rate
-    if (blueFallback) return blueFallback
-    return 1
+    return blueFallback
   }
 
-  const mepRate = getRate('USD_ARS_MEP')
-  const cclRate = getRate('USD_ARS_CCL')
-  const usdtRate = getRate('USDT_ARS')
+  const mepRate = resolveRate('USD_ARS_MEP')
+  const cclRate = resolveRate('USD_ARS_CCL')
+  const usdtRate = resolveRate('USDT_ARS')
 
-  const convertArsToDisplay = (arsValue: number): number => {
+  // Se llenan solo cuando la conversión se INTENTA y falla: un portfolio 100%
+  // en pesos y en display ARS no necesita ninguna pair y no reporta faltantes.
+  const missingRates = new Set<string>()
+  const missing = (pair: string): null => {
+    missingRates.add(pair)
+    return null
+  }
+
+  const displayPair =
+    displayCurrency === 'USD_CCL' ? 'USD_ARS_CCL'
+    : displayCurrency === 'USDT' ? 'USDT_ARS'
+    : 'USD_ARS_MEP'
+  const displayRate =
+    displayCurrency === 'USD_CCL' ? cclRate : displayCurrency === 'USDT' ? usdtRate : mepRate
+
+  const convertArsToDisplay = (arsValue: number): number | null => {
     if (displayCurrency === 'ARS') return arsValue
-    if (displayCurrency === 'USD_MEP') return arsValue / mepRate
-    if (displayCurrency === 'USD_CCL') return arsValue / cclRate
-    if (displayCurrency === 'USDT') return arsValue / usdtRate
-    return arsValue / mepRate
+    if (displayRate === null) return missing(displayPair)
+    return arsValue / displayRate
   }
 
-  const convertToARS = (amount: number, fromCurrency: string): number => {
+  /** Igual que `convertArsToDisplay` pero colapsa el faltante a 0 (placeholder). */
+  const toDisplay = (arsValue: number): number => convertArsToDisplay(arsValue) ?? 0
+
+  const convertToARS = (amount: number, fromCurrency: string): number | null => {
     if (fromCurrency === 'ARS') return amount
+    if (mepRate === null) return missing('USD_ARS_MEP')
     return amount * mepRate
   }
 
@@ -116,13 +145,21 @@ export function computePortfolioStatus(
     const buys = txs.filter((t) => t.type === 'buy')
     const sells = txs.filter((t) => t.type === 'sell')
 
+    // Se prende si alguna conversión que este activo necesita no tuvo cotización.
+    let unavailable = false
+
     const totalBuyQty = buys.reduce((s, t) => s + Number(t.quantity), 0)
     const totalSellQty = sells.reduce((s, t) => s + Number(t.quantity), 0)
     const position = Math.max(totalBuyQty - totalSellQty, 0)
 
     const totalBuyCostARS = buys.reduce((s, t) => {
       const costRaw = Number(t.quantity) * Number(t.price_per_unit) + Number(t.fees ?? 0)
-      return s + convertToARS(costRaw, t.currency)
+      const costARS = convertToARS(costRaw, t.currency)
+      if (costARS === null) {
+        unavailable = true
+        return s
+      }
+      return s + costARS
     }, 0)
 
     const ppcARS = totalBuyQty > 0 ? totalBuyCostARS / totalBuyQty : 0
@@ -152,9 +189,17 @@ export function computePortfolioStatus(
         currentPriceARS = position > 0 ? (totalBuyCostARS * dailyAccruedMultiplier) / position : ppcARS
       }
     } else if (asset.currency === 'USD' && mp?.price_usd) {
-      currentPriceARS =
-        Number(mp.price_usd) *
-        (asset.asset_type === 'cedear' ? Number(mp.ccl_implicit || cclRate) : mepRate)
+      // Los CEDEARs valúan por su CCL implícito; si no vino, caen al CCL general.
+      const cclImplicit = Number(mp.ccl_implicit)
+      const isCedear = asset.asset_type === 'cedear'
+      const fx = isCedear ? (cclImplicit > 0 ? cclImplicit : cclRate) : mepRate
+
+      if (fx === null) {
+        unavailable = true
+        missing(isCedear ? 'USD_ARS_CCL' : 'USD_ARS_MEP')
+      } else {
+        currentPriceARS = Number(mp.price_usd) * fx
+      }
     }
 
     const currentValueARS = position * currentPriceARS
@@ -166,15 +211,27 @@ export function computePortfolioStatus(
         Number(t.quantity) * Number(t.price_per_unit) - Number(t.fees ?? 0),
         t.currency,
       )
+      if (sellRevenueARS === null) {
+        unavailable = true
+        return s
+      }
       const originalCostARS = Number(t.quantity) * ppcARS
       return s + (sellRevenueARS - originalCostARS)
     }, 0)
 
-    globalValueARS += currentValueARS
-    globalInvestedARS += investedValueARS
-    globalRealizedPLARS += realizedPLARS
+    // Un activo que no se pudo valuar NO aporta a los totales: sus montos son
+    // placeholders, sumarlos ensuciaría el total con ceros disfrazados de datos.
+    if (!unavailable) {
+      globalValueARS += currentValueARS
+      globalInvestedARS += investedValueARS
+      globalRealizedPLARS += realizedPLARS
+    }
 
-    const plPercent = investedValueARS > 0 ? (unrealizedPLARS / investedValueARS) * 100 : 0
+    const plPercent =
+      unavailable || investedValueARS <= 0 ? 0 : (unrealizedPLARS / investedValueARS) * 100
+
+    /** 0 cuando el activo no se pudo valuar; la UI lo renderiza como "—". */
+    const show = (arsValue: number): number => (unavailable ? 0 : toDisplay(arsValue))
 
     return {
       id: asset.id,
@@ -183,26 +240,27 @@ export function computePortfolioStatus(
       asset_type: asset.asset_type,
       currency: asset.currency,
       position,
-      ppc: convertArsToDisplay(ppcARS),
-      currentPrice: convertArsToDisplay(currentPriceARS),
-      currentValue: convertArsToDisplay(currentValueARS),
-      investedValue: convertArsToDisplay(investedValueARS),
-      unrealizedPL: convertArsToDisplay(unrealizedPLARS),
-      realizedPL: convertArsToDisplay(realizedPLARS),
-      totalPL: convertArsToDisplay(unrealizedPLARS + realizedPLARS),
+      ppc: show(ppcARS),
+      currentPrice: show(currentPriceARS),
+      currentValue: show(currentValueARS),
+      investedValue: show(investedValueARS),
+      unrealizedPL: show(unrealizedPLARS),
+      realizedPL: show(realizedPLARS),
+      totalPL: show(unrealizedPLARS + realizedPLARS),
       plPercent,
       lastUpdate: mp?.last_update ?? null,
       source: mp?.source ?? null,
       metadata: (asset.metadata as Record<string, unknown> | null) ?? null,
-      profitAmount: convertArsToDisplay(unrealizedPLARS),
+      profitAmount: show(unrealizedPLARS),
       profitPercent: plPercent,
-      lastPrice: convertArsToDisplay(currentPriceARS),
+      lastPrice: show(currentPriceARS),
+      valuationUnavailable: unavailable,
     }
   })
 
-  const totalUnrealizedPLDisplay = convertArsToDisplay(globalValueARS - globalInvestedARS)
-  const totalRealizedPLDisplay = convertArsToDisplay(globalRealizedPLARS)
-  const totalInvestedDisplay = convertArsToDisplay(globalInvestedARS)
+  const totalUnrealizedPLDisplay = toDisplay(globalValueARS - globalInvestedARS)
+  const totalRealizedPLDisplay = toDisplay(globalRealizedPLARS)
+  const totalInvestedDisplay = toDisplay(globalInvestedARS)
 
   // Savings (tenencia de dólares/pesos sueltos)
   const arsSavingsRaw = savings
@@ -211,11 +269,22 @@ export function computePortfolioStatus(
   const usdSavingsRaw = savings
     .filter((s) => s.currency === 'USD')
     .reduce((acc, s) => acc + Number(s.amount), 0)
-  const savingsInARS = arsSavingsRaw + usdSavingsRaw * mepRate
+
+  // Los dólares sueltos entran al total solo si hay con qué convertirlos: sin
+  // cotización quedan afuera y se reportan en `missingRates` (antes se sumaban
+  // a 1:1 con los pesos, que es peor que no sumarlos).
+  let savingsInARS = arsSavingsRaw
+  if (usdSavingsRaw > 0) {
+    if (mepRate === null) missing('USD_ARS_MEP')
+    else savingsInARS += usdSavingsRaw * mepRate
+  }
+
+  const totalValueDisplay = toDisplay(globalValueARS + savingsInARS)
+  const totalSavingsDisplay = toDisplay(savingsInARS)
 
   return {
     assets,
-    totalValue: convertArsToDisplay(globalValueARS + savingsInARS),
+    totalValue: totalValueDisplay,
     totalInvested: totalInvestedDisplay,
     totalUnrealizedPL: totalUnrealizedPLDisplay,
     totalRealizedPL: totalRealizedPLDisplay,
@@ -223,13 +292,15 @@ export function computePortfolioStatus(
       totalInvestedDisplay > 0
         ? ((totalUnrealizedPLDisplay + totalRealizedPLDisplay) / totalInvestedDisplay) * 100
         : 0,
-    totalSavings: convertArsToDisplay(savingsInARS),
+    totalSavings: totalSavingsDisplay,
     savingsBreakdown: { ARS: arsSavingsRaw, USD: usdSavingsRaw },
     displayCurrency,
     lastUpdate,
     totalBalanceARS: displayCurrency === 'ARS' ? (globalValueARS + savingsInARS) : 0,
-    totalBalanceUSD: displayCurrency !== 'ARS' ? convertArsToDisplay(globalValueARS + savingsInARS) : 0,
+    totalBalanceUSD: displayCurrency !== 'ARS' ? totalValueDisplay : 0,
     totalProfitARS: displayCurrency === 'ARS' ? (globalValueARS - globalInvestedARS) : 0,
     totalProfitUSD: displayCurrency !== 'ARS' ? totalUnrealizedPLDisplay : 0,
+    valuationUnavailable: missingRates.size > 0,
+    missingRates: [...missingRates],
   }
 }

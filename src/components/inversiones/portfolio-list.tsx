@@ -45,6 +45,8 @@ interface AssetRow {
   lastUpdate: string | null
   source: string | null
   metadata: Record<string, unknown> | null
+  /** Sin cotización para valuarlo: los montos vienen en 0 y se muestran como "—". */
+  valuationUnavailable: boolean
 }
 
 interface PortfolioListProps {
@@ -119,6 +121,15 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
   }
 
   const currencyLabel = ['ARS'].includes(displayCurrency) ? 'ARS' : 'USD'
+
+  // Un activo sin cotización no tiene monto que mostrar: computePortfolioStatus
+  // devuelve 0 como placeholder, así que renderizarlo sería mentir. Va "—".
+  const money = (a: AssetRow, value: number) =>
+    a.valuationUnavailable ? '—' : fmtCurrency(value, currencyLabel)
+  const signedMoney = (a: AssetRow, value: number) =>
+    a.valuationUnavailable ? '—' : fmtSignedCurrency(value, currencyLabel)
+  const signedPct = (a: AssetRow, value: number) =>
+    a.valuationUnavailable ? '—' : fmtSignedPercent(value)
 
   return (
     <div className="space-y-3">
@@ -226,13 +237,13 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-sm font-semibold text-text tnum">
-                    {fmtCurrency(asset.currentValue, currencyLabel)}
+                    {money(asset, asset.currentValue)}
                   </p>
                   <p className={cn('text-xs tnum', plColor(asset.unrealizedPL))}>
-                    {fmtSignedCurrency(asset.unrealizedPL, currencyLabel)}
+                    {signedMoney(asset, asset.unrealizedPL)}
                   </p>
                   <p className={cn('text-[11px] font-semibold tnum', plColor(asset.plPercent))}>
-                    {fmtSignedPercent(asset.plPercent)}
+                    {signedPct(asset, asset.plPercent)}
                   </p>
                   {isExpanded
                     ? <ChevronUp className="h-3.5 w-3.5 text-muted mx-auto mt-1" />
@@ -249,13 +260,13 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                     </div>
                     <div className="min-w-0">
                       <p className="text-muted uppercase font-bold">V. Inicial</p>
-                      <p className="text-text tnum break-words">{fmtCurrency(asset.investedValue, currencyLabel)}</p>
+                      <p className="text-text tnum break-words">{money(asset, asset.investedValue)}</p>
                     </div>
                     {asset.realizedPL !== 0 && (
                       <div className="min-w-0">
                         <p className="text-muted uppercase font-bold">Realizado</p>
                         <p className={cn('tnum break-words', plColor(asset.realizedPL))}>
-                          {fmtSignedCurrency(asset.realizedPL, currencyLabel)}
+                          {signedMoney(asset, asset.realizedPL)}
                         </p>
                       </div>
                     )}
@@ -263,7 +274,7 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                       <div className="min-w-0">
                         <p className="text-muted uppercase font-bold">Total P/L</p>
                         <p className={cn('tnum break-words', plColor(asset.totalPL))}>
-                          {fmtSignedCurrency(asset.totalPL, currencyLabel)}
+                          {signedMoney(asset, asset.totalPL)}
                         </p>
                       </div>
                     )}
@@ -362,7 +373,7 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                         : fmtNumber(asset.position, 4)}
                     </td>
                     <td className="px-3 py-3 text-right text-text tnum text-xs">
-                      {fmtCurrency(asset.investedValue, currencyLabel)}
+                      {money(asset, asset.investedValue)}
                     </td>
                     <td className="px-3 py-3 text-right">
                       {fixedTerm ? (
@@ -389,13 +400,13 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-text tnum text-xs">
-                      {fmtCurrency(asset.currentValue, currencyLabel)}
+                      {money(asset, asset.currentValue)}
                     </td>
                     <td className={cn('px-3 py-3 text-right tnum text-xs', plColor(asset.unrealizedPL))}>
-                      {fmtSignedCurrency(asset.unrealizedPL, currencyLabel)}
+                      {signedMoney(asset, asset.unrealizedPL)}
                     </td>
                     <td className={cn('px-4 py-3 text-right tnum text-xs font-semibold', plColor(asset.plPercent))}>
-                      {fmtSignedPercent(asset.plPercent)}
+                      {signedPct(asset, asset.plPercent)}
                     </td>
                   </tr>
                   {isExpanded && (
@@ -408,18 +419,18 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                           </div>
                           <div>
                             <p className="text-muted uppercase text-[10px] font-bold">V. Inicial</p>
-                            <p className="text-text tnum">{fmtCurrency(asset.investedValue, currencyLabel)}</p>
+                            <p className="text-text tnum">{money(asset, asset.investedValue)}</p>
                           </div>
                           <div>
                             <p className="text-muted uppercase text-[10px] font-bold">Realizado</p>
                             <p className={cn('tnum', plColor(asset.realizedPL))}>
-                              {fmtSignedCurrency(asset.realizedPL, currencyLabel)}
+                              {signedMoney(asset, asset.realizedPL)}
                             </p>
                           </div>
                           <div>
                             <p className="text-muted uppercase text-[10px] font-bold">Total P/L</p>
                             <p className={cn('tnum', plColor(asset.totalPL))}>
-                              {fmtSignedCurrency(asset.totalPL, currencyLabel)}
+                              {signedMoney(asset, asset.totalPL)}
                             </p>
                           </div>
                         </div>
