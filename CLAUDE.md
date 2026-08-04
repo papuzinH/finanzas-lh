@@ -11,7 +11,7 @@ npm run build    # Producción (Webpack)
 npm run lint     # ESLint
 npm test         # Vitest (run) · npm run test:watch para watch
 ```
-Tests en `src/**/__tests__/`. Los del store (`lib/store/__tests__/analysis-getters.test.ts`, `disponible-real.test.ts`) siembran estado con `useFinanceStore.setState` y `vi.useFakeTimers`. (Nota: `dates.test.ts` tiene fallas preexistentes ajenas.)
+Tests en `src/**/__tests__/`. Los del store (`lib/store/__tests__/analysis-getters.test.ts`, `disponible-real.test.ts`) siembran estado con `useFinanceStore.setState` y `vi.useFakeTimers`. La suite está **entera en verde** (354/354 al 2026-08-03).
 
 ## Reglas Server / Client
 - `app/` → Server Components por defecto.
@@ -132,21 +132,40 @@ Para verificar visualmente: `design_handoff_chanchito/prototypes/Chanchito App.h
 
 ## Migraciones (leer antes de escribir SQL)
 
-El proyecto está **linkeado al CLI de Supabase** desde el 2026-07-28 (`supabase/config.toml`). Antes no lo estaba: las migraciones se aplicaban a mano desde el SQL Editor y nada garantizaba que un archivo del repo estuviera realmente aplicado. Eso produjo el caso de la RLS —"PENDIENTE de aplicar" durante 18 días cuando ya estaba aplicada— y dejó 7 de 12 migraciones sin registrar. Saneado y verificado: repo y `supabase_migrations.schema_migrations` coinciden 1:1 (14 versiones).
+El proyecto está **linkeado al CLI de Supabase** desde el 2026-07-28 (`supabase/config.toml`). Antes no lo estaba: las migraciones se aplicaban a mano desde el SQL Editor y nada garantizaba que un archivo del repo estuviera realmente aplicado. Eso produjo el caso de la RLS —"PENDIENTE de aplicar" durante 18 días cuando ya estaba aplicada— y dejó 7 de 12 migraciones sin registrar. Saneado y verificado: repo y `supabase_migrations.schema_migrations` coinciden 1:1 (15 versiones al 2026-08-03).
 
 **Flujo obligatorio:**
 
 ```bash
+set -a; . ./.env.local; set +a   # carga las credenciales del CLI (ver abajo)
+
 supabase migration new <nombre>   # crea el archivo con timestamp de 14 dígitos
 # escribir el SQL
 supabase db push --linked         # aplica Y registra, en un solo paso
-supabase migration list           # Local y Remote deben coincidir
+supabase migration list --linked  # Local y Remote deben coincidir
 ```
 
-⚠️ **`db push` necesita `SUPABASE_DB_PASSWORD`** (conexión directa a Postgres). Sin esa env var falla con `unexpected login role status 403` — el access token del CLI no alcanza. Alternativa verificada (28-jul): aplicar por la **API de Supabase** (`apply_migration`), que ejecuta el DDL **y** registra la versión en `schema_migrations`. Ojo: la API asigna su **propio timestamp**, distinto del que puso `migration new` → al terminar hay que **renombrar el archivo local a la versión que quedó registrada**, o queda drift. Verificar siempre con `list_migrations` contra el listado de `supabase/migrations/`.
+### Credenciales del CLI
+
+⚠️ **El CLI necesita DOS env vars de `.env.local`** (gitignoreado). No alcanza con `supabase login`:
+
+| var | para qué | de dónde sale |
+|---|---|---|
+| `SUPABASE_ACCESS_TOKEN` | autenticar contra la API de la plataforma | PAT de https://supabase.com/dashboard/account/tokens, generado **desde la cuenta dueña del proyecto** (org `qqhxxhfibtbwdlevrmxy`) |
+| `SUPABASE_DB_PASSWORD` | conectar a Postgres | Project Settings → Database. Si no lo tenés, se resetea sin romper producción: la app habla por PostgREST con anon/service key, no por conexión directa |
+
+**Por qué un PAT y no `supabase login`**: el CLI guarda **un solo access token global**, y Chanchito vive en una cuenta Supabase distinta de la de Brava (org `lmvuwrhwzsuthjsmzoci`). Loguearte para un proyecto pisa el del otro — fue exactamente lo que pasó entre el 28-jul y el 03-ago. `SUPABASE_ACCESS_TOKEN` tiene prioridad sobre el token global, así que el PAT por repo resuelve el choque de raíz.
+
+**Síntomas y diagnóstico** (los dos errores se confunden fácil):
+
+- `unexpected login role status 403 — your account does not have the necessary privileges` → **falta el PAT o es de la cuenta equivocada**. NO tiene nada que ver con `SUPABASE_DB_PASSWORD` (este archivo lo afirmó por error entre el 28-jul y el 03-ago). Chequeo: `supabase projects list` debe mostrar `mkkgdjxaotgimqwhyesx` con `"linked": true`; si el proyecto no aparece en la lista, el token es de otra cuenta.
+- `PgClient: Failed to connect`, sin más detalle → **password incorrecto**. El CLI se come el error real de Postgres; para verlo hay que conectar con `pg` y mirar el código (`28P01` = password mal). Tras un reset el pooler tarda un momento en propagar: si el puerto 5432 rechaza pero el 6543 acepta, esperá y reintentá.
+
+**Red**: `db.<ref>.supabase.co` es **IPv6-only** y esta máquina no tiene IPv6. No es un problema para el CLI, que resuelve el pooler IPv4 por la API (por eso el PAT es condición previa). Si conectás a mano (psql, `pg`, un cliente gráfico), apuntá al pooler: `aws-1-sa-east-1.pooler.supabase.com:5432`, user `postgres.mkkgdjxaotgimqwhyesx`.
 
 Reglas:
-- **Nunca** aplicar SQL a mano sin que quede el renglón en `schema_migrations`. Si por algún motivo hay que hacerlo (el CLI no está logueado, por ejemplo), registrar la versión a mano en la misma sesión — no "después".
+- **Nunca** aplicar SQL a mano sin que quede el renglón en `schema_migrations`. Si por algún motivo hay que hacerlo, registrar la versión a mano en la misma sesión — no "después".
+- **Fallback si el CLI no está disponible**: aplicar por la API de Supabase (`apply_migration`), que ejecuta el DDL **y** registra la versión. Ojo: la API asigna su **propio timestamp**, distinto del que puso `migration new` → hay que renombrar el archivo local a la versión que quedó registrada, o queda drift. Es lo que pasó con `20260728150241_close_market_prices_rls.sql`. Con el CLI andando este camino ya no hace falta.
 - Los archivos van con timestamp de **14 dígitos** (`YYYYMMDDHHMMSS_nombre.sql`). Con 8 el CLI los ignora.
 - El estado de la DB se verifica **contra la DB** (`pg_policies`, `pg_proc`, `information_schema`), nunca contra lo que diga un comentario del commit o el Status.
 - `20260502154154_create_shipping_zones.sql` es un **no-op** a propósito: esa versión es de NatArt, que compartió esta instancia antes de migrar a PocketBase. Ver el encabezado del archivo.
