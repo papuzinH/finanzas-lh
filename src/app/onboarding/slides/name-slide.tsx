@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowRight, Loader2 } from 'lucide-react'
+import { Hand, ArrowRight, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { saveOnboardingName } from '../actions'
 
@@ -55,7 +55,7 @@ export function NameSlide({ initialName = '', onNext }: NameSlideProps) {
       className="space-y-6"
     >
       <div className="text-center space-y-2">
-        <div className="text-5xl mb-4">👋</div>
+        <Hand className="mx-auto mb-4 h-11 w-11 text-accent-deep" aria-hidden />
         <h2 className="text-2xl font-bold text-text">¿Cómo te llamás?</h2>
         <p className="text-sm text-muted">Lo vamos a usar para saludarte y nada más</p>
       </div>

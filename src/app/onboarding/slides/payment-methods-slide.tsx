@@ -106,7 +106,7 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
       className="space-y-5"
     >
       <div className="text-center space-y-2">
-        <div className="text-5xl mb-3">💳</div>
+        <CreditCard className="mx-auto mb-3 h-11 w-11 text-accent-deep" aria-hidden />
         <h2 className="text-2xl font-bold text-text">¿Con qué pagás?</h2>
         <p className="text-sm text-muted">
           Tocá un tipo para agregar un medio de pago

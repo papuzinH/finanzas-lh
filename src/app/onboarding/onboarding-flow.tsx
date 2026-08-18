@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { User, FolderOpen, type LucideIcon } from 'lucide-react'
+import { Chancho } from '@/components/brand/chancho'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -94,9 +96,9 @@ export function OnboardingFlow() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', delay: 0.2 }}
-                className="text-7xl"
+                className="mx-auto w-24"
               >
-                🐷
+                <Chancho className="w-full text-text" title="Chanchito" />
               </motion.div>
               <div className="space-y-3">
                 <h1 className="text-3xl font-bold tracking-tight text-text sm:text-4xl">
@@ -230,15 +232,15 @@ export function OnboardingFlow() {
 
               <div className="grid gap-3 text-left">
                 {userName && (
-                  <SummaryItem emoji="👤" label="Nombre" value={userName} />
+                  <SummaryItem Icon={User} label="Nombre" value={userName} />
                 )}
                 <SummaryItem
-                  emoji="📂"
+                  Icon={FolderOpen}
                   label="Categorias"
                   value={`${categoriesCount} configuradas`}
                 />
                 <SummaryItem
-                  emoji="💳"
+                  Icon={CreditCard}
                   label="Medios de pago"
                   value={`${paymentMethodsCount} configurados`}
                 />
@@ -280,11 +282,11 @@ function SlideWrapper({ children }: { children: React.ReactNode }) {
   )
 }
 
-function SummaryItem({ emoji, label, value }: { emoji: string; label: string; value: string }) {
+function SummaryItem({ Icon, label, value }: { Icon: LucideIcon; label: string; value: string }) {
   return (
     <Card className="border-border bg-surface-2/50">
       <CardContent className="flex items-center gap-3 p-3">
-        <span className="text-xl">{emoji}</span>
+        <Icon className="h-5 w-5 shrink-0 text-accent-deep" aria-hidden />
         <div>
           <p className="text-xs text-muted">{label}</p>
           <p className="text-sm font-medium text-text">{value}</p>
