@@ -82,8 +82,7 @@ export function BalanceCard() {
   return (
     <div>
       <motion.div
-        className="rounded-2xl bg-hero text-cream overflow-hidden cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft"
-        style={{ boxShadow: '0 18px 36px -18px rgba(28,42,71,0.7)' }}
+        className="rounded-2xl border-[1.5px] border-border bg-surface text-text shadow-card overflow-hidden cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft"
         onClick={() => setExpanded(!expanded)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(!expanded); } }}
         whileTap={{ scale: 0.99 }}
@@ -95,11 +94,11 @@ export function BalanceCard() {
         {/* Header siempre visible */}
         <div className="p-5 lg:p-6">
           <div className="flex items-center gap-1.5 mb-1">
-            <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
+            <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-accent-deep">
               Tu plata libre para hoy
             </p>
             <HintStop>
-              <InfoHint label="Qué es tu plata libre para hoy" className="text-celeste/70 hover:text-cream">
+              <InfoHint label="Qué es tu plata libre para hoy" className="text-faint hover:text-text">
                 Lo que realmente podés gastar hoy sin comprometerte: tu plata en cuentas menos lo que
                 ya debés este mes (gastos fijos sin pagar + tarjeta sin pagar). No importa cuándo
                 cobres. Al pagar algo pendiente, este número no cambia: esa plata ya estaba apartada.
@@ -110,13 +109,13 @@ export function BalanceCard() {
               animate={{ rotate: expanded ? 180 : 0 }}
               transition={{ duration: 0.2 }}
             >
-              <ChevronDown className="h-4 w-4 text-celeste/70" aria-hidden="true" />
+              <ChevronDown className="h-4 w-4 text-faint" aria-hidden="true" />
             </motion.div>
           </div>
 
           {/* Disponible Real */}
           <div className="flex items-baseline gap-2 mt-1 overflow-hidden">
-            <span className="font-display tnum text-[38px] lg:text-[46px] leading-[0.95] text-cream-light min-w-0 truncate">
+            <span className="font-display tnum text-[44px] lg:text-[46px] leading-[var(--leading-display)] text-text [text-shadow:var(--shadow-bandera)] min-w-0 truncate pr-1.5 pb-1">
               {isNegative ? "-" : ""}
               {formatCurrency(animatedBalance)}
             </span>
@@ -133,12 +132,12 @@ export function BalanceCard() {
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="border-t border-cream-light/15 px-5 py-4 space-y-3">
+              <div className="border-t border-border px-5 py-4 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="inline-flex items-center gap-1.5 text-[13px] text-cream-light/80">
+                  <span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
                     Cuenta total
                     <HintStop>
-                      <InfoHint label="Cómo se calcula la cuenta total" className="text-celeste/70 hover:text-cream">
+                      <InfoHint label="Cómo se calcula la cuenta total" className="text-faint hover:text-text">
                         Toda tu plata acumulada: ingresos menos gastos, cuotas y ahorros de todo tu
                         historial. Es lo que tenés en cuentas hoy, antes de apartar lo que debés este mes.
                       </InfoHint>
@@ -151,10 +150,10 @@ export function BalanceCard() {
 
                 {pendingFixedExpenses > 0 && (
                   <div className="flex justify-between items-center">
-                    <span className="inline-flex items-center gap-1.5 text-[13px] text-cream-light/80">
+                    <span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
                       Gastos fijos por pagar
                       <HintStop>
-                        <InfoHint label="Cómo se calculan los gastos fijos por pagar" className="text-celeste/70 hover:text-cream">
+                        <InfoHint label="Cómo se calculan los gastos fijos por pagar" className="text-faint hover:text-text">
                           Tus mensualidades activas (alquiler, internet, etc.) que todavía no
                           marcaste como pagadas este mes. Al marcarlas pagadas en Compromisos, salen
                           de acá y tu plata libre no cambia.
@@ -170,11 +169,11 @@ export function BalanceCard() {
                 {pendingCardTotal > 0 && (
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-[13px] text-cream-light/80 flex items-center gap-1.5">
+                      <span className="text-[13px] text-muted flex items-center gap-1.5">
                         <CreditCard className="h-3 w-3" />
                         Tarjeta de este mes
                         <HintStop>
-                          <InfoHint label="Cómo se calcula la tarjeta de este mes" className="text-celeste/70 hover:text-cream">
+                          <InfoHint label="Cómo se calcula la tarjeta de este mes" className="text-faint hover:text-text">
                             El total del resumen de tus tarjetas de crédito que vence este ciclo y
                             todavía no pagaste. Al marcarlo pagado en Compromisos, tu plata libre no
                             cambia: ese gasto ya estaba contado.
@@ -190,11 +189,11 @@ export function BalanceCard() {
                     <ul className="pl-[18px] space-y-1">
                       {pendingCardItems.map((card) => (
                         <li key={card.methodId} className="flex justify-between items-baseline gap-2">
-                          <span className="min-w-0 truncate text-[11px] text-cream-light/60">
+                          <span className="min-w-0 truncate text-[11px] text-faint">
                             {card.name} · {card.isCycleClosed ? "cerrado" : "en curso"} · vence{" "}
                             {format(card.nextPaymentDate, "d MMM", { locale: es })}
                           </span>
-                          <span className="shrink-0 font-display tnum text-[11px] text-cream-light/70">
+                          <span className="shrink-0 font-display tnum text-[11px] text-muted">
                             -{formatCurrency(card.total)}
                           </span>
                         </li>
@@ -203,9 +202,9 @@ export function BalanceCard() {
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-cream-light/15">
+                <div className="pt-2 border-t border-border">
                   <div className="flex justify-between items-center">
-                    <span className="text-[13px] font-bold text-cream-light/70">Disponible Real</span>
+                    <span className="text-[13px] font-bold text-muted">Disponible Real</span>
                     <span className={cn("font-display tnum text-[15px]", isNegative ? "text-bad" : "text-good")}>
                       {isNegative ? "-" : "+"}{formatCurrency(disponibleReal)}
                     </span>
