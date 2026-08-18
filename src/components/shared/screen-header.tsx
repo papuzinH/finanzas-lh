@@ -7,6 +7,7 @@ export function ScreenHeader({
   sub,
   icon,
   right,
+  compact,
   className,
 }: {
   kicker?: string;
@@ -15,25 +16,29 @@ export function ScreenHeader({
   /** Marca a la izquierda del título. Se usa en Inicio, con el chancho. */
   icon?: React.ReactNode;
   right?: React.ReactNode;
+  /** Header del sistema de layouts (mocks 2026-08-14): título 22px, sin kicker ni sub. */
+  compact?: boolean;
   className?: string;
 }) {
   return (
-    <div className={cn("px-5 pt-3 pb-4", className)}>
-      <div className="flex items-start justify-between gap-3">
-        {icon && <div className="shrink-0 pt-0.5">{icon}</div>}
+    <div className={cn(compact ? "px-5 pt-[18px] pb-3" : "px-5 pt-3 pb-4", className)}>
+      <div className={cn("flex justify-between gap-3", compact ? "items-center" : "items-start")}>
+        {icon && <div className={cn("shrink-0", !compact && "pt-0.5")}>{icon}</div>}
         <div className="min-w-0 flex-1">
-          {kicker && (
+          {!compact && kicker && (
             <p className="font-sans text-[10px] font-extrabold uppercase tracking-[0.22em] text-accent-deep mb-1">
               {kicker}
             </p>
           )}
-          <h1 className="font-display text-text text-[28px] leading-none">{title}</h1>
-          {sub && (
+          <h1 className={cn("font-display text-text leading-none", compact ? "text-[22px]" : "text-[28px]")}>
+            {title}
+          </h1>
+          {!compact && sub && (
             <p className="font-sans text-[12.5px] text-muted mt-1.5">{sub}</p>
           )}
         </div>
         {right && (
-          <div className="shrink-0 flex items-center gap-2 mt-1">{right}</div>
+          <div className={cn("shrink-0 flex items-center gap-2", !compact && "mt-1")}>{right}</div>
         )}
       </div>
     </div>
