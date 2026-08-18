@@ -120,7 +120,7 @@ export function CategoryBudgetCard({ budget }: Props) {
       </div>
 
       {/* Línea de estado — copy del mock */}
-      <span className={`text-[11px] ${lineaClase}`}>{linea.text}</span>
+      <span className={`text-[11px] tnum ${lineaClase}`}>{linea.text}</span>
     </div>
   )
 }

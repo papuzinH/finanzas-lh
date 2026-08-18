@@ -45,8 +45,6 @@ export function SavingsGoalCard({ goal }: Props) {
   const { percent, totalContributed, currentMonthContributed, remaining, status } = progress
   const effectiveContributed = goal.type === 'monthly' ? currentMonthContributed : totalContributed
 
-  const progressTone = status === 'completed' ? 'good' : percent >= 75 ? 'accent' : 'accent'
-
   const goalContributions = savingsGoalContributions
     .filter((c) => c.goal_id === goal.id)
     .slice(0, 5)
