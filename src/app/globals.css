@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* El tema se controla por clase, no por preferencia del sistema: el usuario
+   elige Día o Noche en Ajustes. Sin esto, las utilities `dark:` de Tailwind v4
+   escuchan prefers-color-scheme y nunca coinciden con el .dark que define
+   este archivo. */
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
 /* ============================================================
    Chanchito · Design System — tokens en 3 capas
    ------------------------------------------------------------
@@ -207,6 +213,11 @@
      el logo se invierte solo al cambiar de tema. Sobre una superficie de color
      (pill del chat, FAB) hay que pasarle el color de ese fondo al componente. */
   --logo-slot: var(--cream-100);
+
+  /* Presionado de botón suave: un paso más oscuro que el hover.
+     No sirve --bg-2 acá: en Día coincide con --surface-2 y el estado
+     presionado se veria igual que el hover. */
+  --btn-soft-active: var(--cream-100);
 }
 
 /* ============================================================
@@ -256,6 +267,7 @@
   /* Marca — el chancho se invierte: tinta crema (por currentColor) y las
      ranuras pasan a estraza para seguir leyéndose como huecos. */
   --logo-slot:     var(--estraza-800);
+  --btn-soft-active: var(--estraza-900);
 }
 
 /* ============================================================
@@ -380,4 +392,5 @@
   --shadow-offset: var(--shadow-offset);
   --shadow-fab:    var(--shadow-fab);
   --shadow-bandera: var(--shadow-bandera);
+  --color-btn-soft-active: var(--btn-soft-active);
 }
