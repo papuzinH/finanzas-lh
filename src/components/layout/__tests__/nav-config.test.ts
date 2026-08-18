@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { MOBILE_ITEMS, MORE_DESTINATIONS, isActive, isMoreActive } from '../nav-config';
 
 describe('nav-config', () => {
@@ -7,7 +9,7 @@ describe('nav-config', () => {
   });
 
   it('Más agrupa Inversiones, Medios de pago y Ajustes', () => {
-    expect(MORE_DESTINATIONS.map(i => i.href)).toEqual(['/inversiones', '/medios-pago', '/ajustes']);
+    expect(MORE_DESTINATIONS.map(i => i.href)).toEqual(['/inversiones', '/ajustes/medios', '/ajustes']);
   });
 
   it('isActive: raíz solo exacta; el resto por prefijo de segmento', () => {
@@ -20,10 +22,16 @@ describe('nav-config', () => {
 
   it('isMoreActive: true en cualquier destino del sheet, incluidas subrutas', () => {
     expect(isMoreActive('/inversiones')).toBe(true);
-    expect(isMoreActive('/medios-pago')).toBe(true);
     expect(isMoreActive('/ajustes')).toBe(true);
     expect(isMoreActive('/ajustes/medios')).toBe(true);
     expect(isMoreActive('/objetivos')).toBe(false);
     expect(isMoreActive('/')).toBe(false);
+  });
+});
+
+describe('nav hrefs resuelven a rutas reales', () => {
+  it.each([...MOBILE_ITEMS, ...MORE_DESTINATIONS].map((i) => [i.href]))('%s tiene page.tsx', (href) => {
+    const segment = href === '/' ? '' : href;
+    expect(existsSync(join(process.cwd(), 'src', 'app', segment, 'page.tsx'))).toBe(true);
   });
 });

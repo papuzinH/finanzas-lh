@@ -10,7 +10,7 @@ export const MOBILE_ITEMS = [
 
 export const MORE_DESTINATIONS = [
   { label: 'Inversiones', href: '/inversiones' },
-  { label: 'Medios de pago', href: '/medios-pago' },
+  { label: 'Medios de pago', href: '/ajustes/medios' },
   { label: 'Ajustes', href: '/ajustes' },
 ];
 

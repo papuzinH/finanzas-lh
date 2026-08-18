@@ -16,7 +16,7 @@ const ICONS: Record<string, LucideIcon> = {
   '/compromisos': Layers,
   '/objetivos': Target,
   '/inversiones': TrendingUp,
-  '/medios-pago': Wallet,
+  '/ajustes/medios': Wallet,
   '/ajustes': Settings,
 };
 
@@ -59,7 +59,14 @@ export function MainNav() {
                 </Link>
               );
             })}
-            <button type="button" onClick={() => setMoreOpen(true)} className="flex-1" aria-label="Más destinos">
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              className="flex-1"
+              aria-label="Más destinos"
+              aria-haspopup="dialog"
+              aria-expanded={moreOpen}
+            >
               <motion.div whileTap={{ scale: 0.88 }} className="flex flex-col items-center gap-1 py-1">
                 <span className={`grid place-items-center w-11 h-8 rounded-full transition-colors ${isMoreActive(pathname) ? 'bg-accent text-accent-ink' : 'text-muted'}`}>
                   <MoreHorizontal size={20} strokeWidth={isMoreActive(pathname) ? 2.4 : 2} />
