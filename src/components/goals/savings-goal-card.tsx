@@ -1,15 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { formatCurrency } from '@/lib/utils'
+import { goalSubtitle } from '@/lib/utils/objetivos-copy'
 import { Button } from '@/components/ui/button'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { Chancho } from '@/components/brand/chancho'
 import { AddContributionDialog } from './add-contribution-dialog'
 import { EditSavingsGoalDialog } from './edit-savings-goal-dialog'
 import { deleteSavingsGoal } from '@/app/dashboard/goals/actions'
-import { Trash2, Calendar, RefreshCw, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { useConfetti } from '@/components/shared/confetti'
 import type { SavingsGoal } from '@/types/database'
@@ -41,7 +42,7 @@ export function SavingsGoalCard({ goal }: Props) {
 
   if (!progress) return null
 
-  const { percent, totalContributed, currentMonthContributed, remaining, daysLeft, status } = progress
+  const { percent, totalContributed, currentMonthContributed, remaining, status } = progress
   const effectiveContributed = goal.type === 'monthly' ? currentMonthContributed : totalContributed
 
   const progressTone = status === 'completed' ? 'good' : percent >= 75 ? 'accent' : 'accent'
@@ -64,49 +65,56 @@ export function SavingsGoalCard({ goal }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border-[1.5px] border-border bg-surface p-5 space-y-4">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            {goal.type === 'one_time' ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-accent/20 text-accent bg-accent-soft/30">
-                <Calendar className="w-2.5 h-2.5" />
-                Meta única
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-border text-muted bg-surface-2">
-                <RefreshCw className="w-2.5 h-2.5" />
-                Mensual
-              </span>
-            )}
-            {status === 'completed' && showCelebration && (
-              <motion.div
-                animate={{ scale: [1, 1.15, 1] }}
-                transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 2 }}
-              >
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-good/10 text-good border border-good/20">
-                  <CheckCircle2 className="w-2.5 h-2.5" />
-                  ¡Meta cumplida! 🎉
-                </span>
-              </motion.div>
-            )}
-            {status === 'completed' && !showCelebration && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-good/10 text-good border border-good/20">
-                <CheckCircle2 className="w-2.5 h-2.5" />
-                ¡Lograda!
-              </span>
-            )}
-          </div>
-          <h3 className="font-sans font-bold text-text truncate">{goal.name}</h3>
+    <div className="rounded-[18px] border-[1.5px] border-border bg-surface shadow-card p-3.5 grid gap-2.5">
+      {/* Fila principal: slot + nombre/sub + % */}
+      <div className="flex items-center gap-2.5">
+        <span className="w-[38px] h-[38px] flex-none grid place-items-center bg-surface-2 border-[1.5px] border-border rounded-xl text-accent-deep">
+          <Chancho className="w-[21px]" slot="var(--surface-2)" />
+        </span>
+        <div className="min-w-0 grid gap-px">
+          <span className="font-sans font-bold text-[13.5px] text-text truncate">{goal.name}</span>
+          <span className="text-[11.5px] text-muted truncate">{goalSubtitle(goal)}</span>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <span className={`ml-auto font-display tnum text-[15px] ${status === 'completed' ? 'text-good' : 'text-accent-deep'}`}>
+          {Math.round(percent)}%
+        </span>
+      </div>
+
+      {/* Barra */}
+      <ProgressBar value={percent} tone={status === 'completed' ? 'good' : 'accent'} height={8} />
+
+      {/* Pie de montos */}
+      <div className="flex justify-between text-[12px] text-muted tnum">
+        <span>
+          <b className="text-text">{goal.currency === 'USD' ? 'USD ' : ''}{formatCurrency(effectiveContributed)}</b>
+          {' '}de {goal.currency === 'USD' ? 'USD ' : ''}{formatCurrency(goal.target_amount)}
+        </span>
+        {status === 'completed' ? (
+          <span className="text-good font-bold">¡Lograda!{showCelebration ? ' 🎉' : ''}</span>
+        ) : (
+          <span>faltan {goal.currency === 'USD' ? 'USD ' : ''}{formatCurrency(remaining)}</span>
+        )}
+      </div>
+
+      {/* Acciones — el mock no las dibuja; se conservan compactas */}
+      <div className="flex items-center justify-between border-t border-border pt-2.5">
+        <AddContributionDialog goal={goal} />
+        <div className="flex items-center gap-0.5">
+          {goalContributions.length > 0 && (
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="text-[11px] text-muted hover:text-text flex items-center gap-1 transition-colors px-2 py-1.5"
+            >
+              {showHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {goalContributions.length} aportes
+            </button>
+          )}
           <EditSavingsGoalDialog goal={goal} />
           <Button
             variant="ghost"
             size="icon"
             aria-label="Eliminar meta"
-            className="h-11 w-11 text-muted hover:text-bad hover:bg-bad/10"
+            className="h-9 w-9 text-muted hover:text-bad hover:bg-bad/10"
             onClick={handleDelete}
             disabled={deleting}
           >
@@ -115,59 +123,9 @@ export function SavingsGoalCard({ goal }: Props) {
         </div>
       </div>
 
-      {/* Progress */}
-      <div className="space-y-2">
-        <div className="flex justify-between items-end text-sm">
-          <span className="font-display tnum text-[14px] text-good">
-            {goal.currency === 'USD' ? 'USD ' : ''}
-            {formatCurrency(effectiveContributed)}
-          </span>
-          <span className="font-display tnum text-[13px] text-text">
-            de {goal.currency === 'USD' ? 'USD ' : ''}
-            {formatCurrency(goal.target_amount)}
-          </span>
-        </div>
-        <ProgressBar value={percent} tone={progressTone} />
-        <div className="flex justify-between items-center text-[11px] text-muted">
-          <span>{percent.toFixed(1)}% completado</span>
-          {goal.type === 'one_time' && daysLeft !== null && (
-            <span className={daysLeft < 30 ? 'text-warn' : ''}>
-              {daysLeft > 0 ? `${daysLeft} días restantes` : daysLeft === 0 ? '¡Hoy es el día!' : 'Fecha vencida'}
-            </span>
-          )}
-          {goal.type === 'monthly' && (
-            <span>Se resetea el 1° del próximo mes</span>
-          )}
-        </div>
-      </div>
-
-      {/* Remaining */}
-      {status !== 'completed' && remaining > 0 && (
-        <p className="text-xs text-muted">
-          Te faltan <span className="text-text font-bold">
-            {goal.currency === 'USD' ? 'USD ' : ''}{formatCurrency(remaining)}
-          </span> para llegar a tu meta
-          {goal.type === 'monthly' ? ' este mes' : ''}
-        </p>
-      )}
-
-      {/* Actions */}
-      <div className="flex items-center justify-between pt-1 flex-col gap-2">
-        <AddContributionDialog goal={goal} />
-        {goalContributions.length > 0 && (
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="text-xs text-muted hover:text-text flex items-center gap-1 transition-colors"
-          >
-            {showHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            {showHistory ? 'Ocultar' : `${goalContributions.length} aportes`}
-          </button>
-        )}
-      </div>
-
-      {/* Contribution history */}
+      {/* Historial de aportes (se conserva) */}
       {showHistory && goalContributions.length > 0 && (
-        <div className="border-t border-border pt-3 space-y-2">
+        <div className="border-t border-border pt-2.5 space-y-2">
           {goalContributions.map((c) => (
             <div key={c.id} className="flex items-center justify-between text-xs">
               <div>
