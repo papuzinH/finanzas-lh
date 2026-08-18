@@ -95,7 +95,7 @@ export function CreateBudgetDialog({
       >
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle className="font-poster text-text text-[18px]">
+          <DialogTitle className="font-display text-text text-[18px]">
             Nuevo Presupuesto
           </DialogTitle>
           <p className="text-sm text-muted mt-1">

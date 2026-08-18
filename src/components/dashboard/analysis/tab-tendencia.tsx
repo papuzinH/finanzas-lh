@@ -71,7 +71,7 @@ export function TabTendencia() {
         {hasSavingsData && activeEntry && (
           <>
             <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="font-poster tnum text-3xl text-text">{Math.round(activeEntry.rate)}%</span>
+              <span className="font-display tnum text-3xl text-text">{Math.round(activeEntry.rate)}%</span>
               <span className={cn('text-[10px] font-bold px-2 py-1 rounded-full', TONE_CLASS[activeEntry.tone])}>
                 {TONE_LABEL[activeEntry.tone]}
               </span>

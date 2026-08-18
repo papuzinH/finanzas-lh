@@ -13,7 +13,7 @@ function WelcomeMessage() {
   return (
     <div className="text-center py-8 space-y-3">
       <div className="text-4xl">🐷</div>
-      <h3 className="font-poster text-[18px] text-text">Hola, soy Chanchito</h3>
+      <h3 className="font-display text-[18px] text-text">Hola, soy Chanchito</h3>
       <p className="font-sans text-sm text-muted max-w-[280px] mx-auto">
         Contame tus gastos e ingresos y yo los registro automáticamente.
       </p>
@@ -102,7 +102,7 @@ export function ChatWidget() {
                   🐷
                 </div>
                 <div className="flex-1 leading-tight">
-                  <p className="font-poster text-[16px] text-cream-light">Chanchito IA</p>
+                  <p className="font-display text-[16px] text-cream-light">Chanchito IA</p>
                   <p className="font-sans text-[11px] text-celeste flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-good inline-block" />
                     en línea · Gemini

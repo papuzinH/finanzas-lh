@@ -70,7 +70,7 @@ export function TabCategorias() {
         {item && (
           <div className="text-center py-4">
             <p className="text-xs text-muted uppercase tracking-wider mb-1">{scope === 'global' ? 'Gasto histórico' : 'Gasto del mes'}</p>
-            <p className="font-poster tnum text-3xl text-text">{formatCurrency(toDisplay(item.value))}</p>
+            <p className="font-display tnum text-3xl text-text">{formatCurrency(toDisplay(item.value))}</p>
             <p className="text-sm text-muted mt-2">{item.percentage.toFixed(1)}% del total</p>
           </div>
         )}
@@ -82,7 +82,7 @@ export function TabCategorias() {
             <p className="text-xs text-muted uppercase tracking-wider mb-1">
               {freqScope === 'global' ? 'Frecuencia histórica' : 'Frecuencia del mes'}
             </p>
-            <p className="font-poster tnum text-3xl text-text">{freqItem.count}x</p>
+            <p className="font-display tnum text-3xl text-text">{freqItem.count}x</p>
             <p className="text-sm text-muted mt-2">movimientos</p>
             <div className="mt-4 flex justify-center gap-6 text-left">
               <div>

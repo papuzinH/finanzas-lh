@@ -68,7 +68,7 @@ export function MainNav() {
           <div className="relative h-10 w-10 overflow-hidden rounded-full border-[1.5px] border-border">
             <Image src="/icon.png" alt="Chanchito" fill className="object-cover" />
           </div>
-          <h1 className="font-poster text-text text-[20px]">Chanchito</h1>
+          <h1 className="font-display text-text text-[20px]">Chanchito</h1>
         </div>
         <div className="flex flex-col gap-1">
           {desktopItems.map(({ label, href, Icon }) => {

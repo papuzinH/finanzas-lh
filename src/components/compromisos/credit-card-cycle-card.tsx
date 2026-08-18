@@ -94,7 +94,7 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
         <AlertDialog open={open} onOpenChange={(v) => !confirming && setOpen(v)}>
           <AlertDialogContent className="bg-surface border-[1.5px] border-border text-text">
             <AlertDialogHeader>
-              <AlertDialogTitle className="font-poster text-[18px]">
+              <AlertDialogTitle className="font-display text-[18px]">
                 ¿Deshacer pago de {card.name}?
               </AlertDialogTitle>
               <AlertDialogDescription className="text-muted">
@@ -162,7 +162,7 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
       <AlertDialog open={open} onOpenChange={(v) => !confirming && setOpen(v)}>
         <AlertDialogContent className="bg-surface border-[1.5px] border-border text-text">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-poster text-[18px]">
+            <AlertDialogTitle className="font-display text-[18px]">
               ¿Ya pagaste la {card.name}?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted">
@@ -247,17 +247,17 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
           <CreditCardCycleChip card={card} formattedDate={formattedDate} />
           <div className="flex flex-col items-end gap-0.5">
             {card.totalARS > 0 && (
-              <p className={`font-poster tnum text-[15px] leading-none ${card.isPending ? 'text-bad' : 'text-muted'}`}>
+              <p className={`font-display tnum text-[15px] leading-none ${card.isPending ? 'text-bad' : 'text-muted'}`}>
                 {formatCurrency(card.totalARS)}
               </p>
             )}
             {card.totalUSD > 0 && (
-              <p className={`font-poster tnum text-[15px] leading-none ${card.isPending ? 'text-bad' : 'text-muted'}`}>
+              <p className={`font-display tnum text-[15px] leading-none ${card.isPending ? 'text-bad' : 'text-muted'}`}>
                 u$s {card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             )}
             {card.totalARS === 0 && card.totalUSD === 0 && (
-              <p className={`font-poster tnum text-[15px] leading-none ${card.isPending ? 'text-bad' : 'text-muted'}`}>
+              <p className={`font-display tnum text-[15px] leading-none ${card.isPending ? 'text-bad' : 'text-muted'}`}>
                 {formatCurrency(card.total)}
               </p>
             )}

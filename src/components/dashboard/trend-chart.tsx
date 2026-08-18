@@ -31,19 +31,19 @@ function CustomTooltip({ active, payload, label }: any) {
             <span className="w-2 h-2 rounded-full bg-good shrink-0" />
             Ingresos
           </span>
-          <span className="font-poster tnum text-xs text-good">+{formatCompact(income)}</span>
+          <span className="font-display tnum text-xs text-good">+{formatCompact(income)}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
           <span className="flex items-center gap-1.5 text-xs text-text">
             <span className="w-2 h-2 rounded-full bg-bad shrink-0" />
             Gastos
           </span>
-          <span className="font-poster tnum text-xs text-bad">−{formatCompact(expenses)}</span>
+          <span className="font-display tnum text-xs text-bad">−{formatCompact(expenses)}</span>
         </div>
         <div className="h-px bg-border my-1" />
         <div className="flex items-center justify-between gap-4">
           <span className="text-xs font-semibold text-text">Balance</span>
-          <span className={`font-poster tnum text-sm ${net >= 0 ? 'text-good' : 'text-bad'}`}>
+          <span className={`font-display tnum text-sm ${net >= 0 ? 'text-good' : 'text-bad'}`}>
             {net >= 0 ? '+' : '−'}{formatCompact(Math.abs(net))}
           </span>
         </div>

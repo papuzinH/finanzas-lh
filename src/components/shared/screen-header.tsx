@@ -23,7 +23,7 @@ export function ScreenHeader({
               {kicker}
             </p>
           )}
-          <h1 className="font-poster text-text text-[28px] leading-none">{title}</h1>
+          <h1 className="font-display text-text text-[28px] leading-none">{title}</h1>
           {sub && (
             <p className="font-sans text-[12.5px] text-muted mt-1.5">{sub}</p>
           )}

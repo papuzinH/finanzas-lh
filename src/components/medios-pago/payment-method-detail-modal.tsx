@@ -81,18 +81,18 @@ export function PaymentMethodDetailModal({
               </p>
               {isCredit ? (
                 isCreditSettled ? (
-                  <p className="font-poster tnum text-xl leading-none text-good">Al día</p>
+                  <p className="font-display tnum text-xl leading-none text-good">Al día</p>
                 ) : (
                   <div className="space-y-1">
                     {(arsDue > 0 || usdDue === 0) && (
-                      <p className="font-poster tnum text-xl leading-none text-text">
+                      <p className="font-display tnum text-xl leading-none text-text">
                         {formatCurrency(arsDue)}
                       </p>
                     )}
                     {usdDue > 0 && (
                       <p
                         className={cn(
-                          'font-poster tnum leading-none text-text',
+                          'font-display tnum leading-none text-text',
                           arsDue > 0 ? 'text-sm text-muted' : 'text-xl'
                         )}
                       >
@@ -104,7 +104,7 @@ export function PaymentMethodDetailModal({
               ) : (
                 <p
                   className={cn(
-                    'font-poster tnum text-xl leading-none',
+                    'font-display tnum text-xl leading-none',
                     balanceIsNegative ? 'text-bad' : 'text-good'
                   )}
                 >
@@ -114,7 +114,7 @@ export function PaymentMethodDetailModal({
             </div>
             <div className="bg-surface-2 p-4 rounded-2xl border-[1.5px] border-border">
               <p className="text-[10px] text-muted uppercase mb-1 font-semibold">Costos Fijos</p>
-              <p className="font-poster tnum text-xl leading-none text-text">
+              <p className="font-display tnum text-xl leading-none text-text">
                 {formatCurrency(status.fixedCosts)}
               </p>
             </div>

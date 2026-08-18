@@ -204,7 +204,7 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
           </div>
           <div className="text-right">
             <p className="text-xs text-muted mb-0.5">Te faltan (Futuro)</p>
-            <p className="font-poster tnum text-[17px] text-bad">
+            <p className="font-display tnum text-[17px] text-bad">
               {formatCurrency(plan.remaining)}
             </p>
           </div>
@@ -310,13 +310,13 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
           <div className="text-right shrink-0">
             {plan.currency === 'USD' && plan.original_amount != null ? (
               <div className="flex flex-col items-end leading-tight">
-                <span className="font-poster tnum text-[15px] text-text">
+                <span className="font-display tnum text-[15px] text-text">
                   US$ {Number(plan.original_amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
                 <span className="text-[10px] text-muted">≈ {formatCurrency(plan.amount)}</span>
               </div>
             ) : (
-              <span className="font-poster tnum text-[15px] text-text">{formatCurrency(plan.amount)}</span>
+              <span className="font-display tnum text-[15px] text-text">{formatCurrency(plan.amount)}</span>
             )}
             <div className="flex items-center justify-end gap-1.5 mt-1">
               <div className={cn('h-1.5 w-1.5 rounded-full', plan.is_active ? 'bg-good' : 'bg-muted')} aria-hidden="true" />
@@ -504,17 +504,17 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
           <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
             Compromisos del mes
           </p>
-          <p className="font-poster tnum text-[36px] leading-[0.95] mt-1 text-cream-light">
+          <p className="font-display tnum text-[36px] leading-[0.95] mt-1 text-cream-light">
             {formatCurrency(totalCompromisosMes)}
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2">
               <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">Cuotas</p>
-              <p className="font-poster tnum text-[15px] mt-0.5 text-cream-light">{formatCurrency(currentMonthCuotas)}</p>
+              <p className="font-display tnum text-[15px] mt-0.5 text-cream-light">{formatCurrency(currentMonthCuotas)}</p>
             </div>
             <div className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2">
               <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">Mensualidades</p>
-              <p className="font-poster tnum text-[15px] mt-0.5 text-cream-light">{formatCurrency(totalMonthlyCost)}</p>
+              <p className="font-display tnum text-[15px] mt-0.5 text-cream-light">{formatCurrency(totalMonthlyCost)}</p>
             </div>
           </div>
         </div>
@@ -561,12 +561,12 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
                 <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Deuda Futura</p>
-                <p className="font-poster tnum text-[20px] text-text">{formatCurrency(totalDebtFuturo)}</p>
+                <p className="font-display tnum text-[20px] text-text">{formatCurrency(totalDebtFuturo)}</p>
                 <p className="text-[10px] text-muted mt-1">Pendiente a largo plazo</p>
               </div>
               <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
                 <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Cuotas activas</p>
-                <p className="font-poster tnum text-[20px] text-text">{activeCuotas.length}</p>
+                <p className="font-display tnum text-[20px] text-text">{activeCuotas.length}</p>
                 <p className="text-[10px] text-muted mt-1">Planes en curso</p>
               </div>
             </div>
@@ -658,7 +658,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
                     <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Pendiente este mes</p>
-                    <p className={cn('font-poster tnum text-[20px]', pendingSubs.total > 0 ? 'text-bad' : 'text-good')}>
+                    <p className={cn('font-display tnum text-[20px]', pendingSubs.total > 0 ? 'text-bad' : 'text-good')}>
                       {formatCurrency(pendingSubs.total)}
                     </p>
                     <p className="text-[10px] text-muted mt-1">
@@ -667,7 +667,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
                   </div>
                   <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
                     <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Activas</p>
-                    <p className="font-poster tnum text-[20px] text-text">{activeSubsCount}</p>
+                    <p className="font-display tnum text-[20px] text-text">{activeSubsCount}</p>
                     <p className="text-[10px] text-muted mt-1">Mensualidades en curso</p>
                   </div>
                 </div>

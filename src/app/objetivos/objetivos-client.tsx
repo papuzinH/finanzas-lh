@@ -79,7 +79,7 @@ export function ObjetivosClient({ initialTab }: { initialTab: ActiveTab }) {
           <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
             Total en Metas
           </p>
-          <p className="font-poster tnum text-[36px] leading-[0.95] mt-1 text-cream-light">
+          <p className="font-display tnum text-[36px] leading-[0.95] mt-1 text-cream-light">
             {fmtCurrency(totalMetasARS)}
           </p>
           {(activeGoals.length > 0) && (

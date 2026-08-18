@@ -130,7 +130,7 @@ export function SavingsCard({ displayCurrency = 'ARS' }: SavingsCardProps) {
           <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">
             Ahorros (sin invertir)
           </p>
-          <p className="text-lg md:text-xl font-poster tnum text-text break-words">
+          <p className="text-lg md:text-xl font-display tnum text-text break-words">
             {fmtMoney(totalInDisplay, displayLabel)}
           </p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5 text-[11px] text-muted">

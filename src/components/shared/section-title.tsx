@@ -25,7 +25,7 @@ export function SectionTitle({
 
   return (
     <div className={cn("flex items-center justify-between", className)}>
-      <h2 className="font-poster text-text text-[15px] tracking-tight">{children}</h2>
+      <h2 className="font-display text-text text-[15px] tracking-tight">{children}</h2>
       {action && href && (
         <Link
           href={href}

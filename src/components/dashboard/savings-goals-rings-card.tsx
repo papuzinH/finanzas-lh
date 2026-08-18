@@ -82,12 +82,12 @@ export function SavingsGoalsRingsCard() {
             muestra nativa (una meta en USD no se "convierte" a pesos). */}
         <div className="flex flex-col items-end">
           {arsTotal !== null && (
-            <span className="font-poster tnum text-text text-[13px] md:text-[17px] leading-tight">
+            <span className="font-display tnum text-text text-[13px] md:text-[17px] leading-tight">
               {formatCurrency(arsTotal)}
             </span>
           )}
           {usdTotal !== null && (
-            <span className="font-poster tnum text-text text-[13px] md:text-[17px] leading-tight">
+            <span className="font-display tnum text-text text-[13px] md:text-[17px] leading-tight">
               {formatUsd(usdTotal)}
             </span>
           )}

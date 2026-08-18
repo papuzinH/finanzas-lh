@@ -489,7 +489,7 @@ export default function MovimientosPage() {
                     </div>
                     <p
                       title={formatCurrency(monthlyIncome)}
-                      className={cn("font-poster text-good tnum leading-none truncate", amountFontClass(formatCurrency(monthlyIncome)))}
+                      className={cn("font-display text-good tnum leading-none truncate", amountFontClass(formatCurrency(monthlyIncome)))}
                     >
                       {formatCurrency(monthlyIncome)}
                     </p>
@@ -501,7 +501,7 @@ export default function MovimientosPage() {
                     </div>
                     <p
                       title={formatCurrency(displayedExpense)}
-                      className={cn("font-poster text-bad tnum leading-none truncate", amountFontClass(formatCurrency(displayedExpense)))}
+                      className={cn("font-display text-bad tnum leading-none truncate", amountFontClass(formatCurrency(displayedExpense)))}
                     >
                       {formatCurrency(displayedExpense)}
                     </p>
@@ -517,7 +517,7 @@ export default function MovimientosPage() {
                   <span
                     title={formatCurrency(netBalance)}
                     className={cn(
-                      "font-poster tnum leading-none truncate",
+                      "font-display tnum leading-none truncate",
                       netBalance >= 0 ? "text-good" : "text-bad",
                       amountFontClass(formatCurrency(netBalance))
                     )}
@@ -571,7 +571,7 @@ export default function MovimientosPage() {
                             <span className="text-[11px] text-muted">Pendiente este mes · ver en Compromisos</span>
                           </div>
                         </div>
-                        <span className="font-poster tnum text-[15px] text-muted whitespace-nowrap shrink-0">
+                        <span className="font-display tnum text-[15px] text-muted whitespace-nowrap shrink-0">
                           {formatCurrency(item.amount)}
                         </span>
                       </Link>
@@ -639,7 +639,7 @@ export default function MovimientosPage() {
                   </span>
                   <span
                     title={formatCurrency(monthlyIncome)}
-                    className={cn("font-poster text-good tnum leading-none truncate min-w-0", amountFontClass(formatCurrency(monthlyIncome)))}
+                    className={cn("font-display text-good tnum leading-none truncate min-w-0", amountFontClass(formatCurrency(monthlyIncome)))}
                   >
                     {formatCurrency(monthlyIncome)}
                   </span>
@@ -651,7 +651,7 @@ export default function MovimientosPage() {
                   </span>
                   <span
                     title={formatCurrency(displayedExpense)}
-                    className={cn("font-poster text-bad tnum leading-none truncate min-w-0", amountFontClass(formatCurrency(displayedExpense)))}
+                    className={cn("font-display text-bad tnum leading-none truncate min-w-0", amountFontClass(formatCurrency(displayedExpense)))}
                   >
                     {formatCurrency(displayedExpense)}
                   </span>
@@ -664,7 +664,7 @@ export default function MovimientosPage() {
                   <span
                     title={formatCurrency(netBalance)}
                     className={cn(
-                      "font-poster tnum leading-none truncate min-w-0",
+                      "font-display tnum leading-none truncate min-w-0",
                       netBalance >= 0 ? "text-good" : "text-bad",
                       amountFontClass(formatCurrency(netBalance))
                     )}

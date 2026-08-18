@@ -116,7 +116,7 @@ export function BalanceCard() {
 
           {/* Disponible Real */}
           <div className="flex items-baseline gap-2 mt-1 overflow-hidden">
-            <span className="font-poster tnum text-[38px] lg:text-[46px] leading-[0.95] text-cream-light min-w-0 truncate">
+            <span className="font-display tnum text-[38px] lg:text-[46px] leading-[0.95] text-cream-light min-w-0 truncate">
               {isNegative ? "-" : ""}
               {formatCurrency(animatedBalance)}
             </span>
@@ -144,7 +144,7 @@ export function BalanceCard() {
                       </InfoHint>
                     </HintStop>
                   </span>
-                  <span className="font-poster tnum text-[13px] text-good">
+                  <span className="font-display tnum text-[13px] text-good">
                     +{formatCurrency(saldoBruto)}
                   </span>
                 </div>
@@ -161,7 +161,7 @@ export function BalanceCard() {
                         </InfoHint>
                       </HintStop>
                     </span>
-                    <span className="font-poster tnum text-[13px] text-warn">
+                    <span className="font-display tnum text-[13px] text-warn">
                       -{formatCurrency(pendingFixedExpenses)}
                     </span>
                   </div>
@@ -181,7 +181,7 @@ export function BalanceCard() {
                           </InfoHint>
                         </HintStop>
                       </span>
-                      <span className="font-poster tnum text-[13px] text-bad">
+                      <span className="font-display tnum text-[13px] text-bad">
                         -{formatCurrency(pendingCardTotal)}
                       </span>
                     </div>
@@ -194,7 +194,7 @@ export function BalanceCard() {
                             {card.name} · {card.isCycleClosed ? "cerrado" : "en curso"} · vence{" "}
                             {format(card.nextPaymentDate, "d MMM", { locale: es })}
                           </span>
-                          <span className="shrink-0 font-poster tnum text-[11px] text-cream-light/70">
+                          <span className="shrink-0 font-display tnum text-[11px] text-cream-light/70">
                             -{formatCurrency(card.total)}
                           </span>
                         </li>
@@ -206,7 +206,7 @@ export function BalanceCard() {
                 <div className="pt-2 border-t border-cream-light/15">
                   <div className="flex justify-between items-center">
                     <span className="text-[13px] font-bold text-cream-light/70">Disponible Real</span>
-                    <span className={cn("font-poster tnum text-[15px]", isNegative ? "text-bad" : "text-good")}>
+                    <span className={cn("font-display tnum text-[15px]", isNegative ? "text-bad" : "text-good")}>
                       {isNegative ? "-" : "+"}{formatCurrency(disponibleReal)}
                     </span>
                   </div>

@@ -118,7 +118,7 @@ export function BudgetGaugeCard() {
           />
         </svg>
         <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
-          <span className="font-poster tnum text-text text-[22px] md:text-[36px] leading-none">
+          <span className="font-display tnum text-text text-[22px] md:text-[36px] leading-none">
             {Math.round(percent)}%
           </span>
           <span className="text-[8px] md:text-[11px] text-muted mt-0.5">usado del mes</span>

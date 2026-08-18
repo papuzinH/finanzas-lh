@@ -278,7 +278,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
       {/* Right: Amount & Meta */}
       <div className="flex flex-col items-end gap-0.5 pl-2 mr-2">
         <span className={cn(
-          "font-poster tnum text-[15px] leading-none whitespace-nowrap",
+          "font-display tnum text-[15px] leading-none whitespace-nowrap",
           isIncome ? "text-good" : "text-bad"
         )}>
           {isIncome ? '+' : '-'} {amountText}

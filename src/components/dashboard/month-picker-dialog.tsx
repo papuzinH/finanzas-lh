@@ -59,7 +59,7 @@ export function MonthPickerDialog({ open, onOpenChange, currentMonth, onSelect }
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="font-poster text-lg text-text tnum">{displayYear}</span>
+          <span className="font-display text-lg text-text tnum">{displayYear}</span>
           <button
             type="button"
             onClick={() => setDisplayYear((y) => y + 1)}

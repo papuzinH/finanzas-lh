@@ -118,11 +118,11 @@ export function SavingsGoalCard({ goal }: Props) {
       {/* Progress */}
       <div className="space-y-2">
         <div className="flex justify-between items-end text-sm">
-          <span className="font-poster tnum text-[14px] text-good">
+          <span className="font-display tnum text-[14px] text-good">
             {goal.currency === 'USD' ? 'USD ' : ''}
             {formatCurrency(effectiveContributed)}
           </span>
-          <span className="font-poster tnum text-[13px] text-text">
+          <span className="font-display tnum text-[13px] text-text">
             de {goal.currency === 'USD' ? 'USD ' : ''}
             {formatCurrency(goal.target_amount)}
           </span>
@@ -174,7 +174,7 @@ export function SavingsGoalCard({ goal }: Props) {
                 <span className="text-muted">{c.date}</span>
                 {c.note && <span className="text-faint ml-2 italic">{c.note}</span>}
               </div>
-              <span className="text-good font-poster tnum">
+              <span className="text-good font-display tnum">
                 +{c.currency === 'USD' ? 'USD ' : ''}{formatCurrency(c.amount)}
               </span>
             </div>

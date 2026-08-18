@@ -194,13 +194,13 @@ export function InversionesClient() {
           <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
             Valor Total del Portfolio
           </p>
-          <p className="font-poster tnum text-[clamp(1.65rem,8vw,2.25rem)] leading-[0.95] mt-1 text-cream-light break-words">
+          <p className="font-display tnum text-[clamp(1.65rem,8vw,2.25rem)] leading-[0.95] mt-1 text-cream-light break-words">
             {heroMoney(portfolio.totalValue)}
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div className="min-w-0 rounded-xl bg-cream-light/10 border-[1.5px] border-cream-light/15 px-3 py-2">
               <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">Invertido</p>
-              <p className="font-poster tnum text-[15px] mt-0.5 text-cream-light break-words">
+              <p className="font-display tnum text-[15px] mt-0.5 text-cream-light break-words">
                 {heroMoney(portfolio.totalInvested)}
               </p>
             </div>
@@ -216,7 +216,7 @@ export function InversionesClient() {
                     className="max-w-full [overflow-wrap:anywhere]"
                   />
                 ) : (
-                  <p className="font-poster tnum text-[15px] text-cream-light/50">—</p>
+                  <p className="font-display tnum text-[15px] text-cream-light/50">—</p>
                 )}
               </div>
             </div>
@@ -232,7 +232,7 @@ export function InversionesClient() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card className="p-4 min-w-0">
             <p className="text-[10px] uppercase text-muted font-bold mb-1">Ganancia Total</p>
-            <p className="font-poster tnum text-[20px] text-text break-words">
+            <p className="font-display tnum text-[20px] text-text break-words">
               {fmtCurrency(portfolio.totalUnrealizedPL + portfolio.totalRealizedPL, currencyLabel)}
             </p>
             {portfolio.totalPLPercent !== 0 && (
@@ -320,7 +320,7 @@ export function InversionesClient() {
                           <span className="text-xs text-muted truncate hidden sm:block">{asset.name}</span>
                         </div>
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className="font-poster tnum text-sm text-text truncate">
+                          <span className="font-display tnum text-sm text-text truncate">
                             {fmtCurrency(asset.currentValue, currencyLabel)}
                           </span>
                           <ProfitBadge percent={asset.plPercent} className="shrink-0" />

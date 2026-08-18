@@ -76,7 +76,7 @@ export function PersonalDebtCard({ data }: PaymentCardProps) {
             <p className="text-xs text-muted mb-0.5">
               {isDebt ? 'Le debes' : 'A favor'}
             </p>
-            <p className={cn("font-poster tnum text-xl leading-none", isDebt ? "text-bad" : "text-good")}>
+            <p className={cn("font-display tnum text-xl leading-none", isDebt ? "text-bad" : "text-good")}>
               {formatCurrency(amount)}
             </p>
           </div>

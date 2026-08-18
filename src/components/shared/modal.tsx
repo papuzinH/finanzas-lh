@@ -38,7 +38,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="font-poster text-text text-[18px]">{title}</h2>
+          <h2 className="font-display text-text text-[18px]">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Cerrar"

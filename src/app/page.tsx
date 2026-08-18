@@ -286,7 +286,7 @@ export default function DashboardPage() {
             <>
               <div className="text-center py-3 border-b border-border mb-4">
                 <p className="text-xs text-muted uppercase tracking-wider mb-1">Total percibido</p>
-                <p className="font-poster tnum text-3xl text-good">{formatCurrency(monthlyIncome)}</p>
+                <p className="font-display tnum text-3xl text-good">{formatCurrency(monthlyIncome)}</p>
               </div>
               {monthlyIncomeTransactions.map((t) => {
                 const paymentMethod = paymentMethods.find((pm) => pm.id === t.payment_method_id);
@@ -317,7 +317,7 @@ export default function DashboardPage() {
             <>
               <div className="text-center py-3 border-b border-border mb-4">
                 <p className="text-xs text-muted uppercase tracking-wider mb-1">Total gastado</p>
-                <p className="font-poster tnum text-3xl text-bad">{formatCurrency(monthlyVariableExpenses)}</p>
+                <p className="font-display tnum text-3xl text-bad">{formatCurrency(monthlyVariableExpenses)}</p>
               </div>
               {monthlyVariableExpenseTransactions.map((t) => {
                 const paymentMethod = paymentMethods.find((pm) => pm.id === t.payment_method_id);

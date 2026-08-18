@@ -123,7 +123,7 @@ export function MonthSelector({ currentMonth, baseUrl = '/' }: MonthSelectorProp
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeInOut' }}
             className="flex flex-col gap-0.5"
           >
-            <span className="flex items-center gap-1 font-poster text-text text-[24px] md:text-[26px] leading-none capitalize">
+            <span className="flex items-center gap-1 font-display text-text text-[24px] md:text-[26px] leading-none capitalize">
               {format(date, 'MMMM yyyy', { locale: es })}
               <ChevronDown className="h-5 w-5 text-muted shrink-0" aria-hidden="true" />
             </span>

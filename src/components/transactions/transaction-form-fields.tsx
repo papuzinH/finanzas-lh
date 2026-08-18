@@ -89,7 +89,7 @@ export function AmountField<T extends FieldValues>({
               <span className="text-3xl font-semibold text-muted">
                 {currency === 'USD' ? 'US$' : '$'}
               </span>
-              <span className="text-5xl sm:text-6xl font-poster text-text tnum">
+              <span className="text-5xl sm:text-6xl font-display text-text tnum">
                 {displayAmount}
               </span>
             </button>
@@ -479,7 +479,7 @@ export function InstallmentSelector<T extends FieldValues>({
                 <Minus className="h-5 w-5" />
               </button>
 
-              <span className="text-4xl font-poster text-text tnum min-w-[3ch] text-center">
+              <span className="text-4xl font-display text-text tnum min-w-[3ch] text-center">
                 {watchedCount}
               </span>
 
@@ -749,7 +749,7 @@ export function PaymentMethodField<T extends FieldValues>({
                 </button>
 
                 <div className="text-center min-w-[80px]">
-                  <div className="text-2xl font-poster text-text tnum">
+                  <div className="text-2xl font-display text-text tnum">
                     {watchedDebitDay || (watchedDate ? parseLocalDate(watchedDate).getDate() : 1)}
                   </div>
                   <div className="text-xs text-muted">

@@ -64,7 +64,7 @@ function MetricCard({ label, value, sublabel, color = "emerald", icon: Icon, onC
         <span className="text-xs text-muted">{label}</span>
         {Icon && <Icon className={cn("h-4 w-4", colorMap[color])} aria-hidden />}
       </div>
-      <p className={cn("font-poster tnum text-xl leading-tight truncate", colorMap[color])}>{value}</p>
+      <p className={cn("font-display tnum text-xl leading-tight truncate", colorMap[color])}>{value}</p>
       {sparklineType && (
         <div role="img" aria-label={`Gráfico de ${label}`} className="w-full">
           <ResponsiveContainer width="100%" height={24}>

@@ -138,14 +138,14 @@ export function CategoryBudgetCard({ budget }: Props) {
         )}
         <div className="flex justify-between text-xs">
           <span className={
-            status === 'exceeded' ? 'font-poster tnum text-bad font-semibold' :
-            status === 'warning' ? 'font-poster tnum text-warn font-semibold' :
-            'font-poster tnum text-muted'
+            status === 'exceeded' ? 'font-display tnum text-bad font-semibold' :
+            status === 'warning' ? 'font-display tnum text-warn font-semibold' :
+            'font-display tnum text-muted'
           }>
             {budget.currency === 'USD' ? 'USD ' : ''}
             {formatCurrency(spent)} gastados
           </span>
-          <span className="font-poster tnum text-muted">
+          <span className="font-display tnum text-muted">
             límite: {budget.currency === 'USD' ? 'USD ' : ''}
             {formatCurrency(limit)}
           </span>
