@@ -3,7 +3,8 @@
 import { useEffect, useRef } from 'react'
 import { useChatStore } from '@/lib/store/chatStore'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Sparkles, X } from 'lucide-react'
+import { Sparkles, X } from 'lucide-react'
+import { Chancho } from '@/components/brand/chancho'
 import { ChatBubble } from './ChatBubble'
 import { TypingIndicator } from './TypingIndicator'
 import { ChatInput } from './ChatInput'
@@ -66,7 +67,9 @@ export function ChatWidget() {
               exit={{ scale: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <MessageCircle className="w-6 h-6" />
+              {/* El asistente ES el chancho: cuerpo crema, ranuras en el celeste
+                  del FAB para que se fundan con el fondo, como pide el sistema. */}
+              <Chancho slot="var(--accent)" className="w-[30px] text-cream-light" />
             </motion.div>
           )}
         </AnimatePresence>
