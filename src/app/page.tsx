@@ -89,7 +89,7 @@ export default function DashboardPage() {
       <ScreenHeader
         icon={<Chancho className="w-9 text-text" />}
         kicker="tu resumen"
-        title={`Hola, ${user?.first_name || 'vos'} 👋`}
+        title={`Hola, ${user?.first_name || 'vos'}`}
         right={
           <div className="flex items-center gap-2">
             {streak.days > 0 && (

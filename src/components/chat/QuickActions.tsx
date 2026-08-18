@@ -2,12 +2,18 @@
 
 import { useChatStore } from '@/lib/store/chatStore'
 import { motion } from 'framer-motion'
+import { TrendingDown, TrendingUp, PieChart, Wallet } from 'lucide-react'
 
+/**
+ * Sin emoji: el sistema los reserva para las categorías que carga el usuario,
+ * no para la UI de marca. Los íconos van en Lucide, y el color sigue el código
+ * semántico del producto — rojo es gasto, verde es ingreso.
+ */
 const QUICK_ACTIONS = [
-  { emoji: '💸', text: 'Registrar gasto', message: 'Quiero registrar un gasto' },
-  { emoji: '💰', text: 'Registrar ingreso', message: 'Registrar un ingreso' },
-  { emoji: '📊', text: '¿Cuánto gasté?', message: '¿Cuánto he gastado este mes?' },
-  { emoji: '💳', text: 'Balance', message: '¿Cuál es mi balance?' },
+  { Icon: TrendingDown, tone: 'text-bad', text: 'Registrar gasto', message: 'Quiero registrar un gasto' },
+  { Icon: TrendingUp, tone: 'text-good', text: 'Registrar ingreso', message: 'Registrar un ingreso' },
+  { Icon: PieChart, tone: 'text-accent-deep', text: '¿Cuánto gasté?', message: '¿Cuánto he gastado este mes?' },
+  { Icon: Wallet, tone: 'text-accent-deep', text: 'Balance', message: '¿Cuál es mi balance?' },
 ]
 
 export function QuickActions() {
@@ -48,15 +54,15 @@ export function QuickActions() {
         Sugerencias
       </p>
       <div className="flex gap-2 overflow-x-auto no-sb pb-1">
-        {QUICK_ACTIONS.map((action) => (
+        {QUICK_ACTIONS.map(({ Icon, tone, text, message }) => (
           <motion.button
-            key={action.text}
+            key={text}
             variants={itemVariants}
-            onClick={() => handleQuickAction(action.message)}
+            onClick={() => handleQuickAction(message)}
             className="shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-[11.5px] font-bold bg-surface border-[1.5px] border-border text-text transition-colors active:opacity-70"
           >
-            <span>{action.emoji}</span>
-            <span>{action.text}</span>
+            <Icon className={`h-3.5 w-3.5 ${tone}`} aria-hidden />
+            <span>{text}</span>
           </motion.button>
         ))}
       </div>

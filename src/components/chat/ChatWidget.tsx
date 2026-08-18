@@ -13,7 +13,7 @@ import { QuickActions } from './QuickActions'
 function WelcomeMessage() {
   return (
     <div className="text-center py-8 space-y-3">
-      <div className="text-4xl">🐷</div>
+      <Chancho className="mx-auto w-12 text-text" title="Chanchito" />
       <h3 className="font-display text-[18px] text-text">Hola, soy Chanchito</h3>
       <p className="font-sans text-sm text-muted max-w-[280px] mx-auto">
         Contame tus gastos e ingresos y yo los registro automáticamente.
@@ -101,8 +101,8 @@ export function ChatWidget() {
             {/* Header */}
             <div className="bg-navy">
               <div className="flex items-center gap-3 px-4 pt-10 pb-3">
-                <div className="grid place-items-center w-10 h-10 rounded-full bg-accent border-[1.5px] border-cream-light/30 text-lg flex-shrink-0">
-                  🐷
+                <div className="grid place-items-center w-10 h-10 rounded-full bg-accent border-[1.5px] border-cream-light/30 flex-shrink-0">
+                  <Chancho slot="var(--accent)" className="w-6 text-cream-light" />
                 </div>
                 <div className="flex-1 leading-tight">
                   <p className="font-display text-[16px] text-cream-light">Chanchito IA</p>

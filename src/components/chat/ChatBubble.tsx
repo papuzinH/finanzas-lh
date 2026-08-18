@@ -4,6 +4,7 @@ import { ChatMessage, useChatStore } from '@/lib/store/chatStore'
 import { motion } from 'framer-motion'
 import { Mic } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Chancho } from '@/components/brand/chancho'
 
 interface ChatBubbleProps {
   message: ChatMessage
@@ -49,8 +50,8 @@ export function ChatBubble({ message }: ChatBubbleProps) {
     >
       {/* Avatar de Chanchito */}
       {!isUser && (
-        <div className="flex-shrink-0 w-7 h-7 bg-surface border-[1.5px] border-border rounded-full flex items-center justify-center text-sm">
-          🐷
+        <div className="flex-shrink-0 w-7 h-7 bg-surface border-[1.5px] border-border rounded-full flex items-center justify-center">
+          <Chancho slot="var(--surface)" className="w-4 text-text" />
         </div>
       )}
 

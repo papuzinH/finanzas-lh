@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
 
     if (usageStatus === 'budget_exceeded') {
       return NextResponse.json(
-        { success: false, message: 'El asistente está descansando un rato, probá más tarde 🐷' },
+        { success: false, message: 'El asistente está descansando un rato, probá más tarde' },
         { status: 429 }
       )
     }

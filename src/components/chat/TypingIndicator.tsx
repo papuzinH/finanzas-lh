@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { Chancho } from '@/components/brand/chancho'
 
 const FRASES = [
-  'Pensando… 🐷',
+  'Pensando…',
   'Revisando tus cuentas…',
   'Haciendo números…',
   'Consultando tus movimientos…',
@@ -38,8 +39,8 @@ export function TypingIndicator() {
   return (
     <div className="flex gap-2 items-end">
       {/* Avatar */}
-      <div className="flex-shrink-0 w-7 h-7 bg-surface border-[1.5px] border-border rounded-full flex items-center justify-center text-sm">
-        🐷
+      <div className="flex-shrink-0 w-7 h-7 bg-surface border-[1.5px] border-border rounded-full flex items-center justify-center">
+        <Chancho slot="var(--surface)" className="w-4 text-text" />
       </div>
 
       {/* Burbuja con frase y puntos */}
