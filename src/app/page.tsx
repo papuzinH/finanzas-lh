@@ -12,6 +12,7 @@ import {
 import { formatCurrency } from '@/lib/utils';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { ScreenHeader } from '@/components/shared/screen-header';
+import { Chancho } from '@/components/brand/chancho';
 import { TransactionItem } from '@/components/shared/transaction-item';
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { Modal } from '@/components/shared/modal';
@@ -86,6 +87,7 @@ export default function DashboardPage() {
   const dashboardContent = (
     <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
       <ScreenHeader
+        icon={<Chancho className="w-9 text-text" />}
         kicker="tu resumen"
         title={`Hola, ${user?.first_name || 'vos'} 👋`}
         right={
