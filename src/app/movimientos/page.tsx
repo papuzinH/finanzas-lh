@@ -392,8 +392,8 @@ export default function MovimientosPage() {
         }
       />
 
-      {/* Search + filtros + chips */}
-      <div className="mx-auto max-w-[1160px] px-5">
+      {/* Search + filtros + chips: sticky (el ScreenHeader de arriba no lo es) */}
+      <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur-md pb-2 mx-auto max-w-[1160px] px-5">
         <div className="flex items-center gap-2">
           <div data-tour="search-input" className="relative flex-1 md:flex-none md:w-[420px]">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-[15px] w-[15px] text-faint pointer-events-none" />
@@ -416,7 +416,7 @@ export default function MovimientosPage() {
                 type="button"
                 onClick={() => setSearchQuery('')}
                 aria-label="Limpiar búsqueda"
-                className="absolute right-2 top-1/2 -translate-y-1/2 min-h-[38px] min-w-[38px] flex items-center justify-center text-muted hover:text-text transition-colors rounded-full"
+                className="absolute right-2 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted hover:text-text transition-colors rounded-full"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -427,7 +427,7 @@ export default function MovimientosPage() {
             type="button"
             onClick={() => setFiltersOpen(true)}
             aria-label="Filtros"
-            className="lg:hidden relative w-[38px] h-[38px] flex-none grid place-items-center rounded-full border-[1.5px] border-border bg-surface text-text transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+            className="lg:hidden relative min-h-11 min-w-11 flex-none grid place-items-center rounded-full border-[1.5px] border-border bg-surface text-text transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
           >
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
             {activeFilterCount > 0 && (
