@@ -7,6 +7,7 @@ import { MonthSelector } from '@/components/dashboard/month-selector';
 import { isSameDay, isSameMonth, parse, format } from 'date-fns';
 import { cn, formatCurrency } from '@/lib/utils';
 import { parseLocalDate } from '@/lib/utils/dates';
+import { dayGroupLabel } from '@/lib/utils/movimientos-copy';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Transaction } from '@/types/database';
 import { TransactionItem } from '@/components/shared/transaction-item';
@@ -20,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { CreateTransactionDialog } from '@/components/transactions/create-transaction-dialog';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { Chip } from '@/components/ui/chip';
+import { ScreenHeader } from '@/components/shared/screen-header';
 
 /** Tamaño de fuente del monto según cantidad de dígitos, para que nunca overflowee la card. */
 const amountFontClass = (formatted: string) => {
@@ -305,7 +307,6 @@ export default function MovimientosPage() {
   const renderSection = (
     title: string,
     items: Transaction[],
-    colorClass: string = "text-muted",
     collapsible: boolean = false,
     isOpen: boolean = true,
     onToggle?: () => void,
@@ -315,12 +316,15 @@ export default function MovimientosPage() {
 
     const dailyNet = items.reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
     const collapsiblePanelId = 'movimientos-proyeccion-futura-panel';
+    // Kicker del mock: "Hoy" se destaca en accent, el resto de los grupos (días
+    // pasados, Proyección Futura) quedan en un gris más apagado.
+    const headerColorClass = title.startsWith('Hoy') ? 'text-accent-deep' : 'text-faint';
 
     return (
       <div className="mb-5 animate-in fade-in slide-in-from-bottom-2 duration-500 motion-reduce:animate-none">
         <div className="flex items-center justify-between mb-1.5 px-1 select-none">
           {collapsible ? (
-            <h3 className={cn("font-sans text-[11px] font-extrabold uppercase tracking-[0.15em]", colorClass)}>
+            <h3 className={cn("font-sans text-[11px] font-extrabold uppercase tracking-[0.16em]", headerColorClass)}>
               <button
                 type="button"
                 onClick={onToggle}
@@ -334,7 +338,7 @@ export default function MovimientosPage() {
               </button>
             </h3>
           ) : (
-            <h3 className={cn("font-sans text-[11px] font-extrabold uppercase tracking-[0.15em] flex items-center gap-2", colorClass)}>
+            <h3 className={cn("font-sans text-[11px] font-extrabold uppercase tracking-[0.16em] flex items-center gap-2", headerColorClass)}>
               {title}
             </h3>
           )}
@@ -347,23 +351,21 @@ export default function MovimientosPage() {
         </div>
 
         {(!collapsible || isOpen) && (
-          <Card id={collapsible ? collapsiblePanelId : undefined} className="overflow-hidden">
-            {items.map((t, i) => {
+          <div id={collapsible ? collapsiblePanelId : undefined} className="grid gap-2.5">
+            {items.map((t) => {
               const paymentMethod = paymentMethods.find(pm => pm.id === t.payment_method_id);
               return (
-                <div key={t.id} className={cn(i > 0 && "border-t-[1.5px] border-border")}>
-                  <TransactionItem
-                    transaction={t}
-                    paymentMethodName={paymentMethod?.name}
-                    paymentMethodType={paymentMethod?.type}
-                    showDate={showItemDate}
-                    peekOnMount={t.id === firstSwipeableId}
-                    grouped
-                  />
-                </div>
+                <TransactionItem
+                  key={t.id}
+                  transaction={t}
+                  paymentMethodName={paymentMethod?.name}
+                  paymentMethodType={paymentMethod?.type}
+                  showDate={showItemDate}
+                  peekOnMount={t.id === firstSwipeableId}
+                />
               );
             })}
-          </Card>
+          </div>
         )}
       </div>
     );
@@ -375,87 +377,96 @@ export default function MovimientosPage() {
 
   return (
     <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
-      {/* Header Sticky */}
-      <header className="sticky top-0 z-20 bg-bg-2/95 backdrop-blur-md border-b-[1.5px] border-border">
-        <div className="mx-auto max-w-[1160px]">
-          {/* El selector de mes reemplaza al título de la pantalla (es tappable: abre
-              el picker de mes/año; el chevron es la pista visual de que se puede tocar). */}
-          <div className="px-5 pt-3 md:pt-4 pb-2.5 md:pb-3">
-            <div className="flex items-center justify-between gap-3">
-              <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" />
-              <div className="md:hidden shrink-0">
-                <AnimatedPlusButton
-                  label="Crear transacción"
-                  onClick={() => setIsCreateOpen(true)}
-                  ariaLabel="Nueva transacción"
-                />
-              </div>
-            </div>
+      <ScreenHeader
+        compact
+        title="Movimientos"
+        right={
+          <div className="flex items-center gap-2">
+            <MonthSelector currentMonth={currentMonthStr} baseUrl="/movimientos" variant="pill" />
+            <AnimatedPlusButton
+              label="Crear transacción"
+              onClick={() => setIsCreateOpen(true)}
+              ariaLabel="Nueva transacción"
+            />
           </div>
+        }
+      />
 
-          {/* Search + crear (desktop: botón a la derecha del input) */}
-          <div className="px-5 pb-2.5 md:pb-3">
-            <div className="flex items-center gap-3">
-              <div data-tour="search-input" className="relative flex-1 md:flex-none md:w-[420px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por descripción, categoría o monto..."
-                inputMode="search"
-                enterKeyHint="search"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                aria-label="Buscar movimientos"
-                className="w-full bg-surface border-[1.5px] border-border rounded-xl pl-9 pr-10 py-2.5 text-sm text-text placeholder:text-muted focus:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg transition-colors font-sans"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  aria-label="Limpiar búsqueda"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted hover:text-text transition-colors rounded-lg"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-              </div>
-
-              {/* Filtros: solo mobile/tablet (en desktop viven siempre visibles en el rail). Abre un bottom sheet, no afecta el layout de la página. */}
+      {/* Search + filtros + chips */}
+      <div className="mx-auto max-w-[1160px] px-5">
+        <div className="flex items-center gap-2">
+          <div data-tour="search-input" className="relative flex-1 md:flex-none md:w-[420px]">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-[15px] w-[15px] text-faint pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar gasto, categoría, monto…"
+              inputMode="search"
+              enterKeyHint="search"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              aria-label="Buscar movimientos"
+              className="w-full bg-surface border-[1.5px] border-border rounded-full pl-9 pr-10 py-[9px] text-[13px] text-text placeholder:text-faint focus:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg transition-colors font-sans"
+            />
+            {searchQuery && (
               <button
                 type="button"
-                onClick={() => setFiltersOpen(true)}
-                className="lg:hidden relative shrink-0 min-h-11 min-w-11 flex items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-border bg-surface px-3 text-sm font-semibold text-text transition-colors hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                onClick={() => setSearchQuery('')}
+                aria-label="Limpiar búsqueda"
+                className="absolute right-2 top-1/2 -translate-y-1/2 min-h-[38px] min-w-[38px] flex items-center justify-center text-muted hover:text-text transition-colors rounded-full"
               >
-                <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-                <span>Filtros</span>
-                {activeFilterCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-ink border-[1.5px] border-accent-deep">
-                    {activeFilterCount}
-                  </span>
-                )}
+                <X className="h-4 w-4" />
               </button>
-
-              <div className="hidden md:block">
-                <AnimatedPlusButton
-                  label="Crear transacción"
-                  onClick={() => setIsCreateOpen(true)}
-                  ariaLabel="Nueva transacción"
-                />
-              </div>
-            </div>
-            {debouncedQuery && (
-              <p role="status" aria-live="polite" className="text-[11px] text-muted mt-1.5 px-1">
-                {searchFilteredTransactions.length}{' '}
-                movimiento{searchFilteredTransactions.length !== 1 ? 's' : ''} encontrado{searchFilteredTransactions.length !== 1 ? 's' : ''}
-              </p>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(true)}
+            aria-label="Filtros"
+            className="lg:hidden relative w-[38px] h-[38px] flex-none grid place-items-center rounded-full border-[1.5px] border-border bg-surface text-text transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+          >
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-accent-ink border border-accent-deep">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
-      </header>
+
+        {/* Chips de medio inline (mobile/tablet): atajo del filtro principal */}
+        <div className="lg:hidden flex gap-2 overflow-x-auto mt-2.5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <Chip
+            active={selectedPaymentMethodId === 'all'}
+            onClick={() => handleFilterChange('paymentMethod', 'all')}
+          >
+            Todos
+          </Chip>
+          {paymentMethods.map((pm) => (
+            <Chip
+              key={pm.id}
+              active={selectedPaymentMethodId === pm.id.toString()}
+              onClick={() => handleFilterChange('paymentMethod', pm.id.toString())}
+            >
+              {pm.name}
+            </Chip>
+          ))}
+          <Chip active={selectedCategoryId !== 'all'} onClick={() => setFiltersOpen(true)}>
+            Categorías
+          </Chip>
+        </div>
+
+        {debouncedQuery && (
+          <p role="status" aria-live="polite" className="text-[11px] text-muted mt-1.5 px-1">
+            {searchFilteredTransactions.length}{' '}
+            movimiento{searchFilteredTransactions.length !== 1 ? 's' : ''} encontrado{searchFilteredTransactions.length !== 1 ? 's' : ''}
+          </p>
+        )}
+      </div>
 
       <CreateTransactionDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
@@ -474,56 +485,26 @@ export default function MovimientosPage() {
         </DialogContent>
       </Dialog>
 
-      <main className="mx-auto max-w-[1160px] px-5 py-6">
+      <main className="mx-auto max-w-[1160px] px-5 py-4">
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start">
           {/* ===================== Columna ledger ===================== */}
           <div className="min-w-0">
             {/* Resumen: solo mobile/tablet (en desktop vive en el rail) */}
             <div className="lg:hidden">
-              <Card className="p-3.5 mb-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 text-good text-[10.5px] font-bold uppercase tracking-wider mb-1">
-                      <ArrowDownLeft className="h-3 w-3 shrink-0" aria-hidden="true" />
-                      Ingresos
-                    </div>
-                    <p
-                      title={formatCurrency(monthlyIncome)}
-                      className={cn("font-display text-good tnum leading-none truncate", amountFontClass(formatCurrency(monthlyIncome)))}
-                    >
-                      {formatCurrency(monthlyIncome)}
-                    </p>
+              <Card className="mb-3 overflow-hidden rounded-[18px] p-0">
+                <div className="grid grid-cols-2">
+                  <div className="grid gap-0.5 px-4 py-3 border-r-[1.5px] border-border">
+                    <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">Entró</span>
+                    <span className={cn('font-display tnum text-good leading-none', amountFontClass(formatCurrency(monthlyIncome)))}>
+                      + {formatCurrency(monthlyIncome)}
+                    </span>
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 text-bad text-[10.5px] font-bold uppercase tracking-wider mb-1">
-                      <ArrowUpRight className="h-3 w-3 shrink-0" aria-hidden="true" />
-                      Gastos
-                    </div>
-                    <p
-                      title={formatCurrency(displayedExpense)}
-                      className={cn("font-display text-bad tnum leading-none truncate", amountFontClass(formatCurrency(displayedExpense)))}
-                    >
-                      {formatCurrency(displayedExpense)}
-                    </p>
+                  <div className="grid gap-0.5 px-4 py-3">
+                    <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">Salió</span>
+                    <span className={cn('font-display tnum text-bad leading-none', amountFontClass(formatCurrency(displayedExpense)))}>
+                      − {formatCurrency(displayedExpense)}
+                    </span>
                   </div>
-                </div>
-
-                <div className="h-px bg-border my-3" />
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-muted shrink-0">
-                    Neto
-                  </span>
-                  <span
-                    title={formatCurrency(netBalance)}
-                    className={cn(
-                      "font-display tnum leading-none truncate",
-                      netBalance >= 0 ? "text-good" : "text-bad",
-                      amountFontClass(formatCurrency(netBalance))
-                    )}
-                  >
-                    {netBalance >= 0 ? '+' : ''}{formatCurrency(netBalance)}
-                  </span>
                 </div>
               </Card>
             </div>
@@ -532,51 +513,51 @@ export default function MovimientosPage() {
                 (por eso no aparecían acá) y el Neto de arriba ya las descuenta.
                 Colapsada por defecto, mismo patrón que "Proyección Futura". */}
             {showPendingSection && (
-              <div className="mb-5">
-                <div className="flex items-center justify-between mb-1.5 px-1 select-none">
-                  <h3 className="font-sans text-[11px] font-extrabold uppercase tracking-[0.15em] text-muted">
-                    <button
-                      type="button"
-                      onClick={() => setIsPendingOpen((v) => !v)}
-                      aria-expanded={isPendingOpen}
-                      aria-controls="movimientos-pendientes-panel"
-                      className="flex items-center gap-2 -m-1 p-1 rounded-md hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg uppercase"
-                    >
-                      <Clock className="h-3 w-3 text-muted" aria-hidden="true" />
-                      Mensualidades pendientes
-                      {isPendingOpen ? <ChevronDown className="h-3 w-3 text-muted" aria-hidden="true" /> : <ChevronRight className="h-3 w-3 text-muted" aria-hidden="true" />}
-                    </button>
-                  </h3>
-                  <span className="font-sans text-[11px] font-bold tnum text-bad">
-                    -{formatCurrency(pendingFixed.total)}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setIsPendingOpen((v) => !v)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsPendingOpen((v) => !v); } }}
+                aria-expanded={isPendingOpen}
+                aria-controls="movimientos-pendientes-panel"
+                className="mb-4 bg-surface border-[1.5px] border-border rounded-[18px] overflow-hidden cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <div className="flex items-center gap-2.5 px-3.5 py-3">
+                  <span className="w-8 h-8 flex-none grid place-items-center bg-warn/15 border-[1.5px] border-warn/40 rounded-[10px]">
+                    <Clock className="h-[15px] w-[15px] text-warn" aria-hidden="true" />
                   </span>
+                  <div className="grid gap-px">
+                    <span className="font-sans font-bold text-[13.5px] text-text">Fijos por pagar</span>
+                    <span className="text-[11.5px] text-muted">
+                      {pendingFixed.items.length} pendiente{pendingFixed.items.length !== 1 ? 's' : ''} este mes
+                    </span>
+                  </div>
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="font-display tnum text-[14px] text-warn">− {formatCurrency(pendingFixed.total)}</span>
+                    {isPendingOpen
+                      ? <ChevronDown className="h-[15px] w-[15px] text-faint" aria-hidden="true" />
+                      : <ChevronRight className="h-[15px] w-[15px] text-faint" aria-hidden="true" />}
+                  </div>
                 </div>
                 {isPendingOpen && (
-                  <Card id="movimientos-pendientes-panel" className="overflow-hidden border-dashed">
+                  <div id="movimientos-pendientes-panel" className="border-t-[1.5px] border-border px-3.5 py-1" onClick={(e) => e.stopPropagation()}>
                     {pendingFixed.items.map((item, i) => (
                       <Link
                         key={item.id}
                         href="/compromisos"
                         className={cn(
-                          "flex items-center justify-between gap-3 p-3 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset",
-                          i > 0 && "border-t-[1.5px] border-border"
+                          'flex items-center justify-between gap-3 py-2 transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md',
+                          i > 0 && 'border-t border-dashed border-border'
                         )}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 min-w-9 rounded-xl bg-surface-2 border-[1.5px] border-border grid place-items-center shrink-0">
-                            <Clock className="h-4 w-4 text-muted" />
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="font-sans font-bold text-[13.5px] text-text truncate">{item.name}</span>
-                            <span className="text-[11px] text-muted">Pendiente este mes · ver en Compromisos</span>
-                          </div>
+                        <div className="grid gap-px min-w-0">
+                          <span className="font-sans font-semibold text-[13px] text-text truncate">{item.name}</span>
+                          <span className="text-[11px] text-muted">Pendiente este mes · ver en Compromisos</span>
                         </div>
-                        <span className="font-display tnum text-[15px] text-muted whitespace-nowrap shrink-0">
-                          {formatCurrency(item.amount)}
-                        </span>
+                        <span className="font-display tnum text-[13px] text-text shrink-0">{formatCurrency(item.amount)}</span>
                       </Link>
                     ))}
-                  </Card>
+                  </div>
                 )}
               </div>
             )}
@@ -602,17 +583,12 @@ export default function MovimientosPage() {
               </div>
             ) : (
               <>
-                {renderSection('Proyección Futura', groups.futuro, "text-muted", true, isFutureOpen, () => setIsFutureOpen(!isFutureOpen), true)}
+                {renderSection('Proyección Futura', groups.futuro, true, isFutureOpen, () => setIsFutureOpen(!isFutureOpen), true)}
 
-                {renderSection('Hoy', groups.hoy, "text-good")}
+                {renderSection(dayGroupLabel(format(today, 'yyyy-MM-dd')), groups.hoy)}
 
                 {pastDates.map(dateKey => {
-                  // Parsear la fecha string como LOCAL
-                  const localDate = parseLocalDate(dateKey);
-                  const title = new Intl.DateTimeFormat('es-AR', {
-                    day: 'numeric',
-                    month: 'long'
-                  }).format(localDate);
+                  const title = dayGroupLabel(dateKey);
 
                   return (
                     <div key={dateKey}>
