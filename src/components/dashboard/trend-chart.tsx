@@ -13,8 +13,9 @@ import { useFinanceStore } from '@/lib/store/financeStore';
 import { formatCompact } from '@/lib/utils';
 import { ChevronRight } from 'lucide-react';
 
-const INCOME_COLOR = '#10B981';
-const EXPENSE_COLOR = '#EF4444';
+// Verde ingreso, rojo gasto -- pero los del sistema, no los de Tailwind.
+const INCOME_COLOR = 'var(--good)';
+const EXPENSE_COLOR = 'var(--bad)';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function CustomTooltip({ active, payload, label }: any) {
@@ -85,15 +86,15 @@ export function TrendChart({ onTap }: TrendChartProps) {
                   <stop offset="95%" stopColor={EXPENSE_COLOR} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid vertical={false} stroke="var(--color-border, #e2e8f0)" strokeOpacity={0.5} />
+              <CartesianGrid vertical={false} stroke="var(--color-border, #DCD3BC)" strokeOpacity={0.5} />
               <XAxis
                 dataKey="month"
-                tick={{ fill: 'var(--color-muted, #94a3b8)', fontSize: 11 }}
+                tick={{ fill: 'var(--color-muted, #5B6577)', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: 'var(--color-muted, #94a3b8)', fontSize: 10 }}
+                tick={{ fill: 'var(--color-muted, #5B6577)', fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
                 width={42}

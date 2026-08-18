@@ -620,13 +620,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   getPortfolioDistribution: () => {
     const { assets } = get().getPortfolioStatus();
 
+    // Escala categorica de la marca (--chart-N), no la paleta default de Tailwind.
     const COLOR_MAP: Record<string, string> = {
-      stock: '#6366f1', cedear: '#6366f1', etf: '#6366f1',
-      bond: '#8b5cf6', on: '#8b5cf6', bopreal: '#8b5cf6',
-      lecap: '#a78bfa', boncap: '#a78bfa',
-      crypto: '#f59e0b', stablecoin: '#f59e0b',
-      plazo_fijo: '#10b981', money_market: '#10b981',
-      fci: '#06b6d4',
+      stock: 'var(--chart-1)', cedear: 'var(--chart-1)', etf: 'var(--chart-1)',
+      bond: 'var(--chart-5)', on: 'var(--chart-5)', bopreal: 'var(--chart-5)',
+      lecap: 'var(--chart-6)', boncap: 'var(--chart-6)',
+      crypto: 'var(--chart-3)', stablecoin: 'var(--chart-3)',
+      plazo_fijo: 'var(--chart-2)', money_market: 'var(--chart-2)',
+      fci: 'var(--chart-8)',
     };
 
     const grouped: Record<string, number> = {};
@@ -642,7 +643,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         assetType,
         value,
         percentage: total > 0 ? (value / total) * 100 : 0,
-        color: COLOR_MAP[assetType] ?? '#64748b',
+        color: COLOR_MAP[assetType] ?? 'var(--chart-8)',
       }))
       .sort((a, b) => b.value - a.value);
   },

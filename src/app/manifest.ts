@@ -4,11 +4,12 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Chanchito',
     short_name: 'Chanchito',
-    description: 'Mi gestor de gastos personal con IA',
+    description: 'Tus gastos, cuotas y verdes del dia a dia, en orden',
     start_url: '/',
     display: 'standalone',
-    background_color: '#020617', // Slate-950
-    theme_color: '#020617',
+    // Papel crema: es lo que ve alguien al instalar la PWA, antes de abrirla.
+    background_color: '#F4EDDC',
+    theme_color: '#F4EDDC',
     icons: [
       {
         src: '/icon.png',
