@@ -224,7 +224,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
         grouped
           ? "hover:bg-surface-2"
           : cn(
-              "rounded-xl border-[1.5px]",
+              "rounded-2xl border-[1.5px]",
               isInstallment
                 ? "border-accent-soft/40 hover:border-accent-soft/70"
                 : "border-border hover:shadow-card"
@@ -356,10 +356,10 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
       />
 
       {canSwipe ? (
-        <div className={cn("relative overflow-hidden", !grouped && "rounded-xl")}>
+        <div className={cn("relative overflow-hidden", !grouped && "rounded-2xl")}>
           {/* Fondo editar – deslizar a la derecha */}
           <motion.div
-            className={cn("absolute inset-0 flex items-center px-5 bg-accent", !grouped && "rounded-xl")}
+            className={cn("absolute inset-0 flex items-center px-5 bg-accent", !grouped && "rounded-2xl")}
             style={{ opacity: editBgOpacity }}
             aria-hidden
           >
@@ -369,7 +369,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
 
           {/* Fondo eliminar – deslizar a la izquierda */}
           <motion.div
-            className={cn("absolute inset-0 flex items-center justify-end px-5 bg-bad", !grouped && "rounded-xl")}
+            className={cn("absolute inset-0 flex items-center justify-end px-5 bg-bad", !grouped && "rounded-2xl")}
             style={{ opacity: deleteBgOpacity }}
             aria-hidden
           >

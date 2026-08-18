@@ -13,6 +13,7 @@ import { MonthPickerDialog } from '@/components/dashboard/month-picker-dialog';
 interface MonthSelectorProps {
   currentMonth: string;
   baseUrl?: string;
+  variant?: 'default' | 'pill';
 }
 
 /**
@@ -20,7 +21,7 @@ interface MonthSelectorProps {
  * tap abre el picker de mes/año, swipe va al mes anterior/siguiente. El chevron
  * junto al mes es la pista visual de que es tappable (no un simple texto).
  */
-export function MonthSelector({ currentMonth, baseUrl = '/' }: MonthSelectorProps) {
+export function MonthSelector({ currentMonth, baseUrl = '/', variant = 'default' }: MonthSelectorProps) {
   const router = useRouter();
   const [direction, setDirection] = useState(0);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -88,8 +89,9 @@ export function MonthSelector({ currentMonth, baseUrl = '/' }: MonthSelectorProp
   return (
     <div data-tour="month-selector">
       {/* Encabezado real para lectores de pantalla/SEO: el mes reemplaza visualmente
-          al título, pero la jerarquía de headings de la página se mantiene. */}
-      <h1 className="sr-only">Movimientos</h1>
+          al título, pero la jerarquía de headings de la página se mantiene.
+          En variante pill la pantalla ya tiene su propio h1, así que se omite. */}
+      {variant === 'default' && <h1 className="sr-only">Movimientos</h1>}
 
       <motion.div
         role="button"
@@ -112,29 +114,36 @@ export function MonthSelector({ currentMonth, baseUrl = '/' }: MonthSelectorProp
         onDrag={handleDrag}
         onDragEnd={handleDragEnd}
       >
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={currentMonth}
-            custom={direction}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeInOut' }}
-            className="flex flex-col gap-0.5"
-          >
-            <span className="flex items-center gap-1 font-display text-text text-[24px] md:text-[26px] leading-none capitalize">
-              {format(date, 'MMMM yyyy', { locale: es })}
-              <ChevronDown className="h-5 w-5 text-muted shrink-0" aria-hidden="true" />
-            </span>
-
-            {comparisonText && (
-              <span className={cn('text-[11px] font-semibold', isHigher ? 'text-bad' : 'text-good')}>
-                {isHigher ? '↑' : '↓'} {absChange.toFixed(0)}% vs {realPrevLabel}
+        {variant === 'pill' ? (
+          <span className="flex items-center gap-1.5 bg-surface border-[1.5px] border-border rounded-full px-3 py-[7px] font-sans font-bold text-[12.5px] text-text">
+            {format(date, 'MMMM yyyy', { locale: es })}
+            <ChevronDown className="h-[13px] w-[13px]" strokeWidth={2.4} aria-hidden="true" />
+          </span>
+        ) : (
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={currentMonth}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeInOut' }}
+              className="flex flex-col gap-0.5"
+            >
+              <span className="flex items-center gap-1 font-display text-text text-[24px] md:text-[26px] leading-none capitalize">
+                {format(date, 'MMMM yyyy', { locale: es })}
+                <ChevronDown className="h-5 w-5 text-muted shrink-0" aria-hidden="true" />
               </span>
-            )}
-          </motion.div>
-        </AnimatePresence>
+
+              {comparisonText && (
+                <span className={cn('text-[11px] font-semibold', isHigher ? 'text-bad' : 'text-good')}>
+                  {isHigher ? '↑' : '↓'} {absChange.toFixed(0)}% vs {realPrevLabel}
+                </span>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        )}
       </motion.div>
 
       <MonthPickerDialog
