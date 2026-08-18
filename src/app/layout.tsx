@@ -3,6 +3,7 @@ import { Fugaz_One, Asap, Bitter } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 import { Toaster } from "@/components/ui/sonner";
+import { temaScript } from "@/components/theme/theme-script";
 
 // Identidad cerrada 2026-08-13. Fugaz One es rótulo pintado (un solo peso, nunca
 // en negrita forzada); Asap y Bitter son de Omnibus-Type y Huerta Tipográfica,
@@ -37,7 +38,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${display.variable} ${sans.variable} ${serif.variable}`}>
+    <html
+      lang="es"
+      className={`${display.variable} ${sans.variable} ${serif.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Antes de hidratar: si no, la app pinta en Día y salta a Noche. */}
+        <script dangerouslySetInnerHTML={{ __html: temaScript }} />
+      </head>
       <body className="antialiased bg-bg text-text font-sans">
         <AppShell>
           {children}

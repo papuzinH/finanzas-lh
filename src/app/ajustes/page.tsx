@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { Wallet, Tag, User, ChevronRight } from 'lucide-react';
+import { Wallet, Tag, User, ChevronRight, Palette } from 'lucide-react';
 import { ScreenHeader } from '@/components/shared/screen-header';
+import { ThemeToggle } from '@/components/theme/theme-toggle';
 
 const sections = [
   {
@@ -47,6 +48,19 @@ export default function AjustesPage() {
               <ChevronRight className="h-4 w-4 text-muted group-hover:text-text transition-colors shrink-0" />
             </Link>
           ))}
+
+          {/* Apariencia. Día es papel crema; Noche es papel de estraza, el de
+              envolver del almacén — no un dark mode. */}
+          <div className="flex items-center gap-4 rounded-2xl border-[1.5px] border-border bg-surface p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft/30 text-accent-deep">
+              <Palette className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-sans font-bold text-text">Tema</p>
+              <p className="mt-0.5 truncate text-xs text-muted">Papel de día, estraza de noche</p>
+            </div>
+            <ThemeToggle />
+          </div>
         </div>
       </main>
     </div>
