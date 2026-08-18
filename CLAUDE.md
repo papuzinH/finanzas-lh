@@ -84,41 +84,32 @@ UI: selector de medio en el chip de Compromisos (`credit-card-cycle-card.tsx`) +
 - **Siempre** usar `parseLocalDate()` de `lib/utils/dates.ts` (evita bugs UTC)
 
 ## UI
-- **Fondo de app**: `bg-bg` (crema). Cards: `bg-surface`.
+- **Temas**: crema de día / papel de estraza de noche. El usuario elige en `/ajustes` (ThemeToggle + `theme-script` anti-flash, clase en `<html>`). ⚠️ Las utilities `dark:` de Tailwind NO funcionan acá (resuelven por `prefers-color-scheme`, el tema es por clase): usar tokens, que ya cambian con el tema.
+- **Fondo de app**: `bg-bg`. Cards: `bg-surface`.
 - **Tokens semánticos SIEMPRE**: nunca hardcodees hex ni colores Tailwind para UI.
   - Layout: `bg-bg`, `bg-bg-2`, `bg-surface`, `bg-surface-2`, `text-text`, `text-muted`, `text-faint`, `border-border`
   - Acento: `bg-accent text-accent-ink border-accent-deep shadow-offset`
   - Financiero: `text-good` (ingreso/positivo), `text-bad` (gasto/negativo), `text-warn` (atención)
-  - Hero card: `bg-hero text-cream shadow-float rounded-[26px]`
-- **NO usar**: `emerald-*`, `rose-*`, `indigo-*`, `violet-*`, `slate-*` para UI nueva.
+  - Marca: `--bandera` (celeste de la cinta, fijo — no cambia con el tema), `--shadow-bandera` (la firma: doble sombra tiza+celeste; UNA cifra por pantalla, con padding a la derecha/abajo para que `truncate`/`overflow` no la recorte), `--logo-slot` (ranuras del chancho), paleta `--estraza-*` (noche).
+- **NO usar**: `emerald-*`, `rose-*`, `indigo-*`, `violet-*`, `slate-*` ni `dark:` para UI nueva.
 - **Bordes**: siempre `border-[1.5px] border-border`. Nunca `border` (1px default).
-- **Tipografía** (por rol):
-  - `font-poster` (Alfa Slab One): saldos, montos display, títulos de pantalla
-  - `font-sans` (DM Sans): TODA la UI de texto (labels, descripciones, botones)
-  - `font-serifd` (Bodoni Moda): solo frases editoriales/marketing
-  - `font-script` (Yellowtail): solo tagline/logo
+- **Tipografía** (por rol — identidad 2026-08-13):
+  - `font-display` (Fugaz One): cifras, títulos de pantalla y de sección. Un solo peso — nunca sumarle `font-bold`. Cifras con `--leading-display`.
+  - `font-sans` (Asap): TODA la UI de texto (labels, descripciones, botones)
+  - `font-serif` (Bitter): sello, cintas y usos editoriales de marca
   - `tnum`: TODOS los números financieros (alineación en columna)
+- **Marca**: el chancho es `<Chancho>` de `@/components/brand/chancho` — NUNCA `<img>` (se recolorea por tema; pasarle `slot` con el color del fondo cuando se apoya sobre superficie de color). Assets en `public/brand/*.svg`. Emoji: los del usuario en sus categorías se respetan como dato; la UI de marca no agrega emoji propios.
 - **Botones**: `<Button>` de `@/components/ui/button` → pill + `border-[1.5px] shadow-offset active:translate-y-[2px]`. Variants: `accent`, `navy`, `soft`, `ghost`.
 - **Cards**: `<Card>` de `@/components/ui/card` → `rounded-2xl bg-surface border-[1.5px] border-border shadow-card`.
-- **Tabs**: `<TabsDS>` de `@/components/ui/tabs-ds`.
-- **Toggles**: `<ToggleDS>` de `@/components/ui/toggle-ds`.
-- **Progress bars**: `<ProgressBar>` de `@/components/ui/progress-bar` con `tone="accent|good|warn|bad"`.
-- **Chips de filtro**: `<Chip>` de `@/components/ui/chip`.
-- **Banners**: `<BannerDS>` de `@/components/ui/banner-ds`.
+- **Tabs**: `<TabsDS>` de `@/components/ui/tabs-ds`. **Toggles**: `<ToggleDS>`. **Chips**: `<Chip>`. **Banners**: `<BannerDS>`. **Progress bars**: `<ProgressBar>` con `tone="accent|good|warn|bad"`.
 - **Íconos**: `lucide-react` directo (importar específicos) O `<Icon name="..." />` de `@/components/ui/icon`.
-- **ScreenHeader**: `<ScreenHeader kicker="..." title="..." sub="..." right={...} />` de `@/components/shared/screen-header` para todo encabezado de pantalla (el viejo `PageHeader` ya no existe).
-- **Mobile-first**: canvas base 392px. Margen lateral `px-5`. Touch targets ≥44px. `pb-28` para clearear BottomNav.
+- **ScreenHeader**: `<ScreenHeader title="..." right={...} />` de `@/components/shared/screen-header`; variante `compact` (título 22px, sin kicker) para las pantallas alineadas a los mocks de layouts.
+- **Nav**: bottom nav mobile de **5 destinos** (Inicio, Movimientos, Compromisos, Objetivos, Más); "Más" abre un ActionSheet con Inversiones, Medios de pago y Ajustes (`nav-config.ts`). Desktop sidebar: 6 ítems directos.
+- **Mobile-first**: canvas base 390px (el de los mocks). Margen lateral `px-5`. Touch targets ≥44px. `pb-28` para clearear BottomNav.
 
-## Prototipos de referencia
-Los archivos JSX en `design_handoff_chanchito/prototypes/app/` son la fuente visual de verdad:
-- `ui.jsx` — BottomNav, ScreenHeader, Card, SectionTitle
-- `screen-inicio.jsx` — Dashboard
-- `screen-movimientos.jsx` — Movimientos
-- `screen-compromisos.jsx` — Compromisos
-- `screen-objetivos.jsx` — Objetivos
-- `screen-inversiones.jsx` — Inversiones
-
-Para verificar visualmente: `design_handoff_chanchito/prototypes/Chanchito App.html` en el navegador.
+## Diseño de referencia
+Los mocks finales (identidad 2026-08-13, snapshot 2026-08-14) viven en `../claude-design/` — carpeta hermana del repo, fuera de git: `{Pantalla}-render.html` + variantes `{Pantalla}Noche-render.html`. Abrirlos en el navegador a 390px. El spec de layouts: `docs/superpowers/specs/2026-08-18-layouts-pantallas-design.md`.
+⚠️ `design_handoff_chanchito/` es el handoff viejo (pre-identidad, tipografías Alfa Slab/DM Sans): NO usarlo como referencia visual. Igual que el proyecto "Design System" de claude.ai, que quedó en la fase descartada.
 
 ## TypeScript
 - Tipos de `types/database.ts`. Nunca `any`.

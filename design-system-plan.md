@@ -1,5 +1,7 @@
 # Plan de Design System atómico — Chanchito
 
+> ✅ **CERRADO 2026-08-18.** El sistema descrito acá se completó y fue reemplazado por la identidad definitiva del 13-ago (Fugaz One/Asap/Bitter, chancho, sello S·C Fiscal, tema Noche estraza), implementada en producción el 18-ago. Este documento queda como registro histórico; la fuente de verdad es `src/app/globals.css` + `docs/superpowers/specs/2026-08-14-design-system-identidad-v2-design.md`. La etapa 2 (layouts) vive en `docs/superpowers/specs/2026-08-18-layouts-pantallas-design.md`.
+
 > Documento de seguimiento multi-sesión. Marcá los `[ ]` a medida que avances.
 > **Fuente de verdad de tokens: `src/app/globals.css`** (a mano, Tailwind v4 `@theme inline`).
 
