@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { formatCurrency } from '@/lib/utils'
+import { budgetStatusLine, daysLeftInMonth } from '@/lib/utils/objetivos-copy'
 import { Button } from '@/components/ui/button'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { EditBudgetDialog } from './edit-budget-dialog'
 import { deleteCategoryBudget } from '@/app/dashboard/goals/actions'
-import { Trash2, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useConfetti } from '@/components/shared/confetti'
 import type { CategoryBudget } from '@/types/database'
@@ -45,26 +45,6 @@ export function CategoryBudgetCard({ budget }: Props) {
 
   const { categoryName, categoryEmoji, spent, limit, percent, status } = statusData
 
-  const progressTone = status === 'exceeded' ? 'bad' : status === 'warning' ? 'warn' : 'good'
-
-  const statusBadge =
-    status === 'exceeded' ? (
-      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-bad/10 text-bad border border-bad/20">
-        <XCircle className="w-2.5 h-2.5" />
-        Superado
-      </span>
-    ) : status === 'warning' ? (
-      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-warn/10 text-warn border border-warn/20">
-        <AlertTriangle className="w-2.5 h-2.5" />
-        Cuidado
-      </span>
-    ) : (
-      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-good/10 text-good border border-good/20">
-        <CheckCircle2 className="w-2.5 h-2.5" />
-        OK
-      </span>
-    )
-
   const handleDelete = async () => {
     if (!confirm(`¿Eliminar el presupuesto de ${categoryName}?`)) return
     setDeleting(true)
@@ -78,38 +58,39 @@ export function CategoryBudgetCard({ budget }: Props) {
     }
   }
 
+  const linea = budgetStatusLine({
+    percent,
+    spent,
+    limit,
+    currency: budget.currency,
+    status,
+    daysLeft: daysLeftInMonth(),
+  })
+  const lineaClase =
+    linea.tone === 'bad' ? 'text-bad font-bold' : linea.tone === 'warn' ? 'text-warn font-bold' : 'text-muted'
+
   return (
-    <div className="rounded-2xl border-[1.5px] border-border bg-surface p-5 space-y-3">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            {statusBadge}
-            {showEndOfMonthBadge && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3 }}
-              >
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-good/10 text-good border border-good/20">
-                  ¡Dentro del presupuesto!
-                </span>
-              </motion.div>
-            )}
-          </div>
-          <h3 className="font-sans font-bold text-text">
-            {categoryEmoji && <span className="mr-1">{categoryEmoji}</span>}
-            {categoryName}
-          </h3>
-          <p className="text-xs text-muted mt-0.5">Presupuesto mensual</p>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
+    <div className="rounded-2xl border-[1.5px] border-border bg-surface p-3 px-3.5 grid gap-2">
+      {/* Fila principal: emoji + nombre + montos + acciones */}
+      <div className="flex items-center gap-2">
+        {categoryEmoji && <span className="text-[15px]">{categoryEmoji}</span>}
+        <span className="font-sans font-bold text-[13px] text-text truncate">{categoryName}</span>
+        {showEndOfMonthBadge && (
+          <span className="text-[10px] font-bold text-good" aria-label="Dentro del presupuesto">✓</span>
+        )}
+        <span className="ml-auto text-[12px] text-muted tnum whitespace-nowrap">
+          <b className={status === 'exceeded' ? 'text-bad' : 'text-text'}>
+            {budget.currency === 'USD' ? 'USD ' : ''}{formatCurrency(spent)}
+          </b>
+          {' '}/ {budget.currency === 'USD' ? 'USD ' : ''}{formatCurrency(limit)}
+        </span>
+        <div className="flex items-center shrink-0 -mr-1">
           <EditBudgetDialog budget={budget} categoryName={categoryName} categoryEmoji={categoryEmoji} />
           <Button
             variant="ghost"
             size="icon"
             aria-label={`Eliminar presupuesto de ${categoryName}`}
-            className="h-11 w-11 text-muted hover:text-bad hover:bg-bad/10"
+            className="h-9 w-9 text-muted hover:text-bad hover:bg-bad/10"
             onClick={handleDelete}
             disabled={deleting}
           >
@@ -118,66 +99,28 @@ export function CategoryBudgetCard({ budget }: Props) {
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="space-y-1.5">
+      {/* Barra + marcador de proyección (se conserva) */}
+      <div>
         <ProgressBar
           value={Math.min(percent, 100)}
-          tone={progressTone}
-          height={10}
+          tone={status === 'exceeded' ? 'bad' : status === 'warning' ? 'warn' : 'good'}
+          height={7}
         />
         {projection && (
           <div
             className="relative h-0 pointer-events-none"
             style={{
-              marginTop: -14,
+              marginTop: -11,
               marginLeft: `${Math.min(projection.limit > 0 ? (projection.projected / projection.limit) * 100 : 0, 100)}%`,
               borderLeft: `2px dashed ${projection.isOverBudget ? 'var(--bad)' : 'var(--good)'}`,
-              height: 10,
+              height: 7,
             }}
           />
         )}
-        <div className="flex justify-between text-xs">
-          <span className={
-            status === 'exceeded' ? 'font-display tnum text-bad font-semibold' :
-            status === 'warning' ? 'font-display tnum text-warn font-semibold' :
-            'font-display tnum text-muted'
-          }>
-            {budget.currency === 'USD' ? 'USD ' : ''}
-            {formatCurrency(spent)} gastados
-          </span>
-          <span className="font-display tnum text-muted">
-            límite: {budget.currency === 'USD' ? 'USD ' : ''}
-            {formatCurrency(limit)}
-          </span>
-        </div>
-        {projection && (
-          <div className={`text-[11px] font-medium ${projection.isOverBudget ? 'text-bad' : 'text-good'}`}>
-            {projection.isOverBudget
-              ? `Proyección: ${budget.currency === 'USD' ? 'USD ' : ''}${formatCurrency(projection.projected)} (excede por ${budget.currency === 'USD' ? 'USD ' : ''}${formatCurrency(projection.projected - projection.limit)})`
-              : `Proyección: ${budget.currency === 'USD' ? 'USD ' : ''}${formatCurrency(projection.projected)}`
-            }
-          </div>
-        )}
       </div>
 
-      {/* Context message */}
-      {status === 'exceeded' && (
-        <p className="text-xs text-bad/80">
-          Superaste el límite por {budget.currency === 'USD' ? 'USD ' : ''}
-          {formatCurrency(spent - limit)}
-        </p>
-      )}
-      {status === 'warning' && (
-        <p className="text-xs text-warn/80">
-          Solo te quedan {budget.currency === 'USD' ? 'USD ' : ''}
-          {formatCurrency(limit - spent)} hasta el límite
-        </p>
-      )}
-      {status === 'ok' && (
-        <p className="text-xs text-muted">
-          {(100 - percent).toFixed(0)}% disponible este mes
-        </p>
-      )}
+      {/* Línea de estado — copy del mock */}
+      <span className={`text-[11px] ${lineaClase}`}>{linea.text}</span>
     </div>
   )
 }
