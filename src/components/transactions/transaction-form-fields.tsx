@@ -399,7 +399,7 @@ export function DateField<T extends FieldValues>({
 export function PaymentMethodBadge({ type }: { type: string }) {
   if (type === 'credit') {
     return (
-      <span className="inline-flex items-center justify-center rounded-md bg-hero px-2 py-0.5 text-[10px] font-bold tracking-wider text-cream-light uppercase">
+      <span className="inline-flex items-center justify-center rounded-md bg-text px-2 py-0.5 text-[10px] font-bold tracking-wider text-bg uppercase">
         VISA
       </span>
     );

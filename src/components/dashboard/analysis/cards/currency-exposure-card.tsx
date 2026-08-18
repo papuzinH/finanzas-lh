@@ -23,10 +23,10 @@ export function CurrencyExposureCard() {
         <span className="text-[9px] text-muted font-bold bg-surface-2 px-1.5 py-0.5 rounded">🇦🇷 AR</span>
       </h3>
       <div className="flex h-7 rounded-lg overflow-hidden border-[1.5px] border-border">
-        <div className="bg-hero text-cream text-[10px] font-bold grid place-items-center" style={{ width: `${arsShare}%` }}>
+        <div className="bg-text text-bg text-[10px] font-bold grid place-items-center" style={{ width: `${arsShare}%` }}>
           {arsShare.toFixed(0)}%
         </div>
-        <div className="bg-good text-cream text-[10px] font-bold grid place-items-center" style={{ width: `${usdShare}%` }}>
+        <div className="bg-good text-bg text-[10px] font-bold grid place-items-center" style={{ width: `${usdShare}%` }}>
           {usdShare > 12 ? `${usdShare.toFixed(0)}%` : ''}
         </div>
       </div>

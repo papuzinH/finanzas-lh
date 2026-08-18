@@ -211,7 +211,7 @@ export function OnboardingTour() {
   return (
     <div className="fixed inset-0 z-9999" aria-live="polite">
       <motion.div
-        className="absolute inset-0 bg-navy/70"
+        className="absolute inset-0 bg-text/40 backdrop-blur-sm"
         style={{ clipPath }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

@@ -30,23 +30,23 @@ export function BannerDS({
     >
       <div className="flex items-start gap-3">
         <div
-          className="grid place-items-center w-9 h-9 rounded-xl shrink-0 bg-cream-light/60 border border-navy/15"
+          className="grid place-items-center w-9 h-9 rounded-xl shrink-0 bg-surface border-[1.5px] border-border"
           style={{ color: tn.bd }}
         >
           <Icon name={icon} size={18} />
         </div>
         <div className="min-w-0">
-          <p className="font-sans font-extrabold text-navy text-[13px] leading-tight">{title}</p>
-          <p className="font-sans text-[12px] text-navy/70 leading-snug mt-0.5">{body}</p>
+          <p className="font-sans font-extrabold text-text text-[13px] leading-tight">{title}</p>
+          <p className="font-sans text-[12px] text-muted leading-snug mt-0.5">{body}</p>
           {cta && (
-            <button className="mt-2 font-sans text-[12px] font-extrabold text-navy underline decoration-2 underline-offset-2 cursor-pointer">
+            <button className="mt-2 font-sans text-[12px] font-extrabold text-text underline decoration-2 underline-offset-2 cursor-pointer">
               {cta}
             </button>
           )}
         </div>
       </div>
       {onClose && (
-        <button onClick={onClose} className="absolute top-2.5 right-2.5 text-navy/40 cursor-pointer">
+        <button onClick={onClose} className="absolute top-2.5 right-2.5 text-faint cursor-pointer">
           <Icon name="x" size={15} />
         </button>
       )}

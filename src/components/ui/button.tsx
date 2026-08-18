@@ -11,7 +11,7 @@ const buttonVariants = cva(
       variant: {
         default:     "bg-accent text-accent-ink border-accent-deep shadow-offset",
         accent:      "bg-accent text-accent-ink border-accent-deep shadow-offset",
-        navy:        "bg-hero text-cream-light border-hero shadow-offset",
+        navy:        "bg-hero text-hero-text border-hero shadow-offset",
         soft:        "bg-surface-2 text-text border-border hover:bg-surface",
         ghost:       "bg-transparent text-muted border-transparent hover:bg-surface-2 active:translate-y-0",
         destructive: "bg-bad text-cream-light border-[color:var(--btn-destructive-border)] shadow-offset",

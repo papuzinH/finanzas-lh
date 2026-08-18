@@ -99,14 +99,14 @@ export function ChatWidget() {
                        flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="bg-navy">
+            <div className="bg-bg-2 border-b-[1.5px] border-border">
               <div className="flex items-center gap-3 px-4 pt-10 pb-3">
-                <div className="grid place-items-center w-10 h-10 rounded-full bg-accent border-[1.5px] border-cream-light/30 flex-shrink-0">
+                <div className="grid place-items-center w-10 h-10 rounded-full bg-accent border-[1.5px] border-accent-deep flex-shrink-0">
                   <Chancho slot="var(--accent)" className="w-6 text-cream-light" />
                 </div>
                 <div className="flex-1 leading-tight">
-                  <p className="font-display text-[16px] text-cream-light">Chanchito IA</p>
-                  <p className="font-sans text-[11px] text-celeste flex items-center gap-1">
+                  <p className="font-display text-[16px] text-text">Chanchito IA</p>
+                  <p className="font-sans text-[11px] text-accent-deep flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-good inline-block" />
                     en línea · Gemini
                   </p>
@@ -114,7 +114,7 @@ export function ChatWidget() {
                 <button
                   onClick={toggleChat}
                   aria-label="Cerrar chat"
-                  className="grid place-items-center w-9 h-9 min-h-[44px] min-w-[44px] rounded-full bg-cream-light/10 text-cream-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-light/40"
+                  className="grid place-items-center w-9 h-9 min-h-[44px] min-w-[44px] rounded-full bg-surface border-[1.5px] border-border text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                   <X className="w-[18px] h-[18px]" />
                 </button>

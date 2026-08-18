@@ -73,17 +73,17 @@ export function ObjetivosClient({ initialTab }: { initialTab: ActiveTab }) {
 
         {/* Hero Card */}
         <div
-          className="rounded-2xl bg-hero text-cream p-5"
+          className="rounded-2xl border-[1.5px] border-border bg-surface text-text shadow-card p-5"
           style={{ boxShadow: '0 18px 36px -18px rgba(28,42,71,0.70)' }}
         >
-          <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
+          <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-accent-deep">
             Total en Metas
           </p>
-          <p className="font-display tnum text-[36px] leading-[0.95] mt-1 text-cream-light">
+          <p className="font-display tnum text-[36px] leading-[var(--leading-display)] mt-1 text-text [text-shadow:var(--shadow-bandera)] pr-1.5 pb-1">
             {fmtCurrency(totalMetasARS)}
           </p>
           {(activeGoals.length > 0) && (
-            <p className="text-[11px] text-celeste/70 mt-2">
+            <p className="text-[11px] text-faint mt-2">
               {activeGoals.length} meta{activeGoals.length > 1 ? 's' : ''} activa{activeGoals.length > 1 ? 's' : ''}
             </p>
           )}

@@ -188,24 +188,24 @@ export function InversionesClient() {
 
         {/* Hero Card */}
         <div
-          className="rounded-2xl bg-hero text-cream p-5"
+          className="rounded-2xl border-[1.5px] border-border bg-surface text-text shadow-card p-5"
           style={{ boxShadow: '0 18px 36px -18px rgba(28,42,71,0.70)' }}
         >
-          <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
+          <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-accent-deep">
             Valor Total del Portfolio
           </p>
-          <p className="font-display tnum text-[clamp(1.65rem,8vw,2.25rem)] leading-[0.95] mt-1 text-cream-light break-words">
+          <p className="font-display tnum text-[clamp(1.65rem,8vw,2.25rem)] leading-[var(--leading-display)] mt-1 text-text [text-shadow:var(--shadow-bandera)] pr-1.5 pb-1 break-words">
             {heroMoney(portfolio.totalValue)}
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="min-w-0 rounded-xl bg-cream-light/10 border-[1.5px] border-cream-light/15 px-3 py-2">
-              <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">Invertido</p>
-              <p className="font-display tnum text-[15px] mt-0.5 text-cream-light break-words">
+            <div className="min-w-0 rounded-xl bg-surface-2 border-[1.5px] border-border px-3 py-2">
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-accent-deep">Invertido</p>
+              <p className="font-display tnum text-[15px] mt-0.5 text-text break-words">
                 {heroMoney(portfolio.totalInvested)}
               </p>
             </div>
-            <div className="min-w-0 rounded-xl bg-cream-light/10 border-[1.5px] border-cream-light/15 px-3 py-2">
-              <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">P&L</p>
+            <div className="min-w-0 rounded-xl bg-surface-2 border-[1.5px] border-border px-3 py-2">
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-accent-deep">P&L</p>
               <div className="mt-0.5 min-w-0">
                 {portfolio.totalInvested > 0 ? (
                   <ProfitBadge
@@ -216,13 +216,13 @@ export function InversionesClient() {
                     className="max-w-full [overflow-wrap:anywhere]"
                   />
                 ) : (
-                  <p className="font-display tnum text-[15px] text-cream-light/50">—</p>
+                  <p className="font-display tnum text-[15px] text-faint">—</p>
                 )}
               </div>
             </div>
           </div>
           {portfolio.totalSavings > 0 && (
-            <p className="text-[11px] text-celeste/70 mt-2 break-words">
+            <p className="text-[11px] text-faint mt-2 break-words">
               Ahorros: {fmtCurrency(portfolio.totalSavings, currencyLabel)}
             </p>
           )}

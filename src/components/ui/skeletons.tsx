@@ -373,12 +373,12 @@ export function CompromisosSkeleton() {
 
       <main className="mx-auto max-w-[1440px] space-y-5 pb-4">
         {/* Hero: placeholders claros sobre fondo navy */}
-        <div className="mx-5 rounded-2xl bg-hero p-5">
+        <div className="mx-5 rounded-2xl border-[1.5px] border-border bg-surface shadow-card p-5">
           <div className="h-3 w-40 rounded bg-cream-light/15" />
           <div className="mt-2 h-9 w-52 rounded bg-cream-light/20" />
           <div className="mt-4 grid grid-cols-2 gap-2">
             {[1, 2].map(i => (
-              <div key={i} className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2 space-y-1.5">
+              <div key={i} className="rounded-xl bg-surface-2 border-[1.5px] border-border px-3 py-2 space-y-1.5">
                 <div className="h-2.5 w-16 rounded bg-cream-light/15" />
                 <div className="h-3.5 w-20 rounded bg-cream-light/20" />
               </div>

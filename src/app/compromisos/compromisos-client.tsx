@@ -498,23 +498,23 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
 
         {/* Hero Card */}
         <div
-          className="mx-5 rounded-2xl bg-hero text-cream p-5"
+          className="mx-5 rounded-2xl border-[1.5px] border-border bg-surface text-text shadow-card p-5"
           style={{ boxShadow: '0 18px 36px -18px rgba(28,42,71,0.70)' }}
         >
-          <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-celeste">
+          <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-accent-deep">
             Compromisos del mes
           </p>
-          <p className="font-display tnum text-[36px] leading-[0.95] mt-1 text-cream-light">
+          <p className="font-display tnum text-[36px] leading-[var(--leading-display)] mt-1 text-text [text-shadow:var(--shadow-bandera)] pr-1.5 pb-1">
             {formatCurrency(totalCompromisosMes)}
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2">
-              <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">Cuotas</p>
-              <p className="font-display tnum text-[15px] mt-0.5 text-cream-light">{formatCurrency(currentMonthCuotas)}</p>
+            <div className="rounded-xl bg-surface-2 border-[1.5px] border-border px-3 py-2">
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-accent-deep">Cuotas</p>
+              <p className="font-display tnum text-[15px] mt-0.5 text-text">{formatCurrency(currentMonthCuotas)}</p>
             </div>
-            <div className="rounded-xl bg-cream-light/10 border border-cream-light/15 px-3 py-2">
-              <p className="text-[10.5px] font-bold uppercase tracking-wider text-celeste">Mensualidades</p>
-              <p className="font-display tnum text-[15px] mt-0.5 text-cream-light">{formatCurrency(totalMonthlyCost)}</p>
+            <div className="rounded-xl bg-surface-2 border-[1.5px] border-border px-3 py-2">
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-accent-deep">Mensualidades</p>
+              <p className="font-display tnum text-[15px] mt-0.5 text-text">{formatCurrency(totalMonthlyCost)}</p>
             </div>
           </div>
         </div>
