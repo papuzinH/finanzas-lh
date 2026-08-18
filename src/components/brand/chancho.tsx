@@ -1,0 +1,75 @@
+import { cn } from "@/lib/utils";
+
+/**
+ * El chancho de Chanchito — la alcancía de perfil, con ranura, ojo, fosa de
+ * grabado y cola de rulo. Identidad cerrada el 2026-08-13; el vector original
+ * vive en `design/brand/chancho.svg` y en el Figma de la marca.
+ *
+ * Es componente y no `<img>` a propósito: **el chancho se invierte por tema**
+ * (tinta navy sobre crema de día, tinta crema sobre estraza de noche) y un SVG
+ * servido como imagen no se puede recolorear.
+ *
+ * - **El cuerpo usa `currentColor`**: hereda del contexto, así que `text-good`
+ *   o `text-accent-deep` en el padre lo pintan sin tocar el componente.
+ * - **Las ranuras usan `--logo-slot`**, que cambia con el tema. Sobre una
+ *   superficie de color (pill del chat, FAB) hay que pasarle `slot` para que
+ *   se fundan con ese fondo, como pide el sistema.
+ */
+export function Chancho({
+  className,
+  slot = "var(--logo-slot)",
+  title,
+}: {
+  className?: string;
+  /** Color de ranura, ojo y fosa. Debe ser el color del fondo sobre el que se apoya. */
+  slot?: string;
+  /** Si se pasa, el chancho deja de ser decorativo y se anuncia con este nombre. */
+  title?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 194 146"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={cn("block", className)}
+      role={title ? "img" : undefined}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+    >
+      {/* Cuerpo, patas y hocico */}
+      <path
+        d="M18 47.5755C8 47.5755 0 55.5755 0 65.5755C0 75.5755 8 81.5755 18 81.5755C22 97.5755 34 113.576 52 121.576C52 129.576 52 137.576 54 145.576H72C72 137.576 72 131.576 74 127.576C84 131.576 98 131.576 108 127.576C108 131.576 108 139.576 110 145.576H128C128 137.576 130 129.576 132 121.576C150 111.576 162 93.5755 164 71.5755C166 45.5755 154 21.5755 132 9.57551C112 -2.42449 84 -2.42449 66 5.57551C52 11.5755 40 19.5755 32 29.5755C26 35.5755 22 41.5755 18 47.5755Z"
+        fill="currentColor"
+      />
+      {/* Oreja */}
+      <path
+        d="M34.8217 27.1693C31.819 6.9955 46.5 -1.92448 62.5 9.57552C56.0112 19.2655 51.0997 21.9706 48.606 31.859L34.8217 27.1693Z"
+        fill="currentColor"
+      />
+      {/* Cola de rulo */}
+      <path
+        d="M154.413 38.4181L155.251 41.2651L156.443 43.9773L158.105 46.4301L160.112 48.5085L162.348 50.3374L164.805 51.6769L167.241 52.537L170.023 53.0227L172.669 53.1537L175.296 52.8054L177.789 52.1024L180.022 50.9298L182.005 49.5274L183.738 47.8952L185.337 45.9083L186.332 43.8263L187.087 41.7542L187.468 39.3373L187.379 37.1798L187.165 34.9075L186.482 32.8946L185.569 31.1313L184.301 29.5027L182.919 27.9989L181.191 26.8694L179.599 26.0946L177.776 25.5694L175.963 25.2839L174.161 25.2381L172.492 25.547L170.834 26.0956L169.311 26.9988L168.027 27.8921L166.878 29.1401L166.093 30.4931L165.548 31.8362L165.243 33.1694L165.062 34.6176L165.121 36.0559L165.411 37.2446L165.939 38.4234L166.583 39.4774L167.342 40.4067L168.33 41.0863L169.194 41.651L170.287 41.9661L171.256 42.1664L172.34 42.2418L173.174 42.0873L174.123 41.8081L174.822 41.299L175.522 40.79L175.981 40.2908L176.431 39.5519L176.651 39.0626L176.736 38.2187"
+        stroke="currentColor"
+        strokeWidth={7}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      {/* Ranura — por donde entra la guita */}
+      <path
+        d="M107 8.5755H81C78.2386 8.5755 76 10.8141 76 13.5755C76 16.3369 78.2386 18.5755 81 18.5755H107C109.761 18.5755 112 16.3369 112 13.5755C112 10.8141 109.761 8.5755 107 8.5755Z"
+        fill={slot}
+      />
+      {/* Ojo */}
+      <path
+        d="M34.5 48.5755C37.5376 48.5755 40 46.1131 40 43.0755C40 40.0379 37.5376 37.5755 34.5 37.5755C31.4624 37.5755 29 40.0379 29 43.0755C29 46.1131 31.4624 48.5755 34.5 48.5755Z"
+        fill={slot}
+      />
+      {/* Fosa nasal */}
+      <path
+        d="M9.2 65.1755C10.9673 65.1755 12.4 63.0265 12.4 60.3755C12.4 57.7245 10.9673 55.5755 9.2 55.5755C7.43269 55.5755 6 57.7245 6 60.3755C6 63.0265 7.43269 65.1755 9.2 65.1755Z"
+        fill={slot}
+      />
+    </svg>
+  );
+}

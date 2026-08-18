@@ -202,6 +202,11 @@
      UN SOLO elemento por pantalla lo lleva. */
   --shadow-bandera: 1.5px 1.5px 0 var(--bg), 4px 4px 0 var(--bandera);
   --leading-display: 0.95;   /* Fugaz One es ancha: la cifra necesita línea corta */
+
+  /* Marca — ranura, ojo y fosa del chancho. El cuerpo usa currentColor, así que
+     el logo se invierte solo al cambiar de tema. Sobre una superficie de color
+     (pill del chat, FAB) hay que pasarle el color de ese fondo al componente. */
+  --logo-slot: var(--cream-100);
 }
 
 /* ============================================================
@@ -247,6 +252,10 @@
   /* Elevación sobre papel oscuro */
   --shadow-card:   0 1px 0 0 rgb(0 0 0 / 0.35);
   --shadow-fab:    0 10px 22px -10px rgb(0 0 0 / 0.60);
+
+  /* Marca — el chancho se invierte: tinta crema (por currentColor) y las
+     ranuras pasan a estraza para seguir leyéndose como huecos. */
+  --logo-slot:     var(--estraza-800);
 }
 
 /* ============================================================
