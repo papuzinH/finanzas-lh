@@ -189,43 +189,40 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
       )}
 
       {/* Mobile: cards */}
-      <div className="md:hidden space-y-2">
+      <div className="md:hidden grid gap-2.5">
         {sorted.map((asset) => {
           const isExpanded = expandedId === asset.id
           const assetTxs = transactions.filter((t) => t.asset_id === asset.id)
           const fixedTerm = isFixedTermAsset(asset.asset_type)
           const stale = !fixedTerm && isStale(asset.lastUpdate)
           return (
-            <div key={asset.id} className="rounded-xl border-[1.5px] border-border bg-surface overflow-hidden">
+            <div key={asset.id} className="rounded-2xl border-[1.5px] border-border bg-surface overflow-hidden">
               <button
                 onClick={() => setExpandedId(isExpanded ? null : asset.id)}
-                className="w-full p-3 text-left flex items-start justify-between gap-2"
+                className="w-full p-3 text-left flex items-center gap-3"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-text text-sm">{asset.ticker}</span>
-                    <AssetTypeBadge assetType={asset.asset_type} />
+                <div className="w-[38px] h-[38px] flex-none grid place-items-center bg-surface-2 border-[1.5px] border-border rounded-xl font-display text-[11px] text-accent-deep uppercase">
+                  {asset.ticker.slice(0, 4)}
+                </div>
+
+                <div className="min-w-0 grid gap-0.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-sans font-bold text-[13.5px] text-text truncate">{asset.name || asset.ticker}</span>
+                    <AssetTypeBadge assetType={asset.asset_type} className="shrink-0" />
                   </div>
-                  <p className="text-xs text-muted truncate">{asset.name}</p>
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className="text-[10px] text-muted tnum">
-                      {fixedTerm
-                        ? `Monto ${fmtCurrency(asset.position, currencyLabel)}`
-                        : `${fmtNumber(asset.position, 4)} u`}
-                    </span>
-                    {!fixedTerm && (
+                  <span className="text-[12px] text-muted truncate tnum">
+                    {fixedTerm
+                      ? `Monto ${fmtCurrency(asset.position, currencyLabel)}`
+                      : `${fmtNumber(asset.position, 4)} nominales${asset.currentPrice ? ` · ${fmtCurrency(asset.currentPrice, currencyLabel)} c/u` : ''}`}
+                  </span>
+                  {/* Señales de precio: no están en el mock, pero avisan que el número puede no ser de fiar */}
+                  <span className="flex items-center gap-1.5 flex-wrap text-[10px] text-muted">
+                    {fixedTerm ? (
+                      <span className="text-accent font-medium">{tnaLabel(asset.metadata)}</span>
+                    ) : (
                       <>
-                        <span className="text-[10px] text-faint">·</span>
-                        <span className="text-[10px] text-muted">
-                          {formatRelativeTime(asset.lastUpdate)}
-                        </span>
+                        {formatRelativeTime(asset.lastUpdate)}
                         <PriceSourceBadge source={asset.source} />
-                      </>
-                    )}
-                    {fixedTerm && (
-                      <>
-                        <span className="text-[10px] text-faint">·</span>
-                        <span className="text-[10px] text-accent font-medium">{tnaLabel(asset.metadata)}</span>
                       </>
                     )}
                     {stale && (
@@ -233,21 +230,19 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                         Desactualizado
                       </span>
                     )}
-                  </div>
+                  </span>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold text-text tnum">
+
+                <div className="ml-auto grid gap-0.5 justify-items-end shrink-0">
+                  <span className="font-display tnum text-[14px] text-text">
                     {money(asset, asset.currentValue)}
-                  </p>
-                  <p className={cn('text-xs tnum', plColor(asset.unrealizedPL))}>
-                    {signedMoney(asset, asset.unrealizedPL)}
-                  </p>
-                  <p className={cn('text-[11px] font-semibold tnum', plColor(asset.plPercent))}>
+                  </span>
+                  <span className={cn('text-[11px] font-semibold tnum', plColor(asset.plPercent))}>
                     {signedPct(asset, asset.plPercent)}
-                  </p>
+                  </span>
                   {isExpanded
-                    ? <ChevronUp className="h-3.5 w-3.5 text-muted mx-auto mt-1" />
-                    : <ChevronDown className="h-3.5 w-3.5 text-muted mx-auto mt-1" />}
+                    ? <ChevronUp className="h-3.5 w-3.5 text-muted mt-0.5" />
+                    : <ChevronDown className="h-3.5 w-3.5 text-muted mt-0.5" />}
                 </div>
               </button>
 
@@ -261,6 +256,12 @@ export function PortfolioList({ assets, transactions, displayCurrency, onDeleteA
                     <div className="min-w-0">
                       <p className="text-muted uppercase font-bold">V. Inicial</p>
                       <p className="text-text tnum break-words">{money(asset, asset.investedValue)}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-muted uppercase font-bold">No realizado</p>
+                      <p className={cn('tnum break-words', plColor(asset.unrealizedPL))}>
+                        {signedMoney(asset, asset.unrealizedPL)}
+                      </p>
                     </div>
                     {asset.realizedPL !== 0 && (
                       <div className="min-w-0">

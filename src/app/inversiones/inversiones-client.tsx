@@ -2,15 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { TrendingUp, Plus, Clock } from 'lucide-react'
+import { TrendingUp, Plus } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { ScreenHeader } from '@/components/shared/screen-header'
-import { TabsDS } from '@/components/ui/tabs-ds'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { CurrencyToggle, type DisplayCurrency } from '@/components/inversiones/currency-toggle'
-import { AssetTypeBadge, getAssetTypeLabel } from '@/components/inversiones/asset-type-badge'
-import { ProfitBadge } from '@/components/inversiones/profit-badge'
+import { getAssetTypeLabel } from '@/components/inversiones/asset-type-badge'
 import { PortfolioList } from '@/components/inversiones/portfolio-list'
 import { QuickAddForm } from '@/components/inversiones/quick-add-form'
 import { PortfolioDistribution } from '@/components/inversiones/portfolio-distribution'
@@ -21,8 +25,6 @@ import { BannerDS } from '@/components/ui/banner-ds'
 import { deleteAsset } from './actions'
 
 const STALE_THRESHOLD_MS = 60 * 60 * 1000
-
-type ActiveTab = 'dashboard' | 'portfolio' | 'cargar'
 
 const fmtCurrency = (n: number, currency = 'ARS') =>
   new Intl.NumberFormat('es-AR', {
@@ -41,7 +43,7 @@ const RATE_LABELS: Record<string, string> = {
 }
 
 export function InversionesClient() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard')
+  const [isCargarOpen, setIsCargarOpen] = useState(false)
   const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>('ARS')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastRefreshResult, setLastRefreshResult] = useState<{
@@ -132,10 +134,6 @@ export function InversionesClient() {
     }
   }
 
-  const sortedByPL = [...portfolio.assets].sort((a, b) => b.plPercent - a.plPercent)
-  const best = sortedByPL[0] ?? null
-  const worst = sortedByPL[sortedByPL.length - 1] ?? null
-
   const groupedByType = portfolio.assets.reduce<Record<string, number>>((acc, asset) => {
     acc[asset.asset_type] = (acc[asset.asset_type] ?? 0) + asset.currentValue
     return acc
@@ -154,25 +152,22 @@ export function InversionesClient() {
   return (
     <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
       <ScreenHeader
-        kicker="inversiones"
+        compact
         title="Inversiones"
-        sub="Portfolio bimonetario"
+        right={<CurrencyToggle value={displayCurrency} onChange={setDisplayCurrency} />}
       />
 
-      <main className="mx-auto max-w-[1440px] px-5 space-y-5 pb-4">
+      <main className="mx-auto max-w-[1440px] px-5 pb-4">
+        <PricesStatusBar
+          lastUpdate={portfolio.lastUpdate}
+          isRefreshing={isRefreshing}
+          lastResult={lastRefreshResult}
+          onRefresh={handleRefresh}
+          onOpenFailed={() => setFailedDialogOpen(true)}
+        />
 
-        {/* Currency Toggle + Status de precios */}
-        <div className="space-y-3">
-          <CurrencyToggle value={displayCurrency} onChange={setDisplayCurrency} />
-          <PricesStatusBar
-            lastUpdate={portfolio.lastUpdate}
-            isRefreshing={isRefreshing}
-            lastResult={lastRefreshResult}
-            onRefresh={handleRefresh}
-            onOpenFailed={() => setFailedDialogOpen(true)}
-          />
-
-          {portfolio.valuationUnavailable && (
+        {portfolio.valuationUnavailable && (
+          <div className="mt-3">
             <BannerDS
               icon="alert"
               tone="warn"
@@ -183,212 +178,99 @@ export function InversionesClient() {
                   : `Falta la cotización (${portfolio.missingRates.map((p) => RATE_LABELS[p] ?? p).join(', ')}) para expresar los montos en esta moneda. Probá actualizar los precios.`
               }
             />
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Hero Card */}
-        <div
-          className="rounded-2xl border-[1.5px] border-border bg-surface text-text shadow-card p-5"
-          style={{ boxShadow: '0 18px 36px -18px rgba(28,42,71,0.70)' }}
-        >
-          <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-accent-deep">
-            Valor Total del Portfolio
-          </p>
-          <p className="font-display tnum text-[clamp(1.65rem,8vw,2.25rem)] leading-[var(--leading-display)] mt-1 text-text [text-shadow:var(--shadow-bandera)] pr-1.5 pb-1 break-words">
+        {/* Hero: Tu cartera */}
+        <div className="mt-3 rounded-[26px] bg-surface border-[1.5px] border-border shadow-card p-5">
+          <p className="font-sans text-[11px] font-extrabold uppercase tracking-[0.2em] text-accent-deep">Tu cartera</p>
+          <p className="font-display tnum text-[clamp(1.65rem,8vw,2.375rem)] leading-[var(--leading-display)] mt-2.5 text-text [text-shadow:var(--shadow-bandera)] pr-1.5 pb-1 break-words">
             {heroMoney(portfolio.totalValue)}
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="min-w-0 rounded-xl bg-surface-2 border-[1.5px] border-border px-3 py-2">
-              <p className="text-[10.5px] font-bold uppercase tracking-wider text-accent-deep">Invertido</p>
-              <p className="font-display tnum text-[15px] mt-0.5 text-text break-words">
-                {heroMoney(portfolio.totalInvested)}
-              </p>
-            </div>
-            <div className="min-w-0 rounded-xl bg-surface-2 border-[1.5px] border-border px-3 py-2">
-              <p className="text-[10.5px] font-bold uppercase tracking-wider text-accent-deep">P&L</p>
-              <div className="mt-0.5 min-w-0">
-                {portfolio.totalInvested > 0 ? (
-                  <ProfitBadge
-                    percent={portfolio.totalPLPercent}
-                    amount={portfolio.totalUnrealizedPL}
-                    currency={currencyLabel}
-                    showAmount
-                    className="max-w-full [overflow-wrap:anywhere]"
-                  />
-                ) : (
-                  <p className="font-display tnum text-[15px] text-faint">—</p>
-                )}
-              </div>
-            </div>
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            {portfolio.totalInvested > 0 ? (
+              <>
+                <span className={cn('flex items-center gap-1 font-display tnum text-[14px]', portfolio.totalUnrealizedPL >= 0 ? 'text-good' : 'text-bad')}>
+                  <TrendingUp className={cn('h-3.5 w-3.5', portfolio.totalUnrealizedPL < 0 && 'rotate-180 -scale-x-100')} aria-hidden="true" />
+                  {portfolio.totalUnrealizedPL >= 0 ? '+ ' : '− '}{heroMoney(Math.abs(portfolio.totalUnrealizedPL))}
+                </span>
+                <span className="text-[12px] text-muted tnum">
+                  {portfolio.totalPLPercent >= 0 ? '+' : ''}{portfolio.totalPLPercent.toFixed(1).replace('.', ',')}% desde el inicio
+                </span>
+              </>
+            ) : (
+              <span className="text-[12px] text-muted">Todavía sin posiciones valuadas</span>
+            )}
           </div>
-          {portfolio.totalSavings > 0 && (
-            <p className="text-[11px] text-faint mt-2 break-words">
-              Ahorros: {fmtCurrency(portfolio.totalSavings, currencyLabel)}
-            </p>
-          )}
+          <p className="text-[11px] text-faint mt-2 tnum break-words">
+            Invertido: {heroMoney(portfolio.totalInvested)}
+            {portfolio.totalRealizedPL !== 0 && <> · Realizadas: {fmtCurrency(portfolio.totalRealizedPL, currencyLabel)}</>}
+            {portfolio.totalSavings > 0 && <> · Ahorros: {fmtCurrency(portfolio.totalSavings, currencyLabel)}</>}
+          </p>
         </div>
 
-        {/* Metric Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="p-4 min-w-0">
-            <p className="text-[10px] uppercase text-muted font-bold mb-1">Ganancia Total</p>
-            <p className="font-display tnum text-[20px] text-text break-words">
-              {fmtCurrency(portfolio.totalUnrealizedPL + portfolio.totalRealizedPL, currencyLabel)}
-            </p>
-            {portfolio.totalPLPercent !== 0 && (
-              <ProfitBadge percent={portfolio.totalPLPercent} className="mt-1 max-w-full [overflow-wrap:anywhere]" />
-            )}
-          </Card>
+        {/* Composición */}
+        {pieData.length > 0 && (
+          <div className="mt-3">
+            <PortfolioDistribution data={pieData} />
+          </div>
+        )}
 
-          <Card className="p-4 min-w-0">
-            <p className="text-[10px] uppercase text-muted font-bold mb-1">Mejor activo</p>
-            {best ? (
-              <>
-                <div className="flex items-center gap-2 mb-1 min-w-0">
-                  <span className="font-sans font-bold text-sm text-text truncate">{best.ticker}</span>
-                  <AssetTypeBadge assetType={best.asset_type} className="shrink-0" />
-                </div>
-                <ProfitBadge percent={best.plPercent} />
-              </>
-            ) : (
-              <p className="text-sm text-faint">—</p>
-            )}
-          </Card>
-
-          <Card className="p-4 min-w-0">
-            <p className="text-[10px] uppercase text-muted font-bold mb-1">Peor activo</p>
-            {worst && worst.id !== best?.id ? (
-              <>
-                <div className="flex items-center gap-2 mb-1 min-w-0">
-                  <span className="font-sans font-bold text-sm text-text truncate">{worst.ticker}</span>
-                  <AssetTypeBadge assetType={worst.asset_type} className="shrink-0" />
-                </div>
-                <ProfitBadge percent={worst.plPercent} />
-              </>
-            ) : (
-              <p className="text-sm text-faint">—</p>
-            )}
-          </Card>
+        {/* Activos */}
+        <div className="flex items-baseline justify-between mt-5">
+          <h2 className="font-display text-text text-[18px]">Activos</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-[12.5px] font-bold text-muted">
+              {portfolio.assets.length} activo{portfolio.assets.length !== 1 ? 's' : ''}
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsCargarOpen(true)}
+              aria-label="Nueva operación"
+              className="grid place-items-center w-7 h-7 rounded-full bg-surface border-[1.5px] border-border text-text hover:bg-surface-2 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" strokeWidth={2.6} />
+            </button>
+          </div>
         </div>
 
-        {/* Tabs */}
-        <TabsDS
-          tabs={[
-            { id: 'dashboard', label: 'Dashboard', icon: 'chart' },
-            { id: 'portfolio', label: 'Portfolio', icon: 'trending-up' },
-            { id: 'cargar', label: 'Cargar', icon: 'plus' },
-          ]}
-          active={activeTab}
-          onChange={(id) => setActiveTab(id as ActiveTab)}
-        />
-
-        {/* Tab: Dashboard */}
-        {activeTab === 'dashboard' && (
-          <section className="space-y-4">
-            {portfolio.assets.length === 0 ? (
-              <div className="rounded-2xl border-[1.5px] border-dashed border-border py-16 text-center flex flex-col items-center gap-3">
-                <TrendingUp className="h-14 w-14 text-faint" />
-                <h3 className="font-sans font-bold text-text text-lg">Sin activos registrados</h3>
-                <p className="text-muted text-sm max-w-xs">
-                  Registrá tus primeras inversiones para ver tu portfolio y rendimiento.
-                </p>
-                <Button variant="accent" onClick={() => setActiveTab('cargar')} className="mt-1">
-                  <Plus className="h-4 w-4 mr-1.5" />
-                  Cargar mi primera inversión
-                </Button>
-              </div>
-            ) : (
-              <div className="h-80">
-                <PortfolioDistribution data={pieData} />
-              </div>
-            )}
-
-            {portfolio.assets.length > 0 && (
-              <div className="rounded-2xl border-[1.5px] border-border overflow-hidden">
-                <div className="px-4 py-2.5 bg-surface-2 border-b border-border">
-                  <p className="text-xs font-bold text-muted">Resumen de posiciones</p>
-                </div>
-                <div className="divide-y divide-border/60">
-                  {[...portfolio.assets]
-                    .sort((a, b) => b.currentValue - a.currentValue)
-                    .slice(0, 8)
-                    .map((asset) => (
-                      <div key={asset.id} className="px-4 py-2.5 flex items-center justify-between gap-3 bg-surface">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-sans font-bold text-sm text-text shrink-0">{asset.ticker}</span>
-                          <AssetTypeBadge assetType={asset.asset_type} className="shrink-0" />
-                          <span className="text-xs text-muted truncate hidden sm:block">{asset.name}</span>
-                        </div>
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="font-display tnum text-sm text-text truncate">
-                            {fmtCurrency(asset.currentValue, currencyLabel)}
-                          </span>
-                          <ProfitBadge percent={asset.plPercent} className="shrink-0" />
-                        </div>
-                      </div>
-                    ))}
-                </div>
-                {portfolio.assets.length > 8 && (
-                  <div className="px-4 py-2 border-t border-border bg-surface">
-                    <button
-                      onClick={() => setActiveTab('portfolio')}
-                      className="text-xs text-accent hover:text-accent-deep transition-colors"
-                    >
-                      Ver todos ({portfolio.assets.length} activos) →
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <SavingsCard displayCurrency={displayCurrency} />
-          </section>
+        {portfolio.assets.length === 0 ? (
+          <div className="mt-3 rounded-2xl border-[1.5px] border-dashed border-border py-16 text-center flex flex-col items-center gap-3">
+            <TrendingUp className="h-14 w-14 text-faint" />
+            <h3 className="font-sans font-bold text-text text-lg">Sin activos registrados</h3>
+            <p className="text-muted text-sm max-w-xs">
+              Registrá tus primeras inversiones para ver tu portfolio y rendimiento.
+            </p>
+            <Button variant="accent" onClick={() => setIsCargarOpen(true)} className="mt-1">
+              <Plus className="h-4 w-4 mr-1.5" />
+              Cargar mi primera inversión
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-3">
+            <PortfolioList
+              assets={portfolio.assets}
+              transactions={investmentTransactions}
+              displayCurrency={displayCurrency}
+              onDeleteAsset={handleDeleteAsset}
+            />
+          </div>
         )}
 
-        {/* Tab: Portfolio */}
-        {activeTab === 'portfolio' && (
-          <section>
-            {portfolio.assets.length === 0 ? (
-              <div className="rounded-2xl border-[1.5px] border-dashed border-border py-16 text-center flex flex-col items-center gap-3">
-                <Clock className="h-14 w-14 text-faint" />
-                <p className="text-muted text-sm">Sin posiciones abiertas</p>
-                <Button variant="accent" onClick={() => setActiveTab('cargar')} className="mt-1">
-                  <Plus className="h-4 w-4 mr-1.5" />
-                  Cargar una inversión
-                </Button>
-              </div>
-            ) : (
-              <PortfolioList
-                assets={portfolio.assets}
-                transactions={investmentTransactions}
-                displayCurrency={displayCurrency}
-                onDeleteAsset={handleDeleteAsset}
-              />
-            )}
-          </section>
-        )}
-
-        {/* Tab: Cargar */}
-        {activeTab === 'cargar' && (
-          <section>
-            <div className="max-w-lg mx-auto">
-              <div className="rounded-2xl border-[1.5px] border-border bg-surface p-5 md:p-6">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="p-2 rounded-xl bg-surface-2 border-[1.5px] border-border">
-                    <Plus className="w-5 h-5 text-muted" />
-                  </div>
-                  <div>
-                    <h2 className="font-sans font-bold text-text">Nueva operación</h2>
-                    <p className="text-xs text-muted">Registrá una compra en tu portfolio</p>
-                  </div>
-                </div>
-                <QuickAddForm />
-              </div>
-            </div>
-          </section>
-        )}
-
+        <div className="mt-2.5">
+          <SavingsCard displayCurrency={displayCurrency} />
+        </div>
       </main>
+
+      {/* Cargar: el form existente, ahora en diálogo */}
+      <Dialog open={isCargarOpen} onOpenChange={setIsCargarOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto bg-surface border-border text-text">
+          <DialogHeader>
+            <DialogTitle className="text-text">Nueva operación</DialogTitle>
+          </DialogHeader>
+          <QuickAddForm />
+        </DialogContent>
+      </Dialog>
 
       <FailedPricesDialog
         open={failedDialogOpen}
