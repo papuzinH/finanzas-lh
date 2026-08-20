@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { format, startOfDay } from 'date-fns'
 import { formatLocalDate, parseLocalDate } from '@/lib/utils/dates'
-import { computeGlobalBalance, computePendingCreditCards, computePaymentMethodStatus } from '@/lib/finance/balances'
+import { computePendingCreditCards, computePaymentMethodStatus } from '@/lib/finance/balances'
 import { computePendingFixedExpenses } from '@/lib/finance/pending'
 import { computeMonthlyBalance, computeExpensesByCategory } from '@/lib/finance/analysis'
+import { computeAvailableToSpend, computeAccountBalance } from '@/lib/finance/pocket'
 import { handlePortfolio } from '@/lib/ai/handlers'
 import type { ToolDef } from './types'
 import { loadFinanceData } from './dataLoader'
@@ -55,38 +56,46 @@ export const readTools: ToolDef[] = [
   {
     name: 'get_balance_snapshot',
     description:
-      'Disponible Real del usuario: cuánta plata libre tiene hoy, saldo bruto y compromisos pendientes (mensualidades y tarjetas). Usar para "cuánta plata tengo".',
+      'Plata disponible del usuario: lo que tiene hoy en sus cuentas de gastar menos lo que ya está comprometido en el período (mensualidades y resúmenes de tarjeta). Incluye el saldo por cuenta y lo guardado en reservas. Usar para "cuánta plata tengo".',
     kind: 'read',
     schema: z.object({}),
     execute: async (_args, ctx) => {
       const data = await loadFinanceData(ctx)
       const now = new Date()
-      const pendingFixed = computePendingFixedExpenses(data.recurringPlans, data.transactions, now)
-      const disponibleReal = computeGlobalBalance(
-        data.transactions,
-        data.paymentMethods,
-        data.internalTransfers,
-        pendingFixed.total,
-        now,
-      )
       const pendingCards = computePendingCreditCards(
         data.paymentMethods,
         data.transactions,
         data.recurringPlans,
         now,
-      ).filter((c) => c.isPending)
-      const pendingCardTotal = pendingCards.reduce((acc, c) => acc + c.total, 0)
+      )
+      const r = computeAvailableToSpend({
+        paymentMethods: data.paymentMethods,
+        transactions: data.transactions,
+        transfers: data.internalTransfers,
+        recurringPlans: data.recurringPlans,
+        pendingCards,
+        rhythm: data.incomeRhythm,
+        now,
+      })
       return {
         ok: true,
         data: {
-          disponibleReal: Math.round(disponibleReal),
-          saldoBruto: Math.round(disponibleReal + pendingFixed.total + pendingCardTotal),
-          mensualidadesPendientes: pendingFixed,
-          tarjetasPendientes: pendingCards.map((c) => ({
-            tarjeta: c.name,
-            total: Math.round(c.total),
-            vence: formatLocalDate(c.nextPaymentDate),
-            estado: c.isCycleClosed ? 'cerrado' : 'en curso',
+          disponible: Math.round(r.available),
+          enTusCuentas: Math.round(r.pocketTotal),
+          guardadoEnReservas: Math.round(r.reserveTotal),
+          comprometido: Math.round(r.committed),
+          comprometidoProximoPeriodo: Math.round(r.committedNextPeriod),
+          detalleComprometido: r.commitmentItems.map((i) => ({
+            concepto: i.name,
+            monto: Math.round(i.amount),
+            tipo: i.kind === 'card' ? 'tarjeta' : 'mensualidad',
+            vence: i.dueDate ? formatLocalDate(i.dueDate) : null,
+          })),
+          cuentas: r.accounts.map((a) => ({
+            medio: a.name,
+            saldo: Math.round(a.balance),
+            tipo: a.bucket === 'reserve' ? 'reserva' : 'bolsillo',
+            saldoDeclarado: a.anchored,
           })),
         },
       }
@@ -129,7 +138,9 @@ export const readTools: ToolDef[] = [
         return {
           medio: method.name,
           tipo: method.type,
-          saldo: Math.round(status.currentConsumption),
+          saldo: Math.round(computeAccountBalance(method, data.transactions, data.internalTransfers, now)),
+          bolsillo: method.bucket === 'pocket',
+          saldoDeclarado: method.initial_balance_at !== null,
         }
       }
 

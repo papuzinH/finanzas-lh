@@ -41,6 +41,8 @@ const pmDebito = {
   is_personal: false,
   is_default: true,
   created_at: '2026-01-01',
+  bucket: 'pocket',
+  initial_balance_at: null,
 } as PaymentMethod
 
 const planNetflix = {
@@ -126,6 +128,7 @@ const financeData: FinanceData = {
   internalTransfers: [],
   categories: [],
   installmentPlans: [],
+  incomeRhythm: 'monthly',
 }
 
 describe('readTools', () => {
@@ -141,32 +144,26 @@ describe('readTools', () => {
   })
 
   describe('get_balance_snapshot', () => {
-    it('devuelve disponibleReal, saldoBruto y pendientes', async () => {
+    it('devuelve el disponible del bolsillo, con las cuentas y lo comprometido', async () => {
       const r = await executeToolWith(readTools, 'get_balance_snapshot', {}, ctx)
       expect(r.ok).toBe(true)
       const d = r.data as Record<string, unknown>
-      expect(d).toHaveProperty('disponibleReal')
-      expect(d).toHaveProperty('saldoBruto')
-      expect(d).toHaveProperty('mensualidadesPendientes')
-      expect(d).toHaveProperty('tarjetasPendientes')
+      expect(d).toHaveProperty('disponible')
+      expect(d).toHaveProperty('enTusCuentas')
+      expect(d).toHaveProperty('comprometido')
+      expect(d).toHaveProperty('cuentas')
     })
 
     it('calcula los valores exactos a partir del dataset (a mano)', async () => {
       const r = await executeToolWith(readTools, 'get_balance_snapshot', {}, ctx)
       expect(r.ok).toBe(true)
-      // disponibleReal = ingresos(200000) - gastos variables(30000+15000) - mensualidades pendientes(5000) = 150000
-      // saldoBruto = disponibleReal + mensualidadesPendientes(5000) + tarjetasPendientes(15000) = 170000
-      expect(r.data).toEqual({
-        disponibleReal: 150000,
-        saldoBruto: 170000,
-        mensualidadesPendientes: {
-          total: 5000,
-          items: [{ id: '1', name: 'Netflix', amount: 5000 }],
-        },
-        tarjetasPendientes: [
-          { tarjeta: 'Visa', total: 15000, vence: '2026-07-10', estado: 'cerrado' },
-        ],
-      })
+      const d = r.data as Record<string, number>
+      // El debito no esta anclado: suma su historial (200000 ingresos - 30000 gasto = 170000).
+      // La Visa no tiene saldo: su resumen (15000) vence el 10-jul, dentro del mes → comprometido.
+      // Netflix (5000) no tiene medio asignado, asi que no es un fijo de credito: tambien comprometido.
+      expect(d.enTusCuentas).toBe(170000)
+      expect(d.comprometido).toBe(20000)
+      expect(d.disponible).toBe(150000)
     })
   })
 
@@ -189,6 +186,8 @@ describe('readTools', () => {
           medio: 'Débito Galicia',
           tipo: 'debit',
           saldo: 170000, // 200000 ingresos - 30000 gasto
+          bolsillo: true,
+          saldoDeclarado: false,
         },
       ])
     })
@@ -211,7 +210,13 @@ describe('readTools', () => {
     it('con nombre de débito devuelve el saldo', async () => {
       const r = await executeToolWith(readTools, 'get_payment_method_status', { nombre: 'galicia' }, ctx)
       expect(r.ok).toBe(true)
-      expect(r.data).toEqual({ medio: 'Débito Galicia', tipo: 'debit', saldo: 170000 })
+      expect(r.data).toEqual({
+        medio: 'Débito Galicia',
+        tipo: 'debit',
+        saldo: 170000,
+        bolsillo: true,
+        saldoDeclarado: false,
+      })
     })
 
     it('con nombre inexistente → error con lista de medios disponibles', async () => {

@@ -130,6 +130,7 @@ function baseFinanceData(overrides: Partial<FinanceData> = {}): FinanceData {
     internalTransfers: [],
     categories: [catComida, catTransporte, catSueldo],
     installmentPlans: [],
+    incomeRhythm: 'monthly',
     ...overrides,
   }
 }

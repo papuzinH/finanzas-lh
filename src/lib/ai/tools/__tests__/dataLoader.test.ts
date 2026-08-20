@@ -160,6 +160,7 @@ const allTables = {
   categories: [category],
   installment_plans: [installment],
   exchange_rates: [] as ExchangeRate[],
+  users: [{ income_rhythm: 'monthly' }],
 }
 
 describe('loadFinanceData', () => {
@@ -262,6 +263,14 @@ describe('loadFinanceData', () => {
     // pero lo hacemos explícito llamando fetchDolarBlue por separado abajo.
     expect(result.recurringPlans[0].amount).toBe(9000)
   })
+
+  it('trae el ritmo de cobro del usuario; sin fila cae a mensual', async () => {
+    const conRitmo = await loadFinanceData(ctxWithTables({ ...allTables, users: [{ income_rhythm: 'irregular' }] }))
+    expect(conRitmo.incomeRhythm).toBe('irregular')
+
+    const sinFila = await loadFinanceData(ctxWithTables({ ...allTables, users: [] }))
+    expect(sinFila.incomeRhythm).toBe('monthly')
+  })
 })
 
 describe('loadFinanceData - propaga errores de PostgREST (no los traga con `?? []`)', () => {
@@ -288,6 +297,7 @@ describe('loadFinanceData - propaga errores de PostgREST (no los traga con `?? [
     'categories',
     'installment_plans',
     'exchange_rates',
+    'users',
   ])('también lanza si %s trae .error', async (table) => {
     const supabase = makeSupabaseWithError(allTables, table, 'boom')
     const ctx: AgentContext = { supabase, userId: USER_ID, authUserId: AUTH_USER_ID, today: '2026-07-08' }
@@ -319,7 +329,7 @@ describe('loadFinanceData - memoiza el snapshot en ctx._financeCache (cache de p
     const [a, b] = await Promise.all([loadFinanceData(ctx), loadFinanceData(ctx)])
 
     expect(a).toBe(b) // mismo objeto: ambas llamadas resolvieron la MISMA promesa cacheada
-    expect(fromSpy).toHaveBeenCalledTimes(7) // 7 tablas × 1 sola ronda, no 14
+    expect(fromSpy).toHaveBeenCalledTimes(8) // 8 tablas × 1 sola ronda, no 16
   })
 
   it('llamadas secuenciales con el mismo ctx también reutilizan el cache', async () => {
@@ -329,7 +339,7 @@ describe('loadFinanceData - memoiza el snapshot en ctx._financeCache (cache de p
     await loadFinanceData(ctx)
     await loadFinanceData(ctx)
 
-    expect(fromSpy).toHaveBeenCalledTimes(7)
+    expect(fromSpy).toHaveBeenCalledTimes(8)
   })
 
   it('un ctx nuevo (o con el cache invalidado) dispara una ronda de queries propia', async () => {
@@ -339,14 +349,14 @@ describe('loadFinanceData - memoiza el snapshot en ctx._financeCache (cache de p
     await loadFinanceData(ctx1)
     await loadFinanceData(ctx2)
 
-    expect(ctx1.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(7)
-    expect(ctx2.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(7)
+    expect(ctx1.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(8)
+    expect(ctx2.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(8)
 
     // Invalidar el cache (como hace runAgent tras una write mutada) fuerza una segunda
     // ronda sobre el MISMO ctx.
     ctx1._financeCache = undefined
     await loadFinanceData(ctx1)
-    expect(ctx1.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(14)
+    expect(ctx1.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(16)
   })
 
   it('una promesa RECHAZADA no queda cacheada: la siguiente llamada del mismo ctx reintenta y puede resolver', async () => {
@@ -374,7 +384,7 @@ describe('loadFinanceData - memoiza el snapshot en ctx._financeCache (cache de p
     failFirstRound = false
     const result = await loadFinanceData(ctx)
     expect(result.paymentMethods).toEqual([visa])
-    expect(from).toHaveBeenCalledTimes(14) // 7 de la ronda fallida + 7 del reintento
+    expect(from).toHaveBeenCalledTimes(16) // 8 de la ronda fallida + 8 del reintento
   })
 })
 

@@ -25,6 +25,7 @@ export default function AjustesMediosPage() {
     getPaymentMethodTransactionsForCurrentMonth,
     getDefaultPaymentMethod,
     getUnassignedTransactionsCount,
+    getAvailableToSpend,
   } = useFinanceStore();
 
   const [isAssigning, setIsAssigning] = useState(false);
@@ -54,19 +55,21 @@ export default function AjustesMediosPage() {
   }
 
   const { institutionalMethods, personalMethods } = useMemo(() => {
+    const cuentas = getAvailableToSpend().accounts;
     const methodsWithData = paymentMethods.map(pm => {
       const status = getPaymentMethodStatus(pm.id);
       const history = getPaymentMethodTransactionsForCurrentMonth(pm.id);
       const subscriptions = recurringPlans.filter(
         p => p.payment_method_id === pm.id && p.is_active
       );
-      return { ...pm, status, history, subscriptions };
+      const cuenta = cuentas.find((a) => a.methodId === pm.id) ?? null;
+      return { ...pm, status, history, subscriptions, cuenta };
     });
     return {
       institutionalMethods: methodsWithData.filter(m => !m.is_personal),
       personalMethods: methodsWithData.filter(m => m.is_personal),
     };
-  }, [paymentMethods, transactions, recurringPlans, getPaymentMethodStatus, getPaymentMethodTransactionsForCurrentMonth]);
+  }, [paymentMethods, transactions, recurringPlans, getPaymentMethodStatus, getPaymentMethodTransactionsForCurrentMonth, getAvailableToSpend]);
 
   if (isLoading && !isInitialized) {
     return <FullPageLoader text="Cargando billetera..." />;

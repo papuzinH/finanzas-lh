@@ -1,5 +1,6 @@
 import { prepareTransactions, prepareRecurringPlans } from '@/lib/finance/prepare'
 import type { DolarBlue, ProcessedTransaction } from '@/lib/finance/types'
+import type { IncomeRhythm } from '@/lib/finance/pocket'
 import type {
   Transaction,
   PaymentMethod,
@@ -19,6 +20,8 @@ export interface FinanceData {
   internalTransfers: InternalTransfer[]
   categories: Category[]
   installmentPlans: InstallmentPlan[]
+  /** Ritmo de cobro declarado: define qué compromisos descuenta el disponible. */
+  incomeRhythm: IncomeRhythm
 }
 
 /**
@@ -82,11 +85,14 @@ function assertNoQueryError<T extends { error: { message: string } | null }>(res
  *   nunca matcheaba). Ya está corregido: tanto `handleDelete` (Task 12) como
  *   `handleEdit` (Task 13) filtran por el UUID vía `getAuthUserId()`. El dataLoader
  *   usa el mismo criterio.
+ *
+ * - `users`: la fila del usuario vive en `users.id` = UUID de auth (igual que
+ *   `categories`) → se filtra con `ctx.authUserId`. Solo se lee `income_rhythm`.
  */
 async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> {
   const { supabase, userId, authUserId } = ctx
 
-  const [tx, pm, rp, it, cat, ip, er, blue] = await Promise.all([
+  const [tx, pm, rp, it, cat, ip, er, usr, blue] = await Promise.all([
     supabase.from('transactions').select('*').eq('user_id', userId),
     supabase.from('payment_methods').select('*').eq('user_id', userId),
     supabase.from('recurring_plans').select('*').eq('user_id', userId),
@@ -94,6 +100,7 @@ async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> 
     supabase.from('categories').select('*').or(`user_id.eq.${authUserId},is_system.eq.true`),
     supabase.from('installment_plans').select('*').eq('user_id', userId),
     supabase.from('exchange_rates').select('*'),
+    supabase.from('users').select('income_rhythm').eq('id', authUserId),
     fetchDolarBlue(), // legítimamente degrada a null (nunca trae `.error`): no se chequea acá.
   ])
 
@@ -104,6 +111,7 @@ async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> 
   assertNoQueryError(cat, 'categories')
   assertNoQueryError(ip, 'installment_plans')
   assertNoQueryError(er, 'exchange_rates')
+  assertNoQueryError(usr, 'users')
 
   const methods = (pm.data ?? []) as PaymentMethod[]
   const rates = (er.data ?? []) as ExchangeRate[]
@@ -115,13 +123,14 @@ async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> 
     internalTransfers: (it.data ?? []) as InternalTransfer[],
     categories: (cat.data ?? []) as Category[],
     installmentPlans: (ip.data ?? []) as InstallmentPlan[],
+    incomeRhythm: ((usr.data ?? [])[0]?.income_rhythm as IncomeRhythm) ?? 'monthly',
   }
 }
 
 /**
  * Memoiza el snapshot por request en `ctx._financeCache`: varias read tools dentro
  * del mismo loop de `runAgent` comparten UNA sola ronda de queries en vez de repetir
- * las 7 queries + fetch del dólar blue por cada llamada (hasta 6 veces en un loop
+ * las 8 queries + fetch del dólar blue por cada llamada (hasta 6 veces en un loop
  * largo). Cachear la PROMESA (no el resultado ya resuelto) evita también condiciones
  * de carrera si dos tools la piden "al mismo tiempo" antes de que la primera resuelva.
  * `runAgent` invalida el cache (`ctx._financeCache = undefined`) después de ejecutar
