@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Sparkles,
   Loader2,
+  CalendarClock,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -23,9 +24,12 @@ import { toast } from 'sonner'
 import { NameSlide } from './slides/name-slide'
 import { CategoriesSlide } from './slides/categories-slide'
 import { PaymentMethodsSlide } from './slides/payment-methods-slide'
+import { RhythmSlide } from './slides/rhythm-slide'
+import { rhythmLabel } from '@/lib/utils/pocket-copy'
+import type { IncomeRhythm } from '@/lib/finance/pocket'
 import { completeOnboarding } from './actions'
 
-type Slide = 'welcome' | 'features' | 'name' | 'categories' | 'payment' | 'complete'
+type Slide = 'welcome' | 'features' | 'name' | 'categories' | 'payment' | 'rhythm' | 'complete'
 
 const FEATURES = [
   {
@@ -58,13 +62,14 @@ const FEATURES = [
   },
 ]
 
-const SETUP_SLIDES: Slide[] = ['name', 'categories', 'payment']
+const SETUP_SLIDES: Slide[] = ['name', 'categories', 'payment', 'rhythm']
 
 export function OnboardingFlow() {
   const [slide, setSlide] = useState<Slide>('welcome')
   const [userName, setUserName] = useState<string | null>(null)
   const [categoriesCount, setCategoriesCount] = useState(0)
   const [paymentMethodsCount, setPaymentMethodsCount] = useState(0)
+  const [rhythm, setRhythm] = useState<IncomeRhythm | null>(null)
   const [finishing, setFinishing] = useState(false)
   const router = useRouter()
 
@@ -203,6 +208,15 @@ export function OnboardingFlow() {
                 <PaymentMethodsSlide
                   onComplete={(count) => {
                     setPaymentMethodsCount(count)
+                    setSlide('rhythm')
+                  }}
+                />
+              )}
+
+              {slide === 'rhythm' && (
+                <RhythmSlide
+                  onComplete={(r) => {
+                    setRhythm(r)
                     setSlide('complete')
                   }}
                 />
@@ -244,6 +258,9 @@ export function OnboardingFlow() {
                   label="Medios de pago"
                   value={`${paymentMethodsCount} configurados`}
                 />
+                {rhythm && (
+                  <SummaryItem Icon={CalendarClock} label="Cobrás" value={rhythmLabel(rhythm)} />
+                )}
               </div>
 
               <Button

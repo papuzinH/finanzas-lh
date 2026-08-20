@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { GoogleGenAI } from '@google/genai'
+import { dateToLocalString } from '@/lib/utils/dates'
 
 type OnboardingCategoryInput = {
   emoji: string
@@ -15,6 +16,9 @@ type OnboardingPaymentMethodInput = {
   type: 'credit' | 'debit' | 'cash'
   default_closing_day?: number | null
   default_payment_day?: number | null
+  bucket?: 'pocket' | 'reserve'
+  /** null = el usuario salteó el saldo: la cuenta queda sin anclar. */
+  initial_balance?: number | null
 }
 
 type ActionResponse<T = void> = {
@@ -139,14 +143,25 @@ export async function saveOnboardingPaymentMethods(
       .delete()
       .eq('user_id', user.id)
 
-    const rows = methods.map((m) => ({
-      user_id: user.id,
-      name: m.name.trim(),
-      type: m.type,
-      default_closing_day: m.type === 'credit' ? (m.default_closing_day ?? null) : null,
-      default_payment_day: m.type === 'credit' ? (m.default_payment_day ?? null) : null,
-      is_personal: false,
-    }))
+    // En el onboarding no hay movimientos todavía, así que el saldo declarado ES el
+    // ancla (no hace falta `anchorValueForDeclaredBalance`, que descuenta lo del día).
+    const hoy = dateToLocalString(new Date())
+
+    const rows = methods.map((m) => {
+      const esCredito = m.type === 'credit'
+      const declarado = esCredito ? null : (m.initial_balance ?? null)
+      return {
+        user_id: user.id,
+        name: m.name.trim(),
+        type: m.type,
+        default_closing_day: esCredito ? (m.default_closing_day ?? null) : null,
+        default_payment_day: esCredito ? (m.default_payment_day ?? null) : null,
+        is_personal: false,
+        bucket: esCredito ? 'pocket' : (m.bucket ?? 'pocket'),
+        initial_balance: declarado ?? 0,
+        initial_balance_at: declarado === null ? null : hoy,
+      }
+    })
 
     const { data: inserted, error } = await supabase
       .from('payment_methods')
@@ -189,6 +204,9 @@ export async function saveOnboardingPaymentMethods(
 // =============================================================================
 // 4. MARCAR ONBOARDING COMO COMPLETO
 // =============================================================================
+// El onboarding ya cubre saldos por cuenta y ritmo de cobro (slides de medios de
+// pago y de ritmo), así que un usuario nuevo nunca ve la puesta a punto que pide
+// lo mismo después.
 export async function completeOnboarding(): Promise<ActionResponse> {
   try {
     const supabase = await createClient()
@@ -197,7 +215,7 @@ export async function completeOnboarding(): Promise<ActionResponse> {
 
     const { error } = await supabase
       .from('users')
-      .update({ onboarding_completed: true })
+      .update({ onboarding_completed: true, pocket_setup_completed: true })
       .eq('id', user.id)
 
     if (error) {
