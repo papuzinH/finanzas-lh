@@ -1,7 +1,9 @@
 'use client'
 
+import { useId } from 'react'
 import { Chip } from '@/components/ui/chip'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { BUCKET_HELP } from '@/lib/utils/pocket-copy'
 
 /**
@@ -22,11 +24,18 @@ export function AccountAnchorFields({
   onBalanceChange: (v: string) => void
   showBucketHelp?: boolean
 }) {
+  const uid = useId()
+  const balanceId = `${uid}-balance`
+  const bucketLabelId = `${uid}-bucket`
+
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <label className="font-sans text-xs font-medium text-text">¿Cuánto tenés hoy?</label>
+        <Label htmlFor={balanceId} className="font-sans text-xs font-medium text-text">
+          ¿Cuánto tenés hoy?
+        </Label>
         <Input
+          id={balanceId}
           type="number"
           inputMode="decimal"
           value={balance}
@@ -40,8 +49,10 @@ export function AccountAnchorFields({
       </div>
 
       <div className="space-y-2">
-        <label className="font-sans text-xs font-medium text-text">¿Esta plata es para gastar?</label>
-        <div className="flex gap-2">
+        <span id={bucketLabelId} className="font-sans text-xs font-medium text-text block">
+          ¿Esta plata es para gastar?
+        </span>
+        <div className="flex gap-2" role="group" aria-labelledby={bucketLabelId}>
           <Chip active={bucket === 'pocket'} onClick={() => onBucketChange('pocket')}>
             Bolsillo
           </Chip>
