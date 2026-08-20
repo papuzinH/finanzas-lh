@@ -67,14 +67,15 @@ export function RhythmSlide({ onComplete }: RhythmSlideProps) {
         )}
       </Button>
 
-      <button
+      <Button
         type="button"
+        variant="ghost"
         onClick={() => onComplete(null)}
         disabled={isPending}
-        className="w-full font-sans text-xs text-muted hover:text-text transition-colors py-2"
+        className="w-full text-muted hover:text-text hover:bg-surface-2/50"
       >
         Ahora no, lo configuro después
-      </button>
+      </Button>
     </motion.div>
   )
 }
