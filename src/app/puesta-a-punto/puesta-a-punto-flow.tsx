@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, Loader2 } from 'lucide-react'
@@ -38,6 +38,10 @@ export function PuestaAPuntoFlow() {
   const [guardando, setGuardando] = useState(false)
   // El número viejo se congela ANTES de anclar: después de guardar ya no se puede recuperar.
   const [numeroViejo, setNumeroViejo] = useState<number | null>(null)
+  // Lock de "ya capturé": NO puede depender de filas.length (una cuenta list vacía nunca
+  // lo pone en > 0, así que el efecto se repetiría en cada fetchAllData() posterior,
+  // incluido el de guardarRitmo() DESPUÉS de guardar las anclas).
+  const capturado = useRef(false)
 
   useEffect(() => {
     if (!isInitialized) fetchAllData()
@@ -49,10 +53,11 @@ export function PuestaAPuntoFlow() {
   )
 
   useEffect(() => {
-    if (!isInitialized || filas.length > 0) return
+    if (!isInitialized || capturado.current) return
+    capturado.current = true
     setFilas(cuentas.map((m) => ({ id: m.id, name: m.name, bucket: m.bucket, balance: '' })))
     setNumeroViejo(getGlobalBalance())
-  }, [isInitialized, cuentas, filas.length, getGlobalBalance])
+  }, [isInitialized, cuentas, getGlobalBalance])
 
   if (isLoading && !isInitialized) return <FullPageLoader text="Cargando tus cuentas..." />
 
@@ -121,7 +126,11 @@ export function PuestaAPuntoFlow() {
   const saltear = async () => {
     setGuardando(true)
     try {
-      await completePocketSetup()
+      const res = await completePocketSetup()
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
       router.push('/')
       router.refresh()
     } finally {

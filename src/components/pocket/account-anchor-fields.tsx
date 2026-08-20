@@ -44,7 +44,7 @@ export function AccountAnchorFields({
           className="bg-surface border-border text-text tnum"
         />
         <p className="font-sans text-[11px] text-faint">
-          Si lo dejás vacío arrancamos en cero y te lo preguntamos más adelante.
+          Si lo dejás vacío, la cuenta queda sin saldo declarado y te lo preguntamos más adelante.
         </p>
       </div>
 
