@@ -6,6 +6,11 @@ import type { IncomeRhythm } from '@/lib/finance/pocket';
 export const BUCKET_HELP =
   'El bolsillo es de donde gastás; la reserva es lo que decidiste no gastar.';
 
+/** Default para `AccountAnchorFields`: onboarding y puesta a punto, donde vaciar el
+ *  campo significa "todavía no sé, preguntame después". */
+export const BALANCE_EMPTY_HELP =
+  'Si lo dejás vacío, la cuenta queda sin saldo declarado y te lo preguntamos más adelante.';
+
 export const RHYTHMS: Array<{ value: IncomeRhythm; label: string; help: string }> = [
   { value: 'monthly', label: 'Todos los meses', help: 'Sueldo mensual, honorarios fijos.' },
   { value: 'biweekly', label: 'Cada quincena', help: 'Cobrás dos veces por mes.' },
