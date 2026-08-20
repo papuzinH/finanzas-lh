@@ -1,7 +1,7 @@
 // Modelo de bolsillo: saldo por cuenta anclado a un valor declarado.
 // Puro: sin Zustand ni Supabase.
 // Spec: docs/superpowers/specs/2026-08-20-disponible-real-anclado-design.md
-import { endOfMonth, endOfWeek } from 'date-fns';
+import { endOfMonth, endOfWeek, startOfDay } from 'date-fns';
 import type { PaymentMethod, InternalTransfer, RecurringPlan } from '@/types/database';
 import type { ProcessedTransaction, CreditCardCycleSummary } from './types';
 import { parseLocalDate } from '@/lib/utils/dates';
@@ -10,34 +10,49 @@ import { computePendingFixedExpenses } from './pending';
 export type IncomeRhythm = 'monthly' | 'biweekly' | 'weekly' | 'irregular';
 
 /**
- * Saldo de una cuenta.
+ * Saldo de una cuenta, al día de `now`.
  *
- * Sin `initial_balance_at` suma todo el historial, que es el comportamiento previo
- * al modelo de bolsillo. Con ancla, parte de `initial_balance` y solo computa lo que
- * pasó desde esa fecha inclusive: lo anterior ya está representado dentro del ancla.
+ * Ventana de cómputo: **desde el ancla (inclusive) hasta hoy (inclusive)**.
+ * - Antes del ancla: no se cuenta, ya está representado dentro de `initial_balance`.
+ * - Sin `initial_balance_at` no hay piso: suma todo el historial hasta hoy, que es el
+ *   comportamiento previo al modelo de bolsillo (cuenta "sin anclar").
+ * - Después de hoy: no se cuenta. Una cuota que vence en febrero todavía no salió de
+ *   la cuenta; restarla haría que el saldo de hoy mienta hacia abajo.
+ *
+ * El signo lo lleva `type`, NUNCA el monto: `amount` se guarda siempre positivo
+ * (verificado contra la base el 2026-08-20: 794 gastos, 0 con monto negativo).
+ *
+ * Se usa `t.date` (la fecha real del movimiento) y no `periodDate` (la fecha visual del
+ * ciclo de tarjeta): el saldo de una cuenta se mueve cuando la plata se mueve. Para los
+ * medios no-crédito —los únicos que tienen saldo— ambas coinciden.
  */
 export function computeAccountBalance(
   method: PaymentMethod,
   transactions: ProcessedTransaction[],
   transfers: InternalTransfer[],
+  now: Date = new Date(),
 ): number {
-  const anchor = method.initial_balance_at ? parseLocalDate(method.initial_balance_at) : null;
+  const anchor = method.initial_balance_at ? startOfDay(parseLocalDate(method.initial_balance_at)) : null;
   const base = anchor ? Number(method.initial_balance) : 0;
+  const today = startOfDay(now);
 
-  const afterAnchor = (dateStr: string | null | undefined) => {
-    if (!anchor) return true;
+  const inWindow = (dateStr: string | null | undefined) => {
     if (!dateStr) return false;
-    return parseLocalDate(dateStr) >= anchor;
+    const d = startOfDay(parseLocalDate(dateStr));
+    if (d > today) return false;
+    return anchor ? d >= anchor : true;
   };
 
-  // `amount` ya viene con signo (los gastos son negativos), por eso se suma directo.
   const movements = transactions
     .filter((t) => t.payment_method_id === method.id)
-    .filter((t) => afterAnchor(t.periodDate || t.date))
-    .reduce((acc, t) => acc + Number(t.amount), 0);
+    .filter((t) => inWindow(t.date))
+    .reduce((acc, t) => {
+      const amount = Math.abs(Number(t.amount));
+      return t.type === 'income' ? acc + amount : acc - amount;
+    }, 0);
 
   const transfersDelta = transfers.reduce((acc, tr) => {
-    if (!afterAnchor(tr.real_transfer_date)) return acc;
+    if (!inWindow(tr.real_transfer_date)) return acc;
     const amount = Math.abs(Number(tr.amount));
     if (tr.from_payment_method_id === method.id) return acc - amount;
     if (tr.to_payment_method_id === method.id) return acc + amount;
@@ -153,7 +168,7 @@ export function computeAvailableToSpend(inputs: AvailableInputs): AvailableToSpe
       methodId: m.id,
       name: m.name,
       bucket: m.bucket,
-      balance: computeAccountBalance(m, transactions, transfers),
+      balance: computeAccountBalance(m, transactions, transfers, now),
     }));
 
   const pocketTotal = accounts.filter((a) => a.bucket === 'pocket').reduce((acc, a) => acc + a.balance, 0);

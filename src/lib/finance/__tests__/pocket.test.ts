@@ -69,6 +69,46 @@ describe('computeAccountBalance', () => {
     ], []);
     expect(r).toBe(0);
   });
+
+  const NOW_T1 = new Date(2026, 7, 20); // 20-ago-2026
+
+  it('resta un gasto guardado con monto POSITIVO: el signo lo lleva `type`, no el monto', () => {
+    // Convencion real de la base (verificada 2026-08-20): 794 gastos, 0 con monto negativo.
+    const r = computeAccountBalance(method(), [
+      tx({ id: 'a', type: 'income', amount: 50000, date: '2026-08-10', periodDate: '2026-08-10' }),
+      tx({ id: 'b', type: 'expense', amount: 20000, date: '2026-08-10', periodDate: '2026-08-10' }),
+    ], [], NOW_T1);
+    expect(r).toBe(30000);
+  });
+
+  it('ignora los movimientos futuros: una cuota que vence en 2027 todavia no salio de la cuenta', () => {
+    const m = method({ initial_balance: 100000, initial_balance_at: '2026-08-01' });
+    const r = computeAccountBalance(m, [
+      tx({ id: 'hoy', type: 'expense', amount: 10000, date: '2026-08-20', periodDate: '2026-08-20' }),
+      tx({ id: 'futura', type: 'expense', amount: 999999, date: '2027-02-01', periodDate: '2027-02-01' }),
+    ], [], NOW_T1);
+    expect(r).toBe(90000);
+  });
+
+  it('ignora las transferencias con fecha futura', () => {
+    const transfers = [
+      { id: 'tr1', amount: 20000, from_payment_method_id: 'm1', to_payment_method_id: 'm2', real_transfer_date: '2026-08-05' },
+      { id: 'tr2', amount: 777777, from_payment_method_id: 'm1', to_payment_method_id: 'm2', real_transfer_date: '2026-12-01' },
+    ] as InternalTransfer[];
+    const r = computeAccountBalance(
+      method({ initial_balance: 100000, initial_balance_at: '2026-08-01' }),
+      [], transfers, NOW_T1,
+    );
+    expect(r).toBe(80000);
+  });
+
+  it('el movimiento de HOY si cuenta (el techo es hoy inclusive)', () => {
+    const m = method({ initial_balance: 100000, initial_balance_at: '2026-08-01' });
+    const r = computeAccountBalance(m, [
+      tx({ id: 'hoy', type: 'expense', amount: 5000, date: '2026-08-20', periodDate: '2026-08-20' }),
+    ], [], NOW_T1);
+    expect(r).toBe(95000);
+  });
 });
 
 describe('getPeriodEnd', () => {
