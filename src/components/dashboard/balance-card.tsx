@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { ChevronDown, CreditCard } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 import { useFinanceStore } from "@/lib/store/financeStore"
 import { InfoHint } from "@/components/ui/info-hint"
 import { periodLabel, nextPeriodLabel } from "@/lib/utils/pocket-copy"
@@ -78,7 +78,12 @@ export function BalanceCard() {
   const sinAnclar = pocketAccounts.length > 0 && pocketAccounts.every((a) => !a.anchored)
   const proximo = nextPeriodLabel(incomeRhythm)
 
-  const formatCurrency = (amount: number) =>
+  // Sin decimales y con Math.abs: correcto para filas donde el signo se renderiza
+  // aparte a partir del valor real (hero, "Tu plata libre") o donde el monto es
+  // siempre >= 0 por construcción (comprometido, cuotas). Para filas que pueden ser
+  // negativas sin signo manual correcto (saldo por cuenta, pocketTotal, reserveTotal)
+  // se usa el `formatCurrency` compartido de `@/lib/utils`, que conserva el signo.
+  const formatAbs = (amount: number) =>
     new Intl.NumberFormat("es-AR", {
       style: "currency",
       currency: "ARS",
@@ -122,13 +127,13 @@ export function BalanceCard() {
           <div className="flex items-baseline gap-2 mt-1 overflow-hidden">
             <span className="font-display tnum text-[44px] lg:text-[46px] leading-[var(--leading-display)] text-text [text-shadow:var(--shadow-bandera)] min-w-0 truncate pr-1.5 pb-1">
               {isNegative ? "-" : ""}
-              {formatCurrency(animatedBalance)}
+              {formatAbs(animatedBalance)}
             </span>
           </div>
 
           {committedNextPeriod > 0 && proximo && (
             <p className="font-sans text-[12px] text-muted mt-1">
-              <span className="font-display tnum">-{formatCurrency(committedNextPeriod)}</span>
+              <span className="font-display tnum">-{formatAbs(committedNextPeriod)}</span>
               {' '}{proximo}, todavía sin descontar
             </p>
           )}
@@ -164,7 +169,7 @@ export function BalanceCard() {
                       </HintStop>
                     </span>
                     <span className="font-display tnum text-[13px] text-good">
-                      +{formatCurrency(pocketTotal)}
+                      {formatCurrency(pocketTotal)}
                     </span>
                   </div>
                   <ul className="pl-[18px] space-y-1">
@@ -196,7 +201,7 @@ export function BalanceCard() {
                         </HintStop>
                       </span>
                       <span className="font-display tnum text-[13px] text-bad">
-                        -{formatCurrency(committed)}
+                        -{formatAbs(committed)}
                       </span>
                     </div>
                     <ul className="pl-[18px] space-y-1">
@@ -207,7 +212,7 @@ export function BalanceCard() {
                             {item.dueDate && ` · ${item.isCycleClosed ? 'cerrado' : 'en curso'} · vence ${format(item.dueDate, "d MMM", { locale: es })}`}
                           </span>
                           <span className="shrink-0 font-display tnum text-[11px] text-muted">
-                            -{formatCurrency(item.amount)}
+                            -{formatAbs(item.amount)}
                           </span>
                         </li>
                       ))}
@@ -219,11 +224,13 @@ export function BalanceCard() {
                   <div className="flex justify-between items-center">
                     <span className="text-[13px] font-bold text-muted">Tu plata libre</span>
                     <span className={cn("font-display tnum text-[15px]", isNegative ? "text-bad" : "text-good")}>
-                      {isNegative ? "-" : "+"}{formatCurrency(available)}
+                      {isNegative ? "-" : "+"}{formatAbs(available)}
                     </span>
                   </div>
 
-                  {reserveTotal > 0 && (
+                  {/* !== 0, no > 0: una reserva puede quedar negativa por drift sin
+                      reconciliar, y hay que seguir mostrándola (con signo, no ocultarla). */}
+                  {reserveTotal !== 0 && (
                     <div className="flex justify-between items-center">
                       <span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
                         Guardado en reservas
