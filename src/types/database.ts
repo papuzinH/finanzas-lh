@@ -195,9 +195,11 @@ export interface Database {
           created_at: string
           currency: 'ARS' | 'USD'
           description: string | null
+          from_payment_method_id: string | null
           id: string
           period_date: string
           real_transfer_date: string
+          to_payment_method_id: string | null
           transfer_type: 'end_of_month_surplus' | 'manual'
           user_id: string
         }
@@ -206,9 +208,11 @@ export interface Database {
           created_at?: string
           currency?: 'ARS' | 'USD'
           description?: string | null
+          from_payment_method_id?: string | null
           id?: string
           period_date: string
           real_transfer_date?: string
+          to_payment_method_id?: string | null
           transfer_type?: 'end_of_month_surplus' | 'manual'
           user_id: string
         }
@@ -217,9 +221,11 @@ export interface Database {
           created_at?: string
           currency?: 'ARS' | 'USD'
           description?: string | null
+          from_payment_method_id?: string | null
           id?: string
           period_date?: string
           real_transfer_date?: string
+          to_payment_method_id?: string | null
           transfer_type?: 'end_of_month_surplus' | 'manual'
           user_id?: string
         }
@@ -390,10 +396,13 @@ export interface Database {
       }
       payment_methods: {
         Row: {
+          bucket: 'pocket' | 'reserve'
           created_at: string
           default_closing_day: number | null
           default_payment_day: number | null
           id: string
+          initial_balance: number
+          initial_balance_at: string | null
           is_default: boolean | null
           is_personal: boolean | null
           name: string
@@ -401,10 +410,13 @@ export interface Database {
           user_id: string
         }
         Insert: {
+          bucket?: 'pocket' | 'reserve'
           created_at?: string
           default_closing_day?: number | null
           default_payment_day?: number | null
           id?: string
+          initial_balance?: number
+          initial_balance_at?: string | null
           is_default?: boolean | null
           is_personal?: boolean | null
           name: string
@@ -412,10 +424,13 @@ export interface Database {
           user_id: string
         }
         Update: {
+          bucket?: 'pocket' | 'reserve'
           created_at?: string
           default_closing_day?: number | null
           default_payment_day?: number | null
           id?: string
+          initial_balance?: number
+          initial_balance_at?: string | null
           is_default?: boolean | null
           is_personal?: boolean | null
           name?: string
@@ -575,6 +590,7 @@ export interface Database {
           exchange_rate: number | null
           id: string
           installment_plan_id: string | null
+          is_balance_adjustment: boolean
           original_amount: number | null
           original_currency: string
           payment_method_id: string | null
@@ -595,6 +611,7 @@ export interface Database {
           exchange_rate?: number | null
           id?: string
           installment_plan_id?: string | null
+          is_balance_adjustment?: boolean
           original_amount?: number | null
           original_currency?: string
           payment_method_id?: string | null
@@ -615,6 +632,7 @@ export interface Database {
           exchange_rate?: number | null
           id?: string
           installment_plan_id?: string | null
+          is_balance_adjustment?: boolean
           original_amount?: number | null
           original_currency?: string
           payment_method_id?: string | null
@@ -635,6 +653,7 @@ export interface Database {
           email: string | null
           first_name: string | null
           id: string
+          income_rhythm: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode: string | null
           onboarding_completed: boolean | null
           telegram_chat_id: number | null
@@ -649,6 +668,7 @@ export interface Database {
           email?: string | null
           first_name?: string | null
           id: string
+          income_rhythm?: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode?: string | null
           onboarding_completed?: boolean | null
           telegram_chat_id?: number | null
@@ -663,6 +683,7 @@ export interface Database {
           email?: string | null
           first_name?: string | null
           id?: string
+          income_rhythm?: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode?: string | null
           onboarding_completed?: boolean | null
           telegram_chat_id?: number | null
