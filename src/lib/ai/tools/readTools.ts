@@ -171,7 +171,7 @@ export const readTools: ToolDef[] = [
       })
 
       const ingresos = inMonth
-        .filter((t) => t.type === 'income')
+        .filter((t) => t.type === 'income' && !t.is_balance_adjustment)
         .reduce((acc, t) => acc + Number(t.amount), 0)
 
       const gastos = inMonth
