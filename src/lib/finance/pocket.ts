@@ -62,6 +62,34 @@ export function computeAccountBalance(
   return base + movements + transfersDelta;
 }
 
+/**
+ * Traduce "el saldo que tengo AHORA" al valor que hay que guardar en `initial_balance`.
+ *
+ * `computeAccountBalance` cuenta los movimientos del día del ancla, así que guardar el
+ * saldo declarado tal cual restaría dos veces lo que el usuario ya registró hoy: una
+ * dentro del saldo que leyó del banco, otra por la transacción. El ancla que se guarda
+ * es entonces el saldo **al comienzo** del día.
+ *
+ * Invariante: `computeAccountBalance` sobre el medio anclado con este valor devuelve
+ * exactamente `declaredBalance`.
+ */
+export function anchorValueForDeclaredBalance(
+  declaredBalance: number,
+  method: PaymentMethod,
+  transactions: ProcessedTransaction[],
+  transfers: InternalTransfer[],
+  anchorDate: string,
+  now: Date = new Date(),
+): number {
+  const movimientosDesdeElAncla = computeAccountBalance(
+    { ...method, initial_balance: 0, initial_balance_at: anchorDate },
+    transactions,
+    transfers,
+    now,
+  );
+  return declaredBalance - movimientosDesdeElAncla;
+}
+
 export interface CommitmentBreakdown {
   /** Lo que vence dentro del período actual y sale del bolsillo. */
   total: number;
@@ -134,6 +162,8 @@ export interface AccountBalance {
   name: string;
   bucket: 'pocket' | 'reserve';
   balance: number;
+  /** false = sin saldo declarado: el saldo se suma desde el primer movimiento (el modelo viejo). */
+  anchored: boolean;
 }
 
 export interface AvailableInputs {
@@ -162,13 +192,15 @@ export function computeAvailableToSpend(inputs: AvailableInputs): AvailableToSpe
   const now = inputs.now ?? new Date();
 
   // Las tarjetas de crédito no tienen saldo propio: su deuda se deriva del ciclo.
+  // Los compromisos personales ("le debo a Juan") tampoco son cuentas con plata.
   const accounts: AccountBalance[] = paymentMethods
-    .filter((m) => m.type !== 'credit')
+    .filter((m) => m.type !== 'credit' && !m.is_personal)
     .map((m) => ({
       methodId: m.id,
       name: m.name,
       bucket: m.bucket,
       balance: computeAccountBalance(m, transactions, transfers, now),
+      anchored: m.initial_balance_at !== null,
     }));
 
   const pocketTotal = accounts.filter((a) => a.bucket === 'pocket').reduce((acc, a) => acc + a.balance, 0);

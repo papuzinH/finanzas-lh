@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeAccountBalance, getPeriodEnd, computeCommitments, computeAvailableToSpend } from '../pocket';
+import { computeAccountBalance, getPeriodEnd, computeCommitments, computeAvailableToSpend, anchorValueForDeclaredBalance } from '../pocket';
 import type { PaymentMethod, InternalTransfer, RecurringPlan } from '@/types/database';
 import type { ProcessedTransaction, CreditCardCycleSummary } from '../types';
 
@@ -219,5 +219,84 @@ describe('computeAvailableToSpend', () => {
       recurringPlans: [], pendingCards: [], rhythm: 'monthly', now,
     });
     expect(r.pocketTotal).toBe(150000);
+  });
+});
+
+describe('anchorValueForDeclaredBalance', () => {
+  const NOW_T3 = new Date(2026, 7, 20); // 20-ago-2026
+  const HOY = '2026-08-20';
+
+  it('sin movimientos del dia, el ancla ES el saldo declarado', () => {
+    const r = anchorValueForDeclaredBalance(10600, method({ id: 'm1' }), [], [], HOY, NOW_T3);
+    expect(r).toBe(10600);
+  });
+
+  it('INVARIANTE: anclar con lo declarado deja el saldo calculado exactamente en lo declarado', () => {
+    const base = method({ id: 'm1' });
+    const txs = [
+      tx({ id: 'hoy', type: 'expense', amount: 5000, date: HOY, periodDate: HOY }),
+      tx({ id: 'ayer', type: 'expense', amount: 7000, date: '2026-08-19', periodDate: '2026-08-19' }),
+    ];
+    const value = anchorValueForDeclaredBalance(10600, base, txs, [], HOY, NOW_T3);
+    const anclado = { ...base, initial_balance: value, initial_balance_at: HOY };
+    expect(computeAccountBalance(anclado, txs, [], NOW_T3)).toBe(10600);
+  });
+
+  it('un movimiento registrado DESPUES del ancla, el mismo dia, si mueve el saldo', () => {
+    const base = method({ id: 'm1' });
+    const previos = [tx({ id: 'hoy', type: 'expense', amount: 5000, date: HOY, periodDate: HOY })];
+    const value = anchorValueForDeclaredBalance(10600, base, previos, [], HOY, NOW_T3);
+    const anclado = { ...base, initial_balance: value, initial_balance_at: HOY };
+    const nuevo = tx({ id: 'nuevo', type: 'expense', amount: 1000, date: HOY, periodDate: HOY });
+    expect(computeAccountBalance(anclado, [...previos, nuevo], [], NOW_T3)).toBe(9600);
+  });
+
+  it('descuenta tambien las transferencias del dia del ancla', () => {
+    const base = method({ id: 'm1' });
+    const transfers = [
+      { id: 'tr', amount: 3000, from_payment_method_id: 'm1', to_payment_method_id: 'm2', real_transfer_date: HOY },
+    ] as InternalTransfer[];
+    const value = anchorValueForDeclaredBalance(10600, base, [], transfers, HOY, NOW_T3);
+    expect(value).toBe(13600);
+    const anclado = { ...base, initial_balance: value, initial_balance_at: HOY };
+    expect(computeAccountBalance(anclado, [], transfers, NOW_T3)).toBe(10600);
+  });
+
+  it('ignora los movimientos de OTRO medio', () => {
+    const r = anchorValueForDeclaredBalance(
+      10600, method({ id: 'm1' }),
+      [tx({ id: 'otro', type: 'expense', amount: 99999, payment_method_id: 'm9', date: HOY, periodDate: HOY })],
+      [], HOY, NOW_T3,
+    );
+    expect(r).toBe(10600);
+  });
+});
+
+describe('computeAvailableToSpend · anclaje', () => {
+  const now = new Date(2026, 7, 20);
+
+  it('cada cuenta dice si esta anclada o no', () => {
+    const anclada = method({ id: 'a', initial_balance: 1000, initial_balance_at: '2026-08-01' });
+    const suelta = method({ id: 'b', initial_balance: 0, initial_balance_at: null });
+    const r = computeAvailableToSpend({
+      paymentMethods: [anclada, suelta], transactions: [], transfers: [],
+      recurringPlans: [], pendingCards: [], rhythm: 'monthly', now,
+    });
+    expect(r.accounts.find((a) => a.methodId === 'a')?.anchored).toBe(true);
+    expect(r.accounts.find((a) => a.methodId === 'b')?.anchored).toBe(false);
+  });
+
+  it('un compromiso personal no es una cuenta con plata: queda afuera del bolsillo', () => {
+    // "Le debo a Juan" es un medio is_personal. Sumarlo al bolsillo diria que tenes
+    // plata que no tenes (o que te falta plata que no te falta).
+    const cuenta = method({ id: 'a', initial_balance: 100000, initial_balance_at: '2026-08-01' });
+    const juan = method({ id: 'juan', name: 'Le debo a Juan', is_personal: true });
+    const r = computeAvailableToSpend({
+      paymentMethods: [cuenta, juan],
+      transactions: [tx({ id: 'g', type: 'expense', amount: 30000, payment_method_id: 'juan', date: '2026-08-10', periodDate: '2026-08-10' })],
+      transfers: [], recurringPlans: [], pendingCards: [], rhythm: 'monthly', now,
+    });
+    expect(r.accounts.map((a) => a.methodId)).toEqual(['a']);
+    expect(r.pocketTotal).toBe(100000);
   });
 });
