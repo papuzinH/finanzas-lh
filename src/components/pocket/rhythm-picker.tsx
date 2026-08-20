@@ -18,7 +18,7 @@ export function RhythmPicker({
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Ritmo de cobro">
         {RHYTHMS.map((r) => (
           <Chip key={r.value} active={value === r.value} onClick={() => onChange(r.value)}>
             {r.label}
