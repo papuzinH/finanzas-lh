@@ -29,13 +29,13 @@ const incomeRhythmSchema = z.enum(['monthly', 'biweekly', 'weekly', 'irregular']
  */
 export async function saveAccountAnchors(anchors: AccountAnchorInput[]): Promise<ActionResponse> {
   try {
-    const parsed = z.array(accountAnchorSchema).safeParse(anchors)
-    if (!parsed.success) return { error: 'Datos inválidos' }
-    if (parsed.data.length === 0) return { success: true }
-
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
+
+    const parsed = z.array(accountAnchorSchema).safeParse(anchors)
+    if (!parsed.success) return { error: 'Datos inválidos' }
+    if (parsed.data.length === 0) return { success: true }
 
     // Una tarjeta de crédito no tiene saldo propio: su deuda sale del ciclo.
     const { data: methods } = await supabase
@@ -77,12 +77,12 @@ export async function saveAccountAnchors(anchors: AccountAnchorInput[]): Promise
 /** Ritmo de cobro declarado. Define qué compromisos entran en el disponible de hoy. */
 export async function saveIncomeRhythm(rhythm: string): Promise<ActionResponse> {
   try {
-    const parsed = incomeRhythmSchema.safeParse(rhythm)
-    if (!parsed.success) return { error: 'Ritmo inválido' }
-
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
+
+    const parsed = incomeRhythmSchema.safeParse(rhythm)
+    if (!parsed.success) return { error: 'Ritmo inválido' }
 
     const { error } = await supabase
       .from('users')
