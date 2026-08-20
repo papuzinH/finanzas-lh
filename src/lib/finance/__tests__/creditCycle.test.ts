@@ -61,6 +61,17 @@ describe('isExpenseInCurrentMonthScope', () => {
     const t = tx({ periodDate: '2026-06-20' })
     expect(isExpenseInCurrentMonthScope(t, [credit()], new Date(2026, 6, 15))).toBe(false)
   })
+
+  it('un ajuste de saldo NO es consumo del mes: no participa de las analiticas', () => {
+    const ajuste = {
+      id: 'aj', user_id: 'u1', type: 'expense', amount: 50000,
+      date: '2026-08-19', periodDate: '2026-08-19', realPaymentDate: '2026-08-19',
+      payment_method_id: 'deb', category_id: 'c1',
+      installment_plan_id: null, recurring_plan_id: null, card_payment_for: null,
+      is_balance_adjustment: true,
+    } as unknown as ProcessedTransaction;
+    expect(isExpenseInCurrentMonthScope(ajuste, [], new Date(2026, 7, 20))).toBe(false);
+  })
 })
 
 describe('sameMonthYear', () => {

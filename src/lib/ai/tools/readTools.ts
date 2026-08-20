@@ -175,7 +175,7 @@ export const readTools: ToolDef[] = [
         .reduce((acc, t) => acc + Number(t.amount), 0)
 
       const gastos = inMonth
-        .filter((t) => t.type === 'expense' && !t.card_payment_for)
+        .filter((t) => t.type === 'expense' && !t.card_payment_for && !t.is_balance_adjustment)
         .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0)
 
       const balance = computeMonthlyBalance(data.transactions, data.recurringPlans, mes, 'all', now)
@@ -406,7 +406,11 @@ export const readTools: ToolDef[] = [
       const data = await loadFinanceData(ctx)
       const spentByCategory = data.transactions
         .filter(
-          (t) => t.type === 'expense' && !t.card_payment_for && (t.periodDate || t.date).slice(0, 7) === currentMonth,
+          (t) =>
+            t.type === 'expense' &&
+            !t.card_payment_for &&
+            !t.is_balance_adjustment &&
+            (t.periodDate || t.date).slice(0, 7) === currentMonth,
         )
         .reduce((acc, t) => {
           if (!t.category_id) return acc

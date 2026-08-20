@@ -960,7 +960,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const { transactions, getCurrentMonthInstallmentsTotal, getMonthlyBurnRate } = get();
 
     const totalNonInstallmentExpenses = transactions
-      .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.card_payment_for)
+      .filter((t) => t.type === 'expense' && !t.installment_plan_id && !t.card_payment_for && !t.is_balance_adjustment)
       .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
 
     return totalNonInstallmentExpenses + getCurrentMonthInstallmentsTotal() + getMonthlyBurnRate();
@@ -1139,7 +1139,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const now = new Date();
     return transactions
       .filter((t) => {
-        if (t.type !== 'income') return false;
+        if (t.type !== 'income' || t.is_balance_adjustment) return false;
         const localTDate = parseLocalDate(t.date);
         return isSameMonth(localTDate, now);
       })
@@ -1150,7 +1150,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const { transactions } = get();
     const now = new Date();
     return transactions.filter((t) => {
-      if (t.type !== 'income') return false;
+      if (t.type !== 'income' || t.is_balance_adjustment) return false;
       const localTDate = parseLocalDate(t.date);
       return isSameMonth(localTDate, now);
     });
