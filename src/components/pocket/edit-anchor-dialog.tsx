@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -31,6 +31,13 @@ export function EditAnchorDialog({
   const [bucket, setBucket] = useState<'pocket' | 'reserve'>(method.bucket)
   const [balance, setBalance] = useState('')
   const [guardando, setGuardando] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setBucket(method.bucket)
+      setBalance('')
+    }
+  }, [open, method.bucket])
 
   const guardar = async () => {
     setGuardando(true)
