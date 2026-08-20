@@ -8,6 +8,7 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
+  Scale,
 } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
@@ -19,6 +20,7 @@ import { Card } from '@/components/ui/card';
 import { PaymentMethodDetailModal } from './payment-method-detail-modal';
 import { EditPaymentMethodDialog } from './edit-payment-method-dialog';
 import { DeletePaymentMethodDialog } from './delete-payment-method-dialog';
+import { EditAnchorDialog } from '@/components/pocket/edit-anchor-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +58,7 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isAnchorOpen, setIsAnchorOpen] = useState(false);
   const isCredit = data.type === 'credit';
   const { status, history, subscriptions } = data;
 
@@ -123,6 +126,15 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
               className="bg-surface border-[1.5px] border-border text-text"
               onClick={(e) => e.stopPropagation()}
             >
+              {!isCredit && (
+                <DropdownMenuItem
+                  onClick={() => setIsAnchorOpen(true)}
+                  className="gap-2 cursor-pointer focus:bg-surface-2 focus:text-text"
+                >
+                  <Scale className="h-4 w-4" />
+                  Saldo y tipo
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={() => setIsEditOpen(true)}
                 className="gap-2 cursor-pointer focus:bg-surface-2 focus:text-text"
@@ -291,6 +303,10 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
         onOpenChange={setIsDeleteOpen}
         paymentMethod={data}
       />
+
+      {!isCredit && (
+        <EditAnchorDialog method={data} open={isAnchorOpen} onOpenChange={setIsAnchorOpen} />
+      )}
     </>
   );
 }
