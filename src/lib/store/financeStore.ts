@@ -145,6 +145,11 @@ interface FinanceState {
     realReturn: number | null;
     period: string;
   };
+  /**
+   * El cálculo viejo: flujo acumulado desde el primer movimiento. NO es el disponible.
+   * Se muestra únicamente en /puesta-a-punto, para explicarle al usuario por qué su
+   * número cambió. Para el disponible, usar getAvailableToSpend().
+   */
   getGlobalBalance: () => number;
   getExchangeRate: (pair: string) => number;
   getMonthlyBurnRate: () => number;
@@ -191,17 +196,9 @@ interface FinanceState {
     excessMonths: number;
     excessAmount: number;
   };
-  getRealAvailableBalance: () => {
-    saldoBruto: number;
-    pendingFixedExpenses: number;
-    pendingFixedItems: Array<{ id: string; name: string; amount: number }>;
-    pendingCardTotal: number;
-    pendingCardItems: CreditCardCycleSummary[];
-    disponibleReal: number;
-  };
   /**
    * Disponible del modelo de bolsillo: saldos anclados menos los compromisos del
-   * período. Convive con getRealAvailableBalance hasta que la UI migre.
+   * período.
    * Spec: docs/superpowers/specs/2026-08-20-disponible-real-anclado-design.md
    */
   getAvailableToSpend: () => AvailableToSpend;
@@ -1054,39 +1051,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       pendingCards,
       rhythm: incomeRhythm ?? 'monthly',
     });
-  },
-
-  getRealAvailableBalance: () => {
-    const { getGlobalBalance, getPendingCreditCardByCard, getPendingFixedExpenses } = get();
-
-    // El TOTAL se ancla a getGlobalBalance(): el patrimonio líquido real,
-    // calculado con UNA sola fórmula consistente (ingresos - gastos históricos
-    // - cuotas del mes/pasadas - mensualidades del mes - ahorro). Es lo que te
-    // queda tras honrar los compromisos ya cargados de este mes.
-    //
-    // El desglose (saldoBruto - pendingFixed - pendingCard) se deriva de ese
-    // total para que SIEMPRE cuadre y ninguna plata se pierda ni se duplique:
-    //   saldoBruto := disponibleReal + pendingFixed + pendingCard
-    // Así "Cuenta total" = plata en cuentas antes de apartar los compromisos, y
-    // pagar la tarjeta / un gasto fijo mueve el bucket sin cambiar el total
-    // (getGlobalBalance es invariante a marcar como pagado).
-    const disponibleReal = getGlobalBalance();
-
-    const pendingCardItems = getPendingCreditCardByCard().filter((c) => c.isPending);
-    const pendingCardTotal = pendingCardItems.reduce((acc, c) => acc + c.total, 0);
-
-    const { total: pendingFixedExpenses, items: pendingFixedItems } = getPendingFixedExpenses();
-
-    const saldoBruto = disponibleReal + pendingFixedExpenses + pendingCardTotal;
-
-    return {
-      saldoBruto,
-      pendingFixedExpenses,
-      pendingFixedItems,
-      pendingCardTotal,
-      pendingCardItems,
-      disponibleReal,
-    };
   },
 
   /**

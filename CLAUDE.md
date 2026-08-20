@@ -27,13 +27,14 @@ Nada de lógica de negocio en componentes. Los getters de cálculo del store son
 
 Getters disponibles:
 - `getPortfolioStatus()` – portafolio de inversiones
-- `getGlobalBalance()` – balance total. **Resta mensualidades históricas** (tx con `recurring_plan_id`) + las pendientes del mes en curso (`getPendingFixedExpenses`), NO solo el burn rate del mes.
 - `getMonthlyBurnRate()` – planes recurrentes activos
 - `getInstallmentStatus(planId)` – progreso de cuotas
 - `getPaymentMethodStatus(methodId)` – **Crédito**: "a pagar en el vencimiento" del ciclo. Un movimiento pertenece al ciclo si el mes/año de `t.date` (que en crédito ya es la fecha de vencimiento calculada por `calculateCreditPaymentDate`) coincide con `nextPaymentDate`; incluye cuotas + compras + mensualidades adheridas (deduplicadas). Devuelve `arsExpenses`/`usdExpenses` por separado (NO se convierte USD→ARS en el desglose). El ciclo vigente (`getCreditCycleDates`) **avanza al siguiente resumen recién cuando el vencimiento ya pasó** (comparación por día): el día exacto del vencimiento ese resumen sigue siendo el vigente (todavía lo debés). **Débito/efectivo**: saldo histórico `ingresos − gastos` (los pagos de tarjeta, ver abajo, lo reducen).
 - `getExpensesByCategory(scope)` – desglose por categoría
 - `getMonthlyBalance(monthStr, methodId)` – balance mensual
-- `getRealAvailableBalance()` – **Disponible Real** (número central del home). `disponibleReal = getGlobalBalance()`; expone también `saldoBruto`, `pendingFixedExpenses`, `pendingCardTotal` y `pendingCardItems` (`CreditCardCycleSummary[]` filtrado a `isPending`) para el desglose. El desglose de "Tu plata libre para hoy" (`BalanceCard`) lista debajo de "Tarjeta de este mes" una sub-línea por tarjeta pendiente con su **vencimiento vigente** (`nextPaymentDate`, la fecha real del ciclo en curso), su **estado** (`isCycleClosed`: "cerrado" = resumen ya cerrado a pagar / "en curso" = ciclo aún acumulando) y su monto en ARS (los `total` suman exacto `pendingCardTotal`). El estado explica por qué una tarjeta muestra consumo de un período anterior (cerrado) y otra el del período vigente (en curso). Invariante: pagar una mensualidad o tarjeta NO mueve `disponibleReal` **global** (sí baja el saldo del medio que financia el pago, ver "Medios de pago").
+- `getAvailableToSpend()` – **el número central**: el disponible del bolsillo. `available = Σ saldo(cuentas con bucket 'pocket') − compromisos del período`. Expone `pocketTotal`, `reserveTotal`, `committed`, `committedNextPeriod`, `commitmentItems` y `accounts` (saldo y `anchored` por cuenta). Wrapper fino de `computeAvailableToSpend` (`lib/finance/pocket.ts`). El ritmo sale de `users.income_rhythm`. Invariantes: pagar una tarjeta o una mensualidad NO mueve `available` (tests E8/E9 en `lib/finance/__tests__/escenarios-disponible.test.ts`).
+- `getGlobalBalance()` – **el cálculo viejo** (flujo acumulado desde el primer movimiento). NO es el disponible: se usa solo en `/puesta-a-punto` para explicar el cambio de número.
+- `getDaysSinceLastRegistration()` – días desde el último registro (por `created_at`, no por `date`). Dispara el recordatorio de conciliación a los 2 días.
 - `getPendingFixedExpenses()` – mensualidades activas sin transacción vinculada este mes (`{ total, items }`).
 - `getRecurringBackfillPreview()` – meses de mensualidades sin registrar (`missingMonths`) y exceso a borrar (`excessMonths`), con piso en el mes del **primer ingreso** del usuario (una cuota/gasto anterior al primer sueldo NO fija el piso — evita meses fantasma).
 - `getDefaultPaymentMethod()` – medio de pago marcado `is_default`.
@@ -52,6 +53,19 @@ Funciones PURAS (sin Zustand ni Supabase) — **fuente única de cálculos** par
 - `pending.ts` — `computePendingFixedExpenses` · `analysis.ts` — `computeExpensesByCategory`, `computeMonthlyBalance`
 - Tipos compartidos (`ProcessedTransaction`, `CreditCardCycleSummary`, `DolarBlue`) en `types.ts`.
 **Cambios de lógica financiera van acá**, nunca duplicados en tools/handlers/componentes. Tests directos en `lib/finance/__tests__/`.
+
+## Modelo de bolsillo (`lib/finance/pocket.ts`)
+
+El disponible sale **solo del bolsillo**: `payment_methods.bucket` decide si una cuenta cuenta (`'pocket'`) o no (`'reserve'`). Es ortogonal a `type`: una reserva puede ser una caja de ahorro, un broker o un plazo fijo.
+
+- **Saldo anclado**: `initial_balance` + `initial_balance_at`. Sin fecha, la cuenta está "sin anclar" y suma desde el primer movimiento (el modelo viejo). Con fecha, se computan solo los movimientos entre el ancla y **hoy** — una cuota que vence en febrero todavía no salió de la cuenta.
+- **`amount` se guarda SIEMPRE positivo**: el signo lo lleva `type`. Nunca asumir montos con signo.
+- **Convertir un saldo declarado en ancla**: `anchorValueForDeclaredBalance()`. Guardar el declarado tal cual restaría dos veces lo ya registrado hoy.
+- **Compromisos del período** (`computeCommitments`): un fijo se descuenta si sale del bolsillo y vence dentro del período. Los fijos de **crédito NO se descuentan**: ya viajan dentro del resumen de su tarjeta. Los resúmenes que vencen después del período van a `committedNextPeriod`, que se muestra pero no baja el disponible.
+- **Ritmo de cobro** (`users.income_rhythm`): se declara el ritmo, no la fecha. `irregular` = sin período: se descuenta todo lo comprometido, que es la lectura conservadora cuando no hay próximo cobro que asumir.
+- **Conciliación** (`lib/finance/reconcile.ts` + `src/app/bolsillo/actions.ts`): primero se recupera el dato (recordatorio de anotar a los 2 días), y solo si el usuario afirma que ya anotó todo se ofrece el ajuste. Un ajuste es una transacción con `is_balance_adjustment = true`: queda visible en el historial, **nunca** reescribe el pasado, y se excluye de las analíticas de consumo igual que `card_payment_for`.
+- **Limitación conocida**: el pago parcial de tarjeta queda fuera de alcance. `isCreditCardCyclePaid` da el ciclo por saldado con cualquier pago en el mes del vencimiento; quien paga el mínimo queda con deuda viva e intereses y la app le dice que está al día.
+- Spec: `docs/superpowers/specs/2026-08-20-disponible-real-anclado-design.md`.
 
 ## Asistente IA (chat agéntico)
 `POST /api/chat` (`src/app/api/chat/route.ts`) corre un **agent loop** (`lib/ai/agent.ts`): Gemini 2.5 Flash vía `@google/genai` elige tools tipadas en pasos sucesivos (máx. 6, techo 50k tokens por mensaje, anti-bucle) hasta responder. El SDK viejo `@google/generative-ai` fue desinstalado — NO reintroducirlo.
@@ -82,6 +96,7 @@ UI: selector de medio en el chip de Compromisos (`credit-card-cycle-card.tsx`) +
 - `realPaymentDate` → fecha real de transacción
 - `isExpenseInCurrentMonthScope()` → determina pertenencia al mes según ciclo cierre/pago
 - **Siempre** usar `parseLocalDate()` de `lib/utils/dates.ts` (evita bugs UTC)
+- Los **ajustes de saldo** (`is_balance_adjustment`) quedan fuera de las analíticas de consumo, igual que los pagos de tarjeta: `isExpenseInCurrentMonthScope`, `computeExpensesByCategory`, `getGlobalEffectiveExpenses` y `getMonthlyIncome` los excluyen. **Sí** se ven en `/movimientos`: el spec pide que el ajuste sea visible.
 
 ## UI
 - **Temas**: crema de día / papel de estraza de noche. El usuario elige en `/ajustes` (ThemeToggle + `theme-script` anti-flash, clase en `<html>`). ⚠️ Las utilities `dark:` de Tailwind NO funcionan acá (resuelven por `prefers-color-scheme`, el tema es por clase): usar tokens, que ya cambian con el tema.
