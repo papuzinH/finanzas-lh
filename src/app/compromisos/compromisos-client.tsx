@@ -9,7 +9,6 @@ import {
   Pencil,
   Trash2,
   Loader2,
-  Tag,
   RefreshCw,
   CalendarClock,
   Tv,
@@ -19,9 +18,6 @@ import {
   Dumbbell,
   ShieldCheck,
   Plus,
-  Check,
-  Clock,
-  Undo2,
   ChevronDown,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -85,9 +81,7 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
-  const { fetchAllData, categories } = useFinanceStore();
-
-  const category = categories.find(c => c.id === plan.category_id);
+  const { fetchAllData } = useFinanceStore();
 
   const confirmDelete = async () => {
     setIsDeleting(true);
@@ -118,96 +112,56 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
         variant="destructive"
         confirmText="Eliminar Plan"
       />
-      <div className="group rounded-2xl border-[1.5px] border-border bg-surface p-5 flex flex-col justify-between gap-4">
-        <div className="flex items-start justify-between">
-          <div className="min-w-0 flex-1">
-            <h3 className="font-sans font-bold text-text truncate">
-              {plan.description}
-            </h3>
-            <p className="text-xs text-muted mt-1">
-              Total del plan: {formatCurrency(Number(plan.total_amount))}
-            </p>
-            <p className="text-xs text-muted mt-0.5">
-              Valor cuota: {formatCurrency(Number(plan.total_amount) / plan.installments_count)}
-            </p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              {plan.paymentMethodName && (
-                <div className="flex items-center gap-1.5 text-[10px] text-muted bg-surface-2 border border-border px-2 py-1 rounded-full w-fit">
-                  <CreditCard className="h-3 w-3" aria-hidden="true" />
-                  <span>{plan.paymentMethodName}</span>
-                </div>
-              )}
-              {category && (
-                <div className="flex items-center gap-1.5 text-[10px] text-muted bg-surface-2 border border-border px-2 py-1 rounded-full w-fit">
-                  {category.emoji ? <span aria-hidden="true">{category.emoji}</span> : <Tag className="h-3 w-3" aria-hidden="true" />}
-                  <span>{category.name}</span>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="text-right flex flex-col items-end ml-4">
-            <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm font-bold text-text">
-                {!plan.isFinished
-                  ? `Cuota ${plan.installmentsPaid + 1} / ${plan.installments_count}`
-                  : 'Finalizado'}
-              </p>
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="Opciones del plan" className="h-6 w-6 min-h-11 min-w-11 text-muted hover:text-text hover:bg-surface-2 -mr-2">
-                    <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
-                  <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-surface-2 cursor-pointer">
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setIsDeleteOpen(true)}
-                    disabled={isDeleting}
-                    className="text-bad focus:bg-bad/10 focus:text-bad cursor-pointer"
-                  >
-                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                    Eliminar Plan
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <p className="text-[10px] uppercase tracking-wider text-muted">
-              {plan.remainingInstallments > 0
-                ? `${plan.remainingInstallments} restantes`
-                : 'Completado'}
-            </p>
-          </div>
+      <div className="rounded-2xl border-[1.5px] border-border bg-surface p-3.5 px-3.5 grid gap-2">
+        {/* Fila 1: nombre + badge n/m + cuota mensual + menú */}
+        <div className="flex items-center gap-2">
+          <span className="font-sans font-bold text-[13.5px] text-text truncate">{plan.description}</span>
+          <span className="flex-none text-[10.5px] font-bold text-muted border-[1.5px] border-border rounded-full px-[7px] py-0.5 leading-none">
+            {plan.isFinished ? '✓' : `${plan.installmentsPaid + 1}/${plan.installments_count}`}
+          </span>
+          <span className="ml-auto font-display tnum text-[14px] text-bad whitespace-nowrap">
+            − {formatCurrency(Number(plan.total_amount) / plan.installments_count)}
+            <span className="font-sans font-semibold text-[11px] text-muted"> /mes</span>
+          </span>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Opciones del plan" className="h-8 w-8 -mr-1 text-muted hover:text-text hover:bg-surface-2">
+                <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
+              <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-surface-2 cursor-pointer">
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setIsDeleteOpen(true)}
+                disabled={isDeleting}
+                className="text-bad focus:bg-bad/10 focus:text-bad cursor-pointer"
+              >
+                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                Eliminar Plan
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
+        {/* Barra de progreso */}
         <ProgressBar
           value={plan.progress}
-          tone={plan.isFinished ? 'good' : 'bad'}
+          tone={plan.isFinished ? 'good' : plan.progress >= 75 ? 'good' : 'warn'}
+          height={7}
           label={`Progreso de cuotas: ${plan.installmentsPaid} de ${plan.installments_count} pagadas`}
         />
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {plan.isFinished ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-good/10 text-good border border-good/20">
-                <Check className="h-3 w-3" aria-hidden="true" />
-                Pagado
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-accent-soft text-accent-deep border border-accent/20">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent-deep" aria-hidden="true" />
-                En curso
-              </span>
-            )}
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-muted mb-0.5">Te faltan (Futuro)</p>
-            <p className="font-display tnum text-[17px] text-bad">
-              {formatCurrency(plan.remaining)}
-            </p>
-          </div>
+        {/* Pie: medio + faltan */}
+        <div className="flex justify-between text-[11.5px] text-muted tnum">
+          <span className="truncate">{plan.paymentMethodName ?? 'Sin medio asignado'}</span>
+          <span>
+            {plan.isFinished
+              ? 'completado'
+              : `faltan ${formatCurrency(plan.remaining)}${plan.remainingInstallments === 1 ? ' · última en curso' : ''}`}
+          </span>
         </div>
       </div>
 
@@ -285,62 +239,33 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
       />
       <div
         className={cn(
-          'group rounded-2xl border-[1.5px] p-4 flex flex-col justify-between gap-4 transition-all',
-          plan.is_active
-            ? 'border-border bg-surface'
-            : 'border-border bg-surface-2'
+          'flex items-center gap-3 rounded-2xl border-[1.5px] border-border p-3',
+          plan.is_active ? 'bg-surface' : 'bg-surface-2 opacity-70'
         )}
       >
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-2 border-[1.5px] border-border text-text shrink-0" aria-hidden="true">
-              {category?.emoji ? <span className="text-lg">{category.emoji}</span> : getServiceIcon(plan.description, category?.name || null)}
-            </div>
-            <div>
-              <h3 className="font-sans font-bold text-sm text-text">
-                {plan.description}
-              </h3>
-              {category && (
-                <span className="inline-flex items-center rounded-full bg-surface-2 border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted mt-1">
-                  {category.name}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="text-right shrink-0">
+        <div className="w-[38px] h-[38px] flex-none grid place-items-center bg-surface-2 border-[1.5px] border-border rounded-xl text-[17px]" aria-hidden="true">
+          {category?.emoji ? <span>{category.emoji}</span> : getServiceIcon(plan.description, category?.name || null)}
+        </div>
+
+        <div className="min-w-0 grid gap-px">
+          <span className="font-sans font-bold text-[13.5px] text-text truncate">{plan.description}</span>
+          <span className="text-[12px] text-muted truncate">
+            {category?.name ?? 'Gasto fijo'}{!plan.is_active && ' · inactiva'}
+          </span>
+        </div>
+
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          <div className="grid gap-0.5 justify-items-end">
             {plan.currency === 'USD' && plan.original_amount != null ? (
-              <div className="flex flex-col items-end leading-tight">
+              <>
                 <span className="font-display tnum text-[15px] text-text">
                   US$ {Number(plan.original_amount).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
-                <span className="text-[10px] text-muted">≈ {formatCurrency(plan.amount)}</span>
-              </div>
+                <span className="text-[10.5px] text-muted tnum">≈ {formatCurrency(plan.amount)}</span>
+              </>
             ) : (
               <span className="font-display tnum text-[15px] text-text">{formatCurrency(plan.amount)}</span>
             )}
-            <div className="flex items-center justify-end gap-1.5 mt-1">
-              <div className={cn('h-1.5 w-1.5 rounded-full', plan.is_active ? 'bg-good' : 'bg-muted')} aria-hidden="true" />
-              <p className="text-[10px] text-muted uppercase tracking-wider">
-                {plan.is_active ? 'Activo' : 'Inactivo'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          {plan.paymentMethodName ? (
-            <div className="flex items-center gap-1.5 text-[10px] text-muted bg-surface-2 border border-border px-2 py-1 rounded-full">
-              <CreditCard className="h-3 w-3" />
-              <span>{plan.paymentMethodName}</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 text-[10px] text-muted bg-surface-2 border border-border px-2 py-1 rounded-full">
-              <CreditCard className="h-3 w-3" aria-hidden="true" />
-              <span>Sin asignar</span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-1.5">
             {plan.is_active && (
               <button
                 type="button"
@@ -348,31 +273,17 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
                 disabled={isToggling}
                 aria-label={isPaidThisMonth ? `Deshacer pago de ${plan.description}` : `Marcar ${plan.description} como pagada`}
                 className={cn(
-                  'inline-flex items-center gap-1 min-h-11 px-3 rounded-full text-[11px] font-bold border cursor-pointer select-none transition-all active:scale-[0.97] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
-                  isPaidThisMonth
-                    ? 'bg-good/10 text-good border-good/20 hover:bg-good/15'
-                    : 'bg-warn/10 text-warn border-warn/20 hover:bg-warn/15'
+                  'text-[10.5px] font-extrabold uppercase tracking-[0.08em] leading-none rounded-md px-1 py-0.5 -mx-1 transition-colors cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                  isPaidThisMonth ? 'text-good hover:bg-good/10' : 'text-warn hover:bg-warn/10'
                 )}
               >
-                {isToggling ? (
-                  <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
-                ) : isPaidThisMonth ? (
-                  <>
-                    <Check className="h-3 w-3" aria-hidden="true" />
-                    Pagada
-                    <Undo2 className="h-3 w-3 opacity-60" aria-hidden="true" />
-                  </>
-                ) : (
-                  <>
-                    <Clock className="h-3 w-3" aria-hidden="true" />
-                    Pendiente
-                  </>
-                )}
+                {isToggling ? '…' : isPaidThisMonth ? 'pagada' : 'pendiente'}
               </button>
             )}
-            <DropdownMenu modal={false}>
+          </div>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Opciones de suscripción" className="h-6 w-6 min-h-11 min-w-11 text-muted hover:text-text hover:bg-surface-2">
+              <Button variant="ghost" size="icon" aria-label="Opciones de suscripción" className="h-8 w-8 text-muted hover:text-text hover:bg-surface-2">
                 <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
@@ -391,7 +302,6 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          </div>
         </div>
       </div>
 
