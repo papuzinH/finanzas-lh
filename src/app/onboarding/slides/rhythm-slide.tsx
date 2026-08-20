@@ -72,7 +72,7 @@ export function RhythmSlide({ onComplete }: RhythmSlideProps) {
         variant="ghost"
         onClick={() => onComplete(null)}
         disabled={isPending}
-        className="w-full text-muted hover:text-text hover:bg-surface-2/50"
+        className="w-full min-h-11 text-muted hover:text-text hover:bg-surface-2/50"
       >
         Ahora no, lo configuro después
       </Button>
