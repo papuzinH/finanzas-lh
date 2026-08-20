@@ -93,7 +93,15 @@ export function anchorValueForDeclaredBalance(
 export interface CommitmentBreakdown {
   /** Lo que vence dentro del período actual y sale del bolsillo. */
   total: number;
-  items: Array<{ id: string; name: string; amount: number; kind: 'card' | 'fixed' }>;
+  items: Array<{
+    id: string;
+    name: string;
+    amount: number;
+    kind: 'card' | 'fixed';
+    /** Solo las tarjetas: el modelo no guarda fecha de vencimiento de las mensualidades. */
+    dueDate?: Date;
+    isCycleClosed?: boolean;
+  }>;
   /** Lo que vence después del período: no baja el disponible de hoy, pero el usuario tiene que verlo. */
   nextPeriod: number;
 }
@@ -148,7 +156,14 @@ export function computeCommitments(
   for (const card of pendingCards) {
     if (!card.isPending) continue;
     if (withinPeriod(card.nextPaymentDate)) {
-      items.push({ id: card.methodId, name: card.name, amount: card.totalARS, kind: 'card' });
+      items.push({
+        id: card.methodId,
+        name: card.name,
+        amount: card.totalARS,
+        kind: 'card',
+        dueDate: card.nextPaymentDate,
+        isCycleClosed: card.isCycleClosed,
+      });
     } else {
       nextPeriod += card.totalARS;
     }

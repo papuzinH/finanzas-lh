@@ -187,6 +187,19 @@ describe('computeCommitments', () => {
     const r = computeCommitments([], [card({ isPending: false, nextPaymentDate: new Date(2026, 7, 25) })], methods, [], 'monthly', now);
     expect(r.total).toBe(0);
   });
+
+  it('el item de tarjeta lleva su vencimiento y si el ciclo esta cerrado', () => {
+    const vence = new Date(2026, 7, 25);
+    const r = computeCommitments([], [card({ nextPaymentDate: vence, isCycleClosed: true })], methods, [], 'monthly', now);
+    const item = r.items.find((i) => i.kind === 'card');
+    expect(item?.dueDate).toEqual(vence);
+    expect(item?.isCycleClosed).toBe(true);
+  });
+
+  it('el item de un fijo no lleva vencimiento: el modelo no guarda esa fecha', () => {
+    const r = computeCommitments([plan({ amount: 25000 })], [], methods, [], 'monthly', now);
+    expect(r.items.find((i) => i.kind === 'fixed')?.dueDate).toBeUndefined();
+  });
 });
 
 describe('computeAvailableToSpend', () => {
