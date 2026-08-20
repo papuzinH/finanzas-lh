@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { reconcileOptionsFor } from '@/lib/finance/reconcile'
 
 type ActionResponse = {
   error?: string
@@ -189,7 +190,14 @@ export async function reconcileAccount(input: ReconcileInput): Promise<ActionRes
     if (!parsed.success) return { error: 'Datos inválidos' }
 
     const { payment_method_id, difference, date, classification } = parsed.data
-    if (Math.abs(difference) < 1) return { success: true } // redondeo: nada que registrar
+
+    // Qué clasificaciones son válidas para esta diferencia: [] = redondeo, nada que
+    // registrar. El mismo set descarta, por ejemplo, un "transfer" con plata que apareció.
+    const opciones = reconcileOptionsFor(difference)
+    if (opciones.length === 0) return { success: true }
+    if (!opciones.includes(classification.kind)) {
+      return { error: 'Esa opción no aplica para esta diferencia' }
+    }
 
     const { data: method } = await supabase
       .from('payment_methods')
@@ -206,7 +214,6 @@ export async function reconcileAccount(input: ReconcileInput): Promise<ActionRes
     const monto = Math.abs(difference)
 
     if (classification.kind === 'transfer') {
-      if (difference > 0) return { error: 'No se puede mandar al ahorro plata que apareció' }
       const { error } = await supabase.from('internal_transfers').insert({
         user_id: user.id,
         amount: monto,
