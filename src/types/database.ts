@@ -656,6 +656,7 @@ export interface Database {
           income_rhythm: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode: string | null
           onboarding_completed: boolean | null
+          pocket_setup_completed: boolean
           telegram_chat_id: number | null
           tour_completed: boolean
         }
@@ -671,6 +672,7 @@ export interface Database {
           income_rhythm?: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode?: string | null
           onboarding_completed?: boolean | null
+          pocket_setup_completed?: boolean
           telegram_chat_id?: number | null
           tour_completed?: boolean
         }
@@ -686,6 +688,7 @@ export interface Database {
           income_rhythm?: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode?: string | null
           onboarding_completed?: boolean | null
+          pocket_setup_completed?: boolean
           telegram_chat_id?: number | null
           tour_completed?: boolean
         }
