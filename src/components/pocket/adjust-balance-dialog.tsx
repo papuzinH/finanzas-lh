@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -45,17 +45,38 @@ export function AdjustBalanceDialog({
   const [guardando, setGuardando] = useState(false)
 
   const cuenta = cuentas.find((a) => a.methodId === methodId) ?? null
-  const diferencia = cuenta && declarado.trim() !== '' ? Number(declarado) - cuenta.balance : 0
+  // Mientras el usuario escribe (ej. un "-" suelto) Number(declarado) puede ser NaN.
+  // Se trata como "todavía no hay diferencia" en lugar de dejar que reconcileOptionsFor
+  // reciba NaN y devuelva una lista de opciones espuria.
+  const parsedDeclarado = Number(declarado)
+  const diferencia =
+    cuenta && declarado.trim() !== '' && Number.isFinite(parsedDeclarado)
+      ? parsedDeclarado - cuenta.balance
+      : 0
   const opciones = useMemo(() => reconcileOptionsFor(diferencia), [diferencia])
   const reservas = cuentas.filter((a) => a.bucket === 'reserve' && a.methodId !== methodId)
 
   const tipoCategoria = diferencia < 0 ? 'expense' : 'income'
   const categoriasDisponibles = categories.filter((c) => c.type === tipoCategoria)
 
+  // Si el signo de la diferencia cambia (el usuario edita el monto declarado después de
+  // elegir una clasificación), la opción elegida puede dejar de estar entre las vigentes.
+  // Se limpia junto con lo que dependía de ella. Se exige `opciones.length > 0` para no
+  // pisar una selección válida durante un estado transitorio de tipeo (diferencia en 0).
+  useEffect(() => {
+    if (opcion && opciones.length > 0 && !opciones.includes(opcion)) {
+      setOpcion(null)
+      setCategoriaId('')
+      setDestinoId('')
+      setDescripcion('')
+    }
+  }, [opciones, opcion])
+
   const puedeGuardar =
     !!cuenta &&
     opciones.length > 0 &&
     !!opcion &&
+    opciones.includes(opcion) &&
     (opcion !== 'transfer' || !!destinoId) &&
     (opcion === 'transfer' || opcion === 'adjustment' || (!!categoriaId && descripcion.trim().length > 0))
 
