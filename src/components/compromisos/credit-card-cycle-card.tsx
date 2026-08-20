@@ -24,9 +24,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { useFinanceStore, CreditCardCycleSummary } from '@/lib/store/financeStore';
 import { payCreditCardCycle, undoCreditCardPayment } from '@/app/compromisos/actions';
 import { formatCurrency } from '@/lib/utils';
+import { cicloSub } from '@/lib/utils/compromisos-copy';
 
 interface CreditCardCycleChipProps {
   card: CreditCardCycleSummary;
@@ -227,41 +229,38 @@ interface CreditCardCycleCardProps {
 
 export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
   const formattedDate = format(card.nextPaymentDate, "d 'de' MMM", { locale: es });
+  const { getPaymentMethodStatus } = useFinanceStore();
+  const status = getPaymentMethodStatus(card.methodId);
+  const ciclo = cicloSub(status.nextClosingDate, card.nextPaymentDate);
 
   return (
-    <Card className="px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-surface-2 border-[1.5px] border-border">
-            <CreditCard className="h-4 w-4 text-muted" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <p className="font-sans font-bold text-text truncate">{card.name}</p>
-            <p className="text-[11px] text-muted mt-0.5">
-              Ciclo actual · vence {formattedDate}
-            </p>
-          </div>
+    <Card className="px-4 py-3 grid gap-2">
+      {/* Cabecera del mock: tarjeta · ciclo actual, fechas y monto ARS */}
+      <div className="flex items-center gap-2.5">
+        <span className="w-[34px] h-[34px] flex-none grid place-items-center bg-surface-2 border-[1.5px] border-border rounded-[11px]">
+          <CreditCard className="h-4 w-4 text-accent-deep" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 grid gap-px">
+          <span className="font-sans font-bold text-[13.5px] text-text truncate">{card.name} · ciclo actual</span>
+          <span className="text-[11.5px] text-muted">{ciclo.fechas}</span>
         </div>
+        <span className={`ml-auto font-display tnum text-[15px] whitespace-nowrap ${card.isPending ? 'text-bad' : 'text-text'}`}>
+          {card.totalARS > 0 ? formatCurrency(card.totalARS) : formatCurrency(card.total)}
+        </span>
+      </div>
 
-        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+      <ProgressBar value={ciclo.pct} height={8} tone="accent" label="Días transcurridos del ciclo" />
+
+      {/* Días del ciclo + acciones (chip de pago y desglose USD), conservadas */}
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11.5px] text-muted">{ciclo.dias}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          {card.totalUSD > 0 && (
+            <span className={`font-display tnum text-[13px] ${card.isPending ? 'text-bad' : 'text-muted'}`}>
+              u$s {card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          )}
           <CreditCardCycleChip card={card} formattedDate={formattedDate} />
-          <div className="flex flex-col items-end gap-0.5">
-            {card.totalARS > 0 && (
-              <p className={`font-display tnum text-[15px] leading-none ${card.isPending ? 'text-bad' : 'text-muted'}`}>
-                {formatCurrency(card.totalARS)}
-              </p>
-            )}
-            {card.totalUSD > 0 && (
-              <p className={`font-display tnum text-[15px] leading-none ${card.isPending ? 'text-bad' : 'text-muted'}`}>
-                u$s {card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            )}
-            {card.totalARS === 0 && card.totalUSD === 0 && (
-              <p className={`font-display tnum text-[15px] leading-none ${card.isPending ? 'text-bad' : 'text-muted'}`}>
-                {formatCurrency(card.total)}
-              </p>
-            )}
-          </div>
         </div>
       </div>
     </Card>

@@ -380,13 +380,10 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
   const activeSubsCount = plansWithPayment.filter((p) => p.is_active).length;
   const pendingSubs = getPendingFixedExpenses();
 
-  // ── Hero totals ──
-  const totalCompromisosMes = currentMonthCuotas + totalMonthlyCost;
-
   return (
     <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
       <ScreenHeader
-        kicker="compromisos"
+        compact
         title="Compromisos"
         right={
           <AnimatedPlusButton
@@ -405,46 +402,6 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
       <CreateSubscriptionDialog open={isCreateSuscripcionOpen} onOpenChange={setIsCreateSuscripcionOpen} />
 
       <main className="mx-auto max-w-[1440px] space-y-5 pb-4">
-
-        {/* Hero Card */}
-        <div
-          className="mx-5 rounded-2xl border-[1.5px] border-border bg-surface text-text shadow-card p-5"
-          style={{ boxShadow: '0 18px 36px -18px rgba(28,42,71,0.70)' }}
-        >
-          <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-accent-deep">
-            Compromisos del mes
-          </p>
-          <p className="font-display tnum text-[36px] leading-[var(--leading-display)] mt-1 text-text [text-shadow:var(--shadow-bandera)] pr-1.5 pb-1">
-            {formatCurrency(totalCompromisosMes)}
-          </p>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-xl bg-surface-2 border-[1.5px] border-border px-3 py-2">
-              <p className="text-[10.5px] font-bold uppercase tracking-wider text-accent-deep">Cuotas</p>
-              <p className="font-display tnum text-[15px] mt-0.5 text-text">{formatCurrency(currentMonthCuotas)}</p>
-            </div>
-            <div className="rounded-xl bg-surface-2 border-[1.5px] border-border px-3 py-2">
-              <p className="text-[10.5px] font-bold uppercase tracking-wider text-accent-deep">Mensualidades</p>
-              <p className="font-display tnum text-[15px] mt-0.5 text-text">{formatCurrency(totalMonthlyCost)}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Tarjetas de crédito */}
-        {creditCards.length > 0 && (
-          <section className="px-5">
-            <div className="flex items-center gap-2 mb-3">
-              <CreditCard className="h-4 w-4 text-muted" aria-hidden="true" />
-              <h2 className="text-[11px] font-extrabold text-muted uppercase tracking-[0.15em]">
-                Tarjetas de crédito
-              </h2>
-            </div>
-            <div className="flex flex-col gap-3">
-              {creditCards.map((card) => (
-                <CreditCardCycleCard key={card.methodId} card={card} />
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* Segmented Tabs */}
         <div data-tour="compromisos-tabs" className="px-5">
@@ -468,18 +425,25 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
             aria-labelledby="compromisos-tab-cuotas"
             className="px-5 space-y-4"
           >
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
-                <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Deuda Futura</p>
-                <p className="font-display tnum text-[20px] text-text">{formatCurrency(totalDebtFuturo)}</p>
-                <p className="text-[10px] text-muted mt-1">Pendiente a largo plazo</p>
+            <div className="grid grid-cols-2 rounded-[18px] bg-surface border-[1.5px] border-border shadow-card overflow-hidden">
+              <div className="grid gap-0.5 px-4 py-3 border-r-[1.5px] border-border">
+                <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">Pendiente este mes</span>
+                <span className="font-display tnum text-[17px] text-warn">{formatCurrency(currentMonthCuotas)}</span>
               </div>
-              <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
-                <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Cuotas activas</p>
-                <p className="font-display tnum text-[20px] text-text">{activeCuotas.length}</p>
-                <p className="text-[10px] text-muted mt-1">Planes en curso</p>
+              <div className="grid gap-0.5 px-4 py-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">Deuda futura</span>
+                <span className="font-display tnum text-[17px] text-text">{formatCurrency(totalDebtFuturo)}</span>
               </div>
             </div>
+
+            {/* Ciclos de tarjeta — las cards hablan solas, sin header de sección */}
+            {creditCards.length > 0 && (
+              <div className="flex flex-col gap-3">
+                {creditCards.map((card) => (
+                  <CreditCardCycleCard key={card.methodId} card={card} />
+                ))}
+              </div>
+            )}
 
             {plansWithProgress.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
@@ -495,6 +459,11 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
               </div>
             ) : (
               <>
+                <div className="flex items-baseline justify-between mt-1">
+                  <h2 className="font-display text-text text-[18px]">Planes en curso</h2>
+                  <span className="text-[12.5px] font-bold text-muted">{activeCuotas.length} activo{activeCuotas.length !== 1 ? 's' : ''}</span>
+                </div>
+
                 {activeCuotas.length > 0 ? (
                   <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {activeCuotas.map((plan) => (
@@ -565,24 +534,23 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Pendiente este mes</p>
-                    <p className={cn('font-display tnum text-[20px]', pendingSubs.total > 0 ? 'text-bad' : 'text-good')}>
-                      {formatCurrency(pendingSubs.total)}
-                    </p>
-                    <p className="text-[10px] text-muted mt-1">
-                      {pendingSubs.total > 0 ? 'Sin registrar aún' : 'Todo al día'}
-                    </p>
+                <div className="grid grid-cols-2 rounded-[18px] bg-surface border-[1.5px] border-border shadow-card overflow-hidden">
+                  <div className="grid gap-0.5 px-4 py-3 border-r-[1.5px] border-border">
+                    <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">Total mensual</span>
+                    <span className="font-display tnum text-[17px] text-text">{formatCurrency(totalMonthlyCost)}</span>
                   </div>
-                  <div className="rounded-2xl bg-surface border-[1.5px] border-border p-5 text-center">
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Activas</p>
-                    <p className="font-display tnum text-[20px] text-text">{activeSubsCount}</p>
-                    <p className="text-[10px] text-muted mt-1">Mensualidades en curso</p>
+                  <div className="grid gap-0.5 px-4 py-3">
+                    <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">Por pagar</span>
+                    <span className={cn('font-display tnum text-[17px]', pendingSubs.total > 0 ? 'text-warn' : 'text-good')}>{formatCurrency(pendingSubs.total)}</span>
                   </div>
                 </div>
 
-                <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="flex items-baseline justify-between mt-1">
+                  <h2 className="font-display text-text text-[18px]">Activas</h2>
+                  <span className="text-[12.5px] font-bold text-muted">{activeSubsCount} mensualidad{activeSubsCount !== 1 ? 'es' : ''}</span>
+                </div>
+
+                <StaggeredList className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
                   {plansWithPayment.map((plan) => (
                     <StaggeredItem key={plan.id}>
                       <SubscriptionCard plan={plan} />
