@@ -155,7 +155,7 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                             'min-h-11 rounded-lg py-3 text-sm font-semibold transition-all',
                             'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
                             field.value === opt.value
-                              ? 'bg-accent text-accent-ink shadow-offset'
+                              ? 'bg-accent text-accent-ink'
                               : 'text-muted hover:text-text'
                           )}
                         >
@@ -234,7 +234,7 @@ export function EditSavingsGoalDialog({ goal }: Props) {
                 type="submit"
                 form="edit-savings-goal-form"
                 disabled={isPending}
-                className="w-full min-h-[52px] rounded-xl bg-accent hover:bg-accent-deep text-accent-ink text-base font-semibold shadow-offset transition-all active:scale-[0.98]"
+                className="w-full min-h-[52px] rounded-xl bg-accent hover:bg-accent-deep text-accent-ink text-base font-semibold transition-all active:scale-[0.98]"
               >
                 {isPending ? (
                   <>

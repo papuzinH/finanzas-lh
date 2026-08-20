@@ -498,7 +498,7 @@ export function InstallmentSelector<T extends FieldValues>({
                   'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none active:scale-90',
                   watchedCount >= max
                     ? 'bg-surface-2/40 text-faint cursor-not-allowed'
-                    : 'bg-accent text-accent-ink shadow-offset hover:opacity-90'
+                    : 'bg-accent text-accent-ink hover:opacity-90'
                 )}
               >
                 <Plus className="h-5 w-5" />

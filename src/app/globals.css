@@ -200,7 +200,6 @@
      elevación real. */
   --shadow-card:   0 1px 0 0 var(--border);          /* línea de apoyo, no elevación */
   --shadow-float:  0 18px 36px -18px rgb(var(--navy-700-rgb) / 0.70);
-  --shadow-offset: 3px 3px 0 0 var(--accent-deep);   /* botones: se hunden al presionar */
   --shadow-fab:    0 10px 22px -10px rgb(var(--navy-700-rgb) / 0.55);
 
   /* Firma de la marca — solo para la cifra display grande (hero, cartera).
@@ -389,7 +388,6 @@
   /* Sombras */
   --shadow-card:   var(--shadow-card);
   --shadow-float:  var(--shadow-float);
-  --shadow-offset: var(--shadow-offset);
   --shadow-fab:    var(--shadow-fab);
   --shadow-bandera: var(--shadow-bandera);
   --color-btn-soft-active: var(--btn-soft-active);

@@ -110,7 +110,7 @@ export function OnboardingFlow() {
               </div>
               <Button
                 size="lg"
-                className="bg-accent hover:bg-accent-deep text-accent-ink h-12 px-8 text-base font-medium shadow-offset"
+                className="bg-accent hover:bg-accent-deep text-accent-ink h-12 px-8 text-base font-medium"
                 onClick={() => setSlide('features')}
               >
                 Empezar
@@ -151,7 +151,7 @@ export function OnboardingFlow() {
               </div>
               <Button
                 size="lg"
-                className="w-full bg-accent hover:bg-accent-deep text-accent-ink h-12 text-base font-medium shadow-offset"
+                className="w-full bg-accent hover:bg-accent-deep text-accent-ink h-12 text-base font-medium"
                 onClick={() => setSlide('name')}
               >
                 <Sparkles className="mr-2 h-5 w-5" />
@@ -249,7 +249,7 @@ export function OnboardingFlow() {
               <Button
                 size="lg"
                 disabled={finishing}
-                className="w-full bg-accent hover:bg-accent-deep text-accent-ink h-12 text-base font-medium shadow-offset"
+                className="w-full bg-accent hover:bg-accent-deep text-accent-ink h-12 text-base font-medium"
                 onClick={handleFinish}
               >
                 {finishing ? (

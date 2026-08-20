@@ -45,7 +45,7 @@ Esta feature no posee tablas propias, pero el middleware y los clientes tocan el
 - **SQL primero, merge después** — regla de oro repetida en `CLAUDE.md`, la skill y `REGLAS_PARA_DEPLOY.md`.
 - `public/sw.js`/`sw.js.map` están gitignoreados: no buscarlos en el repo; se generan en `npm run build` (Webpack; dev usa Turbopack).
 - El matcher del middleware excluye `/api/*` (la exclusión vive en `updateSession`, los route handlers hacen su propio `auth.getUser()`); las rutas de API devuelven 401 propio.
-- Cambiar UI: **solo tokens semánticos** (`bg-bg`, `bg-surface`, `text-good/bad/warn`, `border-[1.5px] border-border`, `shadow-offset`…) — nunca hex ni escalas Tailwind (`emerald-*`, `slate-*`, etc.). El mapeo vive en `globals.css` bajo `@theme inline`.
+- Cambiar UI: **solo tokens semánticos** (`bg-bg`, `bg-surface`, `text-good/bad/warn`, `border-[1.5px] border-border`, `shadow-card`…) — nunca hex ni escalas Tailwind (`emerald-*`, `slate-*`, etc.). El mapeo vive en `globals.css` bajo `@theme inline`.
 - El `theme_color` del manifest (`#020617`, slate-950) predata el design system crema — si se toca, revisar consistencia con `--bg`.
 - Pull-to-refresh: implementación propia con `touchmove` **no pasivo** (`preventDefault`); solo se activa con `window.scrollY === 0`. No usar librerías de PTR.
 - `.env.local` requiere `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (el client browser lanza si faltan). El chat suma `GEMINI_API_KEY` (ver `lib/ai/`).

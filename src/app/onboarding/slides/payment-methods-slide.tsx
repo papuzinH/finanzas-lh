@@ -236,7 +236,7 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
         size="lg"
         onClick={handleFinish}
         disabled={isPending || methods.length === 0}
-        className="w-full bg-accent hover:bg-accent-deep text-accent-ink h-12 text-base font-medium shadow-offset"
+        className="w-full bg-accent hover:bg-accent-deep text-accent-ink h-12 text-base font-medium"
       >
         {isPending ? (
           <Loader2 className="h-5 w-5 animate-spin" />

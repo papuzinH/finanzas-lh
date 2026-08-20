@@ -152,7 +152,7 @@ export function EditPaymentMethodDialog({
                               'min-h-11 rounded-lg py-2.5 text-sm font-semibold transition-all flex items-center justify-center gap-1.5',
                               'focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
                               field.value === t.value
-                                ? 'bg-accent text-accent-ink shadow-offset'
+                                ? 'bg-accent text-accent-ink'
                                 : 'text-muted hover:text-text'
                             )}
                           >
@@ -284,7 +284,7 @@ export function EditPaymentMethodDialog({
             type="submit"
             form="edit-payment-method-form"
             disabled={isPending}
-            className="w-full min-h-[52px] rounded-xl bg-accent hover:bg-accent-deep text-accent-ink text-base font-semibold shadow-offset transition-all active:scale-[0.98]"
+            className="w-full min-h-[52px] rounded-xl bg-accent hover:bg-accent-deep text-accent-ink text-base font-semibold transition-all active:scale-[0.98]"
           >
             {isPending ? (
               <>

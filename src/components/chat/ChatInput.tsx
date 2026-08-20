@@ -111,7 +111,7 @@ export function ChatInput() {
           aria-label="Enviar mensaje"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="flex-shrink-0 bg-accent text-accent-ink border-[1.5px] border-accent-deep rounded-full p-2.5 min-h-[44px] min-w-[44px] disabled:opacity-50 shadow-offset active:translate-y-[2px] transition-transform focus-visible:outline-none"
+          className="flex-shrink-0 bg-accent text-accent-ink border-[1.5px] border-accent-deep rounded-full p-2.5 min-h-[44px] min-w-[44px] disabled:opacity-50 active:translate-y-[2px] transition-transform focus-visible:outline-none"
         >
           <Send className="w-5 h-5" />
         </motion.button>

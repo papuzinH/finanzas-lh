@@ -88,7 +88,7 @@ UI: selector de medio en el chip de Compromisos (`credit-card-cycle-card.tsx`) +
 - **Fondo de app**: `bg-bg`. Cards: `bg-surface`.
 - **Tokens semánticos SIEMPRE**: nunca hardcodees hex ni colores Tailwind para UI.
   - Layout: `bg-bg`, `bg-bg-2`, `bg-surface`, `bg-surface-2`, `text-text`, `text-muted`, `text-faint`, `border-border`
-  - Acento: `bg-accent text-accent-ink border-accent-deep shadow-offset`
+  - Acento: `bg-accent text-accent-ink border-accent-deep`
   - Financiero: `text-good` (ingreso/positivo), `text-bad` (gasto/negativo), `text-warn` (atención)
   - Marca: `--bandera` (celeste de la cinta, fijo — no cambia con el tema), `--shadow-bandera` (la firma: doble sombra tiza+celeste; UNA cifra por pantalla, con padding a la derecha/abajo para que `truncate`/`overflow` no la recorte), `--logo-slot` (ranuras del chancho), paleta `--estraza-*` (noche).
 - **NO usar**: `emerald-*`, `rose-*`, `indigo-*`, `violet-*`, `slate-*` ni `dark:` para UI nueva.
@@ -99,7 +99,7 @@ UI: selector de medio en el chip de Compromisos (`credit-card-cycle-card.tsx`) +
   - `font-serif` (Bitter): sello, cintas y usos editoriales de marca
   - `tnum`: TODOS los números financieros (alineación en columna)
 - **Marca**: el chancho es `<Chancho>` de `@/components/brand/chancho` — NUNCA `<img>` (se recolorea por tema; pasarle `slot` con el color del fondo cuando se apoya sobre superficie de color). Assets en `public/brand/*.svg`. Emoji: los del usuario en sus categorías se respetan como dato; la UI de marca no agrega emoji propios.
-- **Botones**: `<Button>` de `@/components/ui/button` → pill + `border-[1.5px] shadow-offset active:translate-y-[2px]`. Variants: `accent`, `navy`, `soft`, `ghost`.
+- **Botones**: `<Button>` de `@/components/ui/button` → pill + `border-[1.5px] active:translate-y-[2px]`. Variants: `accent`, `navy`, `soft`, `ghost`. ⚠️ **Los botones NO llevan sombra** (2026-08-20): el token `--shadow-offset` fue eliminado del sistema — el peso visual lo da el borde de 1.5px, no una sombra dura. El `active:translate-y` se conserva como feedback táctil. Las sombras que siguen vivas son `shadow-card` (línea de apoyo), `shadow-fab` (única elevación real, el botón flotante) y `--shadow-bandera` (firma de la cifra).
 - **Cards**: `<Card>` de `@/components/ui/card` → `rounded-2xl bg-surface border-[1.5px] border-border shadow-card`.
 - **Tabs**: `<TabsDS>` de `@/components/ui/tabs-ds`. **Toggles**: `<ToggleDS>`. **Chips**: `<Chip>`. **Banners**: `<BannerDS>`. **Progress bars**: `<ProgressBar>` con `tone="accent|good|warn|bad"`.
 - **Íconos**: `lucide-react` directo (importar específicos) O `<Icon name="..." />` de `@/components/ui/icon`.

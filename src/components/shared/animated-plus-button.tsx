@@ -63,7 +63,7 @@ export function AnimatedPlusButton({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-          "absolute right-0 top-0 flex items-center justify-center rounded-full bg-accent text-accent-ink border-[1.5px] border-accent-deep shadow-offset disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 z-10",
+          "absolute right-0 top-0 flex items-center justify-center rounded-full bg-accent text-accent-ink border-[1.5px] border-accent-deep disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 z-10",
           // En desktop la pill queda fija y expandida, sin depender del estado de animación.
           "md:static md:h-11 md:w-fit md:px-3.5 md:min-w-11",
           isExpanded

@@ -409,7 +409,7 @@ export function CategoryCardActions({ category, allCategories }: Props) {
                   type="submit"
                   form="edit-category-form"
                   disabled={editLoading}
-                  className="w-full min-h-[52px] rounded-xl bg-accent hover:bg-accent-deep text-accent-ink text-base font-semibold shadow-offset transition-all active:scale-[0.98]"
+                  className="w-full min-h-[52px] rounded-xl bg-accent hover:bg-accent-deep text-accent-ink text-base font-semibold transition-all active:scale-[0.98]"
                 >
                   {editLoading ? (
                     <>
