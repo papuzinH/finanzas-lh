@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeAccountBalance, getPeriodEnd, computeCommitments } from '../pocket';
+import { computeAccountBalance, getPeriodEnd, computeCommitments, computeAvailableToSpend } from '../pocket';
 import type { PaymentMethod, InternalTransfer, RecurringPlan } from '@/types/database';
 import type { ProcessedTransaction, CreditCardCycleSummary } from '../types';
 
@@ -146,5 +146,38 @@ describe('computeCommitments', () => {
   it('ignora una tarjeta ya pagada', () => {
     const r = computeCommitments([], [card({ isPending: false, nextPaymentDate: new Date(2026, 7, 25) })], methods, [], 'monthly', now);
     expect(r.total).toBe(0);
+  });
+});
+
+describe('computeAvailableToSpend', () => {
+  const now = new Date(2026, 7, 20);
+  const pocket = method({ id: 'poc', name: 'Billetera', bucket: 'pocket', initial_balance: 150000, initial_balance_at: '2026-08-01' });
+  const reserve = method({ id: 'res', name: 'Mis dolares', bucket: 'reserve', initial_balance: 500000, initial_balance_at: '2026-08-01' });
+
+  it('suma solo los medios del bolsillo', () => {
+    const r = computeAvailableToSpend({
+      paymentMethods: [pocket, reserve], transactions: [], transfers: [],
+      recurringPlans: [], pendingCards: [], rhythm: 'monthly', now,
+    });
+    expect(r.pocketTotal).toBe(150000);
+    expect(r.available).toBe(150000);
+  });
+
+  it('expone las reservas aparte, sin sumarlas al disponible', () => {
+    const r = computeAvailableToSpend({
+      paymentMethods: [pocket, reserve], transactions: [], transfers: [],
+      recurringPlans: [], pendingCards: [], rhythm: 'monthly', now,
+    });
+    expect(r.reserveTotal).toBe(500000);
+    expect(r.accounts.find((a) => a.methodId === 'res')?.bucket).toBe('reserve');
+  });
+
+  it('las tarjetas de credito no suman saldo al bolsillo', () => {
+    const credit = method({ id: 'cred', type: 'credit', bucket: 'pocket', initial_balance: 0, initial_balance_at: null });
+    const r = computeAvailableToSpend({
+      paymentMethods: [pocket, credit], transactions: [], transfers: [],
+      recurringPlans: [], pendingCards: [], rhythm: 'monthly', now,
+    });
+    expect(r.pocketTotal).toBe(150000);
   });
 });

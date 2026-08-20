@@ -113,3 +113,61 @@ export function computeCommitments(
 
   return { total: items.reduce((acc, i) => acc + i.amount, 0), items, nextPeriod };
 }
+
+export interface AccountBalance {
+  methodId: string;
+  name: string;
+  bucket: 'pocket' | 'reserve';
+  balance: number;
+}
+
+export interface AvailableInputs {
+  paymentMethods: PaymentMethod[];
+  transactions: ProcessedTransaction[];
+  transfers: InternalTransfer[];
+  recurringPlans: RecurringPlan[];
+  pendingCards: CreditCardCycleSummary[];
+  rhythm: IncomeRhythm;
+  now?: Date;
+}
+
+export interface AvailableToSpend {
+  /** El número central: lo que se puede gastar hoy sin quedar en negativo. */
+  available: number;
+  pocketTotal: number;
+  reserveTotal: number;
+  committed: number;
+  committedNextPeriod: number;
+  commitmentItems: CommitmentBreakdown['items'];
+  accounts: AccountBalance[];
+}
+
+export function computeAvailableToSpend(inputs: AvailableInputs): AvailableToSpend {
+  const { paymentMethods, transactions, transfers, recurringPlans, pendingCards, rhythm } = inputs;
+  const now = inputs.now ?? new Date();
+
+  // Las tarjetas de crédito no tienen saldo propio: su deuda se deriva del ciclo.
+  const accounts: AccountBalance[] = paymentMethods
+    .filter((m) => m.type !== 'credit')
+    .map((m) => ({
+      methodId: m.id,
+      name: m.name,
+      bucket: m.bucket,
+      balance: computeAccountBalance(m, transactions, transfers),
+    }));
+
+  const pocketTotal = accounts.filter((a) => a.bucket === 'pocket').reduce((acc, a) => acc + a.balance, 0);
+  const reserveTotal = accounts.filter((a) => a.bucket === 'reserve').reduce((acc, a) => acc + a.balance, 0);
+
+  const commitments = computeCommitments(recurringPlans, pendingCards, paymentMethods, transactions, rhythm, now);
+
+  return {
+    available: pocketTotal - commitments.total,
+    pocketTotal,
+    reserveTotal,
+    committed: commitments.total,
+    committedNextPeriod: commitments.nextPeriod,
+    commitmentItems: commitments.items,
+    accounts,
+  };
+}
