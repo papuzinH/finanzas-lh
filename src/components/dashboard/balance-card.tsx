@@ -74,7 +74,8 @@ export function BalanceCard() {
 
   const animatedBalance = useCountUp(available)
   const isNegative = available < 0
-  const sinAnclar = accounts.length > 0 && accounts.every((a) => !a.anchored)
+  const pocketAccounts = accounts.filter((a) => a.bucket === 'pocket')
+  const sinAnclar = pocketAccounts.length > 0 && pocketAccounts.every((a) => !a.anchored)
   const proximo = nextPeriodLabel(incomeRhythm)
 
   const formatCurrency = (amount: number) =>
@@ -167,7 +168,7 @@ export function BalanceCard() {
                     </span>
                   </div>
                   <ul className="pl-[18px] space-y-1">
-                    {accounts.filter((a) => a.bucket === 'pocket').map((a) => (
+                    {pocketAccounts.map((a) => (
                       <li key={a.methodId} className="flex justify-between items-baseline gap-2">
                         <span className="min-w-0 truncate text-[11px] text-faint">
                           {a.name}{a.anchored ? '' : ' · sin saldo declarado'}
