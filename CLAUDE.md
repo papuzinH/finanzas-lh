@@ -2,7 +2,7 @@
 Next.js App Router · Supabase (PostgreSQL + Auth) · Zustand · TypeScript
 
 ## Documentación por feature: `docs/features/`
-Un doc por gran feature (arquitectura, archivos clave, tablas DB, invariantes y gotchas) pensado como contexto para iteraciones agénticas — **leer el de la feature que vayas a tocar**: `home-dashboard`, `movimientos`, `compromisos`, `objetivos`, `inversiones`, `medios-de-pago`, `categorias`, `asistente-ia`, `onboarding-auth`, `ajustes-perfil`, `transferencias-internas`, `pwa-plataforma`. Los planes/specs históricos por fecha viven en `docs/superpowers/`.
+Un doc por gran feature (arquitectura, archivos clave, tablas DB, invariantes y gotchas) pensado como contexto para iteraciones agénticas — **leer el de la feature que vayas a tocar**: `home-dashboard`, `movimientos`, `compromisos`, `objetivos`, `inversiones`, `medios-de-pago`, `categorias`, `asistente-ia`, `onboarding-auth`, `ajustes-perfil`, `transferencias-internas`, `pwa-plataforma`, `bolsillo`. Los planes/specs históricos por fecha viven en `docs/superpowers/`.
 
 ## Comandos
 ```bash
@@ -11,7 +11,7 @@ npm run build    # Producción (Webpack)
 npm run lint     # ESLint
 npm test         # Vitest (run) · npm run test:watch para watch
 ```
-Tests en `src/**/__tests__/`. Los del store (`lib/store/__tests__/analysis-getters.test.ts`, `disponible-real.test.ts`) siembran estado con `useFinanceStore.setState` y `vi.useFakeTimers`. La suite está **entera en verde** (354/354 al 2026-08-03).
+Tests en `src/**/__tests__/`. Los del store (`lib/store/__tests__/analysis-getters.test.ts`, `recurring-backfill-preview.test.ts`) siembran estado con `useFinanceStore.setState` y `vi.useFakeTimers`. La suite está **entera en verde**.
 
 ## Reglas Server / Client
 - `app/` → Server Components por defecto.
@@ -61,10 +61,11 @@ El disponible sale **solo del bolsillo**: `payment_methods.bucket` decide si una
 - **Saldo anclado**: `initial_balance` + `initial_balance_at`. Sin fecha, la cuenta está "sin anclar" y suma desde el primer movimiento (el modelo viejo). Con fecha, se computan solo los movimientos entre el ancla y **hoy** — una cuota que vence en febrero todavía no salió de la cuenta.
 - **`amount` se guarda SIEMPRE positivo**: el signo lo lleva `type`. Nunca asumir montos con signo.
 - **Convertir un saldo declarado en ancla**: `anchorValueForDeclaredBalance()`. Guardar el declarado tal cual restaría dos veces lo ya registrado hoy.
-- **Compromisos del período** (`computeCommitments`): un fijo se descuenta si sale del bolsillo y vence dentro del período. Los fijos de **crédito NO se descuentan**: ya viajan dentro del resumen de su tarjeta. Los resúmenes que vencen después del período van a `committedNextPeriod`, que se muestra pero no baja el disponible.
+- **Compromisos del período** (`computeCommitments`): las **tarjetas** se descuentan si su resumen vence dentro del período (si no, van a `committedNextPeriod`, que se muestra pero no baja el disponible); los **fijos** (mensualidades) se descuentan si sale del bolsillo, siempre en base al mes calendario (`computePendingFixedExpenses`, sin fecha de vencimiento propia) — no respetan el recorte de un período más corto como `weekly`/`biweekly`, es la lectura conservadora dado que el modelo no sabe cuándo vence cada mensualidad. Los fijos de **crédito NO se descuentan** aparte: ya viajan dentro del resumen de su tarjeta.
 - **Ritmo de cobro** (`users.income_rhythm`): se declara el ritmo, no la fecha. `irregular` = sin período: se descuenta todo lo comprometido, que es la lectura conservadora cuando no hay próximo cobro que asumir.
 - **Conciliación** (`lib/finance/reconcile.ts` + `src/app/bolsillo/actions.ts`): primero se recupera el dato (recordatorio de anotar a los 2 días), y solo si el usuario afirma que ya anotó todo se ofrece el ajuste. Un ajuste es una transacción con `is_balance_adjustment = true`: queda visible en el historial, **nunca** reescribe el pasado, y se excluye de las analíticas de consumo igual que `card_payment_for`.
 - **Limitación conocida**: el pago parcial de tarjeta queda fuera de alcance. `isCreditCardCyclePaid` da el ciclo por saldado con cualquier pago en el mes del vencimiento; quien paga el mínimo queda con deuda viva e intereses y la app le dice que está al día.
+- **Limitación conocida**: `payment_methods` no tiene columna de moneda, así que `initial_balance` es un número sin unidad — mientras que `prepareTransactions` convierte los movimientos en USD a ARS antes de tocar el saldo. Una reserva pensada en dólares (ej. "Mis dólares" con `initial_balance: 2800`) mezcla ese ancla en USD con gastos ya convertidos a ARS: un gasto de USD 100 le resta ~$130.000 al saldo de la cuenta, no 100. El disponible no se ve afectado (las reservas no lo alimentan), pero la cifra que se muestra bajo "Guardado en reservas" y en `/ajustes/medios` para esa cuenta queda sin sentido. No hay fix de código previsto: hace falta una columna de moneda por cuenta.
 - Spec: `docs/superpowers/specs/2026-08-20-disponible-real-anclado-design.md`.
 
 ## Asistente IA (chat agéntico)

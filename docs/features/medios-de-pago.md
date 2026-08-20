@@ -17,7 +17,7 @@ Gestión de los medios de pago del usuario (tarjetas de crédito, débito, efect
 | `src/lib/schemas/payment-method.ts` | Zod: `createPaymentMethodSchema` (`type: 'credit'|'debit'|'cash'`, días de cierre/vencimiento, `is_personal`, `is_default`) |
 | `src/components/medios-pago/create-payment-method-dialog.tsx` | Alta (toggle "Predeterminado"; oculto para `is_personal`) |
 | `src/components/medios-pago/edit-payment-method-dialog.tsx` / `delete-payment-method-dialog.tsx` | Edición / borrado con reasignación |
-| `src/components/medios-pago/institutional-card.tsx` / `personal-debt-card.tsx` | Cards de cuenta institucional vs deuda personal |
+| `src/components/medios-pago/institutional-card.tsx` / `personal-debt-card.tsx` | Cards de cuenta institucional vs deuda personal. `institutional-card.tsx` abre `EditAnchorDialog` (`src/components/pocket/edit-anchor-dialog.tsx`, ver `docs/features/bolsillo.md`) para re-anclar el saldo o cambiar el bucket de una cuenta |
 | `src/components/medios-pago/payment-method-detail-modal.tsx` | Detalle con movimientos del mes |
 | `src/components/medios-pago/register-card-payment-dialog.tsx` | Registrar pago de resumen de tarjeta (típicamente meses anteriores) |
 | `src/lib/finance/balances.ts` | `computePaymentMethodStatus`, `computePendingCreditCards`, `hasCardPaymentInCycle` |
@@ -37,7 +37,7 @@ Gotcha crítico: estas tablas usan el id interno de `public.users` (`users.id`),
 1. **Alta/edición**: validación Zod (para crédito, `default_closing_day !== default_payment_day`). Invariante de **un solo `is_default` por usuario**: si el nuevo/editado queda como default, la action primero resetea `is_default = false` en TODOS los medios del usuario y después marca este.
 2. **Estado por medio** (`getPaymentMethodStatus` → `computePaymentMethodStatus`):
    - **Crédito con ciclo** = "a pagar en el vencimiento": suma gastos cuya `t.date` (ya es fecha de vencimiento calculada) cae en el mes/año de `nextPaymentDate` + mensualidades adheridas activas sin transacción en el ciclo (deduplicadas por `recurring_plan_id`) − reintegros del ciclo. `projectedTotal` **negativo = se debe** a la tarjeta. Devuelve `arsExpenses`/`usdExpenses` por separado (el desglose NO convierte USD→ARS; la conversión solo alimenta el total).
-   - **Débito/efectivo** (o crédito sin ciclo) = saldo histórico `ingresos − gastos` (cuotas contadas hasta fin del mes actual). Los pagos de tarjeta registrados en la cuenta la debitan como cualquier gasto.
+   - **Débito/efectivo** (o crédito sin ciclo) = saldo histórico `ingresos − gastos` (cuotas contadas hasta fin del mes actual). Los pagos de tarjeta registrados en la cuenta la debitan como cualquier gasto. Este es el saldo "de siempre" que muestra el detalle de la cuenta; el que alimenta el disponible del home es otro cálculo (`computeAccountBalance`, ancla + movimientos desde el ancla — ver `docs/features/bolsillo.md`), no `computePaymentMethodStatus`.
 3. **Borrado**: `deletePaymentMethod` (directo) o `reassignAndDeletePaymentMethod(id, newMethodId | null)` que primero reapunta `transactions`, `recurring_plans` e `installment_plans` al nuevo medio (o `null`) y recién entonces borra.
 4. **Arreglo masivo** (`assignDefaultToUnassignedTransactions`): asigna el medio `is_default` a todas las transacciones con `payment_method_id = null`. Si el default es crédito con ciclo, recalcula la fecha de cada transacción con la lógica de ciclo (rama `isCredit`); si no, solo setea el medio. Banner en `/ajustes/medios` alimentado por `getUnassignedTransactionsCount()`.
 5. **Registrar pago de resumen** (`RegisterCardPaymentDialog` → `payCreditCardCycle` de `src/app/compromisos/actions.ts`): para meses anteriores u olvidados. El medio financiador no puede ser una tarjeta de crédito, ni `is_personal`, ni la tarjeta pagada. Crea la transacción con `card_payment_for` (baja el saldo del financiador, neutra para el Disponible Real global).
@@ -55,11 +55,12 @@ Gotcha crítico: estas tablas usan el id interno de `public.users` (`users.id`),
 ## Tests
 - `src/lib/finance/__tests__/balances.test.ts` — `computePaymentMethodStatus` (crédito vs débito), `computePendingCreditCards`, `hasCardPaymentInCycle`.
 - `src/lib/finance/__tests__/creditCycle.test.ts` — avance de ciclo y pertenencia por vencimiento.
-- `src/lib/store/__tests__/disponible-real.test.ts` — interacción de pagos de tarjeta con el Disponible Real.
+- `src/lib/finance/__tests__/pocket.test.ts`, `escenarios-disponible.test.ts` — saldo anclado por cuenta (`computeAccountBalance`) y su interacción con pagos de tarjeta.
 - Correr con `npm test`.
 
 ## Docs relacionados
-- `CLAUDE.md` — sección "Medios de pago" (fuente canónica de las reglas de default y pago de tarjeta).
+- `CLAUDE.md` — sección "Medios de pago" (fuente canónica de las reglas de default y pago de tarjeta) y "Modelo de bolsillo" (bucket/ancla por cuenta).
+- `docs/features/bolsillo.md` — bucket (`pocket`/`reserve`) y saldo anclado (`initial_balance`/`initial_balance_at`) por cuenta; edición desde `EditAnchorDialog`.
 - `docs/features/compromisos.md` — ciclos de tarjeta y pago de resúmenes.
 - `docs/superpowers/specs/2026-07-06-lo-que-se-viene-vencimientos-tarjeta-design.md` — vencimientos por tarjeta en el home.
 - `docs/superpowers/specs/2026-07-07-chatbot-asistente-ia-design.md` — cómo el agente resuelve el medio de pago.

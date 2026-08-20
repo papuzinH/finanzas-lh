@@ -47,19 +47,22 @@ Gotcha crítico (documentado en CLAUDE.md, fuente de bugs silenciosos en el chat
 - **Pertenencia al ciclo**: en crédito `t.date` ya es la fecha de vencimiento calculada (`calculateCreditPaymentDate`), así que un movimiento pertenece al ciclo sii su mes/año coincide con `nextPaymentDate` (`sameMonthYear`).
 - **Pago de tarjeta es neutro para el Disponible Real global** y las analíticas de consumo (`isExpenseInCurrentMonthScope` y los cómputos globales excluyen `card_payment_for`: las compras ya están itemizadas, restarlo duplicaría). Sí baja el saldo del medio financiador.
 - **`isCreditCardCyclePaid(methodId)`** = existe transacción `card_payment_for` en el mes del vencimiento vigente (`hasCardPaymentInCycle`). El viejo flag `paidCycles`/localStorage fue **eliminado** (cero referencias en `src/`) — no reintroducirlo.
-- Invariante del home: pagar mensualidad o tarjeta NO mueve el `disponibleReal` global (el monto pasa de "pendiente" a "gastado").
+- Invariante del home: pagar mensualidad o tarjeta NO mueve "Tu plata libre para hoy" (`getAvailableToSpend`, modelo de bolsillo — ver `docs/features/bolsillo.md`): el monto pasa de "pendiente" a formar parte del saldo ya movido de la cuenta financiadora, neto cero.
+- Los fijos (mensualidades) se descuentan del disponible siempre en base al **mes calendario** (`computePendingFixedExpenses` no guarda fecha de vencimiento por plan) — a diferencia de las tarjetas, que sí respetan un período de cobro más corto (`weekly`/`biweekly`) en `computeCommitments`.
 - Cambios de lógica de ciclo/balance van en `src/lib/finance/` (funciones puras compartidas con el chatbot), nunca en componentes ni en el cuerpo de los getters.
 - Fechas siempre con `parseLocalDate()` / `dateToLocalString()` de `src/lib/utils/dates.ts` (bugs UTC).
 
 ## Tests
 - `src/lib/finance/__tests__/creditCycle.test.ts`, `balances.test.ts`, `pending.test.ts`, `prepare.test.ts` — lógica pura de ciclos, pendientes y pagos de tarjeta.
-- `src/lib/store/__tests__/disponible-real.test.ts` — incluye `getRecurringBackfillPreview` (piso por primer ingreso, exceso) y el efecto de mensualidades/tarjetas en el Disponible Real.
+- `src/lib/finance/__tests__/pocket.test.ts`, `escenarios-disponible.test.ts` — `computeCommitments` (qué sale del bolsillo cada período) y el efecto neutro de pagar mensualidades/tarjetas sobre el disponible (E8/E9).
+- `src/lib/store/__tests__/recurring-backfill-preview.test.ts` — `getRecurringBackfillPreview` (piso por primer ingreso, exceso). Restaurado desde el viejo `disponible-real.test.ts` (retirado junto con `getRealAvailableBalance`) porque eran los únicos tests de este getter, que sigue vivo.
 - `src/lib/store/__tests__/analysis-getters.test.ts` — getters de análisis que excluyen `card_payment_for`.
 - Correr con `npm test`.
 
 ## Docs relacionados
-- `CLAUDE.md` — secciones "Store", "Lógica financiera compartida", "Medios de pago" (pago de tarjeta) y "Fechas y ciclos de tarjeta".
+- `CLAUDE.md` — secciones "Store", "Lógica financiera compartida", "Modelo de bolsillo", "Medios de pago" (pago de tarjeta) y "Fechas y ciclos de tarjeta".
+- `docs/features/bolsillo.md` — modelo de disponible anclado; por qué los fijos de crédito no se descuentan aparte de la tarjeta.
 - `docs/superpowers/specs/2026-07-02-cards-cuotas-ritmo-claridad-design.md` — claridad de cards de cuotas/ritmo en el dashboard.
 - `docs/superpowers/specs/2026-07-06-lo-que-se-viene-vencimientos-tarjeta-design.md` — agenda de próximos vencimientos de tarjeta en el home (misma lógica de ciclo).
-- `docs/superpowers/specs/2026-07-02-disponible-real-design.md` — cómo los compromisos alimentan el número central del home.
+- `docs/superpowers/specs/2026-08-20-disponible-real-anclado-design.md` — cómo los compromisos alimentan el número central del home.
 - `docs/features/medios-de-pago.md` — lado "medio de pago" del pago de resúmenes.
