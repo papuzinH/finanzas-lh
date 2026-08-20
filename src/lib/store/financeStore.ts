@@ -51,6 +51,7 @@ import { computeAvailableToSpend } from '@/lib/finance/pocket';
 import type { AvailableToSpend, IncomeRhythm } from '@/lib/finance/pocket';
 import { computePortfolioStatus } from '@/lib/finance/portfolio';
 import type { PortfolioStatus, PortfolioDisplayCurrency } from '@/lib/finance/portfolio';
+import { daysSinceLastRegistration } from '@/lib/finance/reconcile';
 
 export type { ProcessedTransaction } from '@/lib/finance/types';
 export { resolveRate } from '@/lib/finance/prepare';
@@ -399,6 +400,9 @@ interface FinanceState {
     days: number;
     isActiveToday: boolean;
   };
+
+  /** Días desde el último registro. null = nunca registró nada. */
+  getDaysSinceLastRegistration: () => number | null;
 }
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
@@ -2205,5 +2209,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     return { days, isActiveToday };
+  },
+
+  getDaysSinceLastRegistration: () => {
+    const { transactions } = get();
+    return daysSinceLastRegistration(transactions, new Date());
   },
 }));
