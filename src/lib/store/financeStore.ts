@@ -2176,7 +2176,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getDaysSinceLastRegistration: () => {
-    const { transactions } = get();
-    return daysSinceLastRegistration(transactions, new Date());
+    const { transactions, internalTransfers } = get();
+    return daysSinceLastRegistration(transactions, new Date(), internalTransfers);
   },
 }));

@@ -214,6 +214,15 @@ export async function reconcileAccount(input: ReconcileInput): Promise<ActionRes
     const monto = Math.abs(difference)
 
     if (classification.kind === 'transfer') {
+      const { data: destino } = await supabase
+        .from('payment_methods')
+        .select('id')
+        .eq('id', classification.to_payment_method_id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (!destino) return { error: 'Esa reserva no es tuya' }
+
       const { error } = await supabase.from('internal_transfers').insert({
         user_id: user.id,
         amount: monto,

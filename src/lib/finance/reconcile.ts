@@ -4,28 +4,37 @@
 // Spec: docs/superpowers/specs/2026-08-20-disponible-real-anclado-design.md
 import { differenceInCalendarDays, startOfDay } from 'date-fns';
 import type { ProcessedTransaction } from './types';
+import type { InternalTransfer } from '@/types/database';
 
 /** Por debajo de un peso la diferencia es redondeo, no un movimiento sin anotar. */
 const EPSILON = 1;
 
 /**
- * Días desde la última vez que el usuario REGISTRÓ algo.
+ * Días desde la última vez que el usuario REGISTRÓ algo: una transacción o una
+ * transferencia interna (ej. "Lo mandé a una reserva" en la conciliación).
  *
- * Se mide con `created_at` (cuándo lo cargó) y no con `date` (cuándo pasó): un gasto
- * del mes pasado anotado hoy es actividad de hoy, y una cuota con fecha futura no es
- * actividad de nadie. `null` = todavía no registró nada.
+ * Se mide con `created_at` (cuándo lo cargó) y no con `date`/`real_transfer_date`
+ * (cuándo pasó): un gasto del mes pasado anotado hoy es actividad de hoy, y una cuota
+ * con fecha futura no es actividad de nadie. `null` = todavía no registró nada.
+ *
+ * Sin esto, resolver un drift con "Lo mandé a una reserva" (que solo escribe en
+ * `internal_transfers`, no en `transactions`) no silenciaba el recordatorio: el
+ * usuario acababa de conciliar y la app le seguía preguntando si le faltaba anotar algo.
  */
 export function daysSinceLastRegistration(
   transactions: ProcessedTransaction[],
   now: Date,
+  transfers: Pick<InternalTransfer, 'created_at'>[] = [],
 ): number | null {
   let ultimo: number | null = null;
-  for (const t of transactions) {
-    if (!t.created_at) continue;
-    const ts = new Date(t.created_at).getTime();
-    if (Number.isNaN(ts)) continue;
+  const considerar = (createdAt: string | null | undefined) => {
+    if (!createdAt) return;
+    const ts = new Date(createdAt).getTime();
+    if (Number.isNaN(ts)) return;
     if (ultimo === null || ts > ultimo) ultimo = ts;
-  }
+  };
+  for (const t of transactions) considerar(t.created_at);
+  for (const tr of transfers) considerar(tr.created_at);
   if (ultimo === null) return null;
   return Math.max(0, differenceInCalendarDays(startOfDay(now), startOfDay(new Date(ultimo))));
 }

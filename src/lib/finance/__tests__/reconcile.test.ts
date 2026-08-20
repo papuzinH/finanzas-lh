@@ -33,6 +33,31 @@ describe('daysSinceLastRegistration', () => {
   it('una cuota con fecha futura no cuenta como registro de hoy', () => {
     expect(daysSinceLastRegistration([tx('2026-08-15T09:00:00Z')], NOW)).toBe(5);
   });
+
+  it('una transferencia interna reciente cuenta como registro (conciliar "lo mande a una reserva")', () => {
+    // Sin transacciones desde hace 5 dias, pero el usuario acaba de conciliar con una
+    // transferencia a reserva: el recordatorio no debe seguir contando desde la transaccion vieja.
+    const r = daysSinceLastRegistration(
+      [tx('2026-08-15T09:00:00Z')],
+      NOW,
+      [{ created_at: '2026-08-20T09:00:00Z' }],
+    );
+    expect(r).toBe(0);
+  });
+
+  it('toma la mas reciente entre transacciones y transferencias', () => {
+    const r = daysSinceLastRegistration(
+      [tx('2026-08-18T09:00:00Z')],
+      NOW,
+      [{ created_at: '2026-08-12T09:00:00Z' }],
+    );
+    expect(r).toBe(2);
+  });
+
+  it('sin transacciones, una transferencia interna sola tambien cuenta', () => {
+    const r = daysSinceLastRegistration([], NOW, [{ created_at: '2026-08-19T09:00:00Z' }]);
+    expect(r).toBe(1);
+  });
 });
 
 describe('reconcileOptionsFor', () => {
