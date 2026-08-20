@@ -1765,7 +1765,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 - [ ] **Step 4: Verificación**
 
 Run: `npm run lint && npx tsc --noEmit && npx vitest run && npm run build`
-Expected: lint en baseline exacto, tsc limpio, 436 tests verdes, build OK con la ruta `/puesta-a-punto` en el listado.
+Expected: lint en baseline exacto, tsc limpio, 437 tests verdes, build OK con la ruta `/puesta-a-punto` en el listado.
 
 - [ ] **Step 5: Commitear**
 
@@ -1927,7 +1927,7 @@ export function reconcileHeadline(difference: number): string {
 - [ ] **Step 4: Correr y verificar que pasa**
 
 Run: `npx vitest run src/lib/finance/__tests__/reconcile.test.ts`
-Expected: PASS (11 tests).
+Expected: PASS (9 tests).
 
 - [ ] **Step 5: Envolver en el store**
 
@@ -2095,7 +2095,7 @@ export async function reconcileAccount(input: ReconcileInput): Promise<ActionRes
 - [ ] **Step 7: Verificación y commit**
 
 Run: `npm run lint && npx tsc --noEmit && npx vitest run`
-Expected: lint en baseline exacto, tsc limpio, **448 tests** verdes.
+Expected: lint en baseline exacto, tsc limpio, **446 tests** verdes.
 
 ```bash
 git add src/lib/finance/reconcile.ts src/lib/finance/__tests__/reconcile.test.ts src/lib/store/financeStore.ts src/app/bolsillo/actions.ts
@@ -2508,7 +2508,7 @@ Y el markup, después del bloque de Tema:
 - [ ] **Step 5: Verificación**
 
 Run: `npm run lint && npx tsc --noEmit && npx vitest run && npm run build`
-Expected: lint en baseline exacto, tsc limpio, 448 tests verdes, build OK.
+Expected: lint en baseline exacto, tsc limpio, 446 tests verdes, build OK.
 
 - [ ] **Step 6: Commitear**
 
@@ -2801,7 +2801,7 @@ import { periodLabel, nextPeriodLabel } from "@/lib/utils/pocket-copy"
 - [ ] **Step 6: Verificación**
 
 Run: `npm run lint && npx tsc --noEmit && npx vitest run && npm run build`
-Expected: lint en baseline exacto, tsc limpio, **450 tests** verdes, build OK.
+Expected: lint en baseline exacto, tsc limpio, **448 tests** verdes, build OK.
 
 - [ ] **Step 7: Commitear**
 
@@ -3178,7 +3178,7 @@ Y la etiqueta de arriba, para que no diga "disponible" cuando es una reserva:
 - [ ] **Step 6: Verificación**
 
 Run: `npm run lint && npx tsc --noEmit && npx vitest run && npm run build`
-Expected: lint en baseline exacto, tsc limpio, **452 tests** verdes (450 + el del ritmo en `dataLoader.test.ts` + el caso `users` del `it.each`), build OK.
+Expected: lint en baseline exacto, tsc limpio, **450 tests** verdes (448 + el del ritmo en `dataLoader.test.ts` + el caso `users` del `it.each`), build OK.
 
 - [ ] **Step 7: Commitear**
 
@@ -3430,7 +3430,7 @@ En la sección "Fechas y ciclos de tarjeta", agregar al final:
 - [ ] **Step 5: Verificación final**
 
 Run: `npm run lint && npx tsc --noEmit && npx vitest run && npm run build`
-Expected: lint en baseline exacto, tsc limpio, **434 tests** verdes (452 menos los 18 del archivo borrado), build OK.
+Expected: lint en baseline exacto, tsc limpio, **432 tests** verdes (450 menos los 18 del archivo borrado), build OK.
 
 - [ ] **Step 6: Commitear y cerrar el slice**
 
