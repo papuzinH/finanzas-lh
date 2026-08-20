@@ -47,6 +47,8 @@ import {
   hasCardPaymentInCycle,
 } from '@/lib/finance/balances';
 import { computeExpensesByCategory, computeMonthlyBalance } from '@/lib/finance/analysis';
+import { computeAvailableToSpend } from '@/lib/finance/pocket';
+import type { AvailableToSpend, IncomeRhythm } from '@/lib/finance/pocket';
 import { computePortfolioStatus } from '@/lib/finance/portfolio';
 import type { PortfolioStatus, PortfolioDisplayCurrency } from '@/lib/finance/portfolio';
 
@@ -74,6 +76,8 @@ interface FinanceState {
   categories: Category[];
   savings: Saving[];
   internalTransfers: InternalTransfer[];
+  /** Ritmo de cobro declarado por el usuario. Define qué compromisos descuenta el disponible. */
+  incomeRhythm: IncomeRhythm;
   savingsGoals: SavingsGoal[];
   savingsGoalContributions: SavingsGoalContribution[];
   categoryBudgets: CategoryBudget[];
@@ -194,6 +198,12 @@ interface FinanceState {
     pendingCardItems: CreditCardCycleSummary[];
     disponibleReal: number;
   };
+  /**
+   * Disponible del modelo de bolsillo: saldos anclados menos los compromisos del
+   * período. Convive con getRealAvailableBalance hasta que la UI migre.
+   * Spec: docs/superpowers/specs/2026-08-20-disponible-real-anclado-design.md
+   */
+  getAvailableToSpend: () => AvailableToSpend;
   getCategoryBreakdown: (scope: 'global' | 'current_month', type?: 'income' | 'expense') => {
     total: number;
     items: Array<{
@@ -403,6 +413,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   marketPrices: [],
   savings: [],
   internalTransfers: [],
+  incomeRhythm: 'monthly',
   savingsGoals: [],
   savingsGoalContributions: [],
   categoryBudgets: [],
@@ -597,6 +608,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         inflationSeries,
         exchangeRates: (exchangeRatesData as ExchangeRate[]) || [],
         user: (userData as User) || null,
+        // Viaja en el select('*') de users que ya se hace arriba: sin query nueva.
+        incomeRhythm: (userData as User)?.income_rhythm ?? 'monthly',
         authEmail: authUser.email ?? null,
         authAvatarUrl: (authUser.user_metadata?.avatar_url as string) ?? null,
         isInitialized: true,
@@ -1024,6 +1037,19 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       }
     }
     return { missingMonths, totalAmount, excessMonths, excessAmount };
+  },
+
+  getAvailableToSpend: () => {
+    const { transactions, paymentMethods, recurringPlans, internalTransfers, incomeRhythm } = get();
+    const pendingCards = get().getPendingCreditCardByCard();
+    return computeAvailableToSpend({
+      paymentMethods,
+      transactions,
+      transfers: internalTransfers,
+      recurringPlans,
+      pendingCards,
+      rhythm: incomeRhythm ?? 'monthly',
+    });
   },
 
   getRealAvailableBalance: () => {
