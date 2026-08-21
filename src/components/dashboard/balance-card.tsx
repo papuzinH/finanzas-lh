@@ -75,7 +75,7 @@ export function BalanceCard() {
   const animatedBalance = useCountUp(available)
   const isNegative = available < 0
   const pocketAccounts = accounts.filter((a) => a.bucket === 'pocket')
-  const sinAnclar = pocketAccounts.length > 0 && pocketAccounts.every((a) => !a.anchored)
+  const sinAnclar = pocketAccounts.some((a) => !a.anchored)
   const proximo = nextPeriodLabel(incomeRhythm)
 
   // Sin decimales y con Math.abs: correcto para filas donde el signo se renderiza
@@ -140,8 +140,9 @@ export function BalanceCard() {
 
           {sinAnclar && (
             <p className="font-sans text-[11px] text-warn mt-2">
-              Ninguna cuenta tiene saldo declarado: este número se calcula sumando desde tu primer
-              movimiento. Cargá los saldos en Ajustes → Medios de pago.
+              Alguna de tus cuentas no tiene saldo declarado: esa parte del número se sigue
+              calculando sumando desde el primer movimiento. Cargá el saldo que falte en
+              Ajustes → Medios de pago.
             </p>
           )}
         </div>
