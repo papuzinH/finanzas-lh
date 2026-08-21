@@ -15,7 +15,10 @@ export const subscriptionSchema = z.object({
   category_id: z.string(),
   payment_method_id: z.string().nullable().optional(),
   frequency: z.enum(['monthly', 'yearly']),
-  debit_payment_day: z.number().min(1).max(28).optional(),
+  // Día del mes en que se factura. En crédito define en qué resumen cae; en
+  // débito alimenta el "vence el X". Hasta 31: el motor clampea al último día
+  // que el mes tenga.
+  billing_day: z.number().min(1).max(31).optional(),
   ...currencyFields,
 });
 
@@ -28,7 +31,10 @@ export const createSubscriptionSchema = z.object({
   payment_method_id: z.string().nullable().optional(),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha es requerida'),
   frequency: z.enum(['monthly', 'yearly']),
-  debit_payment_day: z.number().min(1).max(28).optional(),
+  // Día del mes en que se factura. En crédito define en qué resumen cae; en
+  // débito alimenta el "vence el X". Hasta 31: el motor clampea al último día
+  // que el mes tenga.
+  billing_day: z.number().min(1).max(31).optional(),
   ...currencyFields,
 });
 

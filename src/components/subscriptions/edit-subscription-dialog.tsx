@@ -39,7 +39,7 @@ interface EditSubscriptionDialogProps {
     category_id: string | null;
     payment_method_id: string | null;
     frequency?: string | null;
-    debit_payment_day?: number | null;
+    billing_day?: number | null;
     currency?: string | null;
     original_amount?: number | null;
     rate_pair?: string | null;
@@ -68,7 +68,7 @@ export function EditSubscriptionDialog({
       category_id: subscription.category_id || "",
       payment_method_id: subscription.payment_method_id ? String(subscription.payment_method_id) : "none",
       frequency: (subscription.frequency === 'monthly' || subscription.frequency === 'yearly') ? subscription.frequency : 'monthly',
-      debit_payment_day: subscription.debit_payment_day || undefined,
+      billing_day: subscription.billing_day || undefined,
       currency: (subscription.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
       rate_pair: subscription.rate_pair ?? null,
       exchange_rate: null,
@@ -76,7 +76,7 @@ export function EditSubscriptionDialog({
   });
 
   const watchedAmount = form.watch('amount');
-  const watchedDebitDay = form.watch('debit_payment_day');
+  const watchedBillingDay = form.watch('billing_day');
   const watchedFrequency = form.watch('frequency');
   const watchedCurrency = form.watch('currency');
   const watchedRatePair = form.watch('rate_pair');
@@ -93,7 +93,7 @@ export function EditSubscriptionDialog({
         category_id: subscription.category_id || "",
         payment_method_id: subscription.payment_method_id ? String(subscription.payment_method_id) : "none",
         frequency: (subscription.frequency === 'monthly' || subscription.frequency === 'yearly') ? subscription.frequency : 'monthly',
-        debit_payment_day: subscription.debit_payment_day || undefined,
+        billing_day: subscription.billing_day || undefined,
         currency: (subscription.currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
         rate_pair: subscription.rate_pair ?? null,
         exchange_rate: null,
@@ -193,8 +193,9 @@ export function EditSubscriptionDialog({
                 setValue={form.setValue}
                 paymentMethods={paymentMethods}
                 fieldName="payment_method_id"
-                debitFieldName="debit_payment_day"
-                watchedDebitDay={watchedDebitDay}
+                billingFieldName="billing_day"
+                watchedBillingDay={watchedBillingDay}
+                showBillingDay
               />
 
             </div>

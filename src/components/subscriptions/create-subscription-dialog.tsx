@@ -62,7 +62,7 @@ export function CreateSubscriptionDialog({
 
   const watchedAmount = form.watch('amount');
   const watchedStartDate = form.watch('start_date');
-  const watchedDebitDay = form.watch('debit_payment_day');
+  const watchedBillingDay = form.watch('billing_day');
   const watchedFrequency = form.watch('frequency');
   const watchedCurrency = form.watch('currency');
   const watchedRatePair = form.watch('rate_pair');
@@ -177,10 +177,11 @@ export function CreateSubscriptionDialog({
                 setValue={form.setValue}
                 paymentMethods={paymentMethods}
                 fieldName="payment_method_id"
-                debitFieldName="debit_payment_day"
+                billingFieldName="billing_day"
                 dateFieldName="start_date"
                 watchedDate={watchedStartDate}
-                watchedDebitDay={watchedDebitDay}
+                watchedBillingDay={watchedBillingDay}
+                showBillingDay
               />
 
             </div>

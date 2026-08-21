@@ -35,6 +35,8 @@ import { EditInstallmentPlanDialog } from '@/components/installments/edit-plan-d
 import { ConfirmationModal } from '@/components/shared/confirmation-modal';
 import { deleteInstallmentPlan } from '@/app/dashboard/installments/actions';
 import { deleteSubscription } from '@/app/dashboard/subscriptions/actions';
+import { expectedChargeDate, isAutomaticPlan } from '@/lib/finance/recurring';
+import { dateToLocalString } from '@/lib/utils/dates';
 import {
   markRecurringPlanPaid,
   unmarkRecurringPlanPaid,
@@ -183,12 +185,23 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const router = useRouter();
-  const { fetchAllData, categories, getPendingFixedExpenses } = useFinanceStore();
+  const { fetchAllData, categories, paymentMethods, getPendingFixedExpenses } = useFinanceStore();
 
   const category = categories.find(c => c.id === plan.category_id);
   // Pagada este mes = ya no figura entre los gastos fijos pendientes del store.
   const isPaidThisMonth =
     plan.is_active && !getPendingFixedExpenses().items.some((i) => i.id === plan.id);
+
+  // Las de crédito no se pagan: la tarjeta las debita sola cuando cierra el
+  // resumen. En vez del toggle, muestran en qué resumen caen.
+  const method = paymentMethods.find((m) => m.id === plan.payment_method_id);
+  const isAutomatic = isAutomaticPlan(plan, method);
+  const chargeLabel = method && isAutomatic
+    ? (() => {
+        const parts = expectedChargeDate(plan, method, dateToLocalString(new Date()).slice(0, 7)).split('-');
+        return `${method.name} · vence ${Number(parts[2])}/${Number(parts[1])}`;
+      })()
+    : null;
 
   const togglePaid = async () => {
     setIsToggling(true);
@@ -267,18 +280,24 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
               <span className="font-display tnum text-[15px] text-text">{formatCurrency(plan.amount)}</span>
             )}
             {plan.is_active && (
-              <button
-                type="button"
-                onClick={togglePaid}
-                disabled={isToggling}
-                aria-label={isPaidThisMonth ? `Deshacer pago de ${plan.description}` : `Marcar ${plan.description} como pagada`}
-                className={cn(
-                  'text-[10.5px] font-extrabold uppercase tracking-[0.08em] leading-none rounded-md px-1 py-0.5 -mx-1 transition-colors cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
-                  isPaidThisMonth ? 'text-good hover:bg-good/10' : 'text-warn hover:bg-warn/10'
-                )}
-              >
-                {isToggling ? '…' : isPaidThisMonth ? 'pagada' : 'pendiente'}
-              </button>
+              isAutomatic ? (
+                <span className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] leading-none text-muted">
+                  {chargeLabel}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={togglePaid}
+                  disabled={isToggling}
+                  aria-label={isPaidThisMonth ? `Deshacer pago de ${plan.description}` : `Marcar ${plan.description} como pagada`}
+                  className={cn(
+                    'text-[10.5px] font-extrabold uppercase tracking-[0.08em] leading-none rounded-md px-1 py-0.5 -mx-1 transition-colors cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                    isPaidThisMonth ? 'text-good hover:bg-good/10' : 'text-warn hover:bg-warn/10'
+                  )}
+                >
+                  {isToggling ? '…' : isPaidThisMonth ? 'pagada' : 'pendiente'}
+                </button>
+              )
             )}
           </div>
           <DropdownMenu modal={false}>
@@ -377,8 +396,27 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     .sort((a, b) => b.amount - a.amount);
 
   const totalMonthlyCost = getMonthlyBurnRate();
-  const activeSubsCount = plansWithPayment.filter((p) => p.is_active).length;
   const pendingSubs = getPendingFixedExpenses();
+
+  // Las de crédito se debitan solas con el resumen; las demás las paga el
+  // usuario. Se separan porque se comportan distinto: unas no piden acción.
+  const automaticPlans = plansWithPayment.filter((p) =>
+    isAutomaticPlan(p, paymentMethods.find((m) => m.id === p.payment_method_id)),
+  );
+  const manualPlans = plansWithPayment.filter((p) =>
+    !isAutomaticPlan(p, paymentMethods.find((m) => m.id === p.payment_method_id)),
+  );
+  const automaticTotal = automaticPlans
+    .filter((p) => p.is_active)
+    .reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0);
+  const manualTotal = manualPlans
+    .filter((p) => p.is_active)
+    .reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0);
+  // "Por pagar" cuenta sólo lo manual: una mensualidad de crédito nunca está
+  // pendiente de acción, aunque su cargo del mes todavía no se haya posteado.
+  const manualPendingTotal = pendingSubs.items
+    .filter((item) => manualPlans.some((p) => p.id === item.id))
+    .reduce((acc, item) => acc + item.amount, 0);
 
   return (
     <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
@@ -541,22 +579,43 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
                   </div>
                   <div className="grid gap-0.5 px-4 py-3">
                     <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">Por pagar</span>
-                    <span className={cn('font-display tnum text-[17px]', pendingSubs.total > 0 ? 'text-warn' : 'text-good')}>{formatCurrency(pendingSubs.total)}</span>
+                    <span className={cn('font-display tnum text-[17px]', manualPendingTotal > 0 ? 'text-warn' : 'text-good')}>{formatCurrency(manualPendingTotal)}</span>
                   </div>
                 </div>
 
-                <div className="flex items-baseline justify-between mt-1">
-                  <h2 className="font-display text-text text-[18px]">Activas</h2>
-                  <span className="text-[12.5px] font-bold text-muted">{activeSubsCount} mensualidad{activeSubsCount !== 1 ? 'es' : ''}</span>
-                </div>
+                {automaticPlans.length > 0 && (
+                  <>
+                    <div className="flex items-baseline justify-between mt-1">
+                      <h2 className="font-display text-text text-[18px]">Se debitan solas</h2>
+                      <span className="text-[12.5px] font-bold text-muted tnum">{formatCurrency(automaticTotal)}</span>
+                    </div>
 
-                <StaggeredList className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
-                  {plansWithPayment.map((plan) => (
-                    <StaggeredItem key={plan.id}>
-                      <SubscriptionCard plan={plan} />
-                    </StaggeredItem>
-                  ))}
-                </StaggeredList>
+                    <StaggeredList className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
+                      {automaticPlans.map((plan) => (
+                        <StaggeredItem key={plan.id}>
+                          <SubscriptionCard plan={plan} />
+                        </StaggeredItem>
+                      ))}
+                    </StaggeredList>
+                  </>
+                )}
+
+                {manualPlans.length > 0 && (
+                  <>
+                    <div className="flex items-baseline justify-between mt-1">
+                      <h2 className="font-display text-text text-[18px]">Las pagás vos</h2>
+                      <span className="text-[12.5px] font-bold text-muted tnum">{formatCurrency(manualTotal)}</span>
+                    </div>
+
+                    <StaggeredList className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
+                      {manualPlans.map((plan) => (
+                        <StaggeredItem key={plan.id}>
+                          <SubscriptionCard plan={plan} />
+                        </StaggeredItem>
+                      ))}
+                    </StaggeredList>
+                  </>
+                )}
               </>
             )}
           </div>

@@ -581,10 +581,14 @@ interface PaymentMethodFieldProps<T extends FieldValues> {
   setValue?: UseFormSetValue<T>;
   paymentMethods: PaymentMethod[];
   fieldName?: string;
-  debitFieldName?: string;
+  billingFieldName?: string;
   dateFieldName?: string;
   watchedDate?: string;
-  watchedDebitDay?: number;
+  watchedBillingDay?: number;
+  /** Muestra el selector de dia de cobro. Solo los formularios que persisten
+   *  billing_day (mensualidades) deben encenderlo: en los demas el valor se
+   *  descarta al guardar. */
+  showBillingDay?: boolean;
 }
 
 export function PaymentMethodField<T extends FieldValues>({
@@ -592,10 +596,11 @@ export function PaymentMethodField<T extends FieldValues>({
   setValue,
   paymentMethods,
   fieldName = 'payment_method_id',
-  debitFieldName = 'debit_payment_day',
+  billingFieldName = 'billing_day',
   dateFieldName = 'start_date',
   watchedDate,
-  watchedDebitDay,
+  watchedBillingDay,
+  showBillingDay = false,
 }: PaymentMethodFieldProps<T>) {
   
   // Function to calculate credit card payment date
@@ -719,28 +724,28 @@ export function PaymentMethodField<T extends FieldValues>({
             <FormMessage />
           </FormItem>
 
-          {/* Debit payment day selector */}
-          {selectedMethod?.type === 'debit' && setValue && (
+          {/* Selector de dia de cobro (solo donde se persiste: mensualidades) */}
+          {showBillingDay && selectedMethod && selectedMethod.type !== 'cash' && setValue && (
             <div className="mt-4 animate-in fade-in-0 duration-300">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted mb-3 block">
-                Día de pago
+                ¿Qué día te lo cobran?
               </span>
 
               <div className="flex items-center gap-4">
                 <button
                   type="button"
-                  disabled={(watchedDebitDay || 1) <= 1}
+                  disabled={(watchedBillingDay || 1) <= 1}
                   onClick={() =>
                     setValue(
-                      debitFieldName as Path<T>,
-                      Math.max(1, (watchedDebitDay || 1) - 1) as T[Path<T>],
+                      billingFieldName as Path<T>,
+                      Math.max(1, (watchedBillingDay || 1) - 1) as T[Path<T>],
                       { shouldValidate: true }
                     )
                   }
                   className={cn(
                     'flex items-center justify-center h-10 w-10 rounded-full transition-all',
                     'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none active:scale-90',
-                    (watchedDebitDay || 1) <= 1
+                    (watchedBillingDay || 1) <= 1
                       ? 'bg-surface-2/40 text-faint cursor-not-allowed'
                       : 'bg-surface-2 text-muted hover:bg-surface hover:text-text'
                   )}
@@ -750,7 +755,7 @@ export function PaymentMethodField<T extends FieldValues>({
 
                 <div className="text-center min-w-[80px]">
                   <div className="text-2xl font-display text-text tnum">
-                    {watchedDebitDay || (watchedDate ? parseLocalDate(watchedDate).getDate() : 1)}
+                    {watchedBillingDay || (watchedDate ? parseLocalDate(watchedDate).getDate() : 1)}
                   </div>
                   <div className="text-xs text-muted">
                     de cada mes
@@ -759,18 +764,18 @@ export function PaymentMethodField<T extends FieldValues>({
 
                 <button
                   type="button"
-                  disabled={(watchedDebitDay || 1) >= 28}
+                  disabled={(watchedBillingDay || 1) >= 31}
                   onClick={() =>
                     setValue(
-                      debitFieldName as Path<T>,
-                      Math.min(28, (watchedDebitDay || 1) + 1) as T[Path<T>],
+                      billingFieldName as Path<T>,
+                      Math.min(31, (watchedBillingDay || 1) + 1) as T[Path<T>],
                       { shouldValidate: true }
                     )
                   }
                   className={cn(
                     'flex items-center justify-center h-10 w-10 rounded-full transition-all',
                     'focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none active:scale-90',
-                    (watchedDebitDay || 1) >= 28
+                    (watchedBillingDay || 1) >= 31
                       ? 'bg-surface-2/40 text-faint cursor-not-allowed'
                       : 'bg-accent text-accent-ink hover:opacity-90'
                   )}
