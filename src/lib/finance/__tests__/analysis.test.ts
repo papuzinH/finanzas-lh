@@ -94,6 +94,21 @@ describe('computeExpensesByCategory', () => {
     )
     expect(incomeResult).toEqual({ Comida: 500 })
   })
+
+  it('los ajustes de saldo quedan fuera del desglose por categoria, en gasto y en ingreso', () => {
+    const cats = [{ id: 'c1', name: 'Supermercado' }] as unknown as Category[];
+    const ajusteGasto = {
+      id: 'aj1', user_id: 'u1', type: 'expense', amount: 50000,
+      date: '2026-08-19', periodDate: '2026-08-19', realPaymentDate: '2026-08-19',
+      payment_method_id: 'deb', category_id: 'c1',
+      installment_plan_id: null, recurring_plan_id: null, card_payment_for: null,
+      is_balance_adjustment: true,
+    } as unknown as ProcessedTransaction;
+    const ajusteIngreso = { ...ajusteGasto, id: 'aj2', type: 'income' } as ProcessedTransaction;
+
+    expect(computeExpensesByCategory([ajusteGasto], [], cats, 'global', 'expense', new Date(2026, 7, 20))).toEqual({});
+    expect(computeExpensesByCategory([ajusteIngreso], [], cats, 'global', 'income', new Date(2026, 7, 20))).toEqual({});
+  })
 })
 
 describe('computeMonthlyBalance', () => {

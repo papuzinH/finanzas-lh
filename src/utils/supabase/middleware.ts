@@ -54,11 +54,11 @@ export async function updateSession(request: NextRequest) {
 
   // 4. Validación de onboarding completado
   // Solo si no estamos ya en onboarding y no es una ruta de auth
-  if (!pathname.startsWith('/onboarding')) {
+  if (!pathname.startsWith('/onboarding') && !pathname.startsWith('/puesta-a-punto')) {
     try {
       const { data: profile, error: dbError } = await supabase
         .from('users')
-        .select('onboarding_completed')
+        .select('onboarding_completed, pocket_setup_completed')
         .eq('id', user.id)
         .single()
 
@@ -72,7 +72,7 @@ export async function updateSession(request: NextRequest) {
       if (!isOnboarded) {
         const url = request.nextUrl.clone()
         url.pathname = '/onboarding'
-        
+
         const redirectResponse = NextResponse.redirect(url)
         supabaseResponse.cookies.getAll().forEach((cookie) => {
           redirectResponse.cookies.set(cookie.name, cookie.value, {
@@ -85,7 +85,30 @@ export async function updateSession(request: NextRequest) {
             sameSite: cookie.sameSite,
           })
         })
-        
+
+        return redirectResponse
+      }
+
+      // Modelo de bolsillo: el usuario que ya venía usando la app tiene todos sus
+      // medios sin anclar, así que su disponible sigue siendo el flujo acumulado.
+      // Una sola vez, se lo manda a declarar saldos, reservas y ritmo.
+      if (profile?.pocket_setup_completed !== true) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/puesta-a-punto'
+
+        const redirectResponse = NextResponse.redirect(url)
+        supabaseResponse.cookies.getAll().forEach((cookie) => {
+          redirectResponse.cookies.set(cookie.name, cookie.value, {
+            path: cookie.path,
+            domain: cookie.domain,
+            maxAge: cookie.maxAge,
+            expires: cookie.expires,
+            secure: cookie.secure,
+            httpOnly: cookie.httpOnly,
+            sameSite: cookie.sameSite,
+          })
+        })
+
         return redirectResponse
       }
     } catch (error) {

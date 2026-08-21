@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { saveOnboardingPaymentMethods } from '../actions'
+import { AccountAnchorFields } from '@/components/pocket/account-anchor-fields'
 
 type PaymentType = 'credit' | 'debit' | 'cash'
 
@@ -22,6 +23,9 @@ type PaymentMethod = {
   type: PaymentType
   closingDay: number | null
   paymentDay: number | null
+  bucket: 'pocket' | 'reserve'
+  /** string vacío = salteado */
+  balance: string
 }
 
 const TYPE_META: Record<PaymentType, { label: string; icon: typeof CreditCard; bg: string; ring: string; iconColor: string }> = {
@@ -84,6 +88,8 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
           type: m.type,
           default_closing_day: m.closingDay,
           default_payment_day: m.paymentDay,
+          bucket: m.bucket,
+          initial_balance: m.balance === '' ? null : Number(m.balance),
         })),
         defaultName
       )
@@ -178,6 +184,12 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
                         : `Cierra ${m.closingDay} · Vence ${m.paymentDay}`}
                     </p>
                   )}
+                  {m.type !== 'credit' && (
+                    <p className="text-xs text-muted">
+                      {m.balance === '' ? 'Sin saldo declarado' : `$${m.balance}`}
+                      {m.bucket === 'reserve' ? ' · Reserva' : ''}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   {!isDefault && (
@@ -242,7 +254,7 @@ export function PaymentMethodsSlide({ onComplete }: PaymentMethodsSlideProps) {
           <Loader2 className="h-5 w-5 animate-spin" />
         ) : (
           <>
-            Finalizar setup
+            Continuar
             <ArrowRight className="ml-2 h-5 w-5" />
           </>
         )}
@@ -314,6 +326,8 @@ function PaymentMethodForm({
   const defaultName = initial?.name ?? (type === 'cash' ? 'Efectivo' : type === 'debit' ? 'Mercado Pago' : '')
 
   const [name, setName] = useState(defaultName)
+  const [bucket, setBucket] = useState<'pocket' | 'reserve'>(initial?.bucket ?? 'pocket')
+  const [balance, setBalance] = useState<string>(initial?.balance ?? '')
   const [closingDay, setClosingDay] = useState<string>(
     initial?.closingDay !== undefined && initial?.closingDay !== null ? String(initial.closingDay) : ''
   )
@@ -357,6 +371,8 @@ function PaymentMethodForm({
       type,
       closingDay: cd,
       paymentDay: pd,
+      bucket: isCredit ? 'pocket' : bucket,
+      balance: isCredit ? '' : balance.trim(),
     })
   }
 
@@ -386,6 +402,15 @@ function PaymentMethodForm({
           className="bg-surface border-border text-text"
         />
       </div>
+
+      {!isCredit && (
+        <AccountAnchorFields
+          bucket={bucket}
+          balance={balance}
+          onBucketChange={setBucket}
+          onBalanceChange={setBalance}
+        />
+      )}
 
       {isCredit && (
         <>

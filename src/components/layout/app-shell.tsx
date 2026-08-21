@@ -17,7 +17,7 @@ const OnboardingTour = dynamic(
 // Rutas sin autenticación (sin shell)
 const PUBLIC_ROUTES = ['/login', '/auth'];
 // Rutas autenticadas pero sin nav/chat (onboarding en progreso)
-const ONBOARDING_ROUTES = ['/onboarding'];
+const ONBOARDING_ROUTES = ['/onboarding', '/puesta-a-punto'];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isInitialized, fetchAllData, user } = useFinanceStore();

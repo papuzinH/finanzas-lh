@@ -22,14 +22,19 @@ interface AppHelpEntry {
 // que CLAUDE.md no describa.
 const CONCEPTS: Record<string, AppHelpEntry> = {
   'disponible-real': {
-    titulo: 'Disponible Real',
+    titulo: 'Tu plata libre (disponible)',
     explicacion:
-      'Es el número grande que ves en el inicio: tu plata libre para gastar hoy, ya restando las mensualidades y tarjetas que sabés que vas a pagar. Ojo con esto: cuando pagás una mensualidad o el resumen de una tarjeta, el Disponible Real global NO se mueve — esa plata ya estaba descontada como compromiso pendiente, solo pasa de un bucket a otro. Lo que sí baja es el saldo del medio de pago con el que pagaste.',
+      'Es el número grande del inicio: lo que hay hoy en tus cuentas de gastar, menos lo que ya tiene dueño en este período (mensualidades sin pagar y resúmenes de tarjeta que vencen antes de tu próximo cobro). Arranca del saldo que vos declaraste en cada cuenta, no de sumar tus movimientos desde el día uno. Lo que guardaste en reservas no cuenta: decidiste no gastarlo. Y ojo con esto: cuando pagás una mensualidad o el resumen de una tarjeta, este número NO se mueve — esa plata ya estaba apartada; lo que baja es el saldo de la cuenta con la que pagaste.',
   },
-  'saldo-bruto': {
-    titulo: 'Saldo Bruto',
+  'bolsillo-y-reserva': {
+    titulo: 'Bolsillo y reserva',
     explicacion:
-      'Es toda la plata que tenés en tus cuentas, antes de apartar lo que ya debés. Se calcula sumando tu Disponible Real más las mensualidades pendientes de este mes y lo que te falta pagar de tarjetas. Es un número más optimista que el Disponible Real, porque todavía no restó los compromisos que se vienen.',
+      'Cada cuenta tuya es una de dos cosas: bolsillo, de donde gastás, o reserva, lo que decidiste no gastar (ahorro, dólares, plazo fijo, un broker). Solo el bolsillo entra en tu plata libre. Si contara la reserva, la app te estaría invitando a romper tu propio ahorro sin decírtelo. Podés cambiar qué es cada cuenta desde Ajustes → Medios de pago.',
+  },
+  'ritmo-de-cobro': {
+    titulo: 'Ritmo de cobro',
+    explicacion:
+      'Le decís a Chanchito cada cuánto entra plata (todos los meses, cada quincena, todas las semanas, o cuando cae), no qué día exacto cobrás. Con eso alcanza para saber qué compromisos te toca cubrir antes del próximo cobro: esos se descuentan de tu plata libre, y los que vencen después se muestran aparte. Si elegís "cuando cae" no hay próximo cobro que asumir, así que se descuenta todo lo comprometido: es la lectura conservadora.',
   },
   'ciclo-de-tarjeta': {
     titulo: 'Ciclo de tarjeta (cerrado vs. en curso)',

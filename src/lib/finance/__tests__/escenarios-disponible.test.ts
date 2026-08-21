@@ -159,6 +159,57 @@ describe('E7 — conciliacion', () => {
   });
 });
 
+describe('E8 — pagar la tarjeta no mueve el disponible', () => {
+  it('el pago baja el saldo del medio financiador y saca la tarjeta de los compromisos: neto cero', () => {
+    const cuentas = [
+      acct({ initial_balance: 300000 }),
+      acct({ id: 'cred', name: 'Tarjeta', type: 'credit', is_default: false }),
+    ];
+    const resumen = summary({ totalARS: 100000, total: 100000, nextPaymentDate: new Date(2026, 7, 28) });
+
+    const antes = run({ paymentMethods: cuentas, pendingCards: [resumen] });
+
+    // Pagar = una transaccion real en el medio financiador + la tarjeta deja de estar pendiente.
+    const pago = {
+      id: 'pago', user_id: 'u1', type: 'expense', amount: 100000,
+      date: '2026-08-20', periodDate: '2026-08-20', realPaymentDate: '2026-08-20',
+      payment_method_id: 'poc', category_id: 'c1', card_payment_for: 'cred',
+      installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
+    } as ProcessedTransaction;
+    const despues = run({
+      paymentMethods: cuentas,
+      transactions: [pago],
+      pendingCards: [{ ...resumen, isPending: false }],
+    });
+
+    expect(antes.available).toBe(200000);
+    expect(despues.available).toBe(200000);
+    expect(despues.pocketTotal).toBe(200000);
+    expect(despues.committed).toBe(0);
+  });
+});
+
+describe('E9 — marcar una mensualidad como pagada no mueve el disponible', () => {
+  it('la transaccion baja el saldo y el fijo deja de estar pendiente: neto cero', () => {
+    const cuentas = [acct({ initial_balance: 300000 })];
+    const plan = fixed({ id: 'alquiler', description: 'Alquiler', amount: 80000 });
+
+    const antes = run({ paymentMethods: cuentas, recurringPlans: [plan] });
+
+    const pago = {
+      id: 'pago-fijo', user_id: 'u1', type: 'expense', amount: 80000,
+      date: '2026-08-20', periodDate: '2026-08-20', realPaymentDate: '2026-08-20',
+      payment_method_id: 'poc', category_id: 'c1', recurring_plan_id: 'alquiler',
+      installment_plan_id: null, card_payment_for: null, is_balance_adjustment: false,
+    } as ProcessedTransaction;
+    const despues = run({ paymentMethods: cuentas, recurringPlans: [plan], transactions: [pago] });
+
+    expect(antes.available).toBe(220000);
+    expect(despues.available).toBe(220000);
+    expect(despues.committed).toBe(0);
+  });
+});
+
 describe('integracion: el store cablea bien la funcion pura', () => {
   it('getAvailableToSpend refleja los medios y el ritmo del estado', async () => {
     const { useFinanceStore } = await import('@/lib/store/financeStore');

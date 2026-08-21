@@ -8,16 +8,19 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
+  Scale,
 } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn, formatCurrency, formatUsd } from '@/lib/utils';
 import { PaymentMethod, Transaction, RecurringPlan } from '@/types/database';
+import type { AccountBalance } from '@/lib/finance/pocket';
 import { Card } from '@/components/ui/card';
 import { PaymentMethodDetailModal } from './payment-method-detail-modal';
 import { EditPaymentMethodDialog } from './edit-payment-method-dialog';
 import { DeletePaymentMethodDialog } from './delete-payment-method-dialog';
+import { EditAnchorDialog } from '@/components/pocket/edit-anchor-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +41,8 @@ export interface PaymentCardProps {
     };
     history: Transaction[];
     subscriptions: RecurringPlan[];
+    /** Saldo del modelo de bolsillo. null para las tarjetas de crédito, que no tienen saldo propio. */
+    cuenta: AccountBalance | null;
   };
 }
 
@@ -53,6 +58,7 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isAnchorOpen, setIsAnchorOpen] = useState(false);
   const isCredit = data.type === 'credit';
   const { status, history, subscriptions } = data;
 
@@ -61,8 +67,11 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
   const usdDue = status.usdExpenses;
   const isCreditSettled = isCredit && arsDue === 0 && usdDue === 0;
 
-  // Débito/efectivo: saldo (ARS) puede ser positivo o negativo.
-  const balanceIsNegative = status.projectedTotal < 0;
+  const cuenta = data.cuenta;
+  // El saldo de una cuenta sale del modelo de bolsillo (anclado); el de una tarjeta,
+  // de su ciclo. `status.projectedTotal` para débito es el histórico sin ancla: no se usa.
+  const saldo = cuenta ? cuenta.balance : status.projectedTotal;
+  const balanceIsNegative = saldo < 0;
 
   // Mensualidades del ciclo que todavía no se debitaron (para que el total cuadre).
   const postedRecurringIds = new Set(
@@ -87,7 +96,14 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
               <Icon className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-sans font-bold text-text">{data.name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-sans font-bold text-text">{data.name}</h3>
+                {cuenta?.bucket === 'reserve' && (
+                  <span className="rounded-full border-[1.5px] border-border px-2 py-0.5 text-[10px] font-bold text-muted">
+                    Reserva
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] font-medium text-muted uppercase tracking-wide">
                 {isCredit ? 'Tarjeta de Crédito' : 'Cuenta / Efectivo'}
               </span>
@@ -110,6 +126,15 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
               className="bg-surface border-[1.5px] border-border text-text"
               onClick={(e) => e.stopPropagation()}
             >
+              {!isCredit && (
+                <DropdownMenuItem
+                  onClick={() => setIsAnchorOpen(true)}
+                  className="gap-2 cursor-pointer focus:bg-surface-2 focus:text-text"
+                >
+                  <Scale className="h-4 w-4" />
+                  Saldo y tipo
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={() => setIsEditOpen(true)}
                 className="gap-2 cursor-pointer focus:bg-surface-2 focus:text-text"
@@ -132,7 +157,7 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
         <div className="grid grid-cols-2 gap-6 mb-6">
           <div>
             <p className="text-xs text-muted mb-1">
-              {isCredit ? 'A pagar este ciclo' : 'Saldo disponible'}
+              {isCredit ? 'A pagar este ciclo' : cuenta?.bucket === 'reserve' ? 'Guardado' : 'Saldo disponible'}
             </p>
             {isCredit ? (
               isCreditSettled ? (
@@ -157,14 +182,19 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
                 </div>
               )
             ) : (
-              <p
-                className={cn(
-                  'font-display tnum text-2xl leading-none',
-                  balanceIsNegative ? 'text-bad' : 'text-good'
+              <>
+                <p
+                  className={cn(
+                    'font-display tnum text-2xl leading-none',
+                    balanceIsNegative ? 'text-bad' : 'text-good'
+                  )}
+                >
+                  {formatCurrency(saldo)}
+                </p>
+                {cuenta && !cuenta.anchored && (
+                  <p className="mt-1 text-[11px] text-faint">Sin saldo declarado</p>
                 )}
-              >
-                {formatCurrency(status.projectedTotal)}
-              </p>
+              </>
             )}
           </div>
 
@@ -273,6 +303,10 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
         onOpenChange={setIsDeleteOpen}
         paymentMethod={data}
       />
+
+      {!isCredit && (
+        <EditAnchorDialog method={data} open={isAnchorOpen} onOpenChange={setIsAnchorOpen} />
+      )}
     </>
   );
 }

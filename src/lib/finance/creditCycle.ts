@@ -31,6 +31,8 @@ export function isExpenseInCurrentMonthScope(t: ProcessedTransaction, methods: P
   if (t.type !== 'expense') return false;
   // Los pagos de tarjeta no son consumo: no participan de las analíticas de gasto.
   if (t.card_payment_for) return false;
+  // Un ajuste de saldo tampoco es consumo: corrige el saldo declarado, no compra nada.
+  if (t.is_balance_adjustment) return false;
 
   // 1. Si es Cuota (Installment) -> Usar lógica de Ciclo de Tarjeta
   // t.date para cuotas siempre es la fecha de pago calculada

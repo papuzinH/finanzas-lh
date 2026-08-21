@@ -54,7 +54,7 @@ Confundir ambos ids produce queries que **nunca matchean sin tirar error** (gotc
 - `/ajustes/perfil` muestra "Google OAuth" hardcodeado como método de autenticación (hoy es el único proveedor).
 
 ## Tests
-Sin tests dedicados de estas pantallas ni de sus actions. La lógica que consumen sí está testeada vía el store: `src/lib/store/__tests__/` (ej. `financeStore.test.ts`, `disponible-real.test.ts` cubren `getPaymentMethodStatus`/`getDefaultPaymentMethod` y el efecto de los pagos de tarjeta) y `src/lib/finance/__tests__/balances.test.ts`.
+Sin tests dedicados de estas pantallas ni de sus actions. La lógica que consumen sí está testeada vía el store: `src/lib/store/__tests__/financeStore.test.ts` (cubre `getPaymentMethodStatus`/`getDefaultPaymentMethod` y el efecto de los pagos de tarjeta) y `src/lib/finance/__tests__/balances.test.ts`.
 
 ## Docs relacionados
 - `CLAUDE.md` — secciones «Medios de pago», «Store», «UI» (fuente de verdad de invariantes de default, pago de tarjeta y tokens visuales).

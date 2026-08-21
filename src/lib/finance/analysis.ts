@@ -12,8 +12,8 @@ import type { ProcessedTransaction } from './types'
  * - scope 'current_month': para gastos respeta el ciclo de tarjeta
  *   (isExpenseInCurrentMonthScope); para ingresos usa mes calendario simple
  *   (mismo criterio que getMonthlyIncome()).
- * - Excluye siempre transacciones de pago de tarjeta (card_payment_for): ya
- *   están itemizadas en sus compras originales, no se doble-cuentan.
+ * - Excluye siempre pagos de tarjeta (card_payment_for) y ajustes de saldo
+ *   (is_balance_adjustment): ninguno de los dos es consumo nuevo.
  * - Categoría sin match (category_id null o inexistente) cae en 'Otros'.
  */
 export function computeExpensesByCategory(
@@ -26,7 +26,7 @@ export function computeExpensesByCategory(
 ): Record<string, number> {
   return transactions
     .filter((t) => {
-      if (t.type !== type || t.card_payment_for) return false
+      if (t.type !== type || t.card_payment_for || t.is_balance_adjustment) return false
 
       if (scope === 'current_month') {
         // isExpenseInCurrentMonthScope solo entiende gastos (ciclos de

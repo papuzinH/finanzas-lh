@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from "framer-motion"
 import { ChevronDown, CreditCard } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 import { useFinanceStore } from "@/lib/store/financeStore"
 import { InfoHint } from "@/components/ui/info-hint"
+import { periodLabel, nextPeriodLabel } from "@/lib/utils/pocket-copy"
 
 // Frena la propagación del click/teclado para que tocar un botón de info
 // no colapse la hero card (que es clickeable para expandir/contraer).
@@ -59,19 +60,30 @@ function useCountUp(target: number, duration = 900) {
 
 export function BalanceCard() {
   const [expanded, setExpanded] = useState(false)
-  const getRealAvailableBalance = useFinanceStore((s) => s.getRealAvailableBalance)
+  const getAvailableToSpend = useFinanceStore((s) => s.getAvailableToSpend)
+  const incomeRhythm = useFinanceStore((s) => s.incomeRhythm)
   const {
-    saldoBruto,
-    pendingFixedExpenses,
-    pendingCardTotal,
-    pendingCardItems,
-    disponibleReal,
-  } = getRealAvailableBalance()
+    available,
+    pocketTotal,
+    reserveTotal,
+    committed,
+    committedNextPeriod,
+    commitmentItems,
+    accounts,
+  } = getAvailableToSpend()
 
-  const animatedBalance = useCountUp(disponibleReal)
-  const isNegative = disponibleReal < 0
+  const animatedBalance = useCountUp(available)
+  const isNegative = available < 0
+  const pocketAccounts = accounts.filter((a) => a.bucket === 'pocket')
+  const sinAnclar = pocketAccounts.some((a) => !a.anchored)
+  const proximo = nextPeriodLabel(incomeRhythm)
 
-  const formatCurrency = (amount: number) =>
+  // Sin decimales y con Math.abs: correcto para filas donde el signo se renderiza
+  // aparte a partir del valor real (hero, "Tu plata libre") o donde el monto es
+  // siempre >= 0 por construcción (comprometido, cuotas). Para filas que pueden ser
+  // negativas sin signo manual correcto (saldo por cuenta, pocketTotal, reserveTotal)
+  // se usa el `formatCurrency` compartido de `@/lib/utils`, que conserva el signo.
+  const formatAbs = (amount: number) =>
     new Intl.NumberFormat("es-AR", {
       style: "currency",
       currency: "ARS",
@@ -91,7 +103,6 @@ export function BalanceCard() {
         aria-expanded={expanded}
         aria-label="Ver desglose de tu plata disponible"
       >
-        {/* Header siempre visible */}
         <div className="p-5 lg:p-6">
           <div className="flex items-center gap-1.5 mb-1">
             <p className="font-sans text-[11px] uppercase tracking-[0.2em] text-accent-deep">
@@ -99,9 +110,9 @@ export function BalanceCard() {
             </p>
             <HintStop>
               <InfoHint label="Qué es tu plata libre para hoy" className="text-faint hover:text-text">
-                Lo que realmente podés gastar hoy sin comprometerte: tu plata en cuentas menos lo que
-                ya debés este mes (gastos fijos sin pagar + tarjeta sin pagar). No importa cuándo
-                cobres. Al pagar algo pendiente, este número no cambia: esa plata ya estaba apartada.
+                Lo que hay hoy en tus cuentas de gastar, menos lo que ya tiene dueño {periodLabel(incomeRhythm)}
+                {' '}(mensualidades sin pagar y resúmenes de tarjeta que vencen antes de tu próximo cobro).
+                Lo que guardaste en reservas no cuenta: decidiste no gastarlo.
               </InfoHint>
             </HintStop>
             <motion.div
@@ -113,16 +124,29 @@ export function BalanceCard() {
             </motion.div>
           </div>
 
-          {/* Disponible Real */}
           <div className="flex items-baseline gap-2 mt-1 overflow-hidden">
             <span className="font-display tnum text-[44px] lg:text-[46px] leading-[var(--leading-display)] text-text [text-shadow:var(--shadow-bandera)] min-w-0 truncate pr-1.5 pb-1">
               {isNegative ? "-" : ""}
-              {formatCurrency(animatedBalance)}
+              {formatAbs(animatedBalance)}
             </span>
           </div>
+
+          {committedNextPeriod > 0 && proximo && (
+            <p className="font-sans text-[12px] text-muted mt-1">
+              <span className="font-display tnum">-{formatAbs(committedNextPeriod)}</span>
+              {' '}{proximo}, todavía sin descontar
+            </p>
+          )}
+
+          {sinAnclar && (
+            <p className="font-sans text-[11px] text-warn mt-2">
+              Alguna de tus cuentas no tiene saldo declarado: esa parte del número se sigue
+              calculando sumando desde el primer movimiento. Cargá el saldo que falte en
+              Ajustes → Medios de pago.
+            </p>
+          )}
         </div>
 
-        {/* Detalle expandible */}
         <AnimatePresence>
           {expanded && (
             <motion.div
@@ -133,68 +157,63 @@ export function BalanceCard() {
               className="overflow-hidden"
             >
               <div className="border-t border-border px-5 py-4 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
-                    Cuenta total
-                    <HintStop>
-                      <InfoHint label="Cómo se calcula la cuenta total" className="text-faint hover:text-text">
-                        Toda tu plata acumulada: ingresos menos gastos, cuotas y ahorros de todo tu
-                        historial. Es lo que tenés en cuentas hoy, antes de apartar lo que debés este mes.
-                      </InfoHint>
-                    </HintStop>
-                  </span>
-                  <span className="font-display tnum text-[13px] text-good">
-                    +{formatCurrency(saldoBruto)}
-                  </span>
-                </div>
-
-                {pendingFixedExpenses > 0 && (
+                <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
                     <span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
-                      Gastos fijos por pagar
+                      En tus cuentas
                       <HintStop>
-                        <InfoHint label="Cómo se calculan los gastos fijos por pagar" className="text-faint hover:text-text">
-                          Tus mensualidades activas (alquiler, internet, etc.) que todavía no
-                          marcaste como pagadas este mes. Al marcarlas pagadas en Compromisos, salen
-                          de acá y tu plata libre no cambia.
+                        <InfoHint label="Qué hay en tus cuentas" className="text-faint hover:text-text">
+                          La suma de lo que declaraste en cada cuenta de gastar, más los movimientos
+                          que registraste desde entonces. Las compras con tarjeta todavía no la
+                          tocaron: por eso el resumen se descuenta aparte.
                         </InfoHint>
                       </HintStop>
                     </span>
-                    <span className="font-display tnum text-[13px] text-warn">
-                      -{formatCurrency(pendingFixedExpenses)}
+                    <span className="font-display tnum text-[13px] text-good">
+                      {formatCurrency(pocketTotal)}
                     </span>
                   </div>
-                )}
+                  <ul className="pl-[18px] space-y-1">
+                    {pocketAccounts.map((a) => (
+                      <li key={a.methodId} className="flex justify-between items-baseline gap-2">
+                        <span className="min-w-0 truncate text-[11px] text-faint">
+                          {a.name}{a.anchored ? '' : ' · sin saldo declarado'}
+                        </span>
+                        <span className="shrink-0 font-display tnum text-[11px] text-muted">
+                          {formatCurrency(a.balance)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
-                {pendingCardTotal > 0 && (
+                {committed > 0 && (
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
                       <span className="text-[13px] text-muted flex items-center gap-1.5">
                         <CreditCard className="h-3 w-3" />
-                        Tarjeta de este mes
+                        Comprometido {periodLabel(incomeRhythm)}
                         <HintStop>
-                          <InfoHint label="Cómo se calcula la tarjeta de este mes" className="text-faint hover:text-text">
-                            El total del resumen de tus tarjetas de crédito que vence este ciclo y
-                            todavía no pagaste. Al marcarlo pagado en Compromisos, tu plata libre no
-                            cambia: ese gasto ya estaba contado.
+                          <InfoHint label="Qué es lo comprometido" className="text-faint hover:text-text">
+                            Plata que está en la cuenta pero ya tiene dueño: mensualidades sin pagar
+                            y resúmenes de tarjeta que vencen antes de tu próximo cobro. Al pagarlos,
+                            este número no cambia: ya estaban apartados.
                           </InfoHint>
                         </HintStop>
                       </span>
                       <span className="font-display tnum text-[13px] text-bad">
-                        -{formatCurrency(pendingCardTotal)}
+                        -{formatAbs(committed)}
                       </span>
                     </div>
-
-                    {/* Detalle por tarjeta con su fecha de vencimiento vigente */}
                     <ul className="pl-[18px] space-y-1">
-                      {pendingCardItems.map((card) => (
-                        <li key={card.methodId} className="flex justify-between items-baseline gap-2">
+                      {commitmentItems.map((item) => (
+                        <li key={`${item.kind}-${item.id}`} className="flex justify-between items-baseline gap-2">
                           <span className="min-w-0 truncate text-[11px] text-faint">
-                            {card.name} · {card.isCycleClosed ? "cerrado" : "en curso"} · vence{" "}
-                            {format(card.nextPaymentDate, "d MMM", { locale: es })}
+                            {item.name}
+                            {item.dueDate && ` · ${item.isCycleClosed ? 'cerrado' : 'en curso'} · vence ${format(item.dueDate, "d MMM", { locale: es })}`}
                           </span>
                           <span className="shrink-0 font-display tnum text-[11px] text-muted">
-                            -{formatCurrency(card.total)}
+                            -{formatAbs(item.amount)}
                           </span>
                         </li>
                       ))}
@@ -202,13 +221,32 @@ export function BalanceCard() {
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-border">
+                <div className="pt-2 border-t border-border space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-[13px] font-bold text-muted">Disponible Real</span>
+                    <span className="text-[13px] font-bold text-muted">Tu plata libre</span>
                     <span className={cn("font-display tnum text-[15px]", isNegative ? "text-bad" : "text-good")}>
-                      {isNegative ? "-" : "+"}{formatCurrency(disponibleReal)}
+                      {isNegative ? "-" : "+"}{formatAbs(available)}
                     </span>
                   </div>
+
+                  {/* !== 0, no > 0: una reserva puede quedar negativa por drift sin
+                      reconciliar, y hay que seguir mostrándola (con signo, no ocultarla). */}
+                  {reserveTotal !== 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
+                        Guardado en reservas
+                        <HintStop>
+                          <InfoHint label="Qué son las reservas" className="text-faint hover:text-text">
+                            Lo que decidiste no gastar: ahorro, dólares, plazo fijo, broker. No entra
+                            en tu plata libre, así la app no te invita a romper tu propio ahorro.
+                          </InfoHint>
+                        </HintStop>
+                      </span>
+                      <span className="font-display tnum text-[13px] text-text">
+                        {formatCurrency(reserveTotal)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

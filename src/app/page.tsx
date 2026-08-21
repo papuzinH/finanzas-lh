@@ -21,6 +21,7 @@ import { SectionTitle } from '@/components/shared/section-title';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { BalanceCard } from '@/components/dashboard/balance-card';
 import { IncompleteCreditCardsBanner } from '@/components/dashboard/incomplete-credit-cards-banner';
+import { ReconcileReminderCard } from '@/components/pocket/reconcile-reminder-card';
 import { MetricGrid } from '@/components/dashboard/metric-grid';
 import { BudgetGaugeCard } from '@/components/dashboard/budget-gauge-card';
 import { SavingsGoalsRingsCard } from '@/components/dashboard/savings-goals-rings-card';
@@ -124,6 +125,8 @@ export default function DashboardPage() {
 
         {/* Aviso: tarjetas de crédito sin fechas configuradas */}
         <IncompleteCreditCardsBanner />
+
+        <ReconcileReminderCard />
 
         {/* ── ABOVE THE FOLD ── */}
 

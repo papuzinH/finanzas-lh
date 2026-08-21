@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn, formatCurrency, formatUsd } from '@/lib/utils';
 import { Transaction, RecurringPlan } from '@/types/database';
+import type { AccountBalance } from '@/lib/finance/pocket';
 import { CalendarClock, ArrowUpCircle, ArrowDownCircle, CreditCard, Wallet, Banknote } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -30,6 +31,8 @@ interface PaymentMethodDetailModalProps {
     };
     history: Transaction[];
     subscriptions: RecurringPlan[];
+    /** Saldo del modelo de bolsillo. null para las tarjetas de crédito, que no tienen saldo propio. */
+    cuenta: AccountBalance | null;
   };
 }
 
@@ -53,7 +56,13 @@ export function PaymentMethodDetailModal({
   const arsDue = status.arsExpenses;
   const usdDue = status.usdExpenses;
   const isCreditSettled = isCredit && arsDue === 0 && usdDue === 0;
-  const balanceIsNegative = status.projectedTotal < 0;
+
+  const cuenta = data.cuenta;
+  // Mismo criterio que institutional-card.tsx: el saldo de una cuenta sale del modelo
+  // de bolsillo (anclado); el de una tarjeta, de su ciclo. `status.projectedTotal`
+  // para débito es el histórico sin ancla: no se usa.
+  const saldo = cuenta ? cuenta.balance : status.projectedTotal;
+  const balanceIsNegative = saldo < 0;
 
   const Icon = isCredit ? CreditCard : (data.type === 'cash' ? Banknote : Wallet);
 
@@ -102,14 +111,19 @@ export function PaymentMethodDetailModal({
                   </div>
                 )
               ) : (
-                <p
-                  className={cn(
-                    'font-display tnum text-xl leading-none',
-                    balanceIsNegative ? 'text-bad' : 'text-good'
+                <>
+                  <p
+                    className={cn(
+                      'font-display tnum text-xl leading-none',
+                      balanceIsNegative ? 'text-bad' : 'text-good'
+                    )}
+                  >
+                    {formatCurrency(saldo)}
+                  </p>
+                  {cuenta && !cuenta.anchored && (
+                    <p className="mt-1 text-[10px] text-faint">Sin saldo declarado</p>
                   )}
-                >
-                  {formatCurrency(status.projectedTotal)}
-                </p>
+                </>
               )}
             </div>
             <div className="bg-surface-2 p-4 rounded-2xl border-[1.5px] border-border">

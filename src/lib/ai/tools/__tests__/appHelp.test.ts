@@ -85,11 +85,16 @@ describe('appHelpTool', () => {
     expect(data.titulo.toLowerCase()).toMatch(/meta|presupuesto/)
   })
 
-  it('explica saldo bruto', async () => {
-    const r = await ask('saldo bruto')
+  it('explica bolsillo y reserva, y ritmo de cobro', async () => {
+    const r = await ask('bolsillo y reserva')
     expect(r.ok).toBe(true)
     const data = r.data as { titulo: string; explicacion: string }
-    expect(data.titulo.toLowerCase()).toContain('saldo bruto')
+    expect(data.titulo.toLowerCase()).toContain('bolsillo')
+
+    const r2 = await ask('ritmo de cobro')
+    expect(r2.ok).toBe(true)
+    const data2 = r2.data as { titulo: string; explicacion: string }
+    expect(data2.titulo.toLowerCase()).toContain('ritmo')
   })
 
   it('no requiere acceso a supabase ni a datos de usuario (ctx vacío)', async () => {
