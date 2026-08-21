@@ -43,6 +43,8 @@ Getters disponibles:
 
 `fetchAllData()` → Promise.all desde Supabase + API dólar blue (non-blocking).
 
+**Las mensualidades de crédito se postean solas.** Una mensualidad facturada en tarjeta no se paga: se debita cuando cierra el resumen. `syncAutomaticRecurringCharges()` (`src/app/compromisos/actions.ts`, disparada desde `fetchAllData()` **una vez por carga**) crea la transacción fechada al vencimiento del resumen, con la misma `calculateCreditPaymentDate` de cuotas y compras. Lógica pura en `lib/finance/recurring.ts`; el día de cobro sale de `recurring_plans.billing_day` (1-31, `?? 1`). Sólo aplica a planes **mensuales** sobre tarjetas con ciclo cargado — el resto sigue con el toggle manual de abajo. Borrar una generada NO alcanza para que no vuelva: hay que desactivar el plan.
+
 **Mensualidades = transacciones reales.** Marcar una mensualidad como pagada (o "Regularizar/Corregir historial") crea/borra transacciones con `recurring_plan_id` vía `src/app/compromisos/actions.ts` (`markRecurringPlanPaid`, `unmarkRecurringPlanPaid`, `backfillRecurringPlansHistory`). Usar `original_currency`/`original_amount` (NO `currency`, que no existe en `transactions`). El backfill nunca genera antes del mes del primer ingreso del usuario (piso) y limpia el exceso previo.
 
 ## Lógica financiera compartida: `lib/finance/`
