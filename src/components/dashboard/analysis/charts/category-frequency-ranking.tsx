@@ -8,8 +8,9 @@ interface CategoryFrequencyRankingProps {
 }
 
 export function CategoryFrequencyRanking({ scope, onSelect }: CategoryFrequencyRankingProps) {
-  const getCategoryFrequencyRanking = useFinanceStore((s) => s.getCategoryFrequencyRanking);
-  const rows = getCategoryFrequencyRanking(scope).slice(0, 6);
+  // El store entero, no el getter suelto (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  const rows = store.getCategoryFrequencyRanking(scope).slice(0, 6);
 
   if (rows.length === 0) {
     return (

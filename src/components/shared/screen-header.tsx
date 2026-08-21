@@ -20,10 +20,14 @@ export function ScreenHeader({
   compact?: boolean;
   className?: string;
 }) {
+  // Sin kicker ni sub el título es una sola línea: ahí la marca y el botón se
+  // alinean al centro, como en la variante compact (si no, el chancho flota arriba).
+  const tight = compact || (!kicker && !sub);
+
   return (
     <div className={cn(compact ? "px-5 pt-[18px] pb-3" : "px-5 pt-3 pb-4", className)}>
-      <div className={cn("flex justify-between gap-3", compact ? "items-center" : "items-start")}>
-        {icon && <div className={cn("shrink-0", !compact && "pt-0.5")}>{icon}</div>}
+      <div className={cn("flex justify-between gap-3", tight ? "items-center" : "items-start")}>
+        {icon && <div className={cn("shrink-0", !tight && "pt-0.5")}>{icon}</div>}
         <div className="min-w-0 flex-1">
           {!compact && kicker && (
             <p className="font-sans text-[10px] font-extrabold uppercase tracking-[0.22em] text-accent-deep mb-1">
@@ -38,7 +42,7 @@ export function ScreenHeader({
           )}
         </div>
         {right && (
-          <div className={cn("shrink-0 flex items-center gap-2", !compact && "mt-1")}>{right}</div>
+          <div className={cn("shrink-0 flex items-center gap-2", !tight && "mt-1")}>{right}</div>
         )}
       </div>
     </div>

@@ -57,8 +57,8 @@ export function AmountField<T extends FieldValues>({
   // Seleccionamos la función (referencia estable), no su resultado: getQuickAmounts
   // arma un array nuevo en cada llamada y usarlo como selector rompe el cacheo de
   // getSnapshot de Zustand ("infinite loop"). Se llama en el cuerpo del componente.
-  const getQuickAmounts = useFinanceStore((s) => s.getQuickAmounts);
-  const quickAmounts = getQuickAmounts(type, currency, 3);
+  const store = useFinanceStore();
+  const quickAmounts = store.getQuickAmounts(type, currency, 3);
 
   const displayAmount =
     watchedAmount === 0
@@ -821,9 +821,11 @@ export function CurrencyField<T extends FieldValues>({
   watchedRatePair,
   watchedAmount,
 }: CurrencyFieldProps<T>) {
-  const getExchangeRate = useFinanceStore((s) => s.getExchangeRate);
+  // El store entero, no sus getters sueltos: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  const store = useFinanceStore();
   const activePair = watchedRatePair || DEFAULT_RATE_PAIR;
-  const rate = watchedCurrency === 'USD' ? getExchangeRate(activePair) : 0;
+  const rate = watchedCurrency === 'USD' ? store.getExchangeRate(activePair) : 0;
   const arsPreview = rate > 0 ? watchedAmount * rate : 0;
   const rateLabel = RATE_OPTIONS.find((o) => o.pair === activePair)?.label ?? 'MEP';
 

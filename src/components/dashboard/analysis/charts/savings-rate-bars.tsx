@@ -16,8 +16,9 @@ export function SavingsRateBars({
   selectedMonth: string | null;
   onSelectMonth: (month: string) => void;
 }) {
-  const getSavingsRateSeries = useFinanceStore((s) => s.getSavingsRateSeries);
-  const data = getSavingsRateSeries(6);
+  // El store entero, no el getter suelto (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  const data = store.getSavingsRateSeries(6);
   const hasData = data.some((d) => d.net !== 0);
   const activeMonth = selectedMonth ?? data[data.length - 1]?.month ?? null;
 

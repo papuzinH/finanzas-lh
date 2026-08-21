@@ -20,9 +20,12 @@ interface Props {
 export function CategoryBudgetCard({ budget }: Props) {
   const [deleting, setDeleting] = useState(false)
   const [showEndOfMonthBadge, setShowEndOfMonthBadge] = useState(false)
-  const { getCategoryBudgetStatus, getBudgetProjection, fetchGoalsData } = useFinanceStore()
-  const statusData = getCategoryBudgetStatus(budget.category_id)
-  const projection = getBudgetProjection(budget.id)
+  // El store entero, no sus getters sueltos: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  const store = useFinanceStore()
+  const { fetchGoalsData } = store
+  const statusData = store.getCategoryBudgetStatus(budget.category_id)
+  const projection = store.getBudgetProjection(budget.id)
   const { celebrate } = useConfetti()
 
   useEffect(() => {

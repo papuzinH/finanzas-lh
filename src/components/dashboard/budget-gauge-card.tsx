@@ -49,11 +49,12 @@ function pointOnArc(fraction: number) {
 }
 
 export function BudgetGaugeCard() {
-  const getBudgetsOverview = useFinanceStore((s) => s.getBudgetsOverview);
-  const getAllBudgetStatuses = useFinanceStore((s) => s.getAllBudgetStatuses);
+  // El store entero, no sus getters sueltos: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  const store = useFinanceStore();
   const [hover, setHover] = useState<HoverTarget>(null);
 
-  const overview = getBudgetsOverview();
+  const overview = store.getBudgetsOverview();
   if (!overview) return null;
 
   const { percent, projectedPercent, status, willExceed } = overview;
@@ -69,7 +70,7 @@ export function BudgetGaugeCard() {
   const roundedProjected = Math.round(projectedPercent);
   const pillLabel = willExceed ? 'te pasás' : pillTone === 'warn' ? 'ajustado' : 'alcanza';
 
-  const topBudgets = getAllBudgetStatuses().slice(0, 4);
+  const topBudgets = store.getAllBudgetStatuses().slice(0, 4);
 
   return (
     <Card className="relative p-3 md:p-5 space-y-2 md:space-y-4">

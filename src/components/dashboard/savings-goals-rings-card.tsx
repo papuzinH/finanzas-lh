@@ -14,8 +14,10 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const MAX_SHOWN = 4;
 
 export function SavingsGoalsRingsCard() {
-  const getSavingsGoalsOverview = useFinanceStore((s) => s.getSavingsGoalsOverview);
-  const overview = getSavingsGoalsOverview();
+  // El store entero, no el getter suelto: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  const overview = store.getSavingsGoalsOverview();
 
   if (overview.activeCount === 0) return null;
 

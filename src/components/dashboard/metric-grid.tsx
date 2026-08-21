@@ -44,8 +44,10 @@ function MetricCard({ label, value, sublabel, color = "emerald", icon: Icon, onC
     blue: "text-accent",
   }
 
-  const getWeeklySnapshot = useFinanceStore((s) => s.getWeeklySnapshot)
-  const rawData = sparklineType ? getWeeklySnapshot(sparklineType) : []
+  // El store entero, no sus getters sueltos: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  const store = useFinanceStore()
+  const rawData = sparklineType ? store.getWeeklySnapshot(sparklineType) : []
   const hasData = rawData.some((v) => v > 0)
   const chartData = rawData.map((v) => ({ v }))
   const strokeColor = hasData ? strokeColorMap[color] : "var(--muted)"

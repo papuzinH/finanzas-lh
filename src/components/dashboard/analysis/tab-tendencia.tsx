@@ -5,7 +5,7 @@ import { TrendChart } from '@/components/dashboard/trend-chart';
 import { SavingsRateBars } from './charts/savings-rate-bars';
 import { InfoHint } from '@/components/ui/info-hint';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 const TONE_LABEL: Record<'good' | 'warn' | 'bad', string> = {
   good: 'Sólido',
@@ -20,10 +20,10 @@ const TONE_CLASS: Record<'good' | 'warn' | 'bad', string> = {
 };
 
 export function TabTendencia() {
-  const getRealAdjustedTrend = useFinanceStore((s) => s.getRealAdjustedTrend);
-  const getSavingsRateSeries = useFinanceStore((s) => s.getSavingsRateSeries);
-  const real = getRealAdjustedTrend(6);
-  const savingsSeries = getSavingsRateSeries(6);
+  // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  const real = store.getRealAdjustedTrend(6);
+  const savingsSeries = store.getSavingsRateSeries(6);
   const hasSavingsData = savingsSeries.some((d) => d.net !== 0);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
@@ -77,7 +77,7 @@ export function TabTendencia() {
               </span>
             </div>
             <p className="text-[11px] text-muted mb-3">
-              {activeEntry.month} · <span className="tnum">{formatCurrency(activeEntry.net)}</span> netos
+              {activeEntry.month} · <span className="tnum">{store.formatDisplay(activeEntry.net)}</span> netos
             </p>
           </>
         )}

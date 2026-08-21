@@ -18,7 +18,7 @@ const INCOME_COLOR = 'var(--good)';
 const EXPENSE_COLOR = 'var(--bad)';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label, symbol = '$' }: any) {
   if (!active || !payload?.length) return null;
   const income = payload.find((e: { dataKey: string }) => e.dataKey === 'income')?.value ?? 0;
   const expenses = payload.find((e: { dataKey: string }) => e.dataKey === 'expenses')?.value ?? 0;
@@ -32,20 +32,20 @@ function CustomTooltip({ active, payload, label }: any) {
             <span className="w-2 h-2 rounded-full bg-good shrink-0" />
             Ingresos
           </span>
-          <span className="font-display tnum text-xs text-good">+{formatCompact(income)}</span>
+          <span className="font-display tnum text-xs text-good">+{formatCompact(income, symbol)}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
           <span className="flex items-center gap-1.5 text-xs text-text">
             <span className="w-2 h-2 rounded-full bg-bad shrink-0" />
             Gastos
           </span>
-          <span className="font-display tnum text-xs text-bad">−{formatCompact(expenses)}</span>
+          <span className="font-display tnum text-xs text-bad">−{formatCompact(expenses, symbol)}</span>
         </div>
         <div className="h-px bg-border my-1" />
         <div className="flex items-center justify-between gap-4">
           <span className="text-xs font-semibold text-text">Balance</span>
           <span className={`font-display tnum text-sm ${net >= 0 ? 'text-good' : 'text-bad'}`}>
-            {net >= 0 ? '+' : '−'}{formatCompact(Math.abs(net))}
+            {net >= 0 ? '+' : '−'}{formatCompact(Math.abs(net), symbol)}
           </span>
         </div>
       </div>
@@ -58,9 +58,12 @@ interface TrendChartProps {
 }
 
 export function TrendChart({ onTap }: TrendChartProps) {
-  const { getMonthlyTrend, toDisplay, displayCurrency } = useFinanceStore();
-  const raw = getMonthlyTrend(6);
+  // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  const { toDisplay, displayCurrency } = store;
+  const raw = store.getMonthlyTrend(6);
   const data = raw.map((p) => ({ ...p, income: toDisplay(p.income), expenses: toDisplay(p.expenses) }));
+  const symbol = store.getDisplaySymbol();
   const hasData = data.some((point) => point.income > 0 || point.expenses > 0);
 
   return (
@@ -98,13 +101,9 @@ export function TrendChart({ onTap }: TrendChartProps) {
                 axisLine={false}
                 tickLine={false}
                 width={42}
-                tickFormatter={(v: number) => {
-                  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-                  if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
-                  return `$${v}`;
-                }}
+                tickFormatter={(v: number) => formatCompact(v, symbol)}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip symbol={symbol} />} />
               <Area
                 type="monotone"
                 dataKey="income"

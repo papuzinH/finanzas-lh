@@ -32,6 +32,7 @@ import {
   endOfMonth,
 } from 'date-fns';
 import { parseLocalDate } from '@/lib/utils/dates';
+import { formatCurrency, formatUsd } from '@/lib/utils';
 import { syncAutomaticRecurringCharges } from '@/app/compromisos/actions';
 import {
   getCreditCycleDates,
@@ -104,6 +105,15 @@ interface FinanceState {
   setDisplayCurrency: (c: 'ARS' | 'USD') => void;
   getUsdRate: () => number;
   toDisplay: (ars: number) => number;
+  /**
+   * Monto en ARS → texto en la moneda de visualización elegida: convierte Y
+   * formatea con el símbolo que corresponde. Va junto a propósito — convertir
+   * por un lado y formatear con `formatCurrency` por el otro mostraba dólares
+   * con el signo del peso.
+   */
+  formatDisplay: (ars: number) => string;
+  /** Símbolo compacto de la moneda de visualización, para ejes y tooltips. */
+  getDisplaySymbol: () => string;
   getInflationSeries: () => Array<{ month: string; rate: number }>;
 
   // Computed Getters (Logic)
@@ -393,11 +403,6 @@ interface FinanceState {
     message: string;
     icon: string;
   }>;
-
-  getRegistrationStreak: () => {
-    days: number;
-    isActiveToday: boolean;
-  };
 
   /** Días desde el último registro. null = nunca registró nada. */
   getDaysSinceLastRegistration: () => number | null;
@@ -826,6 +831,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
     return ars;
   },
+
+  formatDisplay: (ars) => {
+    const { displayCurrency, toDisplay } = get();
+    const value = toDisplay(ars);
+    return displayCurrency === 'USD' ? formatUsd(value) : formatCurrency(value);
+  },
+
+  getDisplaySymbol: () => (get().displayCurrency === 'USD' ? 'u$s' : '$'),
 
   getInflationSeries: () => get().inflationSeries,
 
@@ -2021,8 +2034,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
    * 4. Alerta de presupuesto: Categoría más cerca del límite con días restantes.
    * 5. Tarjetas que necesitan actualización de fechas de cierre/vencimiento.
    * 6. Progreso de objetivo de ahorro: objetivo activo con mayor avance, >= 50%.
-   * 7. Racha de registro: días seguidos anotando movimientos, >= 3 días.
-   * 8. Rendimiento del portafolio: ganancia o caída con |PL%| >= 3%.
+   * 7. Rendimiento del portafolio: ganancia o caída con |PL%| >= 3%.
+   *
+   * NO hay insight de racha: se retiró junto con `getRegistrationStreak` porque
+   * contaba por fecha del movimiento (no por cuándo se anotó) y sumaba las
+   * cuotas y mensualidades que la app postea sola — inflaba días inexistentes.
    *
    * Tope: devuelve como máximo 6 insights (los primeros que dispararon).
    *
@@ -2040,7 +2056,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       getAllBudgetStatuses,
       paymentMethods,
       getSavingsGoalsOverview,
-      getRegistrationStreak,
       getPortfolioStatus,
     } = get();
 
@@ -2143,17 +2158,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       });
     }
 
-    // 7. Racha de registro
-    const { days } = getRegistrationStreak();
-    if (days >= 3) {
-      insights.push({
-        type: 'positive',
-        message: `Venís ${days} días seguidos anotando todo. ¡Así se hace! 🔥`,
-        icon: 'Flame',
-      });
-    }
-
-    // 8. Rendimiento del portafolio
+    // 7. Rendimiento del portafolio
     const { totalInvested, totalPLPercent } = getPortfolioStatus();
     if (totalInvested > 0 && Math.abs(totalPLPercent) >= 3) {
       const pct = Math.abs(totalPLPercent).toFixed(0);
@@ -2173,28 +2178,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     return insights.slice(0, 6);
-  },
-
-  getRegistrationStreak: () => {
-    const { transactions } = get();
-    const now = new Date();
-    const today = startOfDay(now);
-
-    const datesWithTransactions = new Set(
-      transactions.map((t) => startOfDay(parseLocalDate(t.date)).getTime())
-    );
-
-    const isActiveToday = datesWithTransactions.has(today.getTime());
-
-    let days = 0;
-    let current = isActiveToday ? today : new Date(today.getTime() - 86400000);
-
-    while (datesWithTransactions.has(current.getTime())) {
-      days++;
-      current = new Date(current.getTime() - 86400000);
-    }
-
-    return { days, isActiveToday };
   },
 
   getDaysSinceLastRegistration: () => {

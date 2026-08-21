@@ -39,8 +39,11 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const router = useRouter();
-  const { getPaymentMethodStatus, paymentMethods, getDefaultPaymentMethod, fetchAllData } = useFinanceStore();
-  const status = getPaymentMethodStatus(card.methodId);
+  // El store entero, no sus getters sueltos: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  const { paymentMethods, getDefaultPaymentMethod, fetchAllData } = store;
+  const status = store.getPaymentMethodStatus(card.methodId);
   const cycleNotClosedYet =
     status.nextClosingDate !== undefined && new Date() < status.nextClosingDate;
   const closingDateLabel = status.nextClosingDate
@@ -229,8 +232,10 @@ interface CreditCardCycleCardProps {
 
 export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
   const formattedDate = format(card.nextPaymentDate, "d 'de' MMM", { locale: es });
-  const { getPaymentMethodStatus } = useFinanceStore();
-  const status = getPaymentMethodStatus(card.methodId);
+  // El store entero, no sus getters sueltos: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  const status = store.getPaymentMethodStatus(card.methodId);
   const ciclo = cicloSub(status.nextClosingDate, card.nextPaymentDate);
 
   return (
