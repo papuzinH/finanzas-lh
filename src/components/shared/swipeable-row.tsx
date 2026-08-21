@@ -96,7 +96,7 @@ export function SwipeableRow({
     <div className={cn('relative overflow-hidden', rounded || undefined, className)}>
       {onSwipeRight && (
         <motion.div
-          className={cn('absolute inset-0 flex items-center px-5 bg-accent', rounded || undefined)}
+          className={cn('pointer-events-none absolute inset-0 flex items-center px-5 bg-accent', rounded || undefined)}
           style={{ opacity: rightBgOpacity }}
           aria-hidden
         >
@@ -107,7 +107,7 @@ export function SwipeableRow({
 
       {onSwipeLeft && (
         <motion.div
-          className={cn('absolute inset-0 flex items-center justify-end px-5 bg-bad', rounded || undefined)}
+          className={cn('pointer-events-none absolute inset-0 flex items-center justify-end px-5 bg-bad', rounded || undefined)}
           style={{ opacity: leftBgOpacity }}
           aria-hidden
         >
@@ -117,6 +117,11 @@ export function SwipeableRow({
       )}
 
       <motion.div
+        // `relative` es obligatorio: los fondos son `absolute` y, sin posicionamiento
+        // propio, pintan por encima de este div y se comen el pointerdown — el gesto
+        // no arranca y el tap tampoco llega. No depender de que el children traiga
+        // su propio `relative` (fue el bug de las cards de Compromisos, 2026-08-21).
+        className="relative"
         style={{ x }}
         drag="x"
         dragDirectionLock
