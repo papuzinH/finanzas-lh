@@ -27,7 +27,7 @@ export async function createSubscription(data: CreateSubscriptionSchema): Promis
       return { error: 'Datos inválidos' };
     }
 
-    const { description, amount, category_id, payment_method_id, currency, rate_pair, exchange_rate } = validatedFields.data;
+    const { description, amount, category_id, payment_method_id, currency, rate_pair, exchange_rate, billing_day } = validatedFields.data;
 
     const isUsd = currency === 'USD';
     const rate = isUsd ? Number(exchange_rate) : null;
@@ -45,6 +45,7 @@ export async function createSubscription(data: CreateSubscriptionSchema): Promis
         category_id,
         payment_method_id: payment_method_id && payment_method_id !== 'none' ? payment_method_id : null,
         is_active: true,
+        billing_day: billing_day ?? null,
         currency: isUsd ? 'USD' : 'ARS',
         original_amount: amount,
         rate_pair: isUsd ? rate_pair : null,
@@ -82,7 +83,7 @@ export async function updateSubscription(id: string, data: SubscriptionSchema): 
       return { error: 'Datos inválidos' };
     }
 
-    const { description, amount, is_active, category_id, payment_method_id, currency, rate_pair, exchange_rate } = validatedFields.data;
+    const { description, amount, is_active, category_id, payment_method_id, currency, rate_pair, exchange_rate, billing_day } = validatedFields.data;
 
     const isUsd = currency === 'USD';
     const rate = isUsd ? Number(exchange_rate) : null;
@@ -99,6 +100,7 @@ export async function updateSubscription(id: string, data: SubscriptionSchema): 
         is_active,
         category_id,
         payment_method_id,
+        billing_day: billing_day ?? null,
         currency: isUsd ? 'USD' : 'ARS',
         original_amount: amount,
         rate_pair: isUsd ? rate_pair : null,
