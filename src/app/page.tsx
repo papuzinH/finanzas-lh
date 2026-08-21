@@ -7,9 +7,8 @@ import {
   CalendarClock,
   ShoppingBag,
   DollarSign,
-  Flame,
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { ScreenHeader } from '@/components/shared/screen-header';
 import { Chancho } from '@/components/brand/chancho';
@@ -36,24 +35,11 @@ export default function DashboardPage() {
   const [isVariableExpensesModalOpen, setIsVariableExpensesModalOpen] = useState(false);
   const [isCreateTxOpen, setIsCreateTxOpen] = useState(false);
 
-  // Conectamos con el Store Global
-  const {
-    transactions,
-    paymentMethods,
-    isLoading,
-    isInitialized,
-    fetchAllData,
-    getMonthlyBurnRate,
-    getCurrentMonthInstallmentsTotal,
-    getCurrentMonthInstallments,
-    getActiveRecurringPlans,
-    getMonthlyIncome,
-    getMonthlyIncomeTransactions,
-    getMonthlyVariableExpenses,
-    getMonthlyVariableExpenseTransactions,
-    getRegistrationStreak,
-    user
-  } = useFinanceStore();
+  // Conectamos con el Store Global. Se toma el objeto entero y los getters se
+  // llaman como `store.getX()`: sus referencias son estables y el React Compiler
+  // congelaría el resultado (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  const { transactions, paymentMethods, isLoading, isInitialized, fetchAllData, user } = store;
 
   // Fetch inicial si no hay datos
   useEffect(() => {
@@ -69,15 +55,19 @@ export default function DashboardPage() {
 
   // --- CÁLCULOS PARA LA VISTA ---
   
-  const monthlyBurnRate = getMonthlyBurnRate();
-  const currentMonthInstallments = getCurrentMonthInstallmentsTotal();
-  const currentMonthInstallmentsList = getCurrentMonthInstallments();
-  const activeRecurringPlans = getActiveRecurringPlans();
-  const monthlyIncome = getMonthlyIncome();
-  const monthlyIncomeTransactions = getMonthlyIncomeTransactions();
-  const monthlyVariableExpenses = getMonthlyVariableExpenses();
-  const monthlyVariableExpenseTransactions = getMonthlyVariableExpenseTransactions();
-  const streak = getRegistrationStreak();
+  const monthlyBurnRate = store.getMonthlyBurnRate();
+  const currentMonthInstallments = store.getCurrentMonthInstallmentsTotal();
+  const currentMonthInstallmentsList = store.getCurrentMonthInstallments();
+  const activeRecurringPlans = store.getActiveRecurringPlans();
+  const monthlyIncome = store.getMonthlyIncome();
+  const monthlyIncomeTransactions = store.getMonthlyIncomeTransactions();
+  const monthlyVariableExpenses = store.getMonthlyVariableExpenses();
+  const monthlyVariableExpenseTransactions = store.getMonthlyVariableExpenseTransactions();
+
+  // Presupuestos y metas: sin ninguno de los dos, la sección entera se va. Las
+  // cards ya devolvían null por su cuenta, pero el título quedaba huérfano.
+  const hasBudgets = store.getBudgetsOverview() !== null;
+  const hasGoals = store.getSavingsGoalsOverview().activeCount > 0;
 
   // Mostrar skeleton mientras carga o si no está inicializado
   if (isLoading && !isInitialized) {
@@ -89,34 +79,14 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
       <ScreenHeader
         icon={<Chancho className="w-9 text-text" />}
-        kicker="tu resumen"
         title={`Hola, ${user?.first_name || 'vos'}`}
         right={
-          <div className="flex items-center gap-2">
-            {streak.days > 0 && (
-              <div
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-warn/10 border border-warn/20"
-                title={!streak.isActiveToday ? 'Registrá un gasto para mantener tu racha' : undefined}
-              >
-                <Flame
-                  className={[
-                    'w-3.5 h-3.5 text-warn',
-                    streak.isActiveToday ? '' : 'opacity-50',
-                    streak.days > 7 ? 'animate-pulse' : '',
-                  ].join(' ')}
-                />
-                <span className="text-[11px] font-semibold text-warn leading-none">
-                  {streak.days}d
-                </span>
-              </div>
-            )}
-            <div data-tour="add-transaction-button">
-              <AnimatedPlusButton
-                label="Crear transacción"
-                onClick={() => setIsCreateTxOpen(true)}
-                ariaLabel="Nueva transacción"
-              />
-            </div>
+          <div data-tour="add-transaction-button">
+            <AnimatedPlusButton
+              label="Crear transacción"
+              onClick={() => setIsCreateTxOpen(true)}
+              ariaLabel="Nueva transacción"
+            />
           </div>
         }
       />
@@ -186,11 +156,15 @@ export default function DashboardPage() {
         </div>
 
         {/* PRESUPUESTOS Y METAS DE AHORRO */}
-        <SectionTitle action="Ver todo" href="/objetivos">Presupuestos y metas</SectionTitle>
-        <div className="grid grid-cols-2 gap-3">
-          <BudgetGaugeCard />
-          <SavingsGoalsRingsCard />
-        </div>
+        {(hasBudgets || hasGoals) && (
+          <>
+            <SectionTitle action="Ver todo" href="/objetivos">Presupuestos y metas</SectionTitle>
+            <div className={cn('grid gap-3', hasBudgets && hasGoals ? 'grid-cols-2' : 'grid-cols-1')}>
+              <BudgetGaugeCard />
+              <SavingsGoalsRingsCard />
+            </div>
+          </>
+        )}
 
         {/* ── BELOW THE FOLD ── */}
 

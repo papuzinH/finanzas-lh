@@ -22,21 +22,24 @@ export const formatUsd = (amount: number) => {
   })}`;
 };
 
-/** Formato compacto para espacios ajustados: $1,5M · $340K · $890 */
-export const formatCompact = (amount: number): string => {
+/**
+ * Formato compacto para espacios ajustados: $1,5M · $340K · $890.
+ * El símbolo es parámetro porque el análisis se puede ver en dólares (`u$s`).
+ */
+export const formatCompact = (amount: number, symbol = '$'): string => {
   const abs = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
   if (abs >= 1_000_000) {
     const val = abs / 1_000_000;
     const str = val % 1 === 0 ? val.toFixed(0) : val.toFixed(1).replace('.', ',');
-    return `${sign}$${str}M`;
+    return `${sign}${symbol}${str}M`;
   }
   if (abs >= 1_000) {
     const val = abs / 1_000;
     const str = val % 1 === 0 ? val.toFixed(0) : val.toFixed(1).replace('.', ',');
-    return `${sign}$${str}K`;
+    return `${sign}${symbol}${str}K`;
   }
-  return `${sign}$${Math.round(abs)}`;
+  return `${sign}${symbol}${Math.round(abs)}`;
 };
 
 /**

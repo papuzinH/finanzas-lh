@@ -2,7 +2,6 @@
 
 import { motion, useReducedMotion } from 'framer-motion';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { formatCurrency } from '@/lib/utils';
 
 // Escala categórica de la marca (globals.css). Nunca hex hardcodeado.
 const CHART_VARS = [
@@ -26,9 +25,10 @@ export function CategoryDistribution({
   scope?: 'global' | 'current_month';
   onSelect?: (name: string) => void;
 }) {
-  const { getCategoryBreakdown, toDisplay } = useFinanceStore();
+  // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
+  const store = useFinanceStore();
   const reduceMotion = useReducedMotion();
-  const breakdown = getCategoryBreakdown(scope);
+  const breakdown = store.getCategoryBreakdown(scope);
   const items = breakdown.items; // ya viene ordenado de mayor a menor
 
   if (items.length === 0) {
@@ -47,7 +47,7 @@ export function CategoryDistribution({
     >
       {items.map((item, i) => {
         const color = CHART_VARS[i % CHART_VARS.length];
-        const display = formatCurrency(toDisplay(item.value));
+        const display = store.formatDisplay(item.value);
         const pct = item.percentage;
         const pctLabel = `${pct.toFixed(1)}%`;
 

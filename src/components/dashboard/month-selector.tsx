@@ -27,8 +27,10 @@ export function MonthSelector({ currentMonth, baseUrl = '/', variant = 'default'
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const hasDraggedRef = useRef(false);
-  const getMonthlyComparison = useFinanceStore((s) => s.getMonthlyComparison);
-  const comparison = getMonthlyComparison(currentMonth);
+  // El store entero, no sus getters sueltos: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  const comparison = store.getMonthlyComparison(currentMonth);
 
   const slideVariants = {
     enter: (dir: number) => ({

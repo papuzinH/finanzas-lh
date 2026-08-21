@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useFinanceStore } from '@/lib/store/financeStore';
 
 // Stubea todos los getters que consume getInsights con salidas neutras
@@ -15,7 +15,6 @@ function seedNeutral() {
     getCurrentMonthInstallments: () => [],
     getCurrentMonthInstallmentsTotal: () => 0,
     getAllBudgetStatuses: () => [],
-    getRegistrationStreak: () => ({ days: 0, isActiveToday: false }),
     getSavingsGoalsOverview: () => ({
       goals: [],
       totalSavedARS: 0,
@@ -31,19 +30,10 @@ beforeEach(() => {
 });
 
 describe('getInsights - racha de registro', () => {
-  it('muestra la racha con >= 3 días', () => {
-    useFinanceStore.setState({ getRegistrationStreak: () => ({ days: 5, isActiveToday: true }) } as never);
-    const insights = useFinanceStore.getState().getInsights();
-    const racha = insights.find((i) => i.icon === 'Flame');
-    expect(racha).toBeDefined();
-    expect(racha!.type).toBe('positive');
-    expect(racha!.message).toContain('5 días seguidos');
-  });
-
-  it('no muestra la racha con menos de 3 días', () => {
-    useFinanceStore.setState({ getRegistrationStreak: () => ({ days: 2, isActiveToday: true }) } as never);
+  it('ya no existe: el insight de racha se retiró con getRegistrationStreak', () => {
     const insights = useFinanceStore.getState().getInsights();
     expect(insights.find((i) => i.icon === 'Flame')).toBeUndefined();
+    expect(useFinanceStore.getState()).not.toHaveProperty('getRegistrationStreak');
   });
 });
 
@@ -109,21 +99,32 @@ describe('getInsights - rendimiento del portafolio', () => {
 });
 
 describe('getInsights - tope de 6', () => {
+  // Las dos tarjetas del día siguiente al vencimiento aportan un insight cada una:
+  // sin ellas los generadores restantes suman exactamente 6 y el tope no se probaría.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('nunca devuelve más de 6 insights', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 15));
     useFinanceStore.setState({
+      paymentMethods: [
+        { id: 'c1', name: 'Visa', type: 'credit', default_payment_day: 14 },
+        { id: 'c2', name: 'Amex', type: 'credit', default_payment_day: 14 },
+      ],
       getMonthlyComparison: () => ({ currentMonthExpenses: 100, previousMonthExpenses: 200, percentageChange: -50 }),
       getCategoryComparison: () => [{ category: 'Comida', emoji: '🍔', current: 200, previous: 100 }],
       getCurrentMonthInstallments: () => [{}],
       getCurrentMonthInstallmentsTotal: () => 5000,
       getAllBudgetStatuses: () => [{ categoryName: 'Ocio', categoryEmoji: null, percent: 80 }],
-      getRegistrationStreak: () => ({ days: 5, isActiveToday: true }),
       getSavingsGoalsOverview: () => ({
         goals: [{ id: 'g1', name: 'Meta', percent: 70, currency: 'ARS', status: 'active' }],
         totalSavedARS: 0, totalsByCurrency: { ARS: null, USD: null }, activeCount: 1,
       }),
       getPortfolioStatus: () => ({ totalInvested: 1000, totalPLPercent: 8 }),
     } as never);
-    // 7 generadores disparan → slice a 6
+    // 8 insights disparan (6 generadores + 2 tarjetas) → slice a 6
     expect(useFinanceStore.getState().getInsights().length).toBe(6);
   });
 });

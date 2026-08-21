@@ -5,8 +5,11 @@ import { useFinanceStore } from '@/lib/store/financeStore';
 import { formatCurrency } from '@/lib/utils';
 
 export function CurrencyExposureCard() {
-  const getCurrencyExposure = useFinanceStore((s) => s.getCurrencyExposure);
-  const { arsShare, usdShare, arsAmount, usdAmountOriginal, totalARS } = getCurrencyExposure();
+  // El store entero, no el getter suelto (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  // Los montos de esta card NO pasan por la moneda de visualización: el punto es
+  // justamente separar lo gastado en pesos de lo gastado en dólares.
+  const { arsShare, usdShare, arsAmount, usdAmountOriginal, totalARS } = store.getCurrencyExposure();
 
   if (totalARS === 0) return null;
 

@@ -5,8 +5,10 @@ import { useFinanceStore } from '@/lib/store/financeStore';
 import { formatCompact } from '@/lib/utils';
 
 export function SpendingPaceChart() {
-  const { getMonthlySpendingPace, toDisplay, displayCurrency } = useFinanceStore();
-  const pace = getMonthlySpendingPace();
+  // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  const { toDisplay, displayCurrency } = store;
+  const pace = store.getMonthlySpendingPace();
 
   if (pace.points.length === 0) {
     return <div className="h-[140px] flex items-center justify-center text-xs text-muted italic">Todavía no registraste gastos este mes</div>;
@@ -32,7 +34,7 @@ export function SpendingPaceChart() {
             tick={{ fill: 'var(--muted)', fontSize: 9 }} axisLine={false} tickLine={false}
             ticks={[1, pace.todayDay, pace.daysInMonth]} />
           <YAxis tick={{ fill: 'var(--muted)', fontSize: 9 }} axisLine={false} tickLine={false} width={38}
-            tickFormatter={(v: number) => `$${formatCompact(v)}`} />
+            tickFormatter={(v: number) => formatCompact(v, store.getDisplaySymbol())} />
           {pace.income > 0 && (
             <ReferenceLine y={toDisplay(pace.income)} stroke="var(--bad)" strokeDasharray="3 3" strokeOpacity={0.6} />
           )}

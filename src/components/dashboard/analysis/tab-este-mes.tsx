@@ -5,11 +5,12 @@ import { SpendingPaceChart } from './charts/spending-pace-chart';
 import { InstallmentsRealCostCard } from './cards/installments-real-cost-card';
 import { InfoHint } from '@/components/ui/info-hint';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { formatCurrency } from '@/lib/utils';
 
 export function TabEsteMes() {
-  const { getMonthlySpendingPace, toDisplay } = useFinanceStore();
-  const pace = getMonthlySpendingPace();
+  // El store entero, no sus getters sueltos: las funciones del store son
+  // referencias estables y el React Compiler congelaría el resultado.
+  const store = useFinanceStore();
+  const pace = store.getMonthlySpendingPace();
   // pace.projectedTotal e pace.income vienen en ARS: la comparación queda en ARS crudo
   // (convertir ambos lados no cambiaría el resultado, y convertir uno solo lo rompería).
   const ok = pace.income === 0 ? null : pace.projectedTotal <= pace.income;
@@ -39,7 +40,7 @@ export function TabEsteMes() {
               </span>
             )}
             <span className="text-[11px] text-muted">
-              Proyectás <b className="text-text tnum">{formatCurrency(toDisplay(pace.projectedTotal))}</b>
+              Proyectás <b className="text-text tnum">{store.formatDisplay(pace.projectedTotal)}</b>
             </span>
           </div>
         )}

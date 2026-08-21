@@ -3,12 +3,12 @@
 import { TrendingDown } from 'lucide-react';
 import { InfoHint } from '@/components/ui/info-hint';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { formatCurrency } from '@/lib/utils';
 
 export function InstallmentsRealCostCard() {
-  const getInstallmentsRealCost = useFinanceStore((s) => s.getInstallmentsRealCost);
+  // El store entero, no el getter suelto (ver store-freshness.test.ts).
+  const store = useFinanceStore();
   const { remainingARS, remainingUSD, realTodayARS, savedARS, savedPct, monthlyInflation, hasInflation, hasData } =
-    getInstallmentsRealCost();
+    store.getInstallmentsRealCost();
 
   if (!hasData) return null;
 
@@ -30,14 +30,14 @@ export function InstallmentsRealCostCard() {
 
       <div className="flex items-baseline justify-between">
         <span className="text-[11px] text-muted">Debés</span>
-        <span className="font-display tnum text-xl text-text">{formatCurrency(remainingARS)}</span>
+        <span className="font-display tnum text-xl text-text">{store.formatDisplay(remainingARS)}</span>
       </div>
 
       {hasInflation ? (
         <>
           <div className="flex items-baseline justify-between mt-1">
             <span className="text-[11px] text-muted">En plata de hoy</span>
-            <span className="font-display tnum text-sm text-text/70">~{formatCurrency(realTodayARS)}</span>
+            <span className="font-display tnum text-sm text-text/70">~{store.formatDisplay(realTodayARS)}</span>
           </div>
           <div className="mt-3 flex items-center justify-between rounded-xl bg-good/10 px-3 py-2">
             <span className="text-[11px] font-semibold text-good inline-flex items-center gap-1">
@@ -45,7 +45,7 @@ export function InstallmentsRealCostCard() {
               Te ahorrás
             </span>
             <span className="font-display tnum text-sm text-good">
-              {formatCurrency(savedARS)} · {Math.round(savedPct)}%
+              {store.formatDisplay(savedARS)} · {Math.round(savedPct)}%
             </span>
           </div>
         </>

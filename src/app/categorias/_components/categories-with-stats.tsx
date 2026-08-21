@@ -36,10 +36,12 @@ const TAB_LABELS: Record<'expense' | 'income', {
 
 export function CategoriesWithStats({ categories }: Props) {
   const [activeTab, setActiveTab] = useState<'expense' | 'income'>('expense')
-  const getCategoryBreakdown = useFinanceStore((s) => s.getCategoryBreakdown)
+  // El store entero, no sus getters sueltos: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  const store = useFinanceStore()
 
-  const monthly = getCategoryBreakdown('current_month', activeTab)
-  const global = getCategoryBreakdown('global', activeTab)
+  const monthly = store.getCategoryBreakdown('current_month', activeTab)
+  const global = store.getCategoryBreakdown('global', activeTab)
   const topMonthly = monthly.items[0] ?? null
   const visibleCategories = categories.filter((c) => c.type === activeTab)
   const labels = TAB_LABELS[activeTab]

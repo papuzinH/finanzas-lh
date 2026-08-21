@@ -19,6 +19,7 @@
 | `src/components/transactions/edit-transaction-dialog.tsx` | Edición. Si la tx es USD, el form muestra `original_amount` y recalcula el ARS con la cotización vigente al guardar |
 | `src/components/transactions/transaction-form-fields.tsx` | Campos compartidos: `AmountField`, `TypeToggle`, `CategoryPicker`, `DateField`, `PaymentMethodField` (muestra la fecha de vencimiento ajustada si el medio es crédito), `CurrencyField` (par `DEFAULT_RATE_PAIR = 'USD_ARS_MEP'`), `InstallmentSelector`, `FrequencySelector` |
 | `src/components/shared/transaction-item.tsx` | Fila reutilizable: swipe derecha=editar / izquierda=borrar (mobile, con "peek" de descubribilidad), menú kebab en desktop, **undo de borrado con ventana de 4s** (el `deleteTransaction` real se difiere) |
+| `src/components/shared/swipeable-row.tsx` | El gesto en sí (fondos, umbral de 80px, haptics, peek y guard del click sintético). Se extrajo de `TransactionItem` para compartirlo con las cards de /compromisos |
 | `src/lib/schemas/transaction.ts` | Zod: `transactionSchema` / `createTransactionSchema` (idénticos hoy). `payment_method_id` es string u opcional (`'none'` → null); `currency`/`rate_pair`/`exchange_rate` para USD |
 | `src/lib/finance/prepare.ts` | `prepareTransactions` (calcula `periodDate` + convierte USD→ARS con `resolveRate`) y `prepareRecurringPlans`. Mismo pipeline en cliente (store) y servidor (chat) |
 | `src/lib/utils/dates.ts` | `parseLocalDate`, `calculateCreditPaymentDate`, `dateToLocalString`, `todayString` |

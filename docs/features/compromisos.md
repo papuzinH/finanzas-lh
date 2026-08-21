@@ -13,6 +13,7 @@ Hub de deudas y gastos comprometidos del usuario: **cuotas** (planes de financia
 |---|---|
 | `src/app/compromisos/page.tsx` | Entry server, resuelve tab inicial |
 | `src/app/compromisos/compromisos-client.tsx` | UI completa (hero, tarjetas, tabs, cards de cuotas y mensualidades) |
+| `src/components/shared/swipeable-row.tsx` | Gesto de las cards en mobile: derecha edita, izquierda elimina. Mismo componente que usa `TransactionItem` en /movimientos |
 | `src/app/compromisos/actions.ts` | `markRecurringPlanPaid`, `unmarkRecurringPlanPaid`, `payCreditCardCycle`, `undoCreditCardPayment`, `backfillRecurringPlansHistory`, `syncAutomaticRecurringCharges` |
 | `src/app/dashboard/installments/actions.ts` | `createInstallmentPlan`, `updateInstallmentPlan`, `deleteInstallmentPlan` (cuotas) |
 | `src/app/dashboard/subscriptions/actions.ts` | `createSubscription`, `updateSubscription`, `deleteSubscription` (CRUD de `recurring_plans`) |
@@ -42,6 +43,15 @@ Gotcha crítico (documentado en CLAUDE.md, fuente de bugs silenciosos en el chat
 4. **Cuotas** (`createInstallmentPlan`): inserta el plan y N transacciones `(i/N)` con `installment_plan_id`. Primera cuota: si el medio es crédito con ciclo, `calculateCreditPaymentDate(purchase_date, closing, payment)`; si no, la fecha de compra. Las siguientes: +1 mes. `updateInstallmentPlan` propaga descripción/categoría preservando el sufijo `(X/Y)`; `deleteInstallmentPlan` borra plan + transacciones (fallback manual si no hay CASCADE, código FK `23503`).
 5. **Ciclo de tarjeta**: `getPendingCreditCardByCard()` → `computePendingCreditCards` arma un `CreditCardCycleSummary` por tarjeta con deuda (`projectedTotal < 0`): `total`, `nextPaymentDate`, `isCycleClosed` (el cierre ya pasó o es hoy → resumen fijado), `isPending`, `isPaidManually`.
 6. **Pagar resumen** (`payCreditCardCycle`): crea transacción `expense` en el **medio financiador** elegido (nunca la propia tarjeta ni medios `is_personal`) con `card_payment_for = <id tarjeta>` y fecha = vencimiento; categoría get-or-create **"Pagos de tarjeta"** (`emoji 💳`, `is_system: true`, `type: 'expense'`; `category_id` es NOT NULL). Guard anti-duplicado: un pago por tarjeta por mes. `undoCreditCardPayment` borra el pago del mes indicado.
+
+## Interacción de las cards (mobile vs desktop)
+
+Cuotas y mensualidades se editan y borran igual que un movimiento: en **mobile**, deslizando
+(derecha = editar, izquierda = eliminar) o tocando la card, que abre un `ActionSheet` con las
+mismas dos acciones; en **desktop**, con el menú kebab que aparece en la card. El menú kebab
+**no se renderiza en mobile** y el gesto **no se registra en desktop** (`useIsMobile`).
+El toggle "pagada/pendiente" de una mensualidad manual corta la propagación del click: tocarlo
+marca el pago y no abre el menú de la fila.
 
 ## Invariantes y gotchas
 - **Una mensualidad de crédito nunca está pendiente de acción.** Se postea sola, fechada al vencimiento del resumen, cuando su día de cobro ya pasó. Borrar una transacción generada NO la elimina: vuelve en la próxima carga, porque la cobertura se deriva de los datos y no de un registro de qué se generó — para que un plan deje de postearse hay que desactivarlo (`is_active = false`). La UI separa "Se debitan solas" de "Las pagás vos", y el subtotal "Por pagar" cuenta **sólo las manuales**.

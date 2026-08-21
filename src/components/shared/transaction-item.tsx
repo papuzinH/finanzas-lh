@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef, type KeyboardEvent } from 'react';
+import { useState, useRef, type KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import {
@@ -26,34 +26,8 @@ import { ConfirmationModal } from "@/components/shared/confirmation-modal";
 import { deleteTransaction } from "@/app/dashboard/transactions/actions";
 import { toast } from "sonner";
 import { useFinanceStore } from "@/lib/store/financeStore";
-import { motion, useMotionValue, useTransform, useReducedMotion, animate } from "framer-motion";
-
-// En cliente corrige antes del paint (evita el flash desktop→mobile); en SSR se
-// comporta como useEffect (useLayoutEffect no hace nada — y advierte — en el servidor).
-const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useIsomorphicLayoutEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-
-    let timeoutId: ReturnType<typeof setTimeout>;
-    const debounced = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(check, 150);
-    };
-
-    window.addEventListener('resize', debounced);
-    return () => {
-      window.removeEventListener('resize', debounced);
-      clearTimeout(timeoutId);
-    };
-  }, []);
-
-  return isMobile;
-}
+import { SwipeableRow } from "@/components/shared/swipeable-row";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 interface TransactionItemProps {
   transaction: {
@@ -78,9 +52,7 @@ interface TransactionItemProps {
   peekOnMount?: boolean;
 }
 
-const SWIPE_THRESHOLD = 80;
 const UNDO_WINDOW_MS = 4000;
-const PEEK_OFFSET = 46;
 
 export function TransactionItem({ transaction, paymentMethodName, paymentMethodType, showDate = true, grouped = false, peekOnMount = false }: TransactionItemProps) {
   const router = useRouter();
@@ -90,32 +62,7 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
   const { fetchAllData, categories } = useFinanceStore();
   const isMobile = useIsMobile();
-  const prefersReducedMotion = useReducedMotion();
-  const hapticFired = useRef(false);
-  const hasDraggedRef = useRef(false);
   const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const x = useMotionValue(0);
-  const editBgOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
-  const deleteBgOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
-
-  // Hint de descubribilidad: al entrar a la pantalla, la primera fila deslizable se
-  // mueve sola una vez mostrando la acción de eliminar, en vez de un indicador estático.
-  useEffect(() => {
-    if (!peekOnMount || prefersReducedMotion || !isMobile || transaction.installment_plan_id) return;
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      if (cancelled) return;
-      await animate(x, -PEEK_OFFSET, { duration: 0.35, ease: 'easeOut' });
-      if (cancelled) return;
-      await animate(x, 0, { duration: 0.35, ease: 'easeOut', delay: 0.5 });
-    }, 500);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Undo tras eliminar: el borrado real se demora UNDO_WINDOW_MS. Si el usuario no
   // navega ni hace "Deshacer", el timer sigue vivo aunque este componente se desmonte
@@ -173,33 +120,9 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
     });
   };
 
-  const handleDragStart = () => {
-    hasDraggedRef.current = false;
-  };
-
-  const handleDrag = (_: unknown, info: { offset: { x: number } }) => {
-    if (Math.abs(info.offset.x) > 5) hasDraggedRef.current = true;
-    if (Math.abs(info.offset.x) > SWIPE_THRESHOLD && !hapticFired.current) {
-      navigator.vibrate?.(10);
-      hapticFired.current = true;
-    } else if (Math.abs(info.offset.x) <= SWIPE_THRESHOLD) {
-      hapticFired.current = false;
-    }
-  };
-
-  const handleDragEnd = (_: unknown, info: { offset: { x: number } }) => {
-    hapticFired.current = false;
-    if (info.offset.x < -SWIPE_THRESHOLD) handleDelete();
-    else if (info.offset.x > SWIPE_THRESHOLD) setIsEditOpen(true);
-    animate(x, 0, prefersReducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 40 });
-  };
-
-  // Tap en la fila (mobile) → action sheet con Editar/Eliminar. El swipe queda como atajo.
+  // Tap en la fila (mobile) → action sheet con Editar/Eliminar. El swipe queda como
+  // atajo; el click sintético que deja el gesto lo corta SwipeableRow.
   const handleRowActivate = () => {
-    if (hasDraggedRef.current) {
-      hasDraggedRef.current = false;
-      return;
-    }
     setIsActionSheetOpen(true);
   };
 
@@ -355,44 +278,15 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
         confirmText="Eliminar"
       />
 
-      {canSwipe ? (
-        <div className={cn("relative overflow-hidden", !grouped && "rounded-2xl")}>
-          {/* Fondo editar – deslizar a la derecha */}
-          <motion.div
-            className={cn("absolute inset-0 flex items-center px-5 bg-accent", !grouped && "rounded-2xl")}
-            style={{ opacity: editBgOpacity }}
-            aria-hidden
-          >
-            <Pencil className="h-5 w-5 text-accent-ink" />
-            <span className="ml-2 text-sm font-bold text-accent-ink">Editar</span>
-          </motion.div>
-
-          {/* Fondo eliminar – deslizar a la izquierda */}
-          <motion.div
-            className={cn("absolute inset-0 flex items-center justify-end px-5 bg-bad", !grouped && "rounded-2xl")}
-            style={{ opacity: deleteBgOpacity }}
-            aria-hidden
-          >
-            <span className="mr-2 text-sm font-bold text-accent-ink">Eliminar</span>
-            <Trash2 className="h-5 w-5 text-accent-ink" />
-          </motion.div>
-
-          <motion.div
-            style={{ x }}
-            drag="x"
-            dragDirectionLock
-            dragConstraints={{ left: -150, right: 150 }}
-            dragElastic={0.15}
-            onDragStart={handleDragStart}
-            onDrag={handleDrag}
-            onDragEnd={handleDragEnd}
-          >
-            {cardInner}
-          </motion.div>
-        </div>
-      ) : (
-        cardInner
-      )}
+      <SwipeableRow
+        enabled={canSwipe}
+        rounded={!grouped && "rounded-2xl"}
+        peekOnMount={peekOnMount}
+        onSwipeRight={() => setIsEditOpen(true)}
+        onSwipeLeft={handleDelete}
+      >
+        {cardInner}
+      </SwipeableRow>
 
       <ActionSheet
         open={isActionSheetOpen}

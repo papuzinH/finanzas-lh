@@ -7,17 +7,17 @@ import { CurrencyExposureCard } from './cards/currency-exposure-card';
 import { InfoHint } from '@/components/ui/info-hint';
 import { Modal } from '@/components/shared/modal';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { formatCurrency } from '@/lib/utils';
 
 export function TabCategorias() {
-  const { getCategoryBreakdown, getCategoryFrequencyRanking, toDisplay } = useFinanceStore();
+  // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
+  const store = useFinanceStore();
   const [selected, setSelected] = useState<string | null>(null);
   const [scope, setScope] = useState<'current_month' | 'global'>('current_month');
   const [freqScope, setFreqScope] = useState<'current_month' | 'global'>('current_month');
   const [selectedFreq, setSelectedFreq] = useState<string | null>(null);
-  const breakdown = getCategoryBreakdown(scope);
+  const breakdown = store.getCategoryBreakdown(scope);
   const item = selected ? breakdown.items.find((i) => i.name === selected) : null;
-  const freqRanking = getCategoryFrequencyRanking(freqScope);
+  const freqRanking = store.getCategoryFrequencyRanking(freqScope);
   const freqItem = selectedFreq ? freqRanking.find((r) => r.category === selectedFreq) : null;
 
   return (
@@ -70,7 +70,7 @@ export function TabCategorias() {
         {item && (
           <div className="text-center py-4">
             <p className="text-xs text-muted uppercase tracking-wider mb-1">{scope === 'global' ? 'Gasto histórico' : 'Gasto del mes'}</p>
-            <p className="font-display tnum text-3xl text-text">{formatCurrency(toDisplay(item.value))}</p>
+            <p className="font-display tnum text-3xl text-text">{store.formatDisplay(item.value)}</p>
             <p className="text-sm text-muted mt-2">{item.percentage.toFixed(1)}% del total</p>
           </div>
         )}
@@ -87,11 +87,11 @@ export function TabCategorias() {
             <div className="mt-4 flex justify-center gap-6 text-left">
               <div>
                 <p className="text-[11px] text-muted uppercase tracking-wider">Total</p>
-                <p className="font-sans tnum text-base font-bold text-text">{formatCurrency(toDisplay(freqItem.total))}</p>
+                <p className="font-sans tnum text-base font-bold text-text">{store.formatDisplay(freqItem.total)}</p>
               </div>
               <div>
                 <p className="text-[11px] text-muted uppercase tracking-wider">Promedio</p>
-                <p className="font-sans tnum text-base font-bold text-text">{formatCurrency(toDisplay(freqItem.avg))}</p>
+                <p className="font-sans tnum text-base font-bold text-text">{store.formatDisplay(freqItem.avg)}</p>
               </div>
             </div>
           </div>
