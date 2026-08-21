@@ -23,6 +23,17 @@ Tests en `src/**/__tests__/`. Los del store (`lib/store/__tests__/analysis-gette
 
 ## Store: `lib/store/financeStore.ts`
 Única fuente de verdad cliente. **Leer antes de modificar componentes.**
+
+> **Cómo se consume desde un componente (regla dura):** tomar el objeto entero y llamar los
+> getters sobre él — `const store = useFinanceStore(); const x = store.getX()` —, NUNCA
+> desestructurarlos ni sacarlos con selector (`useFinanceStore(s => s.getX)`). El proyecto
+> compila con `reactCompiler: true` y los getters de Zustand son referencias **estables** que
+> leen el estado por `get()`: si lo único de lo que depende el cálculo es la función, el
+> compiler memoiza el resultado y lo **congela** hasta que el componente se desmonta — ni un
+> refetch ni un cambio de moneda lo actualizan. El objeto del store, en cambio, cambia de
+> referencia con cada `set`. Los campos de estado (`transactions`, `categories`…) sí se pueden
+> desestructurar. Lo vigila `src/lib/store/__tests__/store-freshness.test.ts`, que compila cada
+> componente con el mismo plugin que usa Next y falla si aparece un valor congelado.
 Nada de lógica de negocio en componentes. Los getters de cálculo del store son **wrappers finos sobre las funciones puras de `lib/finance/`** (ver sección propia): cambios de lógica financiera van ahí, no en el cuerpo del getter.
 
 Getters disponibles:
@@ -38,6 +49,12 @@ Getters disponibles:
 - `getPendingFixedExpenses()` – mensualidades activas sin transacción vinculada este mes (`{ total, items }`).
 - `getRecurringBackfillPreview()` – meses de mensualidades sin registrar (`missingMonths`) y exceso a borrar (`excessMonths`), con piso en el mes del **primer ingreso** del usuario (una cuota/gasto anterior al primer sueldo NO fija el piso — evita meses fantasma).
 - `getDefaultPaymentMethod()` – medio de pago marcado `is_default`.
+- `formatDisplay(ars)` – monto en ARS → **texto** en la moneda de visualización del análisis
+  (`displayCurrency`, el toggle ARS/USD del home): convierte y formatea junto, con `u$s` cuando
+  corresponde. Usarlo en lugar de `formatCurrency(toDisplay(x))`, que mostraba dólares con el
+  signo del peso. `getDisplaySymbol()` devuelve el símbolo suelto para ejes y tooltips
+  (`formatCompact(v, símbolo)`). `CurrencyExposureCard` es la excepción consciente: sus montos
+  son "en pesos" vs "dolarizado" por definición y no siguen el toggle.
 - `getUnassignedTransactionsCount()` – transacciones con `payment_method_id == null`.
 - `isCreditCardCyclePaid(methodId)` – true si existe un pago (`card_payment_for`) en el mes del vencimiento del ciclo vigente. (El viejo flag `paidCycles`/localStorage fue eliminado del store.)
 
@@ -121,7 +138,8 @@ UI: selector de medio en el chip de Compromisos (`credit-card-cycle-card.tsx`) +
 - **Cards**: `<Card>` de `@/components/ui/card` → `rounded-2xl bg-surface border-[1.5px] border-border shadow-card`.
 - **Tabs**: `<TabsDS>` de `@/components/ui/tabs-ds`. **Toggles**: `<ToggleDS>`. **Chips**: `<Chip>`. **Banners**: `<BannerDS>`. **Progress bars**: `<ProgressBar>` con `tone="accent|good|warn|bad"`.
 - **Íconos**: `lucide-react` directo (importar específicos) O `<Icon name="..." />` de `@/components/ui/icon`.
-- **ScreenHeader**: `<ScreenHeader title="..." right={...} />` de `@/components/shared/screen-header`; variante `compact` (título 22px, sin kicker) para las pantallas alineadas a los mocks de layouts.
+- **ScreenHeader**: `<ScreenHeader title="..." right={...} />` de `@/components/shared/screen-header`; variante `compact` (título 22px, sin kicker) para las pantallas alineadas a los mocks de layouts. Sin `kicker` ni `sub` el header alinea al centro solo (el `icon` de marca queda a la altura del título).
+- **Filas con acciones**: `<SwipeableRow>` de `@/components/shared/swipeable-row` — arrastrar a la derecha edita, a la izquierda elimina (fondos de color, haptics y guard del click sintético incluidos). Se activa con `enabled={isMobile}` (`useIsMobile` de `@/lib/hooks/useIsMobile`). **El gesto es un atajo, nunca la única vía**: en mobile la fila entera abre un `<ActionSheet>` al tocarla y en desktop se usa el menú kebab. Lo usan `TransactionItem` (/movimientos) y las cards de cuotas y mensualidades (/compromisos).
 - **Nav**: bottom nav mobile de **5 destinos** (Inicio, Movimientos, Compromisos, Objetivos, Más); "Más" abre un ActionSheet con Inversiones, Medios de pago y Ajustes (`nav-config.ts`). Desktop sidebar: 6 ítems directos.
 - **Mobile-first**: canvas base 390px (el de los mocks). Margen lateral `px-5`. Touch targets ≥44px. `pb-28` para clearear BottomNav.
 

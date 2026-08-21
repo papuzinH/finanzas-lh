@@ -11,14 +11,15 @@
 
 | Path | Rol |
 |---|---|
-| `src/app/page.tsx` | Composición de la pantalla + 4 modales de detalle (cuotas, fijos, ingresos, variables) + racha (`getRegistrationStreak`) |
+| `src/app/page.tsx` | Composición de la pantalla + 4 modales de detalle (cuotas, fijos, ingresos, variables) |
 | `src/components/dashboard/balance-card.tsx` | Hero card de "Tu plata libre para hoy". Expandible: desglose `pocketTotal − comprometido = disponible`, con sub-línea por cuenta del bolsillo (`accounts`, con `anchored`) y por compromiso (`commitmentItems`: tarjetas con vencimiento vigente + estado "cerrado"/"en curso", fijos sin fecha). Muestra también `reserveTotal` aparte (no resta) y `committedNextPeriod` (lo que vence después del período, no baja el disponible de hoy). Count-up con rAF |
 | `src/components/dashboard/metric-grid.tsx` | 4 KPIs: Ingresos / Variables / Cuotas / Fijos del mes (con sparklines vía `getWeeklySnapshot`) |
 | `src/components/dashboard/insights-carousel.tsx` | Carrusel auto-rotativo (5s) de `getInsights()`. **Retorna `null` si no hay insights** → la celda del grid colapsa (es hijo directo del grid a propósito) |
 | `src/components/dashboard/budget-gauge-card.tsx` | Gauge semicircular de `getBudgetsOverview()` (gastado vs proyectado). Retorna `null` sin presupuestos |
+| `src/components/dashboard/*` (sección "Presupuestos y metas") | El **título de sección vive en `page.tsx` y se oculta** si no hay ningún presupuesto activo ni meta activa (`getBudgetsOverview() === null` y `getSavingsGoalsOverview().activeCount === 0`); con uno solo de los dos, el grid pasa a una columna |
 | `src/components/dashboard/savings-goals-rings-card.tsx` | Anillos de progreso de `getSavingsGoalsOverview()` (máx. 4 metas). Retorna `null` sin metas activas |
 | `src/components/dashboard/incomplete-credit-cards-banner.tsx` | Aviso de tarjetas de crédito sin `closing_day`/`payment_day` |
-| `src/components/dashboard/analysis/analysis-section.tsx` | Tabs `este mes / tendencia / categorías` + toggle ARS/USD (`displayCurrency` + `toDisplay()` del store) |
+| `src/components/dashboard/analysis/analysis-section.tsx` | Tabs `este mes / tendencia / categorías` + toggle ARS/USD (`displayCurrency`; los montos salen de `store.formatDisplay()`, que convierte y formatea junto) |
 | `analysis/tab-este-mes.tsx` | "¿Llegás a fin de mes?" (`getMonthlySpendingPace`: gasto acumulado + proyección lineal vs ingreso) + `InstallmentsRealCostCard` (`getInstallmentsRealCost`: cuotas futuras deflactadas por IPC) |
 | `analysis/tab-tendencia.tsx` | `TrendChart` (`getMonthlyTrend(6)`) + hint ajustado por inflación (`getRealAdjustedTrend`) + tasa de ahorro (`getSavingsRateSeries`: `net/income`, tono good ≥15% / warn ≥0 / bad) |
 | `analysis/tab-categorias.tsx` | `getCategoryBreakdown` (torta, scope mes/histórico), `getCategoryFrequencyRanking` (cuenta movimientos, no montos), `CurrencyExposureCard` |
@@ -44,7 +45,7 @@ Gotcha crítico del repo: confundir el id interno con el UUID de auth produce qu
 
 1. **Carga**: `fetchAllData()` → `Promise.all` de ~16 queries Supabase + API dólar blue (`dolarapi.com`, timeout 5s, opcional) + IPC (`argentinadatos.com`, opcional) → `prepareTransactions()`/`prepareRecurringPlans()` (`lib/finance/prepare.ts`: calcula `periodDate` y normaliza USD→ARS) → `set(...)`.
 2. **Tu plata libre para hoy** (`getAvailableToSpend`, wrapper de `computeAvailableToSpend` en `lib/finance/pocket.ts`): `available = pocketTotal − committed`, donde `pocketTotal` es la suma de `computeAccountBalance` de cada cuenta con `bucket = 'pocket'` (ancla + movimientos entre el ancla y hoy, o todo el historial si la cuenta no está anclada) y `committed` son los compromisos del período de cobro declarado (`computeCommitments`: mensualidades pendientes + tarjetas cuyo vencimiento cae dentro del período). Detalle completo, incluida la puesta a punto (`/puesta-a-punto`) y la conciliación, en `docs/features/bolsillo.md`.
-3. **Insights** (`getInsights`, máx. 6): gasto vs mes anterior, categoría que subió >20%, cuotas del mes, presupuesto ≥75%, tarjetas que necesitan actualizar fechas (día después del vencimiento), meta ≥50%, racha ≥3 días, portafolio ±3%.
+3. **Insights** (`getInsights`, máx. 6): gasto vs mes anterior, categoría que subió >20%, cuotas del mes, presupuesto ≥75%, tarjetas que necesitan actualizar fechas (día después del vencimiento), meta ≥50%, portafolio ±3%.
 4. **Análisis mes actual**: los gastos usan `isExpenseInCurrentMonthScope()` (respeta ciclo de tarjeta); los ingresos, mes calendario simple.
 
 ## Invariantes y gotchas
