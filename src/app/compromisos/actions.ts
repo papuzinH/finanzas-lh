@@ -1,20 +1,32 @@
 'use server';
 
+import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { dateToLocalString } from '@/lib/utils/dates';
+import { dateToLocalString, parseLocalDate } from '@/lib/utils/dates';
 
 type ActionResponse = {
   error?: string;
   success?: boolean;
 };
 
+const fechaSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
 /**
  * Marca una mensualidad como pagada este mes creando la transacción real
  * vinculada (recurring_plan_id). El Disponible Real no cambia: el monto pasa
  * del bucket "pendiente" al saldo ya gastado.
+ *
+ * `fecha` (opcional, `yyyy-MM-dd`) fija la fecha de la transacción explícitamente. Sin
+ * ella, se usa el reloj del servidor — que en Vercel corre en UTC (no hay `TZ` seteada) y
+ * puede desfasarse un día del "hoy" del cliente (Argentina, UTC-3) entre ~21:00 y
+ * medianoche. `/puesta-a-punto` pasa su propio `hoy` para que la transacción quede
+ * fechada igual que el ancla que guarda en el mismo paso: si el servidor la fechara
+ * "mañana", `anchorValueForDeclaredBalance` la trataría como un movimiento futuro, no la
+ * descontaría del ancla, y al día siguiente sí la restaría del saldo — el mismo agujero
+ * que ese paso vino a cerrar. El call site de Compromisos no pasa nada: sigue como antes.
  */
-export async function markRecurringPlanPaid(planId: string): Promise<ActionResponse> {
+export async function markRecurringPlanPaid(planId: string, fecha?: string): Promise<ActionResponse> {
   try {
     const supabase = await createClient();
     const {
@@ -22,6 +34,10 @@ export async function markRecurringPlanPaid(planId: string): Promise<ActionRespo
     } = await supabase.auth.getUser();
     if (!user) {
       return { error: 'No autorizado' };
+    }
+
+    if (fecha !== undefined && !fechaSchema.safeParse(fecha).success) {
+      return { error: 'Fecha inválida' };
     }
 
     const { data: plan, error: planError } = await supabase
@@ -34,10 +50,12 @@ export async function markRecurringPlanPaid(planId: string): Promise<ActionRespo
       return { error: 'Plan no encontrado' };
     }
 
-    // Guard anti-duplicado: si ya hay pago registrado este mes, no crear otro.
-    const now = new Date();
-    const monthStart = dateToLocalString(new Date(now.getFullYear(), now.getMonth(), 1));
-    const monthEnd = dateToLocalString(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    const dia = fecha ?? dateToLocalString(new Date());
+    const referencia = parseLocalDate(dia);
+
+    // Guard anti-duplicado: si ya hay pago registrado en el mes de `dia`, no crear otro.
+    const monthStart = dateToLocalString(new Date(referencia.getFullYear(), referencia.getMonth(), 1));
+    const monthEnd = dateToLocalString(new Date(referencia.getFullYear(), referencia.getMonth() + 1, 0));
     const { data: existing } = await supabase
       .from('transactions')
       .select('id')
@@ -55,7 +73,7 @@ export async function markRecurringPlanPaid(planId: string): Promise<ActionRespo
       user_id: user.id,
       description: plan.description,
       amount: Math.abs(Number(plan.amount)),
-      date: dateToLocalString(now),
+      date: dia,
       type: 'expense' as const,
       category_id: plan.category_id,
       payment_method_id: plan.payment_method_id,

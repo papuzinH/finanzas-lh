@@ -86,17 +86,20 @@ export function PuestaAPuntoFlow() {
 
   /**
    * Arma el payload de `saveAccountAnchors` a partir de lo que el usuario declaró en
-   * `filas`. Recibe transacciones/transferencias/medios como parámetro (no los toma del
-   * cierre) a propósito: `continuarCompromisos` necesita pasarle una copia recién
+   * `filas`. Recibe transacciones/transferencias/medios y `hoy` como parámetro (no los
+   * toma del cierre) a propósito: `continuarCompromisos` necesita pasarle una copia recién
    * refetcheada, que ya incluya los pagos que se acaban de marcar, para que
    * `anchorValueForDeclaredBalance` los vea y no los reste dos veces (ver ese handler).
+   * `hoy` viaja como parámetro para que sea EXACTAMENTE el mismo string que se le pasa a
+   * `markRecurringPlanPaid`: calcularlo de nuevo acá (otro `new Date()`) reabriría la
+   * ventana de desfase que ese pasaje de `hoy` está resolviendo.
    */
   const construirAnchors = (
     txs: ProcessedTransaction[],
     transfers: InternalTransfer[],
     methods: PaymentMethod[],
+    hoy: string,
   ) => {
-    const hoy = dateToLocalString(new Date())
     return filas.flatMap((f) => {
       const method = methods.find((m) => m.id === f.id)
       if (!method) return []
@@ -122,7 +125,8 @@ export function PuestaAPuntoFlow() {
       // a nada más. Si lo hay, el ancla se guarda recién en `continuarCompromisos` (ver
       // el comentario de esa función) — este paso solo decide a cuál ir.
       if (compromisosPendientes.length === 0) {
-        const anchors = construirAnchors(transactions, internalTransfers, paymentMethods)
+        const hoy = dateToLocalString(new Date())
+        const anchors = construirAnchors(transactions, internalTransfers, paymentMethods, hoy)
         const res = await saveAccountAnchors(anchors)
         if (res.error) {
           toast.error(res.error)
@@ -138,9 +142,18 @@ export function PuestaAPuntoFlow() {
   const continuarCompromisos = async () => {
     setGuardando(true)
     try {
+      // Un solo "hoy", calculado en el timezone del cliente (Argentina), para todo este
+      // paso: se lo pasamos explícito a `markRecurringPlanPaid` para que la transacción
+      // quede fechada igual que el ancla. Si cada uno calculara su propio `new Date()`,
+      // el servidor (Vercel, sin TZ seteada → UTC) podría fechar la transacción "mañana"
+      // mientras el cliente ancla "hoy" — la ventana es angosta (~21:00 a 00:00 ART) pero
+      // real, y anchorValueForDeclaredBalance trataría esa transacción como un movimiento
+      // futuro: no la restaría del ancla, y al día siguiente sí la restaría del saldo,
+      // resucitando el mismo agujero que este paso vino a cerrar.
+      const hoy = dateToLocalString(new Date())
       const idsMarcados = compromisosPendientes.filter((item) => pagados[item.id]).map((item) => item.id)
       for (const planId of idsMarcados) {
-        const res = await markRecurringPlanPaid(planId)
+        const res = await markRecurringPlanPaid(planId, hoy)
         if (res.error) {
           toast.error(res.error)
           return
@@ -149,8 +162,8 @@ export function PuestaAPuntoFlow() {
 
       // El ancla se guarda ACÁ, no en `guardarCuentas`, cuando hay compromisos para marcar.
       // Si ancláramos antes de esto, `anchorValueForDeclaredBalance` no vería las
-      // transacciones que se acaban de crear (están fechadas hoy, el mismo día del ancla)
-      // y las restaría dos veces: una ya implícita en el saldo declarado, otra por la
+      // transacciones que se acaban de crear (fechadas `hoy`, el mismo día del ancla) y
+      // las restaría dos veces: una ya implícita en el saldo declarado, otra por la
       // transacción. Por eso, si se marcó algo, hay que refrescar el store ANTES de armar
       // el ancla — `useFinanceStore.getState()` en vez del cierre, que quedó desactualizado
       // apenas se disparó el fetch.
@@ -159,12 +172,22 @@ export function PuestaAPuntoFlow() {
       let methods = paymentMethods
       if (idsMarcados.length > 0) {
         await fetchAllData()
+        // `fetchAllData` nunca rechaza: si falla adentro, cachea el error en el store y
+        // deja `transactions` SIN TOCAR (el catch de `fetchAllData` no las pisa). Sin este
+        // chequeo, seguiríamos con la copia vieja (sin los pagos recién marcados),
+        // `anchorValueForDeclaredBalance` no los vería, y el ancla se guardaría sin
+        // descontarlos — el mismo agujero, pero silencioso: los pagos ya están en la base,
+        // fechados hoy, adentro de la ventana del ancla.
         const fresh = useFinanceStore.getState()
+        if (fresh.error) {
+          toast.error('Marcamos los pagos pero no pudimos actualizar tus datos. Probá de nuevo.')
+          return
+        }
         txs = fresh.transactions
         transfers = fresh.internalTransfers
         methods = fresh.paymentMethods
       }
-      const anchors = construirAnchors(txs, transfers, methods)
+      const anchors = construirAnchors(txs, transfers, methods, hoy)
       const res = await saveAccountAnchors(anchors)
       if (res.error) {
         toast.error(res.error)
