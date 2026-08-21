@@ -44,6 +44,9 @@ import {
 import { toast } from 'sonner';
 import { InstallmentPlan, RecurringPlan } from '@/types/database';
 import { CreateInstallmentPlanDialog } from '@/components/installments/create-plan-dialog';
+import { SwipeableRow } from '@/components/shared/swipeable-row';
+import { ActionSheet } from '@/components/ui/action-sheet';
+import { useIsMobile } from '@/lib/hooks/useIsMobile';
 import { EditSubscriptionDialog } from '@/components/subscriptions/edit-subscription-dialog';
 import { CreateSubscriptionDialog } from '@/components/subscriptions/create-subscription-dialog';
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
@@ -82,8 +85,12 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const router = useRouter();
   const { fetchAllData } = useFinanceStore();
+  // Mismo trato que en /movimientos: en mobile se maneja por gesto y tap; en
+  // desktop, por el menu de tres puntos.
+  const isMobile = useIsMobile();
 
   const confirmDelete = async () => {
     setIsDeleting(true);
@@ -114,58 +121,100 @@ function InstallmentPlanCard({ plan }: { plan: PlanWithStatus }) {
         variant="destructive"
         confirmText="Eliminar Plan"
       />
-      <div className="rounded-2xl border-[1.5px] border-border bg-surface p-3.5 px-3.5 grid gap-2">
-        {/* Fila 1: nombre + badge n/m + cuota mensual + menú */}
-        <div className="flex items-center gap-2">
-          <span className="font-sans font-bold text-[13.5px] text-text truncate">{plan.description}</span>
-          <span className="flex-none text-[10.5px] font-bold text-muted border-[1.5px] border-border rounded-full px-[7px] py-0.5 leading-none">
-            {plan.isFinished ? '✓' : `${plan.installmentsPaid + 1}/${plan.installments_count}`}
-          </span>
-          <span className="ml-auto font-display tnum text-[14px] text-bad whitespace-nowrap">
-            − {formatCurrency(Number(plan.total_amount) / plan.installments_count)}
-            <span className="font-sans font-semibold text-[11px] text-muted"> /mes</span>
-          </span>
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Opciones del plan" className="h-8 w-8 -mr-1 text-muted hover:text-text hover:bg-surface-2">
-                <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
-              <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-surface-2 cursor-pointer">
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setIsDeleteOpen(true)}
-                disabled={isDeleting}
-                className="text-bad focus:bg-bad/10 focus:text-bad cursor-pointer"
-              >
-                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                Eliminar Plan
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      <SwipeableRow
+        enabled={isMobile}
+        onSwipeRight={() => setIsEditOpen(true)}
+        onSwipeLeft={() => setIsDeleteOpen(true)}
+      >
+        <div
+          className={cn(
+            'rounded-2xl border-[1.5px] border-border bg-surface p-3.5 grid gap-2 min-w-0',
+            isMobile &&
+              'cursor-pointer active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+          )}
+          role={isMobile ? 'button' : undefined}
+          tabIndex={isMobile ? 0 : undefined}
+          aria-label={isMobile ? `${plan.description}. Abrir opciones de editar o eliminar el plan.` : undefined}
+          onClick={isMobile ? () => setIsSheetOpen(true) : undefined}
+          onKeyDown={
+            isMobile
+              ? (e) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return;
+                  e.preventDefault();
+                  setIsSheetOpen(true);
+                }
+              : undefined
+          }
+        >
+          {/* Fila 1: nombre + badge n/m + cuota mensual + menú */}
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="min-w-0 flex-1 font-sans font-bold text-[13.5px] text-text truncate">{plan.description}</span>
+            <span className="flex-none text-[10.5px] font-bold text-muted border-[1.5px] border-border rounded-full px-[7px] py-0.5 leading-none">
+              {plan.isFinished ? '✓' : `${plan.installmentsPaid + 1}/${plan.installments_count}`}
+            </span>
+            <span className="flex-none font-display tnum text-[14px] text-bad whitespace-nowrap">
+              − {formatCurrency(Number(plan.total_amount) / plan.installments_count)}
+              <span className="font-sans font-semibold text-[11px] text-muted"> /mes</span>
+            </span>
+            {!isMobile && (
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="Opciones del plan" className="h-8 w-8 -mr-1 flex-none text-muted hover:text-text hover:bg-surface-2">
+                    <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
+                  <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-surface-2 cursor-pointer">
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setIsDeleteOpen(true)}
+                    disabled={isDeleting}
+                    className="text-bad focus:bg-bad/10 focus:text-bad cursor-pointer"
+                  >
+                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Eliminar Plan
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
 
-        {/* Barra de progreso */}
-        <ProgressBar
-          value={plan.progress}
-          tone={plan.isFinished ? 'good' : plan.progress >= 75 ? 'good' : 'warn'}
-          height={7}
-          label={`Progreso de cuotas: ${plan.installmentsPaid} de ${plan.installments_count} pagadas`}
-        />
+          {/* Barra de progreso */}
+          <ProgressBar
+            value={plan.progress}
+            tone={plan.isFinished ? 'good' : plan.progress >= 75 ? 'good' : 'warn'}
+            height={7}
+            label={`Progreso de cuotas: ${plan.installmentsPaid} de ${plan.installments_count} pagadas`}
+          />
 
-        {/* Pie: medio + faltan */}
-        <div className="flex justify-between text-[11.5px] text-muted tnum">
-          <span className="truncate">{plan.paymentMethodName ?? 'Sin medio asignado'}</span>
-          <span>
-            {plan.isFinished
-              ? 'completado'
-              : `faltan ${formatCurrency(plan.remaining)}${plan.remainingInstallments === 1 ? ' · última en curso' : ''}`}
-          </span>
+          {/* Pie: medio + faltan */}
+          <div className="flex justify-between gap-2 text-[11.5px] text-muted tnum min-w-0">
+            <span className="min-w-0 truncate">{plan.paymentMethodName ?? 'Sin medio asignado'}</span>
+            <span className="flex-none">
+              {plan.isFinished
+                ? 'completado'
+                : `faltan ${formatCurrency(plan.remaining)}${plan.remainingInstallments === 1 ? ' · última' : ''}`}
+            </span>
+          </div>
         </div>
-      </div>
+      </SwipeableRow>
+
+      <ActionSheet
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        title={plan.description}
+        actions={[
+          { label: 'Editar', icon: <Pencil className="h-5 w-5" />, onClick: () => setIsEditOpen(true) },
+          {
+            label: 'Eliminar plan',
+            icon: <Trash2 className="h-5 w-5" />,
+            onClick: () => setIsDeleteOpen(true),
+            variant: 'destructive' as const,
+          },
+        ]}
+      />
 
       <EditInstallmentPlanDialog
         open={isEditOpen}
@@ -184,6 +233,8 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const isMobile = useIsMobile();
   const router = useRouter();
   const { fetchAllData, categories, paymentMethods, getPendingFixedExpenses } = useFinanceStore();
 
@@ -250,11 +301,31 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
         variant="destructive"
         confirmText="Eliminar"
       />
+      <SwipeableRow
+        enabled={isMobile}
+        onSwipeRight={() => setIsEditOpen(true)}
+        onSwipeLeft={() => setIsDeleteOpen(true)}
+      >
       <div
         className={cn(
-          'flex items-center gap-3 rounded-2xl border-[1.5px] border-border p-3',
-          plan.is_active ? 'bg-surface' : 'bg-surface-2 opacity-70'
+          'flex items-center gap-3 rounded-2xl border-[1.5px] border-border p-3 min-w-0',
+          plan.is_active ? 'bg-surface' : 'bg-surface-2 opacity-70',
+          isMobile &&
+            'cursor-pointer active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
         )}
+        role={isMobile ? 'button' : undefined}
+        tabIndex={isMobile ? 0 : undefined}
+        aria-label={isMobile ? `${plan.description}. Abrir opciones de editar o eliminar.` : undefined}
+        onClick={isMobile ? () => setIsSheetOpen(true) : undefined}
+        onKeyDown={
+          isMobile
+            ? (e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                setIsSheetOpen(true);
+              }
+            : undefined
+        }
       >
         <div className="w-[38px] h-[38px] flex-none grid place-items-center bg-surface-2 border-[1.5px] border-border rounded-xl text-[17px]" aria-hidden="true">
           {category?.emoji ? <span>{category.emoji}</span> : getServiceIcon(plan.description, category?.name || null)}
@@ -287,7 +358,11 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
               ) : (
                 <button
                   type="button"
-                  onClick={togglePaid}
+                  onClick={(e) => {
+                    // Tocar el estado no abre el menú de la fila.
+                    e.stopPropagation();
+                    togglePaid();
+                  }}
                   disabled={isToggling}
                   aria-label={isPaidThisMonth ? `Deshacer pago de ${plan.description}` : `Marcar ${plan.description} como pagada`}
                   className={cn(
@@ -300,29 +375,47 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
               )
             )}
           </div>
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Opciones de suscripción" className="h-8 w-8 text-muted hover:text-text hover:bg-surface-2">
-                <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
-              <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-surface-2 cursor-pointer">
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setIsDeleteOpen(true)}
-                disabled={isDeleting}
-                className="text-bad focus:bg-bad/10 focus:text-bad cursor-pointer"
-              >
-                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                Eliminar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!isMobile && (
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Opciones de suscripción" className="h-8 w-8 text-muted hover:text-text hover:bg-surface-2">
+                  <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
+                <DropdownMenuItem onClick={() => setIsEditOpen(true)} className="focus:bg-surface-2 cursor-pointer">
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setIsDeleteOpen(true)}
+                  disabled={isDeleting}
+                  className="text-bad focus:bg-bad/10 focus:text-bad cursor-pointer"
+                >
+                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                  Eliminar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
+      </SwipeableRow>
+
+      <ActionSheet
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        title={plan.description}
+        actions={[
+          { label: 'Editar', icon: <Pencil className="h-5 w-5" />, onClick: () => setIsEditOpen(true) },
+          {
+            label: 'Eliminar',
+            icon: <Trash2 className="h-5 w-5" />,
+            onClick: () => setIsDeleteOpen(true),
+            variant: 'destructive' as const,
+          },
+        ]}
+      />
 
       <EditSubscriptionDialog
         open={isEditOpen}
