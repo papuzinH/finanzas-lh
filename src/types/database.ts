@@ -441,6 +441,7 @@ export interface Database {
       recurring_plans: {
         Row: {
           amount: number
+          billing_day: number | null
           category_id: string
           created_at: string
           currency: string | null
@@ -456,6 +457,7 @@ export interface Database {
         }
         Insert: {
           amount: number
+          billing_day?: number | null
           category_id: string
           created_at?: string
           currency?: string | null
@@ -471,6 +473,7 @@ export interface Database {
         }
         Update: {
           amount?: number
+          billing_day?: number | null
           category_id?: string
           created_at?: string
           currency?: string | null
