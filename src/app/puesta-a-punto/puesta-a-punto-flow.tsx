@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { Chancho } from '@/components/brand/chancho'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Switch } from '@/components/ui/switch'
 import { AccountAnchorFields } from '@/components/pocket/account-anchor-fields'
 import { RhythmPicker } from '@/components/pocket/rhythm-picker'
 import { FullPageLoader } from '@/components/shared/loader'
@@ -17,11 +18,21 @@ import { dateToLocalString } from '@/lib/utils/dates'
 import { formatCurrency } from '@/lib/utils'
 import { periodLabel } from '@/lib/utils/pocket-copy'
 import { saveAccountAnchors, saveIncomeRhythm, completePocketSetup } from '@/app/bolsillo/actions'
+import { markRecurringPlanPaid } from '@/app/compromisos/actions'
 import type { IncomeRhythm } from '@/lib/finance/pocket'
+import type { ProcessedTransaction } from '@/lib/finance/types'
+import type { PaymentMethod, InternalTransfer } from '@/types/database'
 
-type Paso = 'intro' | 'cuentas' | 'ritmo' | 'cambio'
+type Paso = 'intro' | 'cuentas' | 'compromisos' | 'ritmo' | 'cambio'
 
-/** Estado editable por cuenta. `balance: ''` = salteada, queda sin anclar. */
+/** Acá, a diferencia del default de `AccountAnchorFields` (pensado para onboarding, donde
+ *  la cuenta es nueva), dejar el campo vacío NO deja la cuenta sin anclar: ver `FilaCuenta`. */
+const BALANCE_ZERO_HELP = 'Si lo dejás vacío, arrancamos esta cuenta en $0 desde hoy.'
+
+/** Estado editable por cuenta. `balance: ''` = salteada: a diferencia de Ajustes o el
+ *  onboarding, acá la cuenta YA tiene historial, así que dejarla sin anclar volvería a
+ *  sumar todo desde el primer movimiento (el modelo viejo que esta puesta a punto viene
+ *  a reemplazar). Por eso un campo vacío ancla en $0 desde hoy, no queda "sin anclar". */
 type FilaCuenta = { id: string; name: string; bucket: 'pocket' | 'reserve'; balance: string }
 
 export function PuestaAPuntoFlow() {
@@ -35,6 +46,9 @@ export function PuestaAPuntoFlow() {
   const [paso, setPaso] = useState<Paso>('intro')
   const [filas, setFilas] = useState<FilaCuenta[]>([])
   const [rhythm, setRhythm] = useState<IncomeRhythm>('monthly')
+  // Qué mensualidades marcó el usuario como "ya la pagué este mes". Todas arrancan sin
+  // marcar: nunca las pre-tildamos, tiene que afirmarlo.
+  const [pagados, setPagados] = useState<Record<string, boolean>>({})
   const [guardando, setGuardando] = useState(false)
   // El número viejo se congela ANTES de anclar: después de guardar ya no se puede recuperar.
   const [numeroViejo, setNumeroViejo] = useState<number | null>(null)
@@ -61,27 +75,96 @@ export function PuestaAPuntoFlow() {
 
   if (isLoading && !isInitialized) return <FullPageLoader text="Cargando tus cuentas..." />
 
+  // Exactamente los fijos que el disponible está por descontar (ya excluye los facturados
+  // a tarjeta, que viajan dentro del resumen y no se ofrecen acá para no contarlos dos veces
+  // en el otro sentido). Independiente de si ya ancló las cuentas o eligió el ritmo: ninguno
+  // de los dos afecta qué mensualidades están pendientes.
+  const compromisosPendientes = getAvailableToSpend().commitmentItems.filter((i) => i.kind === 'fixed')
+
   const setFila = (id: string, patch: Partial<FilaCuenta>) =>
     setFilas((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)))
+
+  /**
+   * Arma el payload de `saveAccountAnchors` a partir de lo que el usuario declaró en
+   * `filas`. Recibe transacciones/transferencias/medios como parámetro (no los toma del
+   * cierre) a propósito: `continuarCompromisos` necesita pasarle una copia recién
+   * refetcheada, que ya incluya los pagos que se acaban de marcar, para que
+   * `anchorValueForDeclaredBalance` los vea y no los reste dos veces (ver ese handler).
+   */
+  const construirAnchors = (
+    txs: ProcessedTransaction[],
+    transfers: InternalTransfer[],
+    methods: PaymentMethod[],
+  ) => {
+    const hoy = dateToLocalString(new Date())
+    return filas.flatMap((f) => {
+      const method = methods.find((m) => m.id === f.id)
+      if (!method) return []
+      const declarado = f.balance.trim() === '' ? null : Number(f.balance)
+      return [{
+        payment_method_id: f.id,
+        bucket: f.bucket,
+        // Vacío = declaró $0, no "sin anclar": esta cuenta ya tiene historial, y dejarla
+        // sin anclar volvería a sumar todo desde el primer movimiento (ver `FilaCuenta`).
+        initial_balance:
+          declarado === null
+            ? 0
+            : anchorValueForDeclaredBalance(declarado, method, txs, transfers, hoy),
+        initial_balance_at: hoy,
+      }]
+    })
+  }
 
   const guardarCuentas = async () => {
     setGuardando(true)
     try {
-      const hoy = dateToLocalString(new Date())
-      const anchors = filas.flatMap((f) => {
-        const method = paymentMethods.find((m) => m.id === f.id)
-        if (!method) return []
-        const declarado = f.balance.trim() === '' ? null : Number(f.balance)
-        return [{
-          payment_method_id: f.id,
-          bucket: f.bucket,
-          initial_balance:
-            declarado === null
-              ? 0
-              : anchorValueForDeclaredBalance(declarado, method, transactions, internalTransfers, hoy),
-          initial_balance_at: declarado === null ? null : hoy,
-        }]
-      })
+      // Si no hay nada para marcar como pagado, se ancla ya mismo: no hace falta esperar
+      // a nada más. Si lo hay, el ancla se guarda recién en `continuarCompromisos` (ver
+      // el comentario de esa función) — este paso solo decide a cuál ir.
+      if (compromisosPendientes.length === 0) {
+        const anchors = construirAnchors(transactions, internalTransfers, paymentMethods)
+        const res = await saveAccountAnchors(anchors)
+        if (res.error) {
+          toast.error(res.error)
+          return
+        }
+      }
+      setPaso(compromisosPendientes.length > 0 ? 'compromisos' : 'ritmo')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  const continuarCompromisos = async () => {
+    setGuardando(true)
+    try {
+      const idsMarcados = compromisosPendientes.filter((item) => pagados[item.id]).map((item) => item.id)
+      for (const planId of idsMarcados) {
+        const res = await markRecurringPlanPaid(planId)
+        if (res.error) {
+          toast.error(res.error)
+          return
+        }
+      }
+
+      // El ancla se guarda ACÁ, no en `guardarCuentas`, cuando hay compromisos para marcar.
+      // Si ancláramos antes de esto, `anchorValueForDeclaredBalance` no vería las
+      // transacciones que se acaban de crear (están fechadas hoy, el mismo día del ancla)
+      // y las restaría dos veces: una ya implícita en el saldo declarado, otra por la
+      // transacción. Por eso, si se marcó algo, hay que refrescar el store ANTES de armar
+      // el ancla — `useFinanceStore.getState()` en vez del cierre, que quedó desactualizado
+      // apenas se disparó el fetch.
+      let txs = transactions
+      let transfers = internalTransfers
+      let methods = paymentMethods
+      if (idsMarcados.length > 0) {
+        await fetchAllData()
+        const fresh = useFinanceStore.getState()
+        txs = fresh.transactions
+        transfers = fresh.internalTransfers
+        methods = fresh.paymentMethods
+      }
+      const anchors = construirAnchors(txs, transfers, methods)
       const res = await saveAccountAnchors(anchors)
       if (res.error) {
         toast.error(res.error)
@@ -196,6 +279,7 @@ export function PuestaAPuntoFlow() {
                         balance={f.balance}
                         onBucketChange={(b) => setFila(f.id, { bucket: b })}
                         onBalanceChange={(v) => setFila(f.id, { balance: v })}
+                        balanceCaption={BALANCE_ZERO_HELP}
                       />
                     </CardContent>
                   </Card>
@@ -208,6 +292,47 @@ export function PuestaAPuntoFlow() {
               </div>
 
               <Button variant="accent" size="lg" className="w-full h-12" onClick={guardarCuentas} disabled={guardando}>
+                {guardando ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Seguir<ArrowRight className="ml-2 h-5 w-5" /></>}
+              </Button>
+            </div>
+          </Wrapper>
+        )}
+
+        {paso === 'compromisos' && (
+          <Wrapper key="compromisos">
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <h2 className="font-display text-2xl text-text">¿Ya pagaste alguna de estas?</h2>
+                <p className="font-sans text-sm text-muted">
+                  El saldo que declaraste recién ya viene neto si pagaste alguna de estas
+                  mensualidades este mes. Marcá las que ya salieron de tu cuenta para que
+                  Chanchito no te las reste de nuevo.
+                </p>
+              </div>
+
+              <div className="space-y-2.5 max-h-[46vh] overflow-y-auto pr-1">
+                {compromisosPendientes.map((item) => (
+                  <label
+                    key={item.id}
+                    htmlFor={`pagado-${item.id}`}
+                    className="flex items-center justify-between gap-3 rounded-2xl border-[1.5px] border-border bg-surface px-4 py-2.5 min-h-11 cursor-pointer"
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-sans text-sm text-text truncate">{item.name}</span>
+                      <span className="block font-display tnum text-xs text-muted">
+                        {formatCurrency(item.amount)}
+                      </span>
+                    </span>
+                    <Switch
+                      id={`pagado-${item.id}`}
+                      checked={!!pagados[item.id]}
+                      onCheckedChange={(v) => setPagados((prev) => ({ ...prev, [item.id]: v }))}
+                    />
+                  </label>
+                ))}
+              </div>
+
+              <Button variant="accent" size="lg" className="w-full h-12" onClick={continuarCompromisos} disabled={guardando}>
                 {guardando ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Seguir<ArrowRight className="ml-2 h-5 w-5" /></>}
               </Button>
             </div>
