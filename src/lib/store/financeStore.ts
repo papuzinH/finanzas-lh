@@ -32,6 +32,7 @@ import {
   endOfMonth,
 } from 'date-fns';
 import { parseLocalDate } from '@/lib/utils/dates';
+import { syncAutomaticRecurringCharges } from '@/app/compromisos/actions';
 import {
   getCreditCycleDates,
   isExpenseInCurrentMonthScope,
@@ -402,6 +403,13 @@ interface FinanceState {
   getDaysSinceLastRegistration: () => number | null;
 }
 
+/**
+ * Las mensualidades automáticas se sincronizan UNA VEZ por carga de la app, no
+ * en cada `fetchAllData`: el chat refetchea después de cada escritura y no
+ * corresponde pagar un round-trip por mensaje.
+ */
+let automaticChargesSynced = false;
+
 export const useFinanceStore = create<FinanceState>((set, get) => ({
   transactions: [],
   installmentPlans: [],
@@ -440,6 +448,20 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       if (!authUser) {
         set({ isLoading: false, isInitialized: true, user: null, authEmail: null, authAvatarUrl: null });
         return;
+      }
+
+      // 1.b. Las mensualidades de crédito que la tarjeta ya facturó se postean
+      // solas antes de leer, así el resumen del ciclo sale completo en esta
+      // misma carga.
+      if (!automaticChargesSynced) {
+        automaticChargesSynced = true;
+        try {
+          await syncAutomaticRecurringCharges();
+        } catch (e) {
+          // Que no rompa la carga: si falla, la app se abre igual y se
+          // reintenta en la próxima sesión.
+          console.error('No se pudieron sincronizar las mensualidades automáticas:', e);
+        }
       }
 
       // 2. Traemos todos los datos filtrados por user_id

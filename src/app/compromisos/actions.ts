@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { dateToLocalString, parseLocalDate } from '@/lib/utils/dates';
+import { computeMissingAutomaticCharges } from '@/lib/finance/recurring';
 
 type ActionResponse = {
   error?: string;
@@ -388,6 +389,104 @@ export async function backfillRecurringPlansHistory(): Promise<ActionResponse & 
     return { success: true, created: rows.length };
   } catch (e) {
     console.error('Error inesperado en backfillRecurringPlansHistory:', e);
+    return { error: 'Ocurrió un error inesperado' };
+  }
+}
+
+/**
+ * Postea las mensualidades de crédito que la tarjeta ya facturó y todavía no
+ * existen como transacción. Idempotente: se puede llamar en cada carga.
+ *
+ * La fila creada es idéntica a la de `markRecurringPlanPaid` — misma categoría,
+ * mismo medio, mismos campos de moneda heredados del plan — salvo por la fecha,
+ * que acá es el vencimiento del resumen en vez del día en que se apretó el botón.
+ *
+ * Spec: docs/superpowers/specs/2026-08-21-mensualidades-credito-automaticas-design.md
+ */
+export async function syncAutomaticRecurringCharges(): Promise<ActionResponse & { created?: number }> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { error: 'No autorizado' };
+    }
+
+    const [
+      { data: plans, error: plansError },
+      { data: methods, error: methodsError },
+      { data: existingTxs, error: txError },
+      { data: firstIncomeTx, error: incomeError },
+    ] = await Promise.all([
+      supabase.from('recurring_plans').select('*').eq('user_id', user.id).eq('is_active', true),
+      supabase.from('payment_methods').select('*').eq('user_id', user.id),
+      supabase
+        .from('transactions')
+        .select('recurring_plan_id, date')
+        .eq('user_id', user.id)
+        .not('recurring_plan_id', 'is', null),
+      supabase
+        .from('transactions')
+        .select('date')
+        .eq('user_id', user.id)
+        .eq('type', 'income')
+        .order('date', { ascending: true })
+        .limit(1),
+    ]);
+    if (plansError || methodsError || txError || incomeError) {
+      return { error: 'No se pudo leer el estado de las mensualidades' };
+    }
+
+    // Sin ingresos registrados no hay piso: mismo criterio que el backfill.
+    const floorMonth = firstIncomeTx?.[0]?.date
+      ? String(firstIncomeTx[0].date).slice(0, 7)
+      : dateToLocalString(new Date()).slice(0, 7);
+
+    const missing = computeMissingAutomaticCharges(
+      plans ?? [],
+      methods ?? [],
+      existingTxs ?? [],
+      floorMonth,
+    );
+    if (missing.length === 0) {
+      return { success: true, created: 0 };
+    }
+
+    const plansById = new Map((plans ?? []).map((p) => [p.id, p]));
+    const rows = missing.flatMap(({ planId, date }) => {
+      const plan = plansById.get(planId);
+      if (!plan) return [];
+      const isUsd = plan.currency === 'USD';
+      return [
+        {
+          user_id: user.id,
+          description: plan.description,
+          amount: Math.abs(Number(plan.amount)),
+          date,
+          type: 'expense' as const,
+          category_id: plan.category_id,
+          payment_method_id: plan.payment_method_id,
+          recurring_plan_id: plan.id,
+          original_currency: isUsd ? 'USD' : 'ARS',
+          original_amount: isUsd ? plan.original_amount : Math.abs(Number(plan.amount)),
+          rate_pair: isUsd ? plan.rate_pair : null,
+          exchange_rate: isUsd ? plan.exchange_rate : null,
+        },
+      ];
+    });
+
+    const { error: insertError } = await supabase.from('transactions').insert(rows);
+    if (insertError) {
+      console.error('Error posteando mensualidades automáticas:', insertError);
+      return { error: `No se pudieron postear las mensualidades: ${insertError.message}` };
+    }
+
+    revalidatePath('/compromisos');
+    revalidatePath('/');
+    return { success: true, created: rows.length };
+  } catch (e) {
+    console.error('Error inesperado en syncAutomaticRecurringCharges:', e);
     return { error: 'Ocurrió un error inesperado' };
   }
 }
