@@ -100,14 +100,14 @@ UI: selector de medio en el chip de Compromisos (`credit-card-cycle-card.tsx`) +
 - Los **ajustes de saldo** (`is_balance_adjustment`) quedan fuera de las analíticas de consumo, igual que los pagos de tarjeta: `isExpenseInCurrentMonthScope`, `computeExpensesByCategory`, `getGlobalEffectiveExpenses` y `getMonthlyIncome` los excluyen. **Sí** se ven en `/movimientos`: el spec pide que el ajuste sea visible.
 
 ## UI
-- **Temas**: crema de día / papel de estraza de noche. El usuario elige en `/ajustes` (ThemeToggle + `theme-script` anti-flash, clase en `<html>`). ⚠️ Las utilities `dark:` de Tailwind NO funcionan acá (resuelven por `prefers-color-scheme`, el tema es por clase): usar tokens, que ya cambian con el tema.
+- **Temas**: crema de día / papel de estraza de noche. El usuario elige en `/ajustes` (ThemeToggle + `theme-script` anti-flash, clase en `<html>`). Las utilities `dark:` de Tailwind SÍ funcionan acá (`@custom-variant dark` en `globals.css` las resuelve por clase, no por `prefers-color-scheme` — commit `59818ed`), pero los tokens siguen siendo la opción por defecto porque ya cambian solos con el tema. Reservá `dark:` para lo que un token no puede expresar, como swapear un asset entero (el ribbon día/noche de `/login` usa `dark:hidden`/`dark:block`).
 - **Fondo de app**: `bg-bg`. Cards: `bg-surface`.
 - **Tokens semánticos SIEMPRE**: nunca hardcodees hex ni colores Tailwind para UI.
   - Layout: `bg-bg`, `bg-bg-2`, `bg-surface`, `bg-surface-2`, `text-text`, `text-muted`, `text-faint`, `border-border`
   - Acento: `bg-accent text-accent-ink border-accent-deep`
   - Financiero: `text-good` (ingreso/positivo), `text-bad` (gasto/negativo), `text-warn` (atención)
   - Marca: `--bandera` (celeste de la cinta, fijo — no cambia con el tema), `--shadow-bandera` (la firma: doble sombra tiza+celeste; UNA cifra por pantalla, con padding a la derecha/abajo para que `truncate`/`overflow` no la recorte), `--logo-slot` (ranuras del chancho), paleta `--estraza-*` (noche).
-- **NO usar**: `emerald-*`, `rose-*`, `indigo-*`, `violet-*`, `slate-*` ni `dark:` para UI nueva.
+- **NO usar**: `emerald-*`, `rose-*`, `indigo-*`, `violet-*`, `slate-*`. `dark:` solo para swaps de asset (ver Temas arriba) — nunca para colorear UI nueva, eso lo resuelven los tokens.
 - **Bordes**: siempre `border-[1.5px] border-border`. Nunca `border` (1px default).
 - **Tipografía** (por rol — identidad 2026-08-13):
   - `font-display` (Fugaz One): cifras, títulos de pantalla y de sección. Un solo peso — nunca sumarle `font-bold`. Cifras con `--leading-display`.
