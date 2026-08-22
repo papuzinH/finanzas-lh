@@ -1,5 +1,5 @@
 // Copy rioplatense de la pantalla Objetivos (mock 2026-08-14). Funciones puras.
-import { formatCurrency } from '@/lib/utils';
+import { formatCompact, formatCurrency } from '@/lib/utils';
 import { parseLocalDate } from '@/lib/utils/dates';
 
 const mesDe = (d: Date) => new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(d);
@@ -49,4 +49,17 @@ export function budgetStatusLine(i: {
 export function daysLeftInMonth(now: Date = new Date()): number {
   const ultimo = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   return ultimo - now.getDate() + 1;
+}
+
+/**
+ * Línea de estado del hero de /objetivos: cuánto del camino va y qué falta.
+ * El total sale de `getSavingsGoalsOverview()`, ya convertido a ARS.
+ */
+export function goalsHeadline(i: { percent: number; remainingARS: number; activeCount: number }): string {
+  if (i.activeCount === 0) return 'Todavía no te pusiste ninguna meta';
+  if (i.percent >= 100) return '¡Llegaste a todas tus metas!';
+
+  const pct = Math.round(i.percent);
+  const meta = i.activeCount === 1 ? 'tu meta' : `tus ${i.activeCount} metas`;
+  return `${pct}% de ${meta} · te faltan ${formatCompact(i.remainingARS)}`;
 }

@@ -1,21 +1,23 @@
 # Objetivos (metas de ahorro + presupuestos por categoría)
 
 ## Propósito
-Pantalla `/objetivos` con dos sub-features en tabs:
+Pantalla `/objetivos` con dos sub-features, una debajo de la otra (las tabs murieron en el layout del 2026-08-18):
 1. **Metas de ahorro** (`savings_goals` + `savings_goal_contributions`): objetivos `one_time` (monto + fecha límite) o `monthly` (monto recurrente por mes). El progreso se arma sumando **aportes manuales** — no se infiere de transacciones.
 2. **Presupuestos por categoría** (`category_budgets`): límite mensual de gasto por categoría; el gasto real se calcula dinámicamente contra `getExpensesByCategory('current_month')` (que ya respeta ciclos de tarjeta), con proyección de fin de mes por ritmo diario.
 
 ## Rutas / entry points
-- **`/objetivos`** → `src/app/objetivos/page.tsx` (Server Component): valida `?tab=metas|presupuestos` de `searchParams` y renderiza `ObjetivosClient` con `initialTab`.
+- **`/objetivos`** → `src/app/objetivos/page.tsx` (Server Component) renderiza `ObjetivosClient`.
 - Cards de resumen en el **home** consumen `getSavingsGoalsOverview()` y `getBudgetsOverview()` (mismo store, sin ruta propia).
 - **Chatbot**: tool `list_goals_and_budgets` (`lib/ai/tools/readTools.ts`) + writes de crear/editar/borrar meta y presupuesto vía `lib/ai/handlers.ts` (líneas ~1130–1310).
 
 ## Archivos clave
 | Archivo | Rol |
 |---|---|
-| `src/app/objetivos/objetivos-client.tsx` | UI: hero "Total en Metas" (suma `totalContributed` de metas activas, **sin conversión de moneda**), tabs, empty states, listado de metas activas/inactivas y presupuestos |
+| `src/app/objetivos/objetivos-client.tsx` | UI: hero, metas activas en grilla de 2 columnas (4 en desktop), metas guardadas plegadas, presupuestos y el «+» único |
+| `src/components/goals/goals-hero-card.tsx` | «Guardado para tus metas»: la cifra de la pantalla, con la firma celeste |
+| `src/components/brand/chancho-gauge.tsx` | El chancho de la marca usado como medidor de progreso |
 | `src/app/dashboard/goals/actions.ts` | Server actions: `createSavingsGoal`, `updateSavingsGoal`, `deleteSavingsGoal`, `completeGoal` (= `is_active=false`), `addGoalContribution` (recibe `FormData`), `deleteGoalContribution`, `createCategoryBudget` (**upsert** `onConflict: user_id,category_id`), `updateCategoryBudget`, `deleteCategoryBudget`. Todas revalidan `/objetivos` |
-| `src/components/goals/savings-goal-card.tsx` | Card de meta: progreso, aportes, completar/borrar |
+| `src/components/goals/savings-goal-card.tsx` | Card de meta: chancho medidor + montos. Sin botones: tap/swipe en mobile, kebab en desktop |
 | `src/components/goals/add-contribution-dialog.tsx` | Alta/borrado de aportes |
 | `src/components/goals/create-savings-goal-dialog.tsx` / `edit-savings-goal-dialog.tsx` | CRUD de metas (RHF + Zod) |
 | `src/components/goals/category-budget-card.tsx` | Card de presupuesto: gasto vs. límite + proyección |
@@ -49,6 +51,41 @@ Las actions usan `user.id` de `supabase.auth.getUser()` (UUID) — correcto. Est
 3. **Completar meta** → `completeGoal` marca `is_active=false`; la UI la muestra en el `<details>` de "inactivas". Borrar meta cascadea sus aportes.
 4. **Crear presupuesto** → upsert por `(user_id, category_id)`: recrear un presupuesto borrado/duplicado no falla, pisa el existente y lo reactiva.
 5. **Alertas**: el chat dispara aviso al 90 % del presupuesto al registrar un gasto (`checkBudgetAlert` en `handlers.ts`).
+
+## Interacción de las cards (rediseño 2026-08-22)
+
+La pantalla tenía **16 botones** con 2 metas y 3 presupuestos —4 por meta, 2 por
+presupuesto, más dos «+» distintos— cuando el mock con el que se diseñó dibujaba 2.
+Ahora **ninguna card tiene botones**:
+
+- **Mobile**: tocar la card abre un `ActionSheet` con sus acciones; deslizar es el
+  atajo (en metas, derecha aporta e izquierda elimina; en presupuestos, derecha edita).
+  El gesto nunca es la única vía: quien no lo descubre llega igual por el tap.
+- **Desktop**: menú kebab que aparece al pasar el mouse, como en /movimientos.
+- **Un solo «+»** en el header abre una hoja que pregunta si va meta o presupuesto.
+- Borrar usa `ConfirmationModal`, no el `confirm()` del navegador (era el único
+  lugar de la app donde saltaba el cartel gris del sistema).
+- `AddContributionDialog`, `EditSavingsGoalDialog` y `EditBudgetDialog` aceptan
+  `open`/`onOpenChange`: sueltos traen su botón, controlados los abre la card.
+
+## El chancho medidor
+
+`savings_goals` **no tiene columna de emoji**, así que todas las metas mostraban el
+mismo chancho quieto en un cuadrito: decoraba sin informar. Ahora cada card usa
+`<ChanchoGauge percent>` (`components/brand/chancho-gauge.tsx`), que llena la
+alcancía de abajo hacia arriba según el progreso — el dibujo de marca ES el dato,
+y cada meta se distingue de un vistazo. Verde cuando está lograda.
+Tests en `components/brand/__tests__/chancho-gauge.test.tsx`.
+
+## El hero
+
+`<GoalsHeroCard>` responde «¿cuánto llevo?», que antes exigía sumar las cards a ojo.
+Sale de `getSavingsGoalsOverview()`, que además de `totalSavedARS` devuelve
+`totalTargetARS`, `percent` y `remainingARS` (las metas en USD se convierten con el
+blue, las dos puntas con el mismo criterio). Es **la única cifra de la pantalla con
+`--shadow-bandera`**, como manda el sistema, y alinea a Objetivos con Inicio
+(«Tu plata libre para hoy») e Inversiones («Tu cartera»), que ya abrían así.
+El copy de la línea de estado es `goalsHeadline()` en `lib/utils/objetivos-copy.ts`.
 
 ## Invariantes y gotchas
 - **El progreso de metas es 100 % manual**: registrar una transacción de ahorro NO aporta a una meta; solo `savings_goal_contributions` cuenta.

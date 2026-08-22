@@ -22,10 +22,25 @@ import type { SavingsGoal } from '@/types/database';
 
 interface Props {
   goal: SavingsGoal;
+  /** Abierto desde afuera (menú de la card). Sin esto, el diálogo trae su botón. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function EditSavingsGoalDialog({ goal }: Props) {
-  const [open, setOpen] = useState(false);
+/**
+ * Se puede usar de dos maneras: suelto, y trae su propio botón; o controlado
+ * desde afuera con `open`/`onOpenChange`, que es como lo abren las cards de
+ * /objetivos desde su menú de acciones (ahí la card no tiene botones propios).
+ */
+export function EditSavingsGoalDialog({ goal, open: controlledOpen, onOpenChange }: Props) {
+  const [selfOpen, setSelfOpen] = useState(false)
+  // Controlado si viene `open` por props; si no, el diálogo se maneja solo.
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : selfOpen
+  const setOpen = (value: boolean) => {
+    if (isControlled) onOpenChange?.(value)
+    else setSelfOpen(value)
+  }
   const [isPending, setIsPending] = useState(false);
   const fetchGoalsData = useFinanceStore((s) => s.fetchGoalsData);
 
@@ -81,11 +96,13 @@ export function EditSavingsGoalDialog({ goal }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+{!isControlled && (
+        <DialogTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Editar meta" className="h-11 w-11 text-muted hover:text-text hover:bg-surface-2">
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
+      )}
       <DialogContent
         showCloseButton
         className="max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:max-w-[500px] bg-surface border-border/50 text-text"

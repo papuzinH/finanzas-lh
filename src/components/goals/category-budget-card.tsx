@@ -2,13 +2,23 @@
 
 import { useState, useEffect } from 'react'
 import { useFinanceStore } from '@/lib/store/financeStore'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatUsd, cn } from '@/lib/utils'
 import { budgetStatusLine, daysLeftInMonth } from '@/lib/utils/objetivos-copy'
 import { Button } from '@/components/ui/button'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { ActionSheet } from '@/components/ui/action-sheet'
+import { ConfirmationModal } from '@/components/shared/confirmation-modal'
+import { SwipeableRow } from '@/components/shared/swipeable-row'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { EditBudgetDialog } from './edit-budget-dialog'
 import { deleteCategoryBudget } from '@/app/dashboard/goals/actions'
-import { Trash2 } from 'lucide-react'
+import { Pencil, Trash2, MoreVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import { useConfetti } from '@/components/shared/confetti'
 import type { CategoryBudget } from '@/types/database'
@@ -17,16 +27,28 @@ interface Props {
   budget: CategoryBudget
 }
 
+/**
+ * Un presupuesto mensual por categoría. Sin botones en la fila: editar y borrar
+ * salen por tap (ActionSheet) o swipe en mobile, y por el kebab en desktop —
+ * antes competían con el monto dentro de la misma línea.
+ *
+ * El emoji es el de la categoría del usuario: acá sí hay un ícono con
+ * significado, así que la marca no se mete.
+ */
 export function CategoryBudgetCard({ budget }: Props) {
   const [deleting, setDeleting] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [showEndOfMonthBadge, setShowEndOfMonthBadge] = useState(false)
-  // El store entero, no sus getters sueltos: son referencias estables y el
-  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+
+  // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
   const store = useFinanceStore()
   const { fetchGoalsData } = store
   const statusData = store.getCategoryBudgetStatus(budget.category_id)
   const projection = store.getBudgetProjection(budget.id)
   const { celebrate } = useConfetti()
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     if (!statusData || statusData.status !== 'ok') return
@@ -35,24 +57,24 @@ export function CategoryBudgetCard({ budget }: Props) {
     if (now.getDate() < lastDayOfMonth - 3) return
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const key = `confetti_budget_${budget.id}_${monthKey}`
-    if (typeof window !== 'undefined') {
-      setShowEndOfMonthBadge(true)
-      if (!localStorage.getItem(key)) {
-        localStorage.setItem(key, '1')
-        celebrate(true)
-      }
+    if (typeof window === 'undefined') return
+    setShowEndOfMonthBadge(true)
+    if (!localStorage.getItem(key)) {
+      localStorage.setItem(key, '1')
+      celebrate(true)
     }
   }, [statusData?.status, budget.id, celebrate])
 
   if (!statusData) return null
 
   const { categoryName, categoryEmoji, spent, limit, percent, status } = statusData
+  const money = (n: number) => (budget.currency === 'USD' ? formatUsd(n) : formatCurrency(n))
 
   const handleDelete = async () => {
-    if (!confirm(`¿Eliminar el presupuesto de ${categoryName}?`)) return
     setDeleting(true)
     const res = await deleteCategoryBudget(budget.id)
     setDeleting(false)
+    setConfirmOpen(false)
     if (res?.error) {
       toast.error(res.error)
     } else {
@@ -72,42 +94,52 @@ export function CategoryBudgetCard({ budget }: Props) {
   const lineaClase =
     linea.tone === 'bad' ? 'text-bad font-bold' : linea.tone === 'warn' ? 'text-warn font-bold' : 'text-muted'
 
-  return (
-    <div className="rounded-2xl border-[1.5px] border-border bg-surface p-3 px-3.5 grid gap-2">
-      {/* Fila principal: emoji + nombre + montos + acciones */}
-      <div className="flex items-center gap-2">
-        {categoryEmoji && <span className="text-[15px]">{categoryEmoji}</span>}
-        <span className="font-sans font-bold text-[13px] text-text truncate">{categoryName}</span>
+  const card = (
+    <div
+      className={cn(
+        'group relative rounded-2xl border-[1.5px] border-border bg-surface p-3 px-3.5 grid gap-2 min-w-0',
+        isMobile &&
+          'cursor-pointer active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg',
+      )}
+      role={isMobile ? 'button' : undefined}
+      tabIndex={isMobile ? 0 : undefined}
+      aria-label={isMobile ? `Presupuesto de ${categoryName}. Abrir opciones.` : undefined}
+      onClick={isMobile ? () => setSheetOpen(true) : undefined}
+      onKeyDown={
+        isMobile
+          ? (e) => {
+              if (e.key !== 'Enter' && e.key !== ' ') return
+              e.preventDefault()
+              setSheetOpen(true)
+            }
+          : undefined
+      }
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        {categoryEmoji && <span className="text-[15px] flex-none">{categoryEmoji}</span>}
+        <span className="min-w-0 flex-1 font-sans font-bold text-[13px] text-text truncate">{categoryName}</span>
         {showEndOfMonthBadge && (
-          <span className="text-[10px] font-bold text-good" aria-label="Dentro del presupuesto">✓</span>
-        )}
-        <span className="ml-auto text-[12px] text-muted tnum whitespace-nowrap">
-          <b className={status === 'exceeded' ? 'text-bad' : 'text-text'}>
-            {budget.currency === 'USD' ? 'USD ' : ''}{formatCurrency(spent)}
-          </b>
-          {' '}/ {budget.currency === 'USD' ? 'USD ' : ''}{formatCurrency(limit)}
-        </span>
-        <div className="flex items-center shrink-0 -mr-1">
-          <EditBudgetDialog budget={budget} categoryName={categoryName} categoryEmoji={categoryEmoji} />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={`Eliminar presupuesto de ${categoryName}`}
-            className="h-9 w-9 text-muted hover:text-bad hover:bg-bad/10"
-            onClick={handleDelete}
-            disabled={deleting}
+          <span
+            className="flex-none text-[10px] font-bold text-good border-[1.5px] border-good rounded-full px-2 py-0.5 leading-none"
+            aria-label="Cerraste el mes dentro del presupuesto"
           >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+            Al día
+          </span>
+        )}
+        <span className="flex-none text-[12px] text-muted tnum whitespace-nowrap">
+          <b className={status === 'exceeded' ? 'text-bad' : 'text-text'}>
+            {money(spent)}
+          </b>
+          {' '}/ {money(limit)}
+        </span>
       </div>
 
-      {/* Barra + marcador de proyección (se conserva) */}
       <div>
         <ProgressBar
           value={Math.min(percent, 100)}
           tone={status === 'exceeded' ? 'bad' : status === 'warning' ? 'warn' : 'good'}
           height={7}
+          label={`${categoryName}: ${Math.round(percent)}% del presupuesto`}
         />
         {projection && (
           <div
@@ -122,8 +154,89 @@ export function CategoryBudgetCard({ budget }: Props) {
         )}
       </div>
 
-      {/* Línea de estado — copy del mock */}
       <span className={`text-[11px] tnum ${lineaClase}`}>{linea.text}</span>
+
+      {/* Desktop: las mismas dos acciones, en el kebab que aparece al pasar el mouse. */}
+      {!isMobile && (
+        <div className="absolute right-1.5 top-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Opciones del presupuesto de ${categoryName}`}
+                className="h-8 w-8 text-muted hover:text-text hover:bg-surface-2"
+              >
+                <MoreVertical className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-surface border-[1.5px] border-border text-text">
+              <DropdownMenuItem onClick={() => setEditOpen(true)} className="focus:bg-surface-2 cursor-pointer">
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar presupuesto
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setConfirmOpen(true)}
+                disabled={deleting}
+                className="text-bad focus:bg-bad/10 focus:text-bad cursor-pointer"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
     </div>
+  )
+
+  return (
+    <>
+      <ConfirmationModal
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Eliminar el presupuesto de ${categoryName}`}
+        description="Los gastos de la categoría quedan como están: se borra el límite, no los movimientos."
+        onConfirm={handleDelete}
+        isLoading={deleting}
+        variant="destructive"
+        confirmText="Eliminar presupuesto"
+      />
+
+      <SwipeableRow
+        enabled={isMobile}
+        onSwipeRight={() => setEditOpen(true)}
+        onSwipeLeft={() => setConfirmOpen(true)}
+      >
+        {card}
+      </SwipeableRow>
+
+      <ActionSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        title={`Presupuesto de ${categoryName}`}
+        actions={[
+          {
+            label: 'Editar presupuesto',
+            icon: <Pencil className="h-5 w-5" />,
+            onClick: () => setEditOpen(true),
+          },
+          {
+            label: 'Eliminar',
+            icon: <Trash2 className="h-5 w-5" />,
+            onClick: () => setConfirmOpen(true),
+            variant: 'destructive' as const,
+          },
+        ]}
+      />
+
+      <EditBudgetDialog
+        budget={budget}
+        categoryName={categoryName}
+        categoryEmoji={categoryEmoji}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+    </>
   )
 }

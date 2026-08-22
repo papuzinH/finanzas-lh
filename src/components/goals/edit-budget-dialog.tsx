@@ -21,10 +21,25 @@ interface Props {
   budget: CategoryBudget
   categoryName: string
   categoryEmoji: string | null
+  /** Abierto desde afuera (menú de la card). Sin esto, el diálogo trae su botón. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function EditBudgetDialog({ budget, categoryName, categoryEmoji }: Props) {
-  const [open, setOpen] = useState(false)
+/**
+ * Se puede usar de dos maneras: suelto, y trae su propio botón; o controlado
+ * desde afuera con `open`/`onOpenChange`, que es como lo abren las cards de
+ * /objetivos desde su menú de acciones (ahí la card no tiene botones propios).
+ */
+export function EditBudgetDialog({ budget, categoryName, categoryEmoji, open: controlledOpen, onOpenChange }: Props) {
+  const [selfOpen, setSelfOpen] = useState(false)
+  // Controlado si viene `open` por props; si no, el diálogo se maneja solo.
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : selfOpen
+  const setOpen = (value: boolean) => {
+    if (isControlled) onOpenChange?.(value)
+    else setSelfOpen(value)
+  }
   const [loading, setLoading] = useState(false)
   const [currency, setCurrency] = useState<'ARS' | 'USD'>(budget.currency)
   const fetchGoalsData = useFinanceStore((s) => s.fetchGoalsData)
@@ -54,11 +69,13 @@ export function EditBudgetDialog({ budget, categoryName, categoryEmoji }: Props)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+{!isControlled && (
+        <DialogTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Editar presupuesto" className="h-11 w-11 text-muted hover:text-text hover:bg-surface-2">
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[420px] bg-surface border-border text-text">
         <form onSubmit={handleSubmit}>
           <input type="hidden" name="category_id" value={budget.category_id} />

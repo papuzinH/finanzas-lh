@@ -19,12 +19,27 @@ import type { SavingsGoal } from '@/types/database'
 
 interface Props {
   goal: SavingsGoal
+  /** Abierto desde afuera (menú de la card). Sin esto, el diálogo trae su botón. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 type Phase = 'form' | 'celebration'
 
-export function AddContributionDialog({ goal }: Props) {
-  const [open, setOpen] = useState(false)
+/**
+ * Se puede usar de dos maneras: suelto, y trae su propio botón; o controlado
+ * desde afuera con `open`/`onOpenChange`, que es como lo abren las cards de
+ * /objetivos desde su menú de acciones (ahí la card no tiene botones propios).
+ */
+export function AddContributionDialog({ goal, open: controlledOpen, onOpenChange }: Props) {
+  const [selfOpen, setSelfOpen] = useState(false)
+  // Controlado si viene `open` por props; si no, el diálogo se maneja solo.
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : selfOpen
+  const setOpen = (value: boolean) => {
+    if (isControlled) onOpenChange?.(value)
+    else setSelfOpen(value)
+  }
   const [loading, setLoading] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [phase, setPhase] = useState<Phase>('form')
@@ -81,7 +96,8 @@ export function AddContributionDialog({ goal }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+{!isControlled && (
+        <DialogTrigger asChild>
         <Button
           variant="outline"
           className="min-h-[44px] border-accent-deep text-accent-deep bg-accent/10 hover:text-accent w-full hover:bg-accent/20 focus-visible:ring-accent/50"
@@ -90,6 +106,7 @@ export function AddContributionDialog({ goal }: Props) {
           Aportar
         </Button>
       </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[420px] bg-surface border-border text-text">
         {phase === 'celebration' ? (
           <div className="py-2 space-y-6 text-center">
