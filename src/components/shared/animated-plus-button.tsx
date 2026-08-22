@@ -12,15 +12,28 @@ interface AnimatedPlusButtonProps {
   disabled?: boolean;
   ariaLabel?: string;
   triggerKey?: string | number; // Para disparar animación cuando cambia
+  /**
+   * Hacia dónde crece al expandirse. El botón es `absolute` para no empujar el
+   * layout, así que crece desde el borde por el que está anclado.
+   *
+   * - `right` (default): crece hacia la izquierda. Es lo que corresponde en un
+   *   header, donde el botón está pegado al borde derecho con 20px de margen —
+   *   expandido mide ~110px contra 44px, así que creciendo parejo se saldría.
+   * - `center`: crece parejo hacia los dos lados. Para cuando el botón está
+   *   centrado (los bloques vacíos), donde anclarlo a la derecha lo deja
+   *   visiblemente descentrado respecto del texto que tiene encima.
+   */
+  align?: 'right' | 'center';
 }
 
-export function AnimatedPlusButton({ 
-  label, 
-  onClick, 
+export function AnimatedPlusButton({
+  label,
+  onClick,
   className,
   disabled = false,
   ariaLabel,
-  triggerKey 
+  triggerKey,
+  align = 'right'
 }: AnimatedPlusButtonProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showText, setShowText] = useState(false);
@@ -63,7 +76,10 @@ export function AnimatedPlusButton({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-          "absolute right-0 top-0 flex items-center justify-center rounded-full bg-accent text-accent-ink border-[1.5px] border-accent-deep disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 z-10",
+          "absolute top-0 flex items-center justify-center rounded-full bg-accent text-accent-ink border-[1.5px] border-accent-deep disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 active:translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 z-10",
+          // El borde de anclaje decide hacia dónde crece la pill al expandirse.
+          // `md:translate-x-0` porque en desktop `md:static` lo saca del absolute.
+          align === 'center' ? "left-1/2 -translate-x-1/2 md:translate-x-0" : "right-0",
           // En desktop la pill queda fija y expandida, sin depender del estado de animación.
           "md:static md:h-11 md:w-fit md:px-3.5 md:min-w-11",
           isExpanded
