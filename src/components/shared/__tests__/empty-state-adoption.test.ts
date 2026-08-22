@@ -13,8 +13,7 @@
  * de arreglarlos.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { globSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Avisos inline de una línea: no son el bloque grande, ver el encabezado. */
@@ -25,15 +24,18 @@ const EXCEPCIONES = [
   'components/shared/empty-state.tsx',
 ];
 
-const norm = (p: string) => p.replace(/\\/g, '/');
+/** Los .tsx de src/, con separadores normalizados y sin los propios tests. */
+function componentes(): string[] {
+  return readdirSync('src', { recursive: true, encoding: 'utf8' })
+    .map((p) => 'src/' + p.replace(/\\/g, '/'))
+    .filter((f) => f.endsWith('.tsx') && !f.includes('__tests__'));
+}
 
 describe('adopción de EmptyState', () => {
   it('ninguna pantalla dibuja su propio bloque vacío punteado', () => {
-    const archivos = globSync('src/**/*.tsx', { cwd: process.cwd() })
-      .map(norm)
-      .filter((f) => !f.includes('__tests__'));
+    const archivos = componentes();
 
-    expect(archivos.length).toBeGreaterThan(50); // el glob encontró algo
+    expect(archivos.length).toBeGreaterThan(50); // el barrido encontró algo
 
     const infractores = archivos.filter((f) => {
       if (EXCEPCIONES.some((e) => f.endsWith(e))) return false;
@@ -47,9 +49,7 @@ describe('adopción de EmptyState', () => {
   });
 
   it('no quedan íconos sueltos de 48px+ en gris, que era la marca del bloque viejo', () => {
-    const archivos = globSync('src/**/*.tsx', { cwd: process.cwd() })
-      .map(norm)
-      .filter((f) => !f.includes('__tests__') && !f.endsWith('components/shared/empty-state.tsx'));
+    const archivos = componentes().filter((f) => !f.endsWith('components/shared/empty-state.tsx'));
 
     const infractores = archivos.filter((f) =>
       /h-1[2-9] w-1[2-9] text-faint/.test(readFileSync(join(process.cwd(), f), 'utf8')),
