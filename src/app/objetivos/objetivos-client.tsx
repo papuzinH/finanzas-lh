@@ -10,6 +10,7 @@ import { CreateBudgetDialog } from '@/components/goals/create-budget-dialog';
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { ScreenHeader } from '@/components/shared/screen-header';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Chancho } from '@/components/brand/chancho';
 import { ActionSheet } from '@/components/ui/action-sheet';
 import { PiggyBank, Wallet } from 'lucide-react';
@@ -56,27 +57,28 @@ export function ObjetivosClient() {
         <section className="space-y-3" data-tour="tabs-list">
           <div className="flex items-baseline justify-between">
             <h2 className="font-display text-text text-[18px]">Metas de ahorro</h2>
-            <span className="text-[12px] text-muted">
-              {activeGoals.length > 0
-                ? `${activeGoals.length} activa${activeGoals.length === 1 ? '' : 's'}`
-                : 'Ponele un objetivo a tu ahorro'}
-            </span>
+            {/* Vacío no lleva subtítulo: el EmptyState de abajo dice lo mismo y quedaban
+                repetidos uno encima del otro. */}
+            {activeGoals.length > 0 && (
+              <span className="text-[12px] text-muted">
+                {activeGoals.length} activa{activeGoals.length === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
 
           {activeGoals.length === 0 ? (
-            <div className="rounded-2xl border-[1.5px] border-dashed border-border bg-surface py-14 px-5 text-center flex flex-col items-center gap-2">
-              <Chancho className="w-16 text-faint mb-2" slot="var(--surface)" />
-              <h3 className="font-sans font-bold text-text text-lg">Ponele un objetivo a tu ahorro</h3>
-              <p className="text-muted text-sm max-w-xs mb-4">
-                Definí metas concretas — un viaje, un fondo de emergencia, lo que sea — y seguí tu
-                progreso mes a mes.
-              </p>
-              <AnimatedPlusButton
-                label="Crear meta"
-                onClick={() => setIsCreateMetaOpen(true)}
-                ariaLabel="Nueva meta de ahorro"
-              />
-            </div>
+            <EmptyState
+              icon={<Chancho className="w-6" slot="var(--surface-2)" />}
+              title="Ponele un objetivo a tu ahorro"
+              description="Un viaje, un fondo para imprevistos, lo que se te cante. Vos ponés la meta y el chancho se va llenando."
+              action={
+                <AnimatedPlusButton
+                  label="Crear meta"
+                  onClick={() => setIsCreateMetaOpen(true)}
+                  ariaLabel="Nueva meta de ahorro"
+                />
+              }
+            />
           ) : (
             <StaggeredList className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {activeGoals.map((goal) => (
@@ -107,25 +109,22 @@ export function ObjetivosClient() {
         <section className="space-y-3">
           <div className="flex items-baseline justify-between">
             <h2 className="font-display text-text text-[18px]">Presupuestos mensuales</h2>
-            <span className="text-[12px] text-muted">
-              {activeBudgets.length > 0 ? 'Este mes' : 'Controlá en qué gastás'}
-            </span>
+            {activeBudgets.length > 0 && <span className="text-[12px] text-muted">Este mes</span>}
           </div>
 
           {activeBudgets.length === 0 ? (
-            <div className="rounded-2xl border-[1.5px] border-dashed border-border bg-surface py-14 px-5 text-center flex flex-col items-center gap-2">
-              <Wallet className="h-12 w-12 text-faint mb-2" aria-hidden="true" />
-              <h3 className="font-sans font-bold text-text text-lg">Controlá en qué gastás tu plata</h3>
-              <p className="text-muted text-sm max-w-xs mb-4">
-                Establecé límites de gasto mensual por categoría y recibí alertas antes de pasarte
-                del presupuesto.
-              </p>
-              <AnimatedPlusButton
-                label="Crear presupuesto"
-                onClick={() => setIsCreateBudgetOpen(true)}
-                ariaLabel="Nuevo presupuesto"
-              />
-            </div>
+            <EmptyState
+              icon={<Wallet className="h-5 w-5" />}
+              title="Controlá en qué gastás"
+              description="Ponele un techo mensual a una categoría y mirá cómo venís sin sacar la cuenta."
+              action={
+                <AnimatedPlusButton
+                  label="Crear presupuesto"
+                  onClick={() => setIsCreateBudgetOpen(true)}
+                  ariaLabel="Nuevo presupuesto"
+                />
+              }
+            />
           ) : (
             <StaggeredList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {activeBudgets.map((budget) => (
