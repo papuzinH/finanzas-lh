@@ -23,7 +23,11 @@ export function GoalsHeroCard() {
   const { totalSavedARS, totalTargetARS, percent, remainingARS, activeCount, totalsByCurrency } =
     store.getSavingsGoalsOverview();
 
-  if (activeCount === 0) return null;
+  // Sin metas NO se oculta: ese es justo el momento en que más falta hace. Antes
+  // devolvía `null` y quien recién llegaba encontraba dos cajas punteadas, sin
+  // cifra ni entrada — el problema que el rediseño había venido a arreglar. Con
+  // el store vacío la cifra da $0, `goalsHeadline` invita en vez de informar un
+  // porcentaje que no existe, y la barra ya está guardada tras `totalTargetARS`.
 
   // Si todo lo ahorrado está en una sola moneda, se muestra en esa moneda: convertir
   // dólares a pesos para después decir "US$" sería mentir sobre lo que hay.
