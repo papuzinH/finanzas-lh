@@ -47,3 +47,30 @@ describe('ObjetivosClient sin nada cargado', () => {
     expect(html()).toContain('Guardado para tus metas');
   });
 });
+
+describe('dónde se crea', () => {
+  beforeEach(() => useFinanceStore.setState(VACIO as never));
+
+  it('el header ya no tiene botón: crear meta y crear presupuesto son acciones distintas', () => {
+    // El «+» del header abría un sheet preguntando cuál de las dos querías.
+    expect(html()).not.toContain('Crear meta o presupuesto');
+    expect(html()).not.toContain('Qué querés crear');
+  });
+
+  it('cada sección tiene su propio «+», así que se puede crear también con la lista llena', () => {
+    const out = html();
+    expect(out).toContain('aria-label="Nueva meta de ahorro"');
+    expect(out).toContain('aria-label="Nuevo presupuesto"');
+  });
+
+  it('los botones de sección respetan el mínimo táctil de 44px', () => {
+    // `size="icon"` del Button base son 40px: por eso van con h-11 w-11 encima.
+    const out = html();
+    const seccion = out.slice(0, out.indexOf('border-dashed'));
+    expect(seccion).toMatch(/h-11 w-11[^"]*"[^>]*aria-label="Nueva meta de ahorro"/);
+  });
+
+  it('el CTA del bloque vacío crece centrado, no hacia un costado', () => {
+    expect(html()).toContain('left-1/2');
+  });
+});

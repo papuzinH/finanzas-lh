@@ -12,13 +12,12 @@ import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { ScreenHeader } from '@/components/shared/screen-header';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Chancho } from '@/components/brand/chancho';
-import { ActionSheet } from '@/components/ui/action-sheet';
-import { PiggyBank, Wallet } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Plus, Wallet } from 'lucide-react';
 
 export function ObjetivosClient() {
   const [isCreateMetaOpen, setIsCreateMetaOpen] = useState(false);
   const [isCreateBudgetOpen, setIsCreateBudgetOpen] = useState(false);
-  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
 
   // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
   const store = useFinanceStore();
@@ -34,17 +33,10 @@ export function ObjetivosClient() {
 
   return (
     <div className="min-h-screen bg-bg text-text font-sans pb-28 md:pb-8">
-      <ScreenHeader
-        compact
-        title="Objetivos"
-        right={
-          <AnimatedPlusButton
-            label="Crear"
-            onClick={() => setIsCreateSheetOpen(true)}
-            ariaLabel="Crear meta o presupuesto"
-          />
-        }
-      />
+      {/* Sin botón en el header: crear una meta y crear un presupuesto son dos acciones
+          distintas, y cada una vive en el encabezado de su propia sección. Antes había
+          un «+» acá que abría un sheet preguntando cuál de las dos querías. */}
+      <ScreenHeader compact title="Objetivos" />
 
       <main className="mx-auto max-w-[1440px] px-5 pb-4 space-y-5">
 
@@ -55,15 +47,26 @@ export function ObjetivosClient() {
         {/* data-tour="tabs-list": ancla del tour de onboarding (onboardingStore.ts:42) — las tabs
             murieron pero el paso del tour ahora señala esta sección; NO renombrar. */}
         <section className="space-y-3" data-tour="tabs-list">
-          <div className="flex items-baseline justify-between">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-text text-[18px]">Metas de ahorro</h2>
-            {/* Vacío no lleva subtítulo: el EmptyState de abajo dice lo mismo y quedaban
-                repetidos uno encima del otro. */}
-            {activeGoals.length > 0 && (
-              <span className="text-[12px] text-muted">
-                {activeGoals.length} activa{activeGoals.length === 1 ? '' : 's'}
-              </span>
-            )}
+            <div className="flex items-center gap-2.5 shrink-0">
+              {/* Vacío no lleva subtítulo: el EmptyState de abajo dice lo mismo y quedaban
+                  repetidos uno encima del otro. */}
+              {activeGoals.length > 0 && (
+                <span className="text-[12px] text-muted">
+                  {activeGoals.length} activa{activeGoals.length === 1 ? '' : 's'}
+                </span>
+              )}
+              <Button
+                variant="soft"
+                size="icon"
+                className="h-11 w-11"
+                onClick={() => setIsCreateMetaOpen(true)}
+                aria-label="Nueva meta de ahorro"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
           </div>
 
           {activeGoals.length === 0 ? (
@@ -76,6 +79,7 @@ export function ObjetivosClient() {
                   label="Crear meta"
                   onClick={() => setIsCreateMetaOpen(true)}
                   ariaLabel="Nueva meta de ahorro"
+                  align="center"
                 />
               }
             />
@@ -107,9 +111,20 @@ export function ObjetivosClient() {
 
         {/* ── Presupuestos mensuales ── */}
         <section className="space-y-3">
-          <div className="flex items-baseline justify-between">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-text text-[18px]">Presupuestos mensuales</h2>
-            {activeBudgets.length > 0 && <span className="text-[12px] text-muted">Este mes</span>}
+            <div className="flex items-center gap-2.5 shrink-0">
+              {activeBudgets.length > 0 && <span className="text-[12px] text-muted">Este mes</span>}
+              <Button
+                variant="soft"
+                size="icon"
+                className="h-11 w-11"
+                onClick={() => setIsCreateBudgetOpen(true)}
+                aria-label="Nuevo presupuesto"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
           </div>
 
           {activeBudgets.length === 0 ? (
@@ -122,6 +137,7 @@ export function ObjetivosClient() {
                   label="Crear presupuesto"
                   onClick={() => setIsCreateBudgetOpen(true)}
                   ariaLabel="Nuevo presupuesto"
+                  align="center"
                 />
               }
             />
@@ -137,26 +153,6 @@ export function ObjetivosClient() {
         </section>
 
       </main>
-
-      {/* Un solo «+» para la pantalla: pregunta qué querés crear en vez de repartir
-          dos botones distintos por sección. */}
-      <ActionSheet
-        open={isCreateSheetOpen}
-        onOpenChange={setIsCreateSheetOpen}
-        title="Qué querés crear"
-        actions={[
-          {
-            label: 'Una meta de ahorro',
-            icon: <PiggyBank className="h-5 w-5" />,
-            onClick: () => setIsCreateMetaOpen(true),
-          },
-          {
-            label: 'Un presupuesto mensual',
-            icon: <Wallet className="h-5 w-5" />,
-            onClick: () => setIsCreateBudgetOpen(true),
-          },
-        ]}
-      />
 
       <CreateSavingsGoalDialog open={isCreateMetaOpen} onOpenChange={setIsCreateMetaOpen} />
       <CreateBudgetDialog
