@@ -36,6 +36,19 @@ export function Chancho({
       aria-label={title}
       aria-hidden={title ? undefined : true}
     >
+      <ChanchoShape slot={slot} />
+    </svg>
+  );
+}
+
+/**
+ * Los trazos del chancho, sin el `<svg>` que los contiene. Se exporta aparte
+ * porque `ChanchoGauge` necesita dibujarlos dos veces —silueta y relleno— dentro
+ * de un mismo svg; para todo lo demás, usar `<Chancho>`.
+ */
+export function ChanchoShape({ slot = "var(--logo-slot)" }: { slot?: string }) {
+  return (
+    <>
       {/* Cuerpo, patas y hocico */}
       <path
         d="M18 47.5755C8 47.5755 0 55.5755 0 65.5755C0 75.5755 8 81.5755 18 81.5755C22 97.5755 34 113.576 52 121.576C52 129.576 52 137.576 54 145.576H72C72 137.576 72 131.576 74 127.576C84 131.576 98 131.576 108 127.576C108 131.576 108 139.576 110 145.576H128C128 137.576 130 129.576 132 121.576C150 111.576 162 93.5755 164 71.5755C166 45.5755 154 21.5755 132 9.57551C112 -2.42449 84 -2.42449 66 5.57551C52 11.5755 40 19.5755 32 29.5755C26 35.5755 22 41.5755 18 47.5755Z"
@@ -70,6 +83,6 @@ export function Chancho({
         d="M9.2 65.1755C10.9673 65.1755 12.4 63.0265 12.4 60.3755C12.4 57.7245 10.9673 55.5755 9.2 55.5755C7.43269 55.5755 6 57.7245 6 60.3755C6 63.0265 7.43269 65.1755 9.2 65.1755Z"
         fill={slot}
       />
-    </svg>
+    </>
   );
 }

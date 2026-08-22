@@ -204,3 +204,73 @@ describe('getSavingsGoalsOverview', () => {
     }
   });
 });
+
+describe('getSavingsGoalsOverview — titular de /objetivos', () => {
+  // El hero de la pantalla necesita responder "¿cuánto llevo?": total guardado,
+  // total propuesto y qué porcentaje del camino va. Antes había que sumarlo a ojo.
+  it('suma lo guardado y lo propuesto de todas las metas activas', () => {
+    seed({
+      savingsGoals: [
+        { id: 'g1', name: 'Fondo', target_amount: 500000, currency: 'ARS', type: 'one_time', is_active: true, target_date: null },
+        { id: 'g2', name: 'Viaje', target_amount: 300000, currency: 'ARS', type: 'one_time', is_active: true, target_date: null },
+      ],
+      savingsGoalContributions: [
+        { id: 'c1', goal_id: 'g1', amount: 200000, currency: 'ARS', date: '2026-08-01' },
+        { id: 'c2', goal_id: 'g2', amount: 100000, currency: 'ARS', date: '2026-08-02' },
+      ],
+    });
+
+    const o = useFinanceStore.getState().getSavingsGoalsOverview();
+    expect(o.totalSavedARS).toBe(300000);
+    expect(o.totalTargetARS).toBe(800000);
+    expect(Math.round(o.percent)).toBe(38);
+    expect(o.remainingARS).toBe(500000);
+  });
+
+  it('convierte las metas en dólares con el blue, igual que el total guardado', () => {
+    seed({
+      dolarBlue: { compra: 1500, venta: 1500, fechaActualizacion: '2026-08-22' },
+      savingsGoals: [
+        { id: 'g1', name: 'Verdes', target_amount: 1000, currency: 'USD', type: 'one_time', is_active: true, target_date: null },
+      ],
+      savingsGoalContributions: [
+        { id: 'c1', goal_id: 'g1', amount: 400, currency: 'USD', date: '2026-08-01' },
+      ],
+    });
+
+    const o = useFinanceStore.getState().getSavingsGoalsOverview();
+    expect(o.totalSavedARS).toBe(600000);
+    expect(o.totalTargetARS).toBe(1500000);
+    expect(Math.round(o.percent)).toBe(40);
+  });
+
+  it('no cuenta las metas inactivas y aguanta el caso sin metas', () => {
+    seed({
+      savingsGoals: [
+        { id: 'g1', name: 'Vieja', target_amount: 100000, currency: 'ARS', type: 'one_time', is_active: false, target_date: null },
+      ],
+      savingsGoalContributions: [],
+    });
+
+    const o = useFinanceStore.getState().getSavingsGoalsOverview();
+    expect(o.activeCount).toBe(0);
+    expect(o.totalTargetARS).toBe(0);
+    expect(o.percent).toBe(0);
+    expect(o.remainingARS).toBe(0);
+  });
+
+  it('el porcentaje se corta en 100 aunque se hayan pasado de la meta', () => {
+    seed({
+      savingsGoals: [
+        { id: 'g1', name: 'Fondo', target_amount: 100000, currency: 'ARS', type: 'one_time', is_active: true, target_date: null },
+      ],
+      savingsGoalContributions: [
+        { id: 'c1', goal_id: 'g1', amount: 150000, currency: 'ARS', date: '2026-08-01' },
+      ],
+    });
+
+    const o = useFinanceStore.getState().getSavingsGoalsOverview();
+    expect(o.percent).toBe(100);
+    expect(o.remainingARS).toBe(0);
+  });
+});

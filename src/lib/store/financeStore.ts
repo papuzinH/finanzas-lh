@@ -269,6 +269,12 @@ interface FinanceState {
       status: 'active' | 'completed';
     }>;
     totalSavedARS: number;
+    /** Suma de los objetivos de todas las metas activas, en ARS. */
+    totalTargetARS: number;
+    /** Qué parte del camino va: `totalSavedARS / totalTargetARS`, tope 100. */
+    percent: number;
+    /** Lo que falta para cerrar todas las metas, en ARS. Nunca negativo. */
+    remainingARS: number;
     totalsByCurrency: { ARS: number | null; USD: number | null };
     activeCount: number;
   };
@@ -1489,6 +1495,17 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       return sum + (p.goal.currency === 'USD' && blue ? contributed * blue : contributed);
     }, 0);
 
+    // El objetivo total se convierte con el mismo criterio que lo guardado: si no
+    // hay blue, la meta en dólares entra en crudo (igual que `totalSavedARS`), así
+    // el porcentaje nunca mezcla una punta convertida con la otra sin convertir.
+    const totalTargetARS = withProgress.reduce((sum, p) => {
+      const target = Number(p.goal.target_amount);
+      return sum + (p.goal.currency === 'USD' && blue ? target * blue : target);
+    }, 0);
+
+    const percent = totalTargetARS > 0 ? Math.min((totalSavedARS / totalTargetARS) * 100, 100) : 0;
+    const remainingARS = Math.max(totalTargetARS - totalSavedARS, 0);
+
     const sumNative = (currency: 'ARS' | 'USD') => {
       const matching = withProgress.filter((p) => p.goal.currency === currency);
       return matching.length > 0 ? matching.reduce((sum, p) => sum + p.totalContributed, 0) : null;
@@ -1498,7 +1515,15 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       USD: sumNative('USD'),
     };
 
-    return { goals, totalSavedARS, totalsByCurrency, activeCount: goals.length };
+    return {
+      goals,
+      totalSavedARS,
+      totalTargetARS,
+      percent,
+      remainingARS,
+      totalsByCurrency,
+      activeCount: goals.length,
+    };
   },
 
   /**

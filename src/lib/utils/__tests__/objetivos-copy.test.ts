@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatCurrency } from '@/lib/utils';
-import { goalSubtitle, budgetStatusLine, daysLeftInMonth } from '../objetivos-copy';
+import { goalSubtitle, budgetStatusLine, daysLeftInMonth, goalsHeadline } from '../objetivos-copy';
 
 const NOW = new Date(2026, 7, 18); // 18-ago-2026
 
@@ -61,5 +61,27 @@ describe('daysLeftInMonth', () => {
   it('cuenta los días restantes incluyendo hoy', () => {
     expect(daysLeftInMonth(new Date(2026, 7, 18))).toBe(14); // ago tiene 31: 31-18+1
     expect(daysLeftInMonth(new Date(2026, 7, 31))).toBe(1);
+  });
+});
+
+describe('goalsHeadline', () => {
+  it('cuenta el avance y lo que falta', () => {
+    expect(goalsHeadline({ percent: 61.4, remainingARS: 3_300_000, activeCount: 2 }))
+      .toBe('61% de tus 2 metas · te faltan $3,3M');
+  });
+
+  it('habla en singular con una sola meta', () => {
+    expect(goalsHeadline({ percent: 40, remainingARS: 60_000, activeCount: 1 }))
+      .toBe('40% de tu meta · te faltan $60K');
+  });
+
+  it('celebra cuando están todas cumplidas', () => {
+    expect(goalsHeadline({ percent: 100, remainingARS: 0, activeCount: 3 }))
+      .toBe('¡Llegaste a todas tus metas!');
+  });
+
+  it('sin metas no inventa un porcentaje', () => {
+    expect(goalsHeadline({ percent: 0, remainingARS: 0, activeCount: 0 }))
+      .toBe('Todavía no te pusiste ninguna meta');
   });
 });
