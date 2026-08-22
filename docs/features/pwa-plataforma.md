@@ -5,7 +5,7 @@ Todo lo que sostiene a Chanchito por debajo de las features: PWA instalable con 
 
 ## Rutas / entry points
 - `src/middleware.ts` → corre en TODAS las rutas (salvo estáticos por matcher) y delega en `updateSession` de `src/utils/supabase/middleware.ts`.
-- `src/app/manifest.ts` → genera `/manifest.webmanifest` (name "Chanchito", `display: standalone`, `theme_color #020617`, íconos `/icon.png` 192/512 any+maskable).
+- `src/app/manifest.ts` → genera `/manifest.webmanifest` (name "Chanchito", `display: standalone`, `theme_color #F4EDDC` papel crema, íconos del chancho en 192/512, con archivos **distintos** para `any` y `maskable`).
 - Service worker: generado por `@ducanh2912/next-pwa` en build a `public/sw.js` (**gitignoreado**, ver `.gitignore:44-45`); `public/swe-worker-*.js` sí está commiteado. **Deshabilitado en dev** (`disable: NODE_ENV === 'development'`).
 
 ## Archivos clave
@@ -38,7 +38,7 @@ Esta feature no posee tablas propias, pero el middleware y los clientes tocan el
 1. **Request autenticado**: middleware → excluye `/auth`, `/login`, `/signup`, `/_next`, `/api` y paths con `.` → `supabase.auth.getUser()` → sin usuario redirige a `/login` → con usuario y fuera de `/onboarding`, consulta `users.onboarding_completed`; si no completó, redirige a `/onboarding` **copiando las cookies** de sesión al redirect (evita loops de sesión).
 2. **Datos externos (non-blocking)**: `fetchAllData()` del store (`lib/store/financeStore.ts`) hace `Promise.all` de ~16 queries y luego fetchea **dólar blue** (`dolarapi.com/v1/dolares/blue`, timeout 5 s) e **inflación IPC** (`api.argentinadatos.com`, últimos 24 meses) — ambos opcionales: si fallan, la app sigue (los cálculos caen a `exchange_rates`/snapshots vía `resolveRate`). El server del chat tiene su propio `fetchDolarBlue` (timeout 2 s) en `lib/ai/tools/dataLoader.ts`.
 3. **Migración de schema** (skill `migrar-schema`): escribir SQL → aplicar en **DEV** (el de `.env.local`) → regenerar `types/database.ts` → actualizar schemas Zod → aplicar en **PROD** → recién ahí mergear a `master` (Vercel despliega automático). Si el deploy llega antes que la migración, PROD se rompe.
-4. **PWA**: en producción el SW cachea navegación front-end agresivamente y recarga al volver online; en dev no hay SW (evita cache fantasma). El manifest se sirve desde `src/app/manifest.ts` (hay también un `public/site.webmanifest` legacy de los favicons).
+4. **PWA**: en producción el SW cachea navegación front-end agresivamente y recarga al volver online; en dev no hay SW (evita cache fantasma). El manifest se sirve desde `src/app/manifest.ts`, que es la única fuente (el `public/site.webmanifest` legacy se borró el 2026-08-22 junto con los íconos viejos).
 
 ## Invariantes y gotchas
 - **`master` = PROD**: no hay staging; los previews de Vercel por PR apuntan a Supabase DEV si las env vars de "Preview" están configuradas así.
@@ -46,7 +46,10 @@ Esta feature no posee tablas propias, pero el middleware y los clientes tocan el
 - `public/sw.js`/`sw.js.map` están gitignoreados: no buscarlos en el repo; se generan en `npm run build` (Webpack; dev usa Turbopack).
 - El matcher del middleware excluye `/api/*` (la exclusión vive en `updateSession`, los route handlers hacen su propio `auth.getUser()`); las rutas de API devuelven 401 propio.
 - Cambiar UI: **solo tokens semánticos** (`bg-bg`, `bg-surface`, `text-good/bad/warn`, `border-[1.5px] border-border`, `shadow-card`…) — nunca hex ni escalas Tailwind (`emerald-*`, `slate-*`, etc.). El mapeo vive en `globals.css` bajo `@theme inline`.
-- El `theme_color` del manifest (`#020617`, slate-950) predata el design system crema — si se toca, revisar consistencia con `--bg`.
+- **Íconos de la app** (2026-08-22): todos salen del chancho de la identidad (`design/brand/chancho.svg`), tinta navy sobre papel crema. Viven en `public/`: `favicon.svg`, `favicon-96x96.png`, `apple-touch-icon.png` (180), `icon-192.png`/`icon-512.png` (`any`) y `icon-192-maskable.png`/`icon-512-maskable.png`. El `.ico` va en `src/app/favicon.ico` (convención de Next: se sirve en `/favicon.ico` y NO debe duplicarse en `public/`), con 16/32/48 adentro.
+  - Los `maskable` son **otro archivo**, no el mismo con otro `purpose`: Android recorta hasta un círculo, así que su chancho va al 56% del lado para entrar en la safe zone del 80%; los `any` van al 74%.
+  - En 16-32px el chancho ocupa casi todo el cuadro (96%/94%): con el margen de los tamaños grandes se lee como una manchita en la pestaña.
+  - Cómo regenerarlos, en `design/brand/README.md`.
 - Pull-to-refresh: implementación propia con `touchmove` **no pasivo** (`preventDefault`); solo se activa con `window.scrollY === 0`. No usar librerías de PTR.
 - `.env.local` requiere `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (el client browser lanza si faltan). El chat suma `GEMINI_API_KEY` (ver `lib/ai/`).
 - `REGLAS_PARA_DEPLOY.md` menciona flujos n8n/Telegram: es la capa histórica del bot; el asistente actual es `/api/chat` (no confundir).

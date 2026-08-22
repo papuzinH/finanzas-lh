@@ -27,6 +27,27 @@ Documento de decisiones: artifact «Identidad Chanchito» · Vectores editables:
 Fugaz One (display) · Asap (cuerpo — Omnibus-Type, BA) · Bitter (sello/cintas/citas — Huerta, BA).
 Los textos de sello y cintas ya están convertidos a curvas: no requieren fuentes cargadas.
 
+## Íconos de la app (favicon, PWA, iOS)
+
+Se generan **desde `chancho.svg`**, tinta navy sobre papel crema `#F4EDDC` — el mismo fondo que declara el manifest, para que el splash y el ícono sean una sola pieza. Reemplazaron al chancho azul con degradado sobre navy `#020617`, que sobrevivía de la identidad vieja (2026-08-22).
+
+| Destino | Archivo | Chancho / lado |
+|---|---|---|
+| Pestaña (ico 16+32+48) | `src/app/favicon.ico` | 96% / 94% / 90% |
+| Pestaña (vectorial) | `public/favicon.svg` | — |
+| Pestaña (png) | `public/favicon-96x96.png` | 86% |
+| iOS home screen | `public/apple-touch-icon.png` (180) | 72% |
+| PWA `any` | `public/icon-192.png`, `icon-512.png` | 74% |
+| PWA `maskable` | `public/icon-192-maskable.png`, `icon-512-maskable.png` | 56% |
+
+Reglas que valen más que los números:
+
+- **Cuanto más chico el ícono, menos margen.** A 16px el chancho tiene que llenar el cuadro o se lee como una mancha.
+- **`maskable` es un archivo aparte**, no el mismo con otro `purpose`: Android puede recortar hasta un círculo y se come cualquier cosa que pase de la safe zone del 80%.
+- **El `.ico` va solo en `src/app/`**: duplicarlo en `public/` es un conflicto de rutas en Next.
+
+Método (sin dependencias nuevas en el repo): se renderiza el SVG centrado sobre un cuadrado crema en un Chromium headless y se captura a cada tamaño; el `.ico` se arma concatenando los PNG de 16/32/48 con el header ICO. El script de la sesión quedó en el scratchpad de Pancho (2026-08-22); son ~90 líneas y se reescribe en cinco minutos si hace falta.
+
 ## Notas técnicas
 
 - Las frases de las cintas van **entre las dos franjas celestes**, arqueadas (R≈450, medido del gap real).
