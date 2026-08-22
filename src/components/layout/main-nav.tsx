@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { Home, ListOrdered, Layers, Target, TrendingUp, Settings, Wallet, MoreHorizontal } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ActionSheet } from '@/components/ui/action-sheet';
+import { Chancho } from '@/components/brand/chancho';
 import { MOBILE_ITEMS, MORE_DESTINATIONS, isActive, isMoreActive } from './nav-config';
 
 const ICONS: Record<string, LucideIcon> = {
@@ -98,8 +98,8 @@ export function MainNav() {
       {/* ========== DESKTOP SIDEBAR (sin cambios de destino) ========== */}
       <nav className="hidden fixed left-0 top-0 z-40 h-full w-64 border-r-[1.5px] border-border bg-bg-2 p-6 md:flex md:flex-col">
         <div className="flex items-center gap-3 mb-10 px-2">
-          <div className="relative h-10 w-10 overflow-hidden rounded-full border-[1.5px] border-border">
-            <Image src="/icon.png" alt="Chanchito" fill className="object-cover" />
+          <div className="grid h-10 w-10 place-items-center rounded-full border-[1.5px] border-border bg-surface-2">
+            <Chancho className="w-[22px] text-text" slot="var(--surface-2)" />
           </div>
           <h1 className="font-display text-text text-[20px]">Chanchito</h1>
         </div>
