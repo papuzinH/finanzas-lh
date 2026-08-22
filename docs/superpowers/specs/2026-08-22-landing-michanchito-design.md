@@ -21,13 +21,13 @@ Alguien de ~30 que cobra a fin de mes. Datos diseñados para que cada pantalla c
 |---|---|
 | Nombre | **Emi** — corto y neutro; aparece en el saludo del home, así que sale en las capturas |
 | Ritmo de cobro | Mensual, últimos días hábiles (el caso que motivó el modelo de bolsillo) |
-| Medios de pago | Mercado Pago (cuenta principal, saldo anclado) · Visa crédito (cierre 20, vto 28) · Efectivo |
+| Medios de pago | Mercado Pago (cuenta principal, saldo anclado) · Visa crédito (cierre 20, vto 28) · Efectivo · reserva «Colchón» en ARS (para que el home muestre «guardado en reservas») |
 | Movimientos | ~6 semanas de gastos cotidianos: chino, súper, SUBE, farmacia, birras, delivery |
 | Cuotas | Celular 8/12 · Zapatillas 3/6 — a mitad de camino, se ve el progreso |
 | Suscripciones | Netflix, Spotify, gym (mensualidades que se postean solas) |
 | Meta | Una al ~60% — el chancho-medidor se ve llenándose |
 | Presupuestos | Dos; uno cerca del límite (estado warn, con color) |
-| Inversiones | USD billete + un CEDEAR — bimonetario, con cotizaciones reales del refresh |
+| Inversiones | Un CEDEAR (ARS) + una stablecoin (USD) — bimonetario. **No** «USD billete» como reserva: `payment_methods` no tiene moneda por cuenta (limitación documentada en `docs/features/bolsillo.md`) y una reserva en USD muestra una cifra sin sentido — justo lo que una captura no puede tener. El seeder también escribe `market_prices` y `exchange_rates` (`USD_ARS_MEP`/`USD_ARS_CCL`) en DEV para que el portfolio valúe sin banner de datos faltantes |
 
 **Todas las fechas relativas a hoy** (offsets, no fechas fijas): las capturas y el video no envejecen al regenerarlos.
 
