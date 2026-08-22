@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { ScreenHeader } from '@/components/shared/screen-header';
+import { EmptyState } from '@/components/shared/empty-state';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { TabsDS } from '@/components/ui/tabs-ds';
 import {
@@ -577,17 +578,17 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
             )}
 
             {plansWithProgress.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
-                <CreditCard className="h-14 w-14 text-faint mb-4" aria-hidden="true" />
-                <h3 className="font-sans font-bold text-text text-lg mb-2">Organizá tus pagos en cuotas</h3>
-                <p className="text-sm text-muted max-w-xs mb-6">
-                  Registrá tus planes de cuotas para saber exactamente cuánto pagás cada mes y cuándo terminás de pagar.
-                </p>
-                <Button onClick={() => setIsCreateCuotaOpen(true)}>
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  Nuevo Plan de Cuotas
-                </Button>
-              </div>
+              <EmptyState
+                icon={<CreditCard className="h-5 w-5" />}
+                title="Organizá tus pagos en cuotas"
+                description="Cargá un plan y sabés cuánto pagás por mes y cuándo terminás."
+                action={
+                  <Button onClick={() => setIsCreateCuotaOpen(true)}>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Nuevo plan de cuotas
+                  </Button>
+                }
+              />
             ) : (
               <>
                 <div className="flex items-baseline justify-between mt-1">
@@ -652,17 +653,17 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
             className="px-5 space-y-4"
           >
             {plansWithPayment.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
-                <CalendarClock className="h-14 w-14 text-faint mb-4" aria-hidden="true" />
-                <h3 className="font-sans font-bold text-text text-lg mb-2">Registrá tus gastos fijos y mensualidades</h3>
-                <p className="text-sm text-muted max-w-xs mb-6">
-                  Netflix, alquiler, gimnasio... sumá tus gastos recurrentes y sabé de antemano cuánto se te va cada mes.
-                </p>
-                <Button onClick={() => setIsCreateSuscripcionOpen(true)}>
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  Nueva Suscripción
-                </Button>
-              </div>
+              <EmptyState
+                icon={<CalendarClock className="h-5 w-5" />}
+                title="Registrá tus gastos fijos"
+                description="Netflix, alquiler, el gimnasio. Sabés de antemano cuánto se te va cada mes."
+                action={
+                  <Button onClick={() => setIsCreateSuscripcionOpen(true)}>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Nueva mensualidad
+                  </Button>
+                }
+              />
             ) : (
               <>
                 <div className="grid grid-cols-2 rounded-[18px] bg-surface border-[1.5px] border-border shadow-card overflow-hidden">

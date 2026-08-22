@@ -22,6 +22,7 @@ import { CreateTransactionDialog } from '@/components/transactions/create-transa
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { Chip } from '@/components/ui/chip';
 import { ScreenHeader } from '@/components/shared/screen-header';
+import { EmptyState } from '@/components/shared/empty-state';
 
 /** Tamaño de fuente del monto según cantidad de dígitos, para que nunca overflowee la card. */
 const amountFontClass = (formatted: string) => {
@@ -564,23 +565,24 @@ export default function MovimientosPage() {
 
             {/* Lista de movimientos */}
             {filteredTransactions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
-                <Receipt className="h-16 w-16 text-faint mb-4" />
-                <h3 className="font-sans font-bold text-text text-lg mb-2">Registrá tus movimientos</h3>
-                <p className="text-sm text-muted max-w-xs mb-6">
-                  Llevá un registro de tus ingresos y gastos para saber exactamente a dónde va tu plata cada mes.
-                </p>
-                <AnimatedPlusButton
-                  label="Agregar movimiento"
-                  onClick={() => setIsCreateOpen(true)}
-                />
-              </div>
+              <EmptyState
+                icon={<Receipt className="h-5 w-5" />}
+                title="Registrá tus movimientos"
+                description="Anotá lo que entra y lo que sale, y sabés a dónde se te va la plata."
+                action={
+                  <AnimatedPlusButton
+                    label="Agregar movimiento"
+                    onClick={() => setIsCreateOpen(true)}
+                    align="center"
+                  />
+                }
+              />
             ) : searchFilteredTransactions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-2xl border-[1.5px] border-dashed border-border bg-surface text-center">
-                <Search className="h-16 w-16 text-faint mb-4" />
-                <h3 className="font-sans font-bold text-text text-base mb-1">Sin resultados para &ldquo;{debouncedQuery}&rdquo;</h3>
-                <p className="text-sm text-muted">Probá con otra descripción, categoría o monto.</p>
-              </div>
+              <EmptyState
+                icon={<Search className="h-5 w-5" />}
+                title={`Sin resultados para “${debouncedQuery}”`}
+                description="Probá con otra descripción, categoría o monto."
+              />
             ) : (
               <>
                 {renderSection('Proyección Futura', groups.futuro, true, isFutureOpen, () => setIsFutureOpen(!isFutureOpen), true)}
