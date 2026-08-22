@@ -57,11 +57,13 @@ export function ObjetivosClient() {
         <section className="space-y-3" data-tour="tabs-list">
           <div className="flex items-baseline justify-between">
             <h2 className="font-display text-text text-[18px]">Metas de ahorro</h2>
-            <span className="text-[12px] text-muted">
-              {activeGoals.length > 0
-                ? `${activeGoals.length} activa${activeGoals.length === 1 ? '' : 's'}`
-                : 'Ponele un objetivo a tu ahorro'}
-            </span>
+            {/* Vacío no lleva subtítulo: el EmptyState de abajo dice lo mismo y quedaban
+                repetidos uno encima del otro. */}
+            {activeGoals.length > 0 && (
+              <span className="text-[12px] text-muted">
+                {activeGoals.length} activa{activeGoals.length === 1 ? '' : 's'}
+              </span>
+            )}
           </div>
 
           {activeGoals.length === 0 ? (
@@ -107,9 +109,7 @@ export function ObjetivosClient() {
         <section className="space-y-3">
           <div className="flex items-baseline justify-between">
             <h2 className="font-display text-text text-[18px]">Presupuestos mensuales</h2>
-            <span className="text-[12px] text-muted">
-              {activeBudgets.length > 0 ? 'Este mes' : 'Controlá en qué gastás'}
-            </span>
+            {activeBudgets.length > 0 && <span className="text-[12px] text-muted">Este mes</span>}
           </div>
 
           {activeBudgets.length === 0 ? (
