@@ -16,6 +16,11 @@ Todo lo que sostiene a Chanchito por debajo de las features: PWA instalable con 
 | `src/utils/supabase/client.ts` | `createBrowserClient` (valida env vars y lanza si faltan) |
 | `src/utils/supabase/middleware.ts` | `updateSession`: refresh de sesión + protección de rutas + gate de onboarding |
 | `src/middleware.ts` | Wrapper + `config.matcher` (excluye `_next/*`, favicon y archivos con extensión) |
+| `src/lib/pwa/install.ts` | Decisión pura de qué ofrecer: `decidirVista` (3 señales → `oculto`/`boton`/`ios`) y `esIOS` (incluye el iPad que se hace pasar por Mac) |
+| `src/lib/pwa/prompt-diferido.ts` | Captura del `beforeinstallprompt` **al cargar el módulo**, fuera de React: el evento puede llegar antes de la hidratación |
+| `src/hooks/useInstallApp.ts` | Une las señales del navegador con la decisión pura vía `useSyncExternalStore` |
+| `src/components/shared/install-app.tsx` | Contenedor: variante `login` / `ajustes` + modal con los pasos de iOS |
+| `src/components/shared/install-app-view.tsx` | Presentación pura (`InstallAppView`, `PasosIOS`), verificable sin DOM |
 | `src/components/ui/pull-to-refresh.tsx` | Pull-to-refresh táctil casero (touch events, umbral 80 px con resistencia); usado SOLO en el home (`src/app/page.tsx:347`) envolviendo el dashboard con `onRefresh={fetchAllData}` |
 | `src/app/globals.css` | **Fuente de verdad de tokens** (Tailwind v4 `@theme inline`, 3 capas: primitivos → semánticos → componente; dark mode y acentos alternos gold/rojo vía overrides de `:root`) |
 | `design-system-plan.md` (raíz) | Plan/decisiones del design system (documento de seguimiento) |
@@ -39,6 +44,7 @@ Esta feature no posee tablas propias, pero el middleware y los clientes tocan el
 2. **Datos externos (non-blocking)**: `fetchAllData()` del store (`lib/store/financeStore.ts`) hace `Promise.all` de ~16 queries y luego fetchea **dólar blue** (`dolarapi.com/v1/dolares/blue`, timeout 5 s) e **inflación IPC** (`api.argentinadatos.com`, últimos 24 meses) — ambos opcionales: si fallan, la app sigue (los cálculos caen a `exchange_rates`/snapshots vía `resolveRate`). El server del chat tiene su propio `fetchDolarBlue` (timeout 2 s) en `lib/ai/tools/dataLoader.ts`.
 3. **Migración de schema** (skill `migrar-schema`): escribir SQL → aplicar en **DEV** (el de `.env.local`) → regenerar `types/database.ts` → actualizar schemas Zod → aplicar en **PROD** → recién ahí mergear a `master` (Vercel despliega automático). Si el deploy llega antes que la migración, PROD se rompe.
 4. **PWA**: en producción el SW cachea navegación front-end agresivamente y recarga al volver online; en dev no hay SW (evita cache fantasma). El manifest se sirve desde `src/app/manifest.ts`, que es la única fuente (el `public/site.webmanifest` legacy se borró el 2026-08-22 junto con los íconos viejos).
+5. **Invitación a instalar** (2026-08-22): la app era instalable desde el primer día pero nada lo decía. Ahora la ofrece el **login** (segundo camino bajo el botón de Google) y **Ajustes** (para quien ya entró sin instalarla y, si no, tendría que cerrar sesión para volver a verla). Se retira sola dentro de la app instalada, tras usar el prompt y al recibir `appinstalled`. En iOS no hay evento: se muestra el paso a paso de Safari.
 
 ## Invariantes y gotchas
 - **`master` = PROD**: no hay staging; los previews de Vercel por PR apuntan a Supabase DEV si las env vars de "Preview" están configuradas así.
@@ -50,12 +56,14 @@ Esta feature no posee tablas propias, pero el middleware y los clientes tocan el
   - Los `maskable` son **otro archivo**, no el mismo con otro `purpose`: Android recorta hasta un círculo, así que su chancho va al 56% del lado para entrar en la safe zone del 80%; los `any` van al 74%.
   - En 16-32px el chancho ocupa casi todo el cuadro (96%/94%): con el margen de los tamaños grandes se lee como una manchita en la pestaña.
   - Cómo regenerarlos, en `design/brand/README.md`.
+- **El prompt de instalación se quema al usarlo**: Chrome no vuelve a emitir `beforeinstallprompt` en esa carga de página, ni siquiera si el usuario cancela el diálogo. Por eso la invitación desaparece después del click en lugar de quedar como un botón muerto.
+- **El sello del login ocupa la esquina inferior derecha** (`bottom-8`, rotado, ~190×190 px de caja): cualquier cosa que se agregue al `main` del login compite con él. La invitación obligó a subir su `pb` a `13rem` — medido en el navegador en 390×844 y 375×667, las cajas no se tocan por ~7 px. Si crece el copy, se vuelve a medir.
 - Pull-to-refresh: implementación propia con `touchmove` **no pasivo** (`preventDefault`); solo se activa con `window.scrollY === 0`. No usar librerías de PTR.
 - `.env.local` requiere `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (el client browser lanza si faltan). El chat suma `GEMINI_API_KEY` (ver `lib/ai/`).
 - `REGLAS_PARA_DEPLOY.md` menciona flujos n8n/Telegram: es la capa histórica del bot; el asistente actual es `/api/chat` (no confundir).
 
 ## Tests
-- No hay tests de middleware/PWA. Los tests unitarios (`npm test`, Vitest) cubren `lib/finance`, store y chat; `src/lib/store/__tests__/resolveRate.test.ts` cubre el fallback de cotizaciones.
+- La decisión de instalación sí está cubierta: `src/lib/pwa/__tests__/install.test.ts` (11) y `prompt-diferido.test.ts` (10, con un `EventTarget` inyectado) + `src/components/shared/__tests__/install-app-view.test.tsx` (15). No hay tests de middleware ni del service worker. Los tests unitarios (`npm test`, Vitest) cubren `lib/finance`, store y chat; `src/lib/store/__tests__/resolveRate.test.ts` cubre el fallback de cotizaciones.
 - Verificación de PWA: `npm run build && npm start` (el SW no existe en dev) + Lighthouse/instalación desde el navegador.
 - Verificación visual del design system: abrir `design_handoff_chanchito/prototypes/Chanchito App.html`.
 

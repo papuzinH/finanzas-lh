@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import Image from 'next/image'
 import { LoginForm } from './login-form'
 import { Loader } from '@/components/shared/loader'
+import { InstallApp } from '@/components/shared/install-app'
 
 export default function LoginPage() {
   return (
@@ -32,10 +33,11 @@ export default function LoginPage() {
         </p>
       </header>
 
-      <main className="relative z-10 grid justify-items-center pb-[7.5rem]">
+      <main className="relative z-10 grid justify-items-center pb-[13rem]">
         <Suspense fallback={<Loader size="lg" centered text="Cargando..." />}>
           <LoginForm />
         </Suspense>
+        <InstallApp variante="login" />
       </main>
 
       {/* Sello de recibido. Ornamento de momento: el login es la única pantalla

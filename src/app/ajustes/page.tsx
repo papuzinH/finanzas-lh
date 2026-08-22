@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Wallet, Tag, User, ChevronRight, Palette, CalendarClock, Scale } from 'lucide-react';
 import { toast } from 'sonner'
 import { ScreenHeader } from '@/components/shared/screen-header';
+import { InstallApp } from '@/components/shared/install-app';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { RhythmPicker } from '@/components/pocket/rhythm-picker'
@@ -113,6 +114,8 @@ export default function AjustesPage() {
               <p className="mt-0.5 truncate text-xs text-muted">Cuando la cuenta no te cierra</p>
             </div>
           </button>
+
+          <InstallApp variante="ajustes" />
 
           <AdjustBalanceDialog open={ajustando} onOpenChange={setAjustando} />
         </div>
