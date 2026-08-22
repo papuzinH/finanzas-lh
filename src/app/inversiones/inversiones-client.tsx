@@ -6,6 +6,7 @@ import { TrendingUp, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { ScreenHeader } from '@/components/shared/screen-header'
+import { EmptyState } from '@/components/shared/empty-state'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -235,17 +236,18 @@ export function InversionesClient() {
         </div>
 
         {portfolio.assets.length === 0 ? (
-          <div className="mt-3 rounded-2xl border-[1.5px] border-dashed border-border py-16 text-center flex flex-col items-center gap-3">
-            <TrendingUp className="h-14 w-14 text-faint" />
-            <h3 className="font-sans font-bold text-text text-lg">Sin activos registrados</h3>
-            <p className="text-muted text-sm max-w-xs">
-              Registrá tus primeras inversiones para ver tu portfolio y rendimiento.
-            </p>
-            <Button variant="accent" onClick={() => setIsCargarOpen(true)} className="mt-1">
-              <Plus className="h-4 w-4 mr-1.5" />
-              Cargar mi primera inversión
-            </Button>
-          </div>
+          <EmptyState
+            className="mt-3"
+            icon={<TrendingUp className="h-5 w-5" />}
+            title="Todavía no cargaste ningún activo"
+            description="Sumá lo que tengas invertido y seguí cómo viene tu cartera."
+            action={
+              <Button variant="accent" onClick={() => setIsCargarOpen(true)}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                Cargar mi primera inversión
+              </Button>
+            }
+          />
         ) : (
           <div className="mt-3">
             <PortfolioList

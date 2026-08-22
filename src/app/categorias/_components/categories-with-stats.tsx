@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { TabsDS } from '@/components/ui/tabs-ds'
 import type { Category } from '@/types/database'
 import { CreateCategoryDialog } from '@/components/categories/create-category-dialog'
+import { EmptyState } from '@/components/shared/empty-state'
 
 interface Props {
   categories: Category[]
@@ -162,14 +163,13 @@ export function CategoriesWithStats({ categories }: Props) {
         })}
 
         {visibleCategories.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-border bg-surface-2/20 text-center">
-            <Tag className="h-16 w-16 text-faint mb-4" />
-            <h3 className="text-lg font-semibold text-text mb-2">{labels.emptyTitle}</h3>
-            <p className="text-sm text-muted max-w-xs mb-6">
-              {labels.emptyDescription}
-            </p>
-            <CreateCategoryDialog />
-          </div>
+          <EmptyState
+            className="col-span-full"
+            icon={<Tag className="h-5 w-5" />}
+            title={labels.emptyTitle}
+            description={labels.emptyDescription}
+            action={<CreateCategoryDialog />}
+          />
         )}
       </div>
     </>
