@@ -72,11 +72,11 @@ const { data: creado, error: eCrear } = await db.auth.admin.createUser({
 if (eCrear) { console.error('createUser:', eCrear.message, '\n¿Está habilitado el provider Email en DEV?'); process.exit(1); }
 const UID = creado.user.id;
 
-let { error: eUser } = await db.from('users').update({
+let { data: updated, error: eUser } = await db.from('users').update({
   first_name: 'Emi', income_rhythm: 'monthly',
   onboarding_completed: true, pocket_setup_completed: true, tour_completed: true,
-}).eq('id', UID);
-if (eUser) { console.error('users:', eUser.message); process.exit(1); }
+}).eq('id', UID).select('id').single();
+if (eUser || !updated) { console.error('users:', eUser ? eUser.message : 'el trigger handle_new_user no creó la fila'); process.exit(1); }
 
 // ---- 3. categorías (las 8 del onboarding + las que el demo necesita)
 const CATS = [
