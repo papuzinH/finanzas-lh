@@ -17,7 +17,7 @@ portfolio. Nunca existe en producción. Spec:
 proyecto DEV).
 
 ## Gotchas
-- El provider **Email** está habilitado solo en DEV para este usuario; la UI
+- El provider **Email** está habilitado solo en DEV; la UI
   sigue ofreciendo únicamente Google.
 - Las fechas del seed son **relativas a hoy**: re-correr seeder + capturas
   regenera todo sin envejecer.

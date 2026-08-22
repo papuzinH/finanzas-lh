@@ -27,7 +27,16 @@ const ANON = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const EMAIL = env.DEMO_USER_EMAIL;
 const PASSWORD = env.DEMO_USER_PASSWORD;
 const BASE = process.env.CAPTURE_BASE_URL ?? 'http://localhost:3100';
+const REF = env.SEED_TARGET_REF;
 const LIMITE = 150 * 1024; // presupuesto por captura (spec)
+
+for (const [k, v] of Object.entries({ NEXT_PUBLIC_SUPABASE_URL: URL_, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON, DEMO_USER_EMAIL: EMAIL, DEMO_USER_PASSWORD: PASSWORD, SEED_TARGET_REF: REF })) {
+  if (!v) { console.error(`Falta ${k} en .env.local`); process.exit(1); }
+}
+if (new URL(URL_).hostname.split('.')[0] !== REF) {
+  console.error(`ABORTADO: la URL de Supabase no es del proyecto ${REF}.`);
+  process.exit(1);
+}
 
 // ---- chromium local (sin descarga)
 function chromiumPath() {

@@ -27,7 +27,7 @@ const REF = env.SEED_TARGET_REF;
 for (const [k, v] of Object.entries({ NEXT_PUBLIC_SUPABASE_URL: URL_, SUPABASE_SERVICE_ROLE_KEY: SERVICE, DEMO_USER_EMAIL: EMAIL, DEMO_USER_PASSWORD: PASSWORD, SEED_TARGET_REF: REF })) {
   if (!v) { console.error(`Falta ${k} en .env.local`); process.exit(1); }
 }
-if (!URL_.includes(REF)) {
+if (new URL(URL_).hostname.split('.')[0] !== REF) {
   console.error(`ABORTADO: la URL de Supabase (${URL_}) no contiene SEED_TARGET_REF (${REF}). ¿Estás apuntando a la base equivocada?`);
   process.exit(1);
 }
