@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 import { Toaster } from "@/components/ui/sonner";
 import { temaScript } from "@/components/theme/theme-script";
+import { createClient } from "@/utils/supabase/server";
 
 // Identidad cerrada 2026-08-13. Fugaz One es rótulo pintado (un solo peso, nunca
 // en negrita forzada); Asap y Bitter son de Omnibus-Type y Huerta Tipográfica,
@@ -41,11 +42,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // La raíz es dual desde 2026-08-22 (landing pública / dashboard): el shell
+  // necesita saber del lado del server si hay sesión, porque por pathname solo
+  // no puede distinguir al visitante anónimo de / del usuario logueado (el
+  // bug: sin esto, AppShell le pintaba MainNav + chat + tour a la landing).
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <html
       lang="es"
@@ -57,7 +65,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: temaScript }} />
       </head>
       <body className="antialiased bg-bg text-text font-sans">
-        <AppShell>
+        <AppShell sesionInicial={user !== null}>
           {children}
         </AppShell>
         <Toaster position="top-right" richColors closeButton />

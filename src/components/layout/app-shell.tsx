@@ -19,7 +19,7 @@ const PUBLIC_ROUTES = ['/login', '/auth'];
 // Rutas autenticadas pero sin nav/chat (onboarding en progreso)
 const ONBOARDING_ROUTES = ['/onboarding', '/puesta-a-punto'];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, sesionInicial }: { children: React.ReactNode; sesionInicial: boolean }) {
   const { isInitialized, fetchAllData, user } = useFinanceStore();
   const syncTourFromSupabase = useOnboardingStore((s) => s.syncTourFromSupabase);
   const pathname = usePathname();
@@ -27,12 +27,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
   const isOnboardingRoute = ONBOARDING_ROUTES.some(route => pathname.startsWith(route));
+  // La raíz sin sesión es la landing pública: sin nav, sin chat, sin tour y
+  // sin fetchAllData (que sin sesión son 16 queries contra RLS que vuelven
+  // vacías). `sesionInicial` viene del server (layout.tsx) porque por
+  // pathname solo `/` es ambiguo — la sirven tanto el anónimo como el logueado.
+  const esLandingAnonima = pathname === '/' && !sesionInicial;
 
   useEffect(() => {
-    if (!isInitialized && !isPublicRoute && !isOnboardingRoute) {
+    if (!isInitialized && !isPublicRoute && !isOnboardingRoute && !esLandingAnonima) {
       fetchAllData();
     }
-  }, [isInitialized, fetchAllData, isPublicRoute, isOnboardingRoute]);
+  }, [isInitialized, fetchAllData, isPublicRoute, isOnboardingRoute, esLandingAnonima]);
 
   // Sincronizar tour_completed desde Supabase una sola vez al cargar
   useEffect(() => {
@@ -42,7 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [user, syncTourFromSupabase]);
 
-  if (isPublicRoute || isOnboardingRoute) {
+  if (isPublicRoute || isOnboardingRoute || esLandingAnonima) {
     return <>{children}</>;
   }
 
