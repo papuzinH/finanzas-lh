@@ -37,8 +37,18 @@ describe('el split de /', () => {
     // consulta la sesión real y se la pasa a AppShell — pathname solo no
     // alcanza para decidir en '/'.
     expect(layout).toContain('@/utils/supabase/server')
-    expect(layout).toContain('sesionInicial={user !== null}')
     expect(appShell).toContain('sesionInicial')
     expect(appShell).toContain("pathname === '/' && !sesionInicial")
+  })
+  it('el layout lee la sesión de la cookie local, sin re-validar contra Auth', () => {
+    // Round 2 (2026-08-22): getUser() en el layout pegaba contra Supabase
+    // Auth en CADA request de CUALQUIER ruta — el middleware ya valida con
+    // getUser() en ese mismo request. Para decidir el chrome del shell
+    // alcanza con getSession() (lee la cookie local, sin round-trip): una
+    // cookie forjada solo vería un dashboard vacío sin nav funcional, porque
+    // los datos reales están detrás de RLS igual.
+    expect(layout).toContain('supabase.auth.getSession()')
+    expect(layout).not.toContain('supabase.auth.getUser()')
+    expect(layout).toContain('sesionInicial={session !== null}')
   })
 })

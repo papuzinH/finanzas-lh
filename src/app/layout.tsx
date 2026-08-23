@@ -52,7 +52,11 @@ export default async function RootLayout({
   // no puede distinguir al visitante anónimo de / del usuario logueado (el
   // bug: sin esto, AppShell le pintaba MainNav + chat + tour a la landing).
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // getSession lee la cookie local sin round-trip a Supabase Auth: para decidir
+  // el chrome del shell alcanza, porque el middleware ya validó con getUser()
+  // en este mismo request y los datos reales están detrás de RLS igual. Una
+  // cookie forjada solo conseguiría ver un dashboard vacío sin nav funcional.
+  const { data: { session } } = await supabase.auth.getSession();
 
   return (
     <html
@@ -65,7 +69,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: temaScript }} />
       </head>
       <body className="antialiased bg-bg text-text font-sans">
-        <AppShell sesionInicial={user !== null}>
+        <AppShell sesionInicial={session !== null}>
           {children}
         </AppShell>
         <Toaster position="top-right" richColors closeButton />
