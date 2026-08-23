@@ -1,5 +1,6 @@
 import { Hero } from './hero'
 import { BloquesValor } from './bloques-valor'
+import { ChatTeatro } from './chat-teatro'
 
 /**
  * La landing de michanchito.net — lo que ve quien llega sin sesión.
@@ -11,7 +12,8 @@ export function Landing() {
     <main className="paper-grain min-h-screen overflow-x-clip bg-bg text-text">
       <Hero />
       <BloquesValor />
-      {/* Las secciones restantes se suman acá a medida que existen (tasks 4-5). */}
+      <ChatTeatro />
+      {/* Las secciones restantes se suman acá a medida que existen (task 5). */}
     </main>
   )
 }
