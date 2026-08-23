@@ -69,11 +69,14 @@ export function Hero() {
       <motion.div style={{ y }} className="mx-auto w-[240px] sm:w-[270px] md:w-[290px]">
         <PhoneFrame captura="/landing/captura-home.png" alt="El home de Chanchito: tu plata libre para hoy" priority>
           {/* Tapa el número quemado en la captura y lo redibuja animado.
-              Posición inicial medida sobre la captura 780×1688; se afina en la
-              verificación en navegador (Task 6). */}
+              Medido en la captura 780×1688: el número + su sombra celeste
+              ocupan y 260-348 (15.40%-20.62%). top-15%/h-6.5% cubre 253-364px,
+              con margen contra la label de arriba (termina en 246) y el
+              banner de insight de abajo (arranca en 380). Verificado con
+              screenshot en navegador (Task 6). */}
           <div
             data-overlay-disponible
-            className="absolute left-[7%] right-[8%] top-[14.5%] flex h-[6%] items-center rounded-lg bg-surface"
+            className="absolute left-[7%] right-[8%] top-[15%] flex h-[6.5%] items-center rounded-lg bg-surface"
           >
             <motion.span className="tnum font-display text-[clamp(20px,7.5cqw,30px)] leading-none text-text [container-type:inline-size]">
               {texto}

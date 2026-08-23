@@ -20,6 +20,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  // Resuelve las URLs relativas de OG/Twitter (p.ej. /landing/og.png) contra
+  // el dominio real — sin esto, Next las arma contra localhost:3000 en build.
+  metadataBase: new URL("https://michanchito.net"),
   title: "Chanchito",
   description: "Dashboard financiero personal",
   appleWebApp: {
