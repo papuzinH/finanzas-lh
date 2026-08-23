@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 import { Toaster } from "@/components/ui/sonner";
 import { temaScript } from "@/components/theme/theme-script";
+import { createClient } from "@/utils/supabase/server";
 
 // Identidad cerrada 2026-08-13. Fugaz One es rótulo pintado (un solo peso, nunca
 // en negrita forzada); Asap y Bitter son de Omnibus-Type y Huerta Tipográfica,
@@ -20,6 +21,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  // Resuelve las URLs relativas de OG/Twitter (p.ej. /landing/og.png) contra
+  // el dominio real — sin esto, Next las arma contra localhost:3000 en build.
+  metadataBase: new URL("https://michanchito.net"),
   title: "Chanchito",
   description: "Dashboard financiero personal",
   appleWebApp: {
@@ -38,11 +42,24 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // La raíz es dual desde 2026-08-22 (landing pública / dashboard): el shell
+  // necesita saber del lado del server si hay sesión, porque por pathname solo
+  // no puede distinguir al visitante anónimo de / del usuario logueado (el
+  // bug: sin esto, AppShell le pintaba MainNav + chat + tour a la landing).
+  const supabase = await createClient();
+  // getSession lee la cookie local sin round-trip a Supabase Auth: para decidir
+  // el chrome del shell alcanza, porque la decisión real (Landing vs Dashboard)
+  // la toma page.tsx con getUser(). Una cookie forjada o una sesión revocada
+  // solo conseguirían que page.tsx sirva la Landing — y AppShell apaga su
+  // chrome para ese caso (ver guard `sinUsuarioReal`) —, nunca datos: esos
+  // siguen detrás de RLS.
+  const { data: { session } } = await supabase.auth.getSession();
+
   return (
     <html
       lang="es"
@@ -54,7 +71,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: temaScript }} />
       </head>
       <body className="antialiased bg-bg text-text font-sans">
-        <AppShell>
+        <AppShell sesionInicial={session !== null}>
           {children}
         </AppShell>
         <Toaster position="top-right" richColors closeButton />

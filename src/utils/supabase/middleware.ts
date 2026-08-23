@@ -45,8 +45,12 @@ export async function updateSession(request: NextRequest) {
   // 2. Verificamos el usuario
   const { data: { user } } = await supabase.auth.getUser()
 
-  // 3. Protección de rutas: Si no hay usuario, al login
+  // 3. Protección de rutas: sin usuario, al login — salvo la raíz, que desde
+  // 2026-08-22 sirve la landing pública y decide en el server qué renderizar.
   if (!user) {
+    if (pathname === '/') {
+      return supabaseResponse
+    }
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

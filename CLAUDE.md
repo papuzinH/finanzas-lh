@@ -2,7 +2,7 @@
 Next.js App Router · Supabase (PostgreSQL + Auth) · Zustand · TypeScript
 
 ## Documentación por feature: `docs/features/`
-Un doc por gran feature (arquitectura, archivos clave, tablas DB, invariantes y gotchas) pensado como contexto para iteraciones agénticas — **leer el de la feature que vayas a tocar**: `home-dashboard`, `movimientos`, `compromisos`, `objetivos`, `inversiones`, `medios-de-pago`, `categorias`, `asistente-ia`, `onboarding-auth`, `ajustes-perfil`, `transferencias-internas`, `pwa-plataforma`, `bolsillo`. Los planes/specs históricos por fecha viven en `docs/superpowers/`.
+Un doc por gran feature (arquitectura, archivos clave, tablas DB, invariantes y gotchas) pensado como contexto para iteraciones agénticas — **leer el de la feature que vayas a tocar**: `home-dashboard`, `movimientos`, `compromisos`, `objetivos`, `inversiones`, `medios-de-pago`, `categorias`, `asistente-ia`, `onboarding-auth`, `ajustes-perfil`, `transferencias-internas`, `pwa-plataforma`, `bolsillo`, `landing`. Los planes/specs históricos por fecha viven en `docs/superpowers/`.
 
 ## Comandos
 ```bash
@@ -12,6 +12,7 @@ npm run lint     # ESLint
 npm test         # Vitest (run) · npm run test:watch para watch
 npm run seed:demo     # (Re)crea el usuario demo Emi en DEV — ver docs/features/usuario-demo.md
 npm run capture:demo  # Capturas de la landing desde el demo (requiere build + next start -p 3100)
+node scripts/generate-og.mjs  # Regenera la imagen OG de la landing
 ```
 Tests en `src/**/__tests__/`. Los del store (`lib/store/__tests__/analysis-getters.test.ts`, `recurring-backfill-preview.test.ts`) siembran estado con `useFinanceStore.setState` y `vi.useFakeTimers`. La suite está **entera en verde**.
 

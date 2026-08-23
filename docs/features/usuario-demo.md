@@ -39,3 +39,6 @@ proyecto DEV).
   (Netflix/Spotify/Gimnasio), que viven en la tab Mensualidades
   (`/compromisos?tab=mensualidades`). Un solo archivo no puede mostrar
   ambas tabs a la vez.
+- El hero de la landing redibuja el disponible con `DISPONIBLE_DEMO`
+  (`src/components/landing/constantes.ts`): al regenerar capturas,
+  actualizarlo en el mismo commit.

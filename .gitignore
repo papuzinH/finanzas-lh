@@ -58,3 +58,7 @@ tmpclaude-*
 # El config.toml SÍ se versiona; .temp/ no.
 supabase/.temp/
 supabase/.branches/
+
+# Intermedio del chancho para el OG (scripts/generate-og.mjs lo regenera
+# siempre desde design/brand/chancho.svg): solo público el og.png final.
+scripts/chancho-og.png
