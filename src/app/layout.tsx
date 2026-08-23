@@ -53,9 +53,11 @@ export default async function RootLayout({
   // bug: sin esto, AppShell le pintaba MainNav + chat + tour a la landing).
   const supabase = await createClient();
   // getSession lee la cookie local sin round-trip a Supabase Auth: para decidir
-  // el chrome del shell alcanza, porque el middleware ya validó con getUser()
-  // en este mismo request y los datos reales están detrás de RLS igual. Una
-  // cookie forjada solo conseguiría ver un dashboard vacío sin nav funcional.
+  // el chrome del shell alcanza, porque la decisión real (Landing vs Dashboard)
+  // la toma page.tsx con getUser(). Una cookie forjada o una sesión revocada
+  // solo conseguirían que page.tsx sirva la Landing — y AppShell apaga su
+  // chrome para ese caso (ver guard `sinUsuarioReal`) —, nunca datos: esos
+  // siguen detrás de RLS.
   const { data: { session } } = await supabase.auth.getSession();
 
   return (

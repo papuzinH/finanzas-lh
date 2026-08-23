@@ -1,7 +1,8 @@
 /**
  * El chat de la landing es teatro: un guion fijo, cero API. Estos tests fijan
- * el guion y que el SSR ya traiga la conversación completa (el typewriter es
- * progresivo en cliente, pero sin JS la sección no puede quedar muda).
+ * el guion y que el SSR ya traiga la conversación completa (el guion entra en
+ * cliente por stagger de burbujas al hacer scroll, pero sin JS la sección no
+ * puede quedar muda).
  */
 import { describe, it, expect } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'

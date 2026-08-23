@@ -33,6 +33,11 @@ export function AppShell({ children, sesionInicial }: { children: React.ReactNod
   // pathname solo `/` es ambiguo — la sirven tanto el anónimo como el logueado.
   const esLandingAnonima = pathname === '/' && !sesionInicial;
 
+  // Cookie presente pero sesión revocada (logout en otro dispositivo): page.tsx
+  // ya decidió Landing vía getUser, así que si el store terminó de inicializar
+  // sin usuario real en /, el chrome también se apaga.
+  const sinUsuarioReal = pathname === '/' && isInitialized && !user;
+
   useEffect(() => {
     if (!isInitialized && !isPublicRoute && !isOnboardingRoute && !esLandingAnonima) {
       fetchAllData();
@@ -47,7 +52,7 @@ export function AppShell({ children, sesionInicial }: { children: React.ReactNod
     }
   }, [user, syncTourFromSupabase]);
 
-  if (isPublicRoute || isOnboardingRoute || esLandingAnonima) {
+  if (isPublicRoute || isOnboardingRoute || esLandingAnonima || sinUsuarioReal) {
     return <>{children}</>;
   }
 

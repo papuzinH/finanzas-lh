@@ -11,6 +11,7 @@ export function CtaFinal() {
     <section className="mx-auto grid max-w-[640px] justify-items-center gap-5 px-6 py-24 text-center">
       <motion.div
         whileHover={reducido ? undefined : { rotate: [-2, 2, -1, 0], y: -6 }}
+        whileTap={reducido ? undefined : { scale: 0.96 }}
         transition={{ duration: 0.5 }}
         className="w-[130px] text-text"
       >

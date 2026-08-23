@@ -3,10 +3,21 @@
 import Image from 'next/image'
 import { useEffect } from 'react'
 import { motion, animate, useMotionValue, useReducedMotion, useScroll, useTransform } from 'framer-motion'
-import { formatCurrency } from '@/lib/utils'
 import { PhoneFrame } from './phone-frame'
 import { CtaInstalar } from './cta-instalar'
 import { DISPONIBLE_DEMO } from './constantes'
+
+// Mismo mecanismo que `formatAbs` en `balance-card.tsx`: la card real del
+// home nunca muestra decimales en el número grande, así que el contador del
+// hero (que promete "un número que dice la verdad") tampoco puede — sin este
+// formateador quedaba ",00" quemado, distinto del número de la captura.
+const formatDisponible = (amount: number) =>
+  new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount)
 
 /**
  * Split hero: claim + caminos a la izquierda, el teléfono a la derecha.
@@ -27,7 +38,7 @@ export function Hero() {
     return () => control.stop()
   }, [mv, reducido])
 
-  const texto = useTransform(mv, (v) => formatCurrency(Math.round(v)))
+  const texto = useTransform(mv, (v) => formatDisponible(Math.round(v)))
 
   const entrada = reducido
     ? {}
@@ -76,9 +87,9 @@ export function Hero() {
               screenshot en navegador (Task 6). */}
           <div
             data-overlay-disponible
-            className="absolute left-[7%] right-[8%] top-[15%] flex h-[6.5%] items-center rounded-lg bg-surface"
+            className="absolute left-[7%] right-[8%] top-[15%] flex h-[6.5%] items-center rounded-lg bg-surface [container-type:inline-size]"
           >
-            <motion.span className="tnum font-display text-[clamp(20px,7.5cqw,30px)] leading-none text-text [container-type:inline-size]">
+            <motion.span className="tnum font-display text-[clamp(20px,7.5cqw,30px)] leading-none text-text">
               {texto}
             </motion.span>
           </div>
