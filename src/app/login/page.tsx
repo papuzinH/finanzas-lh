@@ -37,6 +37,13 @@ export default function LoginPage() {
         <Suspense fallback={<Loader size="lg" centered text="Cargando..." />}>
           <LoginForm />
         </Suspense>
+        <p className="mt-3 text-center text-[12.5px] leading-[1.45] text-faint">
+          Al entrar aceptás la{' '}
+          <a href="/privacidad" className="underline underline-offset-2 hover:text-text">
+            política de privacidad
+          </a>
+          .
+        </p>
         <InstallApp variante="login" />
       </main>
 

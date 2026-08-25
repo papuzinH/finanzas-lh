@@ -24,7 +24,10 @@ export function CtaFinal() {
       </p>
       <CtaInstalar grande />
       <p className="text-[12px] text-faint">
-        Tus datos quedan tuyos: entrás con tu cuenta de Google y nadie más los ve.
+        Tus datos son tuyos: sin publicidad, sin venta, y los borrás cuando quieras.{' '}
+        <a href="/privacidad" className="underline underline-offset-2 hover:text-text">
+          Privacidad
+        </a>
       </p>
     </section>
   )

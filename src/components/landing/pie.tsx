@@ -9,9 +9,14 @@ export function Pie() {
             LH Studio
           </a>
         </p>
-        <a href="https://github.com/papuzinH/finanzas-lh" className="hover:text-text" rel="noopener">
-          github.com/papuzinH/finanzas-lh
-        </a>
+        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <a href="/privacidad" className="hover:text-text">
+            Privacidad
+          </a>
+          <a href="https://github.com/papuzinH/finanzas-lh" className="hover:text-text" rel="noopener">
+            github.com/papuzinH/finanzas-lh
+          </a>
+        </nav>
       </div>
     </footer>
   )
