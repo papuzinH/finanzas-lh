@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 import { Chancho } from '@/components/brand/chancho'
 import { MAIL_CONTACTO } from '@/lib/contacto'
 
@@ -29,10 +30,10 @@ export function PoliticaPrivacidad() {
   return (
     <article className="mx-auto grid max-w-[640px] gap-10 px-5 pb-20 pt-10 md:px-6">
       <header className="grid gap-4">
-        <a href="/" className="inline-flex items-center gap-2 text-[13.5px] text-muted hover:text-text">
+        <Link href="/" className="inline-flex items-center gap-2 text-[13.5px] text-muted hover:text-text">
           <Chancho className="w-7 text-text" title="Chanchito" />
           Volver a Chanchito
-        </a>
+        </Link>
         <h1 className="font-display text-[36px] leading-[1.02] text-text md:text-[44px]">Privacidad</h1>
         <p className="text-[15.5px] leading-[1.6] text-muted">
           Chanchito es una app de finanzas personales hecha por LH Studio. Esta página cuenta, sin
