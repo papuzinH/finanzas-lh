@@ -712,6 +712,7 @@ export interface Database {
         Returns: undefined
       }
       check_and_increment_chat_usage: { Args: never; Returns: string }
+      delete_my_account: { Args: never; Returns: undefined }
       get_current_user_int_id: { Args: never; Returns: string }
     }
     Enums: Record<string, never>

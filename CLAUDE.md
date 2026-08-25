@@ -10,7 +10,7 @@ npm run dev      # Desarrollo (Turbopack)
 npm run build    # Producción (Webpack)
 npm run lint     # ESLint
 npm test         # Vitest (run) · npm run test:watch para watch
-npm run seed:demo     # (Re)crea el usuario demo Emi en DEV — ver docs/features/usuario-demo.md
+npm run seed:demo     # (Re)crea el usuario demo Emi — ⚠️ en PRODUCCIÓN (no hay base DEV; ver Deploy) — ver docs/features/usuario-demo.md
 npm run capture:demo  # Capturas de la landing desde el demo (requiere build + next start -p 3100)
 node scripts/generate-og.mjs  # Regenera la imagen OG de la landing
 ```
@@ -22,7 +22,8 @@ Tests en `src/**/__tests__/`. Los del store (`lib/store/__tests__/analysis-gette
 - Server Components: fetch con `utils/supabase/server.ts`.
 - Client Components: NUNCA fetch directo → solo `useFinanceStore`.
 - Prohibido: `useEffect` para fetching, SWR, React Query.
-- **Tablas globales de mercado** (`market_prices`, `exchange_rates`, sin `user_id`): las **escrituras** van con `createAdminClient()` (`utils/supabase/admin.ts`, service_role, server-only), NUNCA con el cliente de sesión. Si no, hay que dejar INSERT/UPDATE abiertos a `authenticated` y cualquier usuario logueado puede escribir con la anon key los precios que ven todos. Las lecturas siguen con el cliente de sesión. Requiere `SUPABASE_SERVICE_ROLE_KEY` en el entorno.
+- **Tablas globales de mercado** (`market_prices`, `exchange_rates`, sin `user_id`): las **escrituras** van con `createAdminClient()` (`utils/supabase/admin.ts`, service_role, server-only), NUNCA con el cliente de sesión. Si no, hay que dejar INSERT/UPDATE abiertos a `authenticated` y cualquier usuario logueado puede escribir con la anon key los precios que ven todos. Las lecturas siguen con el cliente de sesión. Requiere `SUPABASE_SERVICE_ROLE_KEY` en el entorno. **Segundo y último uso del admin client**: `auth.admin.deleteUser` al final de `deleteMyAccount` (`app/perfil/actions.ts`) — la purga de los datos NO va por ahí, la hace `delete_my_account()` (SECURITY DEFINER sobre `auth.uid()`, una transacción, 15 tablas + `users`) con el cliente de sesión.
+- **Páginas públicas de contenido** (`/privacidad`): la lista es `RUTAS_PUBLICAS` en `lib/rutas-publicas.ts` y la consultan el middleware (sin sesión no manda al login; con sesión no aplica los gates de onboarding) y el `AppShell` (sin nav/chat/tour). Agregar una página pública = agregarla ahí, en ningún otro lado; un test estructural lo exige. `/` no está en esa lista: tiene su propio split por sesión.
 
 ## Store: `lib/store/financeStore.ts`
 Única fuente de verdad cliente. **Leer antes de modificar componentes.**
@@ -144,6 +145,7 @@ UI: selector de medio en el chip de Compromisos (`credit-card-cycle-card.tsx`) +
 - **ScreenHeader**: `<ScreenHeader title="..." right={...} />` de `@/components/shared/screen-header`; variante `compact` (título 22px, sin kicker) para las pantallas alineadas a los mocks de layouts. Sin `kicker` ni `sub` el header alinea al centro solo (el `icon` de marca queda a la altura del título).
 - **Filas con acciones**: `<SwipeableRow>` de `@/components/shared/swipeable-row` — arrastrar a la derecha edita, a la izquierda elimina (fondos de color, haptics y guard del click sintético incluidos). Se activa con `enabled={isMobile}` (`useIsMobile` de `@/lib/hooks/useIsMobile`). **El gesto es un atajo, nunca la única vía**: en mobile la fila entera abre un `<ActionSheet>` al tocarla y en desktop se usa el menú kebab. Lo usan `TransactionItem` (/movimientos) y las cards de cuotas y mensualidades (/compromisos).
 - **Nav**: bottom nav mobile de **5 destinos** (Inicio, Movimientos, Compromisos, Objetivos, Más); "Más" abre un ActionSheet con Inversiones, Medios de pago y Ajustes (`nav-config.ts`). Desktop sidebar: 6 ítems directos.
+- **Legales**: `/privacidad` (`components/legal/politica-privacidad.tsx`) es la política de privacidad + condiciones de uso, escrita en rioplatense y **verificada contra lo que la app hace** (terceros: Supabase, Vercel, Google/Gemini, fuentes de cotizaciones; sin analytics; borrado desde Ajustes; sin backups). Si entra un proveedor nuevo o cambia una promesa, se cambia el texto y la fecha — el test exige que cada tercero siga nombrado. Contacto: `MAIL_CONTACTO` de `lib/contacto.ts`.
 - **Mobile-first**: canvas base 390px (el de los mocks). Margen lateral `px-5`. Touch targets ≥44px. `pb-28` para clearear BottomNav.
 
 ## Diseño de referencia

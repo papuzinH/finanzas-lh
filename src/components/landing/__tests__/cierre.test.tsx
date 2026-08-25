@@ -5,9 +5,7 @@ import { CtaFinal } from '../cta-final'
 import { Pie } from '../pie'
 import { Landing } from '../landing'
 
-vi.mock('next/image', () => ({
-  default: ({ src, alt, ...props }: any) => <img src={src} alt={alt} {...props} />,
-}))
+vi.mock('next/image', () => ({ default: () => null }))
 
 describe('HechaAca', () => {
   it('nombra lo argentino concreto, no genérico', () => {
@@ -20,8 +18,15 @@ describe('CtaFinal', () => {
   it('lleva el chancho y la línea de confianza', () => {
     const out = renderToStaticMarkup(<CtaFinal />)
     expect(out).toContain('Tenelo a mano')
-    expect(out).toContain('Tus datos quedan tuyos')
     expect(out).toContain('<svg') // el Chancho es SVG inline
+  })
+  it('la línea de confianza dice algo verificable y linkea la política', () => {
+    // «nadie más los ve» no era cierto: Gemini procesa lo que se le escribe al
+    // chat. La promesa nueva es la que la app cumple de verdad.
+    const out = renderToStaticMarkup(<CtaFinal />)
+    expect(out).toContain('Tus datos son tuyos')
+    expect(out).not.toContain('nadie más los ve')
+    expect(out).toContain('href="/privacidad"')
   })
 })
 
@@ -30,6 +35,11 @@ describe('Pie', () => {
     const out = renderToStaticMarkup(<Pie />)
     expect(out).toContain('LH Studio')
     expect(out).toContain('github.com')
+  })
+  it('linkea la política de privacidad', () => {
+    const out = renderToStaticMarkup(<Pie />)
+    expect(out).toContain('href="/privacidad"')
+    expect(out).toContain('Privacidad')
   })
 })
 

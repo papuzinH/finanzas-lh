@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { esRutaPublica } from '@/lib/rutas-publicas'
 
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -46,9 +47,10 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // 3. Protección de rutas: sin usuario, al login — salvo la raíz, que desde
-  // 2026-08-22 sirve la landing pública y decide en el server qué renderizar.
+  // 2026-08-22 sirve la landing pública y decide en el server qué renderizar,
+  // y las páginas públicas de contenido (`lib/rutas-publicas.ts`).
   if (!user) {
-    if (pathname === '/') {
+    if (pathname === '/' || esRutaPublica(pathname)) {
       return supabaseResponse
     }
     const url = request.nextUrl.clone()
@@ -58,7 +60,13 @@ export async function updateSession(request: NextRequest) {
 
   // 4. Validación de onboarding completado
   // Solo si no estamos ya en onboarding y no es una ruta de auth
-  if (!pathname.startsWith('/onboarding') && !pathname.startsWith('/puesta-a-punto')) {
+  // Las páginas públicas tampoco pasan por acá: la política de privacidad se
+  // tiene que poder leer con la cuenta a medio configurar.
+  if (
+    !pathname.startsWith('/onboarding') &&
+    !pathname.startsWith('/puesta-a-punto') &&
+    !esRutaPublica(pathname)
+  ) {
     try {
       const { data: profile, error: dbError } = await supabase
         .from('users')

@@ -9,7 +9,9 @@ Alta y acceso de usuarios: login con **Google OAuth (único proveedor)** vía Su
 - `/login` — `src/app/login/page.tsx` (Server) → `login-form.tsx` (Client, botón Google + errores por query param `?error=`).
 - `/auth/callback` — `src/app/auth/callback/route.ts` (GET): `exchangeCodeForSession(code)` → redirect a `next` (default `/`) o `/login?error=auth_callback_failed`.
 - `/onboarding` — `src/app/onboarding/page.tsx` (Server: redirige a `/login` sin user y a `/` si `onboarding_completed`) → `onboarding-flow.tsx` (Client).
-- **Middleware global**: `src/middleware.ts` → `updateSession` de `src/utils/supabase/middleware.ts`.
+- **Middleware global**: `src/middleware.ts` → `updateSession` de `src/utils/supabase/middleware.ts`. Sin sesión deja pasar solo `/` (la landing) y las `RUTAS_PUBLICAS` de `src/lib/rutas-publicas.ts` (hoy `/privacidad`), que tampoco pasan por los gates de onboarding/puesta a punto: la política se tiene que poder leer con la cuenta a medio configurar.
+- `/privacidad` — política de privacidad y condiciones de uso, pública. Ver `docs/features/ajustes-perfil.md`.
+- **Borrar la cuenta** — `/ajustes/perfil` → `deleteMyAccount()` (`src/app/perfil/actions.ts`): purga por RPC `delete_my_account()` + `auth.admin.deleteUser`. Ver `docs/features/ajustes-perfil.md`.
 
 ## Archivos clave
 | Archivo | Rol |

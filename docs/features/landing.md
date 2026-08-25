@@ -23,8 +23,8 @@ usa hablándole, y por qué está hecha acá.
 | `src/components/landing/bloques-valor.tsx` | 3 bloques de valor. Desktop: teléfono sticky que muta de captura según el bloque en viewport (`useInView`); mobile: cada bloque apila la suya (el sticky marea) |
 | `src/components/landing/chat-teatro.tsx` | Guion de chat fijo animado al entrar en viewport — **sin llamar al chat real**; usa la categoría real de los datos demo para no prometer de más |
 | `src/components/landing/hecha-aca.tsx` | Identidad: por qué una app argentina, en 4 "estampillas" que se pegan con rotación leve. Única sección sin capturas |
-| `src/components/landing/cta-final.tsx` | Cierre: chancho grande + `CtaInstalar` |
-| `src/components/landing/pie.tsx` | Firma (LH Studio) + link al repo |
+| `src/components/landing/cta-final.tsx` | Cierre: chancho grande + `CtaInstalar` + la línea de confianza («Tus datos son tuyos: sin publicidad, sin venta, y los borrás cuando quieras» + link a `/privacidad`). La versión anterior decía «nadie más los ve» y no era cierto: Gemini procesa lo que se le escribe al chat |
+| `src/components/landing/pie.tsx` | Firma (LH Studio) + links: Privacidad (`/privacidad`) y el repo |
 | `src/components/landing/cta-instalar.tsx` | Los dos caminos (instalar / usar en el navegador), reutiliza `useInstallApp` (mismo hook que login/Ajustes) con el modal de pasos iOS |
 | `src/components/landing/constantes.ts` | `DISPONIBLE_DEMO` — el número que el overlay redibuja; ver Invariantes |
 | `scripts/generate-og.mjs` + `scripts/og.html` | Generan `public/landing/og.png` (1200×630) rasterizando `design/brand/chancho.svg` con `sharp` + Chromium local, sin servidor |
@@ -55,8 +55,15 @@ usa hablándole, y por qué está hecha acá.
   (ver `docs/features/usuario-demo.md`); el OG con
   `node scripts/generate-og.mjs`.
 
-## Gotcha conocido (fuera del alcance de esta feature)
-`src/components/layout/app-shell.tsx` decide el shell (nav, chat widget,
+## Gotcha del AppShell — RESUELTO en `5ec7160` (misma rama, 2026-08-22)
+Hoy `RootLayout` lee la sesión en el server y se la pasa a `AppShell` como
+`sesionInicial`; `esLandingAnonima = pathname === '/' && !sesionInicial` saltea
+el shell y `fetchAllData()`. Las páginas públicas de contenido (`/privacidad`)
+van por otra lista, `lib/rutas-publicas.ts`, que consultan middleware y shell.
+Queda el relato del bug original porque explica por qué la decisión no puede
+ser por pathname solo:
+
+`src/components/layout/app-shell.tsx` decidía el shell (nav, chat widget,
 onboarding tour) por ruta + `isInitialized`, sin distinguir la landing
 anónima de `/`: solo trata `/login` y `/auth` como públicas. Cuando
 `fetchAllData()` resuelve para un visitante sin sesión, `isInitialized` pasa a

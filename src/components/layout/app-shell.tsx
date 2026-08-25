@@ -8,13 +8,16 @@ import { useOnboardingStore } from '@/lib/store/onboardingStore';
 import { MainNav } from '@/components/layout/main-nav';
 import { FullPageLoader } from '@/components/shared/loader';
 import { ChatWidgetWrapper } from '@/components/chat/ChatWidgetWrapper';
+import { esRutaPublica } from '@/lib/rutas-publicas';
 
 const OnboardingTour = dynamic(
   () => import('@/components/onboarding/onboarding-tour').then(m => m.OnboardingTour),
   { ssr: false }
 );
 
-// Rutas sin autenticación (sin shell)
+// Rutas sin autenticación (sin shell). Las páginas públicas de contenido
+// (`/privacidad`) salen de `lib/rutas-publicas.ts`, la misma lista que usa el
+// middleware.
 const PUBLIC_ROUTES = ['/login', '/auth'];
 // Rutas autenticadas pero sin nav/chat (onboarding en progreso)
 const ONBOARDING_ROUTES = ['/onboarding', '/puesta-a-punto'];
@@ -25,7 +28,7 @@ export function AppShell({ children, sesionInicial }: { children: React.ReactNod
   const pathname = usePathname();
   const tourSynced = useRef(false);
 
-  const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+  const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route)) || esRutaPublica(pathname);
   const isOnboardingRoute = ONBOARDING_ROUTES.some(route => pathname.startsWith(route));
   // La raíz sin sesión es la landing pública: sin nav, sin chat, sin tour y
   // sin fetchAllData (que sin sesión son 16 queries contra RLS que vuelven
