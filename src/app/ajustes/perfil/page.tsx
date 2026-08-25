@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { useOnboardingStore } from '@/lib/store/onboardingStore';
 import { signOut } from '@/app/perfil/actions';
+import { BorrarCuenta } from './_components/borrar-cuenta';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Mail, Calendar, LogOut, MessageCircle, ShieldCheck, Settings, RotateCcw } from 'lucide-react';
@@ -130,6 +131,9 @@ export default function AjustesPerfilPage() {
           <LogOut className="mr-2 h-4 w-4" />
           {isSigningOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </Button>
+
+        {/* Borrar la cuenta: al final, después de todo lo reversible. */}
+        <BorrarCuenta />
       </main>
     </div>
   );
