@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Chancho } from '@/components/brand/chancho'
+import { MAIL_CONTACTO } from '@/lib/contacto'
 
 /**
  * La política de privacidad, escrita para que se entienda y verificada contra
@@ -8,7 +9,7 @@ import { Chancho } from '@/components/brand/chancho'
  * (`__tests__/politica-privacidad.test.tsx`) vigila que ningún tercero
  * desaparezca del texto en silencio.
  */
-const CONTACTO = 'lhstudio.dev@gmail.com'
+const CONTACTO = MAIL_CONTACTO
 const ACTUALIZADA = '25 de agosto de 2026'
 
 function Seccion({ titulo, children }: { titulo: string; children: ReactNode }) {
