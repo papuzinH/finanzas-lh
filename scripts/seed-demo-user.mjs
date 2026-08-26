@@ -1,10 +1,14 @@
 /**
- * Siembra el usuario demo «Emi» en la base DEV. Idempotente: borra al demo
- * (solo al demo) y lo recrea con fechas relativas a hoy.
+ * Siembra el usuario demo «Emi» en la base DEV (`hgxuxoqyrooaariimqmg`,
+ * cuenta B / org STUDIO — existe desde 2026-08-26). Idempotente: borra al
+ * demo (solo al demo) y lo recrea con fechas relativas a hoy.
  *
- * Guard duro: exige SEED_TARGET_REF y aborta si la URL de Supabase no lo
- * contiene — correr esto contra producción tiene que ser imposible por
- * accidente. Producción ni siquiera tiene el provider email habilitado.
+ * Guard duro, en dos capas: (1) el ref de PRODUCCIÓN está hardcodeado como
+ * prohibido — este script se niega a correr contra esa base, sin importar
+ * qué diga el .env.local; (2) la URL tiene que coincidir con SEED_TARGET_REF.
+ * Hasta el 26-ago la capa 1 no existía y la 2 comparaba contra el mismo ref
+ * de producción: el guard aprobaba exactamente lo que decía impedir, y el
+ * demo vivió en producción un mes entero sin que ningún doc lo dijera.
  *
  * Uso: npm run seed:demo
  */
@@ -27,7 +31,16 @@ const REF = env.SEED_TARGET_REF;
 for (const [k, v] of Object.entries({ NEXT_PUBLIC_SUPABASE_URL: URL_, SUPABASE_SERVICE_ROLE_KEY: SERVICE, DEMO_USER_EMAIL: EMAIL, DEMO_USER_PASSWORD: PASSWORD, SEED_TARGET_REF: REF })) {
   if (!v) { console.error(`Falta ${k} en .env.local`); process.exit(1); }
 }
-if (new URL(URL_).hostname.split('.')[0] !== REF) {
+// LHStudio = producción, con usuarios reales. Hardcodeado a propósito: un
+// guard que compara contra una variable del mismo .env.local que define el
+// destino no protege nada (lección del 25-ago).
+const PROD_REF = 'mkkgdjxaotgimqwhyesx';
+const refDestino = new URL(URL_).hostname.split('.')[0];
+if (refDestino === PROD_REF) {
+  console.error(`ABORTADO: la URL de Supabase apunta a PRODUCCIÓN (${PROD_REF}). Este script solo corre contra DEV.`);
+  process.exit(1);
+}
+if (refDestino !== REF) {
   console.error(`ABORTADO: la URL de Supabase (${URL_}) no contiene SEED_TARGET_REF (${REF}). ¿Estás apuntando a la base equivocada?`);
   process.exit(1);
 }

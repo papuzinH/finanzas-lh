@@ -10,7 +10,7 @@ npm run dev      # Desarrollo (Turbopack)
 npm run build    # Producción (Webpack)
 npm run lint     # ESLint
 npm test         # Vitest (run) · npm run test:watch para watch
-npm run seed:demo     # (Re)crea el usuario demo Emi — ⚠️ en PRODUCCIÓN (no hay base DEV; ver Deploy) — ver docs/features/usuario-demo.md
+npm run seed:demo     # (Re)crea el usuario demo Emi en la base DEV (guard: producción prohibida por ref hardcodeado) — ver docs/features/usuario-demo.md
 npm run capture:demo  # Capturas de la landing desde el demo (requiere build + next start -p 3100)
 node scripts/generate-og.mjs  # Regenera la imagen OG de la landing
 ```
@@ -159,13 +159,15 @@ Los mocks finales (identidad 2026-08-13, snapshot 2026-08-14) viven en `../claud
 
 ## Deploy
 - `master` → producción automática en Vercel.
-- ⚠️ **NO existe base DEV: hay una sola instancia Supabase** (proyecto `LHStudio`, ref `mkkgdjxaotgimqwhyesx`) y `.env.local` apunta a ella. Desarrollar en local es operar sobre los datos reales de producción — cuidado con borrados, backfills y migraciones destructivas.
+- **Dos bases desde 2026-08-26.** PRODUCCIÓN = `LHStudio` (ref `mkkgdjxaotgimqwhyesx`, cuenta A); DEV = `Chanchito DEV` (ref `hgxuxoqyrooaariimqmg`, **cuenta B**, org STUDIO — el cupo Free de la cuenta A estaba lleno). `.env.local` apunta a **DEV**: desarrollar en local ya no toca datos reales. Todo lo de producción vive con sufijo `_PROD` en `.env.local` y se usa **a propósito** (migraciones a prod, scripts admin). En DEV el login es email/password (Google no está configurado ahí); en prod, **solo Google** — el provider email se apagó el 26-ago. Ojo: Free pausa DEV tras ~1 semana sin uso; se despierta desde el dashboard (cuenta B).
 - **Backup diario de la base** (desde 2026-08-26): `pg_dump` corre por cron en el VPS a las 04:00 AR, retiene los últimos 14 dumps verificados. Script versionado en `infra/vps/chanchito-backup.sh` (deploy por scp), restore y detalles en `infra/vps/README.md`. El vigía de Panchito avisa si el último dump pasa las 26 h. ⚠️ Rotar `SUPABASE_DB_PASSWORD` toca tres consumidores: `.env.local`, la credencial de n8n **y** `/opt/chanchito-backup/.env` del VPS.
 - Cambios de schema SQL: aplicar **antes** del merge (van a producción en el acto, por lo de arriba). Si el cambio rompe la firma de algo que el deploy vigente ya usa, hacerlo compatible hacia atrás (ej. wrappers) para no abrir una ventana de fallas hasta el próximo deploy.
 
 ## Migraciones (leer antes de escribir SQL)
 
-El proyecto está **linkeado al CLI de Supabase** desde el 2026-07-28 (`supabase/config.toml`). Antes no lo estaba: las migraciones se aplicaban a mano desde el SQL Editor y nada garantizaba que un archivo del repo estuviera realmente aplicado. Eso produjo el caso de la RLS —"PENDIENTE de aplicar" durante 18 días cuando ya estaba aplicada— y dejó 7 de 12 migraciones sin registrar. Saneado y verificado: repo y `supabase_migrations.schema_migrations` coinciden 1:1 (15 versiones al 2026-08-03).
+El proyecto está **linkeado al CLI de Supabase** desde el 2026-07-28 (`supabase/config.toml`). Antes no lo estaba: las migraciones se aplicaban a mano desde el SQL Editor y nada garantizaba que un archivo del repo estuviera realmente aplicado. Eso produjo el caso de la RLS —"PENDIENTE de aplicar" durante 18 días cuando ya estaba aplicada— y dejó 7 de 12 migraciones sin registrar. Saneado y verificado: repo y `supabase_migrations.schema_migrations` coinciden 1:1 (19 versiones al 2026-08-26, en las dos bases).
+
+**Desde 2026-08-26 el link apunta a DEV** (`hgxuxoqyrooaariimqmg`): `db push --linked` pega en DEV y **producción es un paso explícito** por `--db-url`. Equivocarse por default deja de tocar datos reales. DEV nació restaurando el backup de prod del 26-ago (schema + registro de migraciones), así que las dos bases tienen el mismo historial.
 
 **Flujo obligatorio:**
 
@@ -174,27 +176,36 @@ set -a; . ./.env.local; set +a   # carga las credenciales del CLI (ver abajo)
 
 supabase migration new <nombre>   # crea el archivo con timestamp de 14 dígitos
 # escribir el SQL
-supabase db push --linked         # aplica Y registra, en un solo paso
-supabase migration list --linked  # Local y Remote deben coincidir
+supabase db push --linked         # aplica Y registra en DEV
+supabase migration list --linked  # DEV: Local y Remote deben coincidir
+# verificar la app contra DEV; y ANTES del merge, producción, a propósito:
+supabase db push --db-url "postgresql://postgres.mkkgdjxaotgimqwhyesx:${SUPABASE_DB_PASSWORD_PROD}@aws-1-sa-east-1.pooler.supabase.com:5432/postgres"
 ```
+
+`--db-url` conecta directo a Postgres: no necesita PAT. `--dry-run` sirve para ver qué aplicaría sin tocar nada. Checklist completo en el skill `migrar-schema`.
 
 ### Credenciales del CLI
 
-⚠️ **El CLI necesita DOS env vars de `.env.local`** (gitignoreado). No alcanza con `supabase login`:
+⚠️ **El CLI necesita env vars de `.env.local`** (gitignoreado). No alcanza con `supabase login`. Las dos bases viven en **cuentas Supabase distintas** (el cupo Free de la cuenta A estaba lleno con LHStudio + FernetApp):
 
-| var | para qué | de dónde sale |
-|---|---|---|
-| `SUPABASE_ACCESS_TOKEN` | autenticar contra la API de la plataforma | PAT de https://supabase.com/dashboard/account/tokens, generado **desde la cuenta dueña del proyecto** (org `qqhxxhfibtbwdlevrmxy`) |
-| `SUPABASE_DB_PASSWORD` | conectar a Postgres | Project Settings → Database. Si no lo tenés, se resetea sin romper producción: la app habla por PostgREST con anon/service key, no por conexión directa |
+| var | base | para qué | de dónde sale |
+|---|---|---|---|
+| `SUPABASE_ACCESS_TOKEN` | DEV (default) | API de la plataforma para el proyecto linkeado | PAT de la **cuenta B** (org STUDIO `lmvuwrhwzsuthjsmzoci`, dueña de Chanchito DEV) |
+| `SUPABASE_DB_PASSWORD` | DEV (default) | Postgres de DEV | generado el 26-ago al crear el proyecto |
+| `SUPABASE_ACCESS_TOKEN_PROD` | PROD | API de la plataforma para prod (`migration list`, api-keys…) | PAT de la **cuenta A** (org `qqhxxhfibtbwdlevrmxy`) |
+| `SUPABASE_DB_PASSWORD_PROD` | PROD | el `db push --db-url` a producción | Project Settings → Database de LHStudio. Se resetea sin romper producción (la app habla por PostgREST), pero **toca tres consumidores**: este archivo, n8n y el backup del VPS |
 
-**Por qué un PAT y no `supabase login`**: el CLI guarda **un solo access token global**, y Chanchito vive en una cuenta Supabase distinta de la de Brava (org `lmvuwrhwzsuthjsmzoci`). Loguearte para un proyecto pisa el del otro — fue exactamente lo que pasó entre el 28-jul y el 03-ago. `SUPABASE_ACCESS_TOKEN` tiene prioridad sobre el token global, así que el PAT por repo resuelve el choque de raíz.
+Para operar prod por la API de la plataforma con el CLI (p. ej. `supabase projects api-keys --project-ref mkkgdjxaotgimqwhyesx`): `SUPABASE_ACCESS_TOKEN=$SUPABASE_ACCESS_TOKEN_PROD supabase …`. Para `migration list`/`db push` contra prod alcanza `--db-url` (sin PAT). Las keys de la app de prod (`NEXT_PUBLIC_*_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`) también están ahí, con sufijo.
+
+**Por qué un PAT y no `supabase login`**: el CLI guarda **un solo access token global**, y un `supabase login` pisa el anterior — pasó entre el 28-jul y el 03-ago, y el 26-ago el token global apareció cambiado de cuenta otra vez. `SUPABASE_ACCESS_TOKEN` tiene prioridad sobre el token global, así que el PAT por repo resuelve el choque de raíz y ya no importa con qué cuenta esté logueado el CLI.
 
 **Síntomas y diagnóstico** (los dos errores se confunden fácil):
 
-- `unexpected login role status 403 — your account does not have the necessary privileges` → **falta el PAT o es de la cuenta equivocada**. NO tiene nada que ver con `SUPABASE_DB_PASSWORD` (este archivo lo afirmó por error entre el 28-jul y el 03-ago). Chequeo: `supabase projects list` debe mostrar `mkkgdjxaotgimqwhyesx` con `"linked": true`; si el proyecto no aparece en la lista, el token es de otra cuenta.
+- `unexpected login role status 403 — your account does not have the necessary privileges` → **falta el PAT o es de la cuenta equivocada**. NO tiene nada que ver con `SUPABASE_DB_PASSWORD` (este archivo lo afirmó por error entre el 28-jul y el 03-ago). Chequeo: `supabase projects list` debe mostrar `hgxuxoqyrooaariimqmg` (Chanchito DEV) con `"linked": true`; si en la lista aparecen LHStudio/FCG en vez de Brava/Chanchito DEV, el token es de la cuenta A.
+- `FATAL: (ENOTFOUND) tenant/user postgres.<ref> not found` en el pooler → **host de pooler equivocado**: DEV vive en `aws-0-sa-east-1.pooler.supabase.com`, prod en `aws-1-sa-east-1`. Un proyecto nuevo puede caer en otro cluster aunque sea la misma región; el host real sale de `GET /v1/projects/<ref>/config/database/pooler`.
 - `PgClient: Failed to connect`, sin más detalle → **password incorrecto**. El CLI se come el error real de Postgres; para verlo hay que conectar con `pg` y mirar el código (`28P01` = password mal). Tras un reset el pooler tarda un momento en propagar: si el puerto 5432 rechaza pero el 6543 acepta, esperá y reintentá.
 
-**Red**: `db.<ref>.supabase.co` es **IPv6-only** y esta máquina no tiene IPv6. No es un problema para el CLI, que resuelve el pooler IPv4 por la API (por eso el PAT es condición previa). Si conectás a mano (psql, `pg`, un cliente gráfico), apuntá al pooler: `aws-1-sa-east-1.pooler.supabase.com:5432`, user `postgres.mkkgdjxaotgimqwhyesx`.
+**Red**: `db.<ref>.supabase.co` es **IPv6-only** y ni esta máquina ni el VPS tienen IPv6. No es un problema para el CLI, que resuelve el pooler IPv4 por la API (por eso el PAT es condición previa). Si conectás a mano (psql, `pg`, un cliente gráfico), apuntá al pooler en modo session (5432): prod `aws-1-sa-east-1.pooler.supabase.com`, user `postgres.mkkgdjxaotgimqwhyesx`; DEV `aws-0-sa-east-1.pooler.supabase.com`, user `postgres.hgxuxoqyrooaariimqmg`.
 
 Reglas:
 - **Nunca** aplicar SQL a mano sin que quede el renglón en `schema_migrations`. Si por algún motivo hay que hacerlo, registrar la versión a mano en la misma sesión — no "después".

@@ -33,6 +33,13 @@ const LIMITE = 150 * 1024; // presupuesto por captura (spec)
 for (const [k, v] of Object.entries({ NEXT_PUBLIC_SUPABASE_URL: URL_, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON, DEMO_USER_EMAIL: EMAIL, DEMO_USER_PASSWORD: PASSWORD, SEED_TARGET_REF: REF })) {
   if (!v) { console.error(`Falta ${k} en .env.local`); process.exit(1); }
 }
+// Mismo guard en dos capas que seed-demo-user.mjs: producción prohibida por
+// ref hardcodeado (además, prod ya no tiene el provider email — 2026-08-26).
+const PROD_REF = 'mkkgdjxaotgimqwhyesx';
+if (new URL(URL_).hostname.split('.')[0] === PROD_REF) {
+  console.error(`ABORTADO: la URL de Supabase apunta a PRODUCCIÓN (${PROD_REF}). Las capturas salen de DEV.`);
+  process.exit(1);
+}
 if (new URL(URL_).hostname.split('.')[0] !== REF) {
   console.error(`ABORTADO: la URL de Supabase no es del proyecto ${REF}.`);
   process.exit(1);
