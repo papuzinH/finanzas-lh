@@ -101,8 +101,10 @@ export function PoliticaPrivacidad() {
             <b className="text-text">Google</b>: para el ingreso con tu cuenta y para el asistente. El
             asistente usa el modelo Gemini: cuando le escribís, Google procesa tu mensaje y los datos de
             tu cuenta que hacen falta para responderte (categorías, medios de pago y los movimientos que
-            la consulta necesite), según los términos de su API de Gemini. Si no usás el chat, nada tuyo
-            pasa por Gemini.
+            la consulta necesite), según los términos de su API de Gemini. Usamos el plan pago de esa
+            API, en el que <b className="text-text">Google no usa lo que le escribís para entrenar ni
+            mejorar sus modelos</b> (puede guardarlo un tiempo acotado, solo para detectar abusos). Si no
+            usás el chat, nada tuyo pasa por Gemini.
           </li>
           <li>
             <b className="text-text">Fuentes de cotizaciones</b> (dolarapi, CoinGecko, Yahoo Finance,

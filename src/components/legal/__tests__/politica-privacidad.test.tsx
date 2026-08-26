@@ -36,6 +36,14 @@ describe('PoliticaPrivacidad', () => {
     for (const t of ['publicidad', 'vend', 'analytics']) expect(out.toLowerCase()).toContain(t)
   })
 
+  it('cuenta que Gemini corre en el plan pago: sin entrenamiento con lo que el usuario escribe', () => {
+    // Confirmado el 2026-08-26 en AI Studio (proyecto pospago). Si la key
+    // alguna vez vuelve al tier gratuito, esta promesa deja de ser cierta y hay
+    // que sacarla junto con el test.
+    expect(out.toLowerCase()).toContain('plan pago')
+    expect(out.toLowerCase()).toContain('entrenar')
+  })
+
   it('cuenta el camino al borrado y cómo funcionan las copias de respaldo', () => {
     expect(out).toContain('Borrar la cuenta')
     // Desde 2026-08-26 hay backup diario en el VPS (infra/vps/): la política
