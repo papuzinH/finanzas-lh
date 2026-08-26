@@ -35,8 +35,8 @@ supabase migration list --linked     # DEV: Local = Remote
 ```
 
 ### 3. Verificar la app contra DEV
-`npm run build && npx next start -p 3100` (⚠️ `next dev` está roto por el
-favicon desde el 22-ago) — la app local ya apunta a DEV.
+`npm run dev` (o el build de producción: `npm run build && npx next start -p 3100`)
+— la app local ya apunta a DEV.
 
 ### 4. Actualizar tipos y Zod si aplica
 - `src/types/database.ts` (regenerar o mantener a mano, ver CLAUDE.md)
