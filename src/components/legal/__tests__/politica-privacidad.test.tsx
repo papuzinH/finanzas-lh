@@ -29,16 +29,19 @@ describe('PoliticaPrivacidad', () => {
   })
 
   it('nombra a cada tercero que toca los datos — verificado contra el código, no genérico', () => {
-    for (const t of ['Supabase', 'Vercel', 'Google', 'Gemini']) expect(out).toContain(t)
+    for (const t of ['Supabase', 'Vercel', 'Google', 'Gemini', 'RackNerd']) expect(out).toContain(t)
   })
 
   it('promete lo que la app hace: sin publicidad, sin venta, sin analytics', () => {
     for (const t of ['publicidad', 'vend', 'analytics']) expect(out.toLowerCase()).toContain(t)
   })
 
-  it('cuenta el camino al borrado y la falta de copias de respaldo', () => {
+  it('cuenta el camino al borrado y cómo funcionan las copias de respaldo', () => {
     expect(out).toContain('Borrar la cuenta')
-    expect(out.toLowerCase()).toContain('copias de respaldo')
+    // Desde 2026-08-26 hay backup diario en el VPS (infra/vps/): la política
+    // tiene que contarlo, con la retención que ata el borrado a las copias.
+    expect(out.toLowerCase()).toContain('copia de respaldo automática por día')
+    expect(out).toContain('14 días')
   })
 
   it('cita la ley argentina y a la AAIP', () => {

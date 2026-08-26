@@ -35,7 +35,7 @@ export function BorrarCuenta() {
       <h2 className="font-display text-[18px] leading-[1.1] text-text">Borrar la cuenta</h2>
       <p className="text-[13.5px] leading-[1.5] text-muted">
         Se borran todos tus movimientos, medios de pago, cuotas, metas e inversiones, y tu acceso.
-        Ahora, sin copia y sin período de espera. No hay vuelta atrás.
+        Ahora, sin período de espera. No hay vuelta atrás.
       </p>
       <p className="text-[12.5px] text-faint">
         Qué guardamos y por qué:{' '}
@@ -52,7 +52,7 @@ export function BorrarCuenta() {
         open={abierto}
         onOpenChange={setAbierto}
         title="¿Borrar tu cuenta?"
-        description="Se borra todo lo que cargaste y tu acceso, ahora mismo. No hay copia ni vuelta atrás."
+        description="Se borra todo lo que cargaste y tu acceso, ahora mismo. No hay vuelta atrás."
         onConfirm={confirmar}
         isLoading={borrando}
         confirmText="Sí, borrar todo"

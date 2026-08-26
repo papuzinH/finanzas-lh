@@ -11,7 +11,7 @@ import { MAIL_CONTACTO } from '@/lib/contacto'
  * desaparezca del texto en silencio.
  */
 const CONTACTO = MAIL_CONTACTO
-const ACTUALIZADA = '25 de agosto de 2026'
+const ACTUALIZADA = '26 de agosto de 2026'
 
 function Seccion({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
@@ -94,6 +94,10 @@ export function PoliticaPrivacidad() {
             <b className="text-text">Vercel</b>: donde corre la app.
           </li>
           <li>
+            <b className="text-text">RackNerd</b>: el servidor que administramos nosotros y donde
+            guardamos las copias de respaldo diarias de la base (más abajo contamos cómo funcionan).
+          </li>
+          <li>
             <b className="text-text">Google</b>: para el ingreso con tu cuenta y para el asistente. El
             asistente usa el modelo Gemini: cuando le escribís, Google procesa tu mensaje y los datos de
             tu cuenta que hacen falta para responderte (categorías, medios de pago y los movimientos que
@@ -120,11 +124,13 @@ export function PoliticaPrivacidad() {
         <p>
           Guardamos tus datos mientras tengas la cuenta. Para borrarla, andá a{' '}
           <b className="text-text">Ajustes → Perfil → Borrar la cuenta</b>: se eliminan de inmediato
-          todos tus datos y tu acceso, sin período de espera y sin copia. No hay vuelta atrás, así que si
-          querés conservar algo, anotalo antes.
+          todos tus datos y tu acceso, sin período de espera. No hay vuelta atrás, así que si querés
+          conservar algo, anotalo antes.
         </p>
         <p>
-          Al borrar la cuenta desaparecen los datos de nuestra base. Lo que ya procesó un proveedor (por
+          Al borrar la cuenta desaparecen los datos de nuestra base en el acto. En las copias de
+          respaldo pueden quedar hasta que rotan: como máximo, <b className="text-text">14 días</b>{' '}
+          después del borrado no queda nada tuyo en ninguna copia. Lo que ya procesó un proveedor (por
           ejemplo, un mensaje enviado a Gemini) se rige por sus propias políticas de retención.
         </p>
       </Seccion>
@@ -150,9 +156,10 @@ export function PoliticaPrivacidad() {
           sobre tu plata son tuyas.
         </p>
         <p>
-          <b className="text-text">Hoy no hay copias de respaldo automáticas.</b> Si algo se rompe, lo
-          cargado se puede perder. Te lo decimos porque es verdad, y porque preferimos que lo sepas antes
-          de confiarle tus números.
+          <b className="text-text">Hacemos una copia de respaldo automática por día.</b> Se guarda en
+          un servidor que administramos nosotros (alquilado a RackNerd) y conservamos las últimas 14.
+          Si algo se rompe, podemos volver como mucho al día anterior: lo que hayas cargado en las
+          últimas 24 horas se puede perder.
         </p>
         <p>Podés dejar de usarla cuando quieras borrando la cuenta.</p>
       </Seccion>
