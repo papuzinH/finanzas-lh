@@ -22,7 +22,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { ObjetivosClient } from '../objetivos-client';
+import { ObjetivosClient, BotonNuevo } from '../objetivos-client';
 
 const VACIO = {
   transactions: [], installmentPlans: [], paymentMethods: [], recurringPlans: [],
@@ -57,17 +57,26 @@ describe('dónde se crea', () => {
     expect(html()).not.toContain('Qué querés crear');
   });
 
-  it('cada sección tiene su propio «+», así que se puede crear también con la lista llena', () => {
+  it('con la sección vacía hay UN solo botón de crear por sección: el del bloque vacío', () => {
+    // Gate del 2026-08-26: Lauti (0 metas, 0 presupuestos) veía cuatro botones de
+    // crear — el «+» del header y el CTA del bloque vacío, en cada sección. El
+    // header sólo lo necesita la lista llena, donde el bloque vacío no está.
     const out = html();
-    expect(out).toContain('aria-label="Nueva meta de ahorro"');
-    expect(out).toContain('aria-label="Nuevo presupuesto"');
+    expect(out.match(/aria-label="Nueva meta de ahorro"/g)).toHaveLength(1);
+    expect(out.match(/aria-label="Nuevo presupuesto"/g)).toHaveLength(1);
+    // Y ese único botón es el del bloque vacío (después del borde punteado), no el del header.
+    const antesDelVacio = out.slice(0, out.indexOf('border-dashed'));
+    expect(antesDelVacio).not.toContain('aria-label="Nueva meta de ahorro"');
   });
 
-  it('los botones de sección respetan el mínimo táctil de 44px', () => {
-    // `size="icon"` del Button base son 40px: por eso van con h-11 w-11 encima.
-    const out = html();
-    const seccion = out.slice(0, out.indexOf('border-dashed'));
-    expect(seccion).toMatch(/h-11 w-11[^"]*"[^>]*aria-label="Nueva meta de ahorro"/);
+  it('el «+» del header aparece con datos y respeta el mínimo táctil de 44px', () => {
+    // La pantalla con datos no se puede renderizar acá (ver el encabezado del
+    // archivo), así que el botón del header se prueba solo, por props.
+    // `size="icon"` del Button base son 40px: por eso va con h-11 w-11 encima.
+    const conDatos = renderToStaticMarkup(<BotonNuevo visible onClick={() => {}} ariaLabel="Nueva meta de ahorro" />);
+    expect(conDatos).toMatch(/h-11 w-11[^"]*"[^>]*aria-label="Nueva meta de ahorro"/);
+    const sinDatos = renderToStaticMarkup(<BotonNuevo visible={false} onClick={() => {}} ariaLabel="Nueva meta de ahorro" />);
+    expect(sinDatos).toBe('');
   });
 
   it('el CTA del bloque vacío crece centrado, no hacia un costado', () => {

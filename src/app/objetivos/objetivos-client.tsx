@@ -15,6 +15,21 @@ import { Chancho } from '@/components/brand/chancho';
 import { Button } from '@/components/ui/button';
 import { Plus, Wallet } from 'lucide-react';
 
+/**
+ * El «+» del header de cada sección. Sólo con datos: con la sección vacía el
+ * bloque vacío ya trae su propio CTA, y los dos juntos eran cuatro botones de
+ * crear en una pantalla que el mock dibuja con dos (gate del 2026-08-26, con
+ * 0 metas y 0 presupuestos cargados).
+ */
+export function BotonNuevo({ visible, onClick, ariaLabel }: { visible: boolean; onClick: () => void; ariaLabel: string }) {
+  if (!visible) return null;
+  return (
+    <Button variant="soft" size="icon" className="h-11 w-11" onClick={onClick} aria-label={ariaLabel}>
+      <Plus className="h-4 w-4" aria-hidden="true" />
+    </Button>
+  );
+}
+
 export function ObjetivosClient() {
   const [isCreateMetaOpen, setIsCreateMetaOpen] = useState(false);
   const [isCreateBudgetOpen, setIsCreateBudgetOpen] = useState(false);
@@ -57,15 +72,11 @@ export function ObjetivosClient() {
                   {activeGoals.length} activa{activeGoals.length === 1 ? '' : 's'}
                 </span>
               )}
-              <Button
-                variant="soft"
-                size="icon"
-                className="h-11 w-11"
+              <BotonNuevo
+                visible={activeGoals.length > 0}
                 onClick={() => setIsCreateMetaOpen(true)}
-                aria-label="Nueva meta de ahorro"
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-              </Button>
+                ariaLabel="Nueva meta de ahorro"
+              />
             </div>
           </div>
 
@@ -115,15 +126,11 @@ export function ObjetivosClient() {
             <h2 className="font-display text-text text-[18px]">Presupuestos mensuales</h2>
             <div className="flex items-center gap-2.5 shrink-0">
               {activeBudgets.length > 0 && <span className="text-[12px] text-muted">Este mes</span>}
-              <Button
-                variant="soft"
-                size="icon"
-                className="h-11 w-11"
+              <BotonNuevo
+                visible={activeBudgets.length > 0}
                 onClick={() => setIsCreateBudgetOpen(true)}
-                aria-label="Nuevo presupuesto"
-              >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-              </Button>
+                ariaLabel="Nuevo presupuesto"
+              />
             </div>
           </div>
 

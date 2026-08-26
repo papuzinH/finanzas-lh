@@ -6,7 +6,7 @@ import { InstallApp } from '@/components/shared/install-app'
 
 export default function LoginPage() {
   return (
-    <div className="paper-grain relative flex min-h-screen flex-col justify-between overflow-hidden bg-bg px-6">
+    <div className="paper-grain relative flex min-h-screen flex-col overflow-hidden bg-bg px-6">
       {/* Cinta con la frase. Su frente es abierto y toma el color del fondo,
           así que sobre estraza necesita la variante con franja central crema
           o deja de leerse como bandera. */}
@@ -33,7 +33,12 @@ export default function LoginPage() {
         </p>
       </header>
 
-      <main className="relative z-10 grid justify-items-center pb-[13rem]">
+      {/* El bloque de entrada se centra en el espacio entre la cinta y el sello
+          (gate del 2026-08-26: antes quedaba anclado abajo). El colchón de 13rem
+          sigue siendo el que evita pisar el sello, que mide ~190px de alto
+          apoyado a 32px del borde: cualquier cosa que se sume acá abajo compite
+          con él (ver docs/features/pwa-plataforma.md). */}
+      <main className="relative z-10 flex flex-1 flex-col items-center justify-center pb-[13rem]">
         <Suspense fallback={<Loader size="lg" centered text="Cargando..." />}>
           <LoginForm />
         </Suspense>
