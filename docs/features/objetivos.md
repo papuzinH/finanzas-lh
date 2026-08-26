@@ -13,7 +13,7 @@ Pantalla `/objetivos` con dos sub-features, una debajo de la otra (las tabs muri
 ## Archivos clave
 | Archivo | Rol |
 |---|---|
-| `src/app/objetivos/objetivos-client.tsx` | UI: hero, metas activas en grilla de 2 columnas (4 en desktop), metas guardadas plegadas, presupuestos y el «+» único |
+| `src/app/objetivos/objetivos-client.tsx` | UI: hero, metas activas en grilla de 2 columnas (4 en desktop), metas guardadas plegadas, presupuestos, y un «+» por sección (`BotonNuevo`) que sólo aparece con datos |
 | `src/components/goals/goals-hero-card.tsx` | «Guardado para tus metas»: la cifra de la pantalla, con la firma celeste |
 | `src/components/brand/chancho-gauge.tsx` | El chancho de la marca usado como medidor de progreso |
 | `src/app/dashboard/goals/actions.ts` | Server actions: `createSavingsGoal`, `updateSavingsGoal`, `deleteSavingsGoal`, `completeGoal` (= `is_active=false`), `addGoalContribution` (recibe `FormData`), `deleteGoalContribution`, `createCategoryBudget` (**upsert** `onConflict: user_id,category_id`), `updateCategoryBudget`, `deleteCategoryBudget`. Todas revalidan `/objetivos` |
@@ -62,7 +62,12 @@ Ahora **ninguna card tiene botones**:
   atajo (en metas, derecha aporta e izquierda elimina; en presupuestos, derecha edita).
   El gesto nunca es la única vía: quien no lo descubre llega igual por el tap.
 - **Desktop**: menú kebab que aparece al pasar el mouse, como en /movimientos.
-- **Un solo «+»** en el header abre una hoja que pregunta si va meta o presupuesto.
+- **Un «+» por sección** (metas, presupuestos), en el encabezado de cada una — el
+  «+» único del header con su hoja «¿qué querés crear?» murió el 22-ago. Y desde el
+  26-ago el «+» de sección **sólo aparece con datos**: con la sección vacía el
+  `EmptyState` ya trae su CTA («Crear meta» / «Crear presupuesto»), y los dos
+  juntos eran cuatro botones de crear en la pantalla (gate de Lauti con 0 metas
+  y 0 presupuestos). Lo vigila `objetivos-client.test.tsx`.
 - Borrar usa `ConfirmationModal`, no el `confirm()` del navegador (era el único
   lugar de la app donde saltaba el cartel gris del sistema).
 - `AddContributionDialog`, `EditSavingsGoalDialog` y `EditBudgetDialog` aceptan
