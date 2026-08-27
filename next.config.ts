@@ -3,22 +3,23 @@ import withPWAInit from "@ducanh2912/next-pwa";
 import { construirSecurityHeaders } from "./src/lib/security/headers";
 
 /**
- * CSP en **report-only**: el navegador reporta lo que bloquearía y no rompe nada.
+ * CSP en **enforce**. Lo que se verificó antes de cortar:
  *
- * En local ya se recorrió la app con sesión (10 pantallas, día y noche) en los
- * dos modos, y la única violación es la prueba de capacidad de Zod (`allowsEval`:
- * `new Function("")` en un try/catch, cacheado), que al fallar lo hace caer solo
- * a su camino sin JIT — por eso NO hace falta `'unsafe-eval'`.
- *
- * Lo que falta y no se puede probar en local: **el login con Google**, que sólo
- * existe en producción (DEV no lo tiene configurado). El flujo hace submit a
- * 'self' → redirect a Supabase → Google, y `form-action` cubre las tres paradas,
- * pero eso salió de leer el código, no de verlo andar. Report-only hasta
- * confirmarlo en producción; después, `false` y listo.
+ * 1. La app entera en el navegador (10 pantallas con sesión, día y noche, más
+ *    las públicas sin sesión), primero en report-only y después en enforce: la
+ *    única violación es la prueba de capacidad de Zod (`allowsEval`, un
+ *    `new Function("")` en try/catch que al fallar lo hace caer a su camino sin
+ *    JIT — por eso NO hace falta `'unsafe-eval'`), y cero errores de consola.
+ * 2. La cadena del login con Google, que no se puede ejercitar en local porque
+ *    DEV no tiene el provider: se midió el mecanismo con esta misma política —
+ *    un submit cuyo redirect va a Supabase llega hasta `accounts.google.com` sin
+ *    violaciones, y el mismo submit hacia un origen no listado se bloquea. Ese
+ *    control invertido es lo que prueba que `form-action` alcanza a los
+ *    redirects, y por lo tanto que Supabase tenía que estar nombrado.
  *
  * Ver `src/lib/security/headers.ts`.
  */
-const CSP_REPORT_ONLY = true;
+const CSP_REPORT_ONLY = false;
 
 const securityHeaders = construirSecurityHeaders(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
