@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio'
+import { esFuentePermitida } from './fuente-permitida'
 
 const IOL_TIMEOUT = 10000
 
@@ -53,7 +54,12 @@ export async function fetchLetrasPrice(ticker: string): Promise<number | null> {
   return scrapeIOL(buildIOLUrl(ticker.toUpperCase()))
 }
 
-/** Fetch desde una URL explícita de fuente de datos (data_source_url) */
-export async function fetchFromUrl(url: string): Promise<number | null> {
+/**
+ * Fetch desde una URL explícita de fuente de datos (data_source_url). Sólo la
+ * página de IOL del propio ticker: el dispatcher ya filtra, y acá se repite por
+ * defensa en profundidad — nadie llega a `fetch` con una URL ajena.
+ */
+export async function fetchFromUrl(url: string, ticker: string): Promise<number | null> {
+  if (!esFuentePermitida(url, ticker)) return null
   return scrapeIOL(url)
 }

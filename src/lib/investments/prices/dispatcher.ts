@@ -1,6 +1,7 @@
 import { fetchStockPrice, fetchUSPrice } from './yahoo'
 import { fetchBondPrice, fetchONPrice, fetchFCIPrice, fetchLetrasPrice, fetchFromUrl } from './iol'
 import { fetchCryptoPrice } from './coingecko'
+import { urlPermitida } from './fuente-permitida'
 import type { ASSET_TYPES } from '@/lib/schemas/investment-asset'
 
 type AssetType = (typeof ASSET_TYPES)[number]
@@ -71,32 +72,32 @@ export async function fetchPriceForAsset(asset: AssetInput): Promise<PriceResult
     case 'bond':
     case 'bopreal': {
       // IOL cotiza renta fija por cada 100 VN. Normalizamos a precio por 1 nominal.
-      const url = data_source_url || null
-      const raw = url ? await fetchFromUrl(url) : await fetchBondPrice(ticker)
+      const url = urlPermitida(data_source_url, ticker)
+      const raw = url ? await fetchFromUrl(url, ticker) : await fetchBondPrice(ticker)
       if (raw === null) return null
       return { price_ars: raw / 100, source: 'iol' }
     }
 
     case 'on': {
-      const url = data_source_url || null
-      const raw = url ? await fetchFromUrl(url) : await fetchONPrice(ticker)
+      const url = urlPermitida(data_source_url, ticker)
+      const raw = url ? await fetchFromUrl(url, ticker) : await fetchONPrice(ticker)
       if (raw === null) return null
       return { price_ars: raw / 100, source: 'iol' }
     }
 
     case 'lecap':
     case 'boncap': {
-      const url = data_source_url || null
-      const raw = url ? await fetchFromUrl(url) : await fetchLetrasPrice(ticker)
+      const url = urlPermitida(data_source_url, ticker)
+      const raw = url ? await fetchFromUrl(url, ticker) : await fetchLetrasPrice(ticker)
       if (raw === null) return null
       return { price_ars: raw / 100, source: 'iol' }
     }
 
     case 'fci':
     case 'etf': {
-      const url = data_source_url || null
+      const url = urlPermitida(data_source_url, ticker)
       if (url) {
-        const price_ars = await fetchFromUrl(url)
+        const price_ars = await fetchFromUrl(url, ticker)
         if (price_ars === null) return null
         return { price_ars, source: 'iol' }
       }

@@ -22,6 +22,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { runAgent, createGeminiModel, type AgentHistoryMessage } from '@/lib/ai/agent'
 import { buildAgentPrompt } from '@/lib/ai/agentPrompt'
 import type { AgentContext } from '@/lib/ai/tools/types'
@@ -29,6 +30,8 @@ import { checkAndIncrementUsage, accumulateBudget, type UsageCheckResult } from 
 import { todayString } from '@/lib/utils/dates'
 
 export const maxDuration = 60
+/** Tope del mensaje del usuario; el historial ya va topeado a 2.000 chars. */
+const MAX_MESSAGE_CHARS = 2_000
 
 /**
  * Trunca el historial de conversación a los últimos N mensajes
@@ -80,6 +83,11 @@ export async function POST(req: NextRequest) {
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return NextResponse.json({ error: 'Mensaje requerido' }, { status: 400 })
     }
+    // El TOKEN_CEILING del agente recién corta las tools: el primer turno manda
+    // el mensaje entero. Sin tope, un mensaje de 1 MB son ~250k tokens pagos.
+    if (message.length > MAX_MESSAGE_CHARS) {
+      return NextResponse.json({ error: 'Mensaje demasiado largo' }, { status: 400 })
+    }
 
     // 3. Obtener user_id numérico de la tabla users (Auth devuelve UUID)
     // IMPORTANTE: Necesitamos el user_id numérico para las inserciones
@@ -104,8 +112,12 @@ export async function POST(req: NextRequest) {
       usageStatus = await checkAndIncrementUsage(supabase)
     } catch (err) {
       console.error('Error checking chat usage:', err)
-      // Si el guard falla, dejamos pasar (fail open) para no romper UX
-      usageStatus = 'ok' as UsageCheckResult
+      // Fail-closed: sin guard no hay Gemini. Antes "dejaba pasar para no
+      // romper UX", que con la base caída era cuota infinita.
+      return NextResponse.json(
+        { success: false, message: 'El asistente no está disponible ahora, probá en un rato' },
+        { status: 503 }
+      )
     }
 
     if (usageStatus === 'budget_exceeded') {
@@ -192,9 +204,11 @@ export async function POST(req: NextRequest) {
       systemInstruction,
     })
 
-    // 7. Acumular presupuesto de tokens (input + output de TODO el loop de tools)
+    // 7. Acumular presupuesto de tokens (input + output de TODO el loop de tools).
+    // Con service_role: la RPC dejó de ser ejecutable por `authenticated`, porque
+    // cualquier usuario podía "gastar" el presupuesto global desde el browser.
     try {
-      await accumulateBudget(supabase, result.inputTokens, result.outputTokens)
+      await accumulateBudget(createAdminClient(), result.inputTokens, result.outputTokens)
     } catch (err) {
       console.error('accumulateBudget failed:', err)
     }

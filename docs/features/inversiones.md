@@ -15,7 +15,7 @@ Tracker de inversiones v2 basado en **activos + transacciones** (`investment_ass
 | `src/lib/investments/update-prices-core.ts` | `runUpdatePrices(supabase, userId)`: batches de 5, upsert en `market_prices` + upsert de `exchange_rates` (Blue/MEP/CCL/USDT) |
 | `src/lib/investments/prices/dispatcher.ts` | `fetchPriceForAsset`: router por `asset_type`; calcula CCL implícito de CEDEARs; devuelve `null` para plazo_fijo/money_market |
 | `src/lib/investments/prices/yahoo.ts` | Stocks/CEDEARs BCBA (sufijo `.BA`) y precio USD exterior (chart API) |
-| `src/lib/investments/prices/iol.ts` | Scraping IOL con **cheerio** (`span[data-field="UltimoPrecio"]`): bonos, ONs, letras, FCIs, o `data_source_url` explícita |
+| `src/lib/investments/prices/iol.ts` | Scraping IOL con **cheerio** (`span[data-field="UltimoPrecio"]`): bonos, ONs, letras, FCIs, o `data_source_url` explícita — **sólo si es la página de IOL del propio ticker** (`fuente-permitida.ts`; auditoría 2026-08-26: el precio va a `market_prices`, global por ticker, y una URL libre dejaba envenenarlo para todos + SSRF). Una URL no permitida se ignora y se usa la fuente canónica |
 | `src/lib/investments/prices/coingecko.ts` | Cripto/stablecoins (map ticker→coinId, USD+ARS) |
 | `src/lib/investments/prices/exchange-rates.ts` | `fetchAllRates()`: dolarapi.com (blue/bolsa/contadoconliqui) + USDT vía CoinGecko |
 | `src/components/inversiones/quick-add-form.tsx` | **Formulario de alta** (RHF + Zod). Campos condicionales: TNA/vencimiento para plazo fijo, entidad para money market |
