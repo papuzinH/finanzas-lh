@@ -57,6 +57,18 @@ describe('construirCSP', () => {
     expect(d['form-action']).toContain("'self'")
   })
 
+  it('el login con Google sobrevive: form-action cubre las TRES paradas del flujo', () => {
+    // El botón es un <form> con Server Action (submit a 'self'), la action hace
+    // redirect() a `<supabase>/auth/v1/authorize`, y recién eso manda a Google.
+    // Los navegadores aplican form-action también a los redirects que siguen al
+    // submit, así que sin Supabase en la lista el login muere — y es un flujo que
+    // sólo existe en producción, porque DEV no tiene Google configurado.
+    const d = directivas(construirCSP(SUPABASE_DEV))
+    expect(d['form-action']).toContain("'self'")
+    expect(d['form-action']).toContain(SUPABASE_DEV)
+    expect(d['form-action']).toContain('https://accounts.google.com')
+  })
+
   it('permite el avatar de Google y las imágenes inline, y nada más', () => {
     const d = directivas(construirCSP(SUPABASE_DEV))
     expect(d['img-src']).toEqual(expect.arrayContaining(["'self'", 'data:', 'blob:', 'https://lh3.googleusercontent.com']))

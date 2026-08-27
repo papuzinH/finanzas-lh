@@ -56,7 +56,12 @@ export function construirCSP(supabaseUrl: string | undefined): string {
     "manifest-src 'self'",
     "frame-ancestors 'none'", // clickjacking sobre «Borrar la cuenta»
     "base-uri 'self'",
-    "form-action 'self' https://accounts.google.com", // el login sale a Google
+    // El login es un <form> con Server Action: el submit va a 'self', la action
+    // redirige a `<supabase>/auth/v1/authorize` y recién eso manda a Google. Los
+    // navegadores aplican esta directiva también a los redirects que siguen al
+    // submit, así que las tres paradas tienen que estar nombradas o el login
+    // muere — y ese flujo sólo existe en producción (DEV no tiene Google).
+    `form-action 'self' ${[...supabase.filter((s) => s.startsWith('https:')), 'https://accounts.google.com'].join(' ')}`,
     "object-src 'none'",
     'upgrade-insecure-requests',
   ].join('; ')
