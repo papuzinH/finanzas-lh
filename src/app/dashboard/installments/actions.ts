@@ -44,9 +44,14 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
         .from('payment_methods')
         .select('type, default_closing_day, default_payment_day')
         .eq('id', finalPaymentMethodId)
+        .eq('user_id', user.id)
         .single();
 
-      if (pm?.type === 'credit' && pm.default_closing_day && pm.default_payment_day) {
+      // El medio tiene que ser del usuario (M4): sin el filtro, un id ajeno se
+      // trataba como no-crédito y el plan quedaba con una FK a un medio de otro.
+      if (!pm) return { error: 'Medio de pago inválido' };
+
+      if (pm.type === 'credit' && pm.default_closing_day && pm.default_payment_day) {
         firstInstallmentDateStr = calculateCreditPaymentDate(
           purchaseDateStr,
           pm.default_closing_day,

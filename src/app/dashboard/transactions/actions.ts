@@ -35,14 +35,20 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
     let storedDate = dateToLocalString(new Date(date));
     const resolvedMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
-    if (resolvedMethodId && type === 'expense') {
+    // El medio tiene que ser del usuario (M4): RLS no impide que la transacción
+    // quede apuntando por FK a un medio ajeno. Se valida para cualquier tipo,
+    // no sólo en 'expense' — el payment_method_id se persiste igual.
+    if (resolvedMethodId) {
       const { data: method } = await supabase
         .from('payment_methods')
         .select('type, default_closing_day, default_payment_day')
         .eq('id', resolvedMethodId)
+        .eq('user_id', user.id)
         .single();
 
-      if (method?.type === 'credit' && method.default_closing_day && method.default_payment_day) {
+      if (!method) return { error: 'Medio de pago inválido' };
+
+      if (type === 'expense' && method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
         storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
       }
     }
@@ -127,14 +133,19 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
 
     const methodChanged = (current?.payment_method_id ?? null) !== resolvedMethodId;
 
-    if (methodChanged && resolvedMethodId && type === 'expense') {
+    // Si cambia a un medio nuevo, tiene que ser del usuario (M4). Se valida
+    // aunque no sea 'expense': el payment_method_id se guarda igual.
+    if (methodChanged && resolvedMethodId) {
       const { data: method } = await supabase
         .from('payment_methods')
         .select('type, default_closing_day, default_payment_day')
         .eq('id', resolvedMethodId)
+        .eq('user_id', user.id)
         .single();
 
-      if (method?.type === 'credit' && method.default_closing_day && method.default_payment_day) {
+      if (!method) return { error: 'Medio de pago inválido' };
+
+      if (type === 'expense' && method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
         storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
       }
     }

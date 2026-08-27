@@ -153,6 +153,19 @@ export async function reassignAndDeletePaymentMethod(
 
     if (!method) return { error: 'Medio de pago no encontrado' }
 
+    // El destino de la reasignación también tiene que ser del usuario (M4): RLS
+    // no impide que las transacciones queden apuntando por FK a un medio ajeno.
+    if (newMethodId) {
+      const { data: destino } = await supabase
+        .from('payment_methods')
+        .select('id')
+        .eq('id', newMethodId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (!destino) return { error: 'Medio de pago de destino inválido' }
+    }
+
     // Reasignar transacciones
     const { error: txError } = await supabase
       .from('transactions')

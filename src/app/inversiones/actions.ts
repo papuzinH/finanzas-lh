@@ -246,6 +246,17 @@ export async function createTransaction(data: {
       return { error: `Datos invalidos: ${validated.error.issues.map((i) => i.message).join(', ')}` }
     }
 
+    // El activo tiene que ser del usuario (M4): RLS no impide que una
+    // transacción propia quede apuntando por FK a un activo ajeno.
+    const { data: asset } = await supabase
+      .from('investment_assets')
+      .select('id')
+      .eq('id', validated.data.asset_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (!asset) return { error: 'Activo inválido' }
+
     const total_amount = validated.data.quantity * validated.data.price_per_unit
 
     const { error } = await supabase.from('investment_transactions').insert({
