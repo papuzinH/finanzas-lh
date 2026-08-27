@@ -1,0 +1,22 @@
+-- Auditoría de seguridad 2026-08-26 (M5): el schema `nat_ecommerce` era de la
+-- tienda de Nat, que compartió esta instancia de Supabase antes de migrar a
+-- PocketBase. Nat corre 100% en PocketBase desde ~julio 2026 (verificado en el
+-- repo papuzinH/Nat: package.json sin @supabase/*, catálogo en PocketBase); el
+-- schema quedó huérfano.
+--
+-- No era sólo higiene: estaba expuesto por PostgREST (grants anon=arwd sobre
+-- orders/order_items, función create_order SECURITY DEFINER ejecutable por anon)
+-- y sus políticas RLS eran `ALL` para public con `USING (auth.role() =
+-- 'authenticated')`, que NO distingue de qué app viene la sesión. Como Chanchito
+-- comparte esta instancia, cualquier usuario autenticado de Chanchito podía leer
+-- y borrar las órdenes de Nat — con nombre, email, teléfono y dirección del
+-- cliente adentro.
+--
+-- Contenido al momento del drop: 1 orden de prueba del 2026-04-28, 1 producto,
+-- 12 filas de stock. El dato real vive en PocketBase. Lauti confirmó el drop sin
+-- backup (2026-08-27): no hay nada que valga la pena conservar.
+--
+-- Antes de este drop, el schema se sacó de la API de PostgREST
+-- (db_schema = "public,graphql_public") por la Management API.
+
+drop schema if exists nat_ecommerce cascade;
