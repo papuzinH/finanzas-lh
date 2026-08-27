@@ -59,8 +59,42 @@ export interface RunAgentOpts {
 export const MAX_STEPS = 6
 export const TOKEN_CEILING = 50_000
 
+/**
+ * Reintentos ante un turno VACÍO (ni texto ni functionCalls). Gemini devuelve eso
+ * cada tanto con `finishReason: STOP` y 0 tokens de salida: no es una respuesta,
+ * es una falla transitoria que sale 200. Ver `THINKING_BUDGET`, que ataca la causa.
+ */
+export const MAX_EMPTY_RETRIES = 2
+
 const FORCED_FINAL_MESSAGE =
   'No hagas más consultas: respondé ahora con la información que ya tenés, y si te faltó algo decilo honestamente.'
+
+/** Un turno sin texto y sin tools no es una respuesta: la API no devolvió nada. */
+function esVacio(turn: ModelTurn): boolean {
+  return !turn.functionCalls?.length && !turn.text
+}
+
+/**
+ * `model.generate` con reintento ante turnos vacíos, sumando los tokens de cada
+ * intento — se facturaron igual, y el guard de costos tiene que verlos.
+ */
+async function generateConReintento(
+  model: AgentModel,
+  opts: { contents: unknown[]; systemInstruction: string; withTools: boolean },
+): Promise<ModelTurn> {
+  let inputTokens = 0
+  let outputTokens = 0
+  let turn: ModelTurn = { inputTokens: 0, outputTokens: 0 }
+
+  for (let intento = 0; intento <= MAX_EMPTY_RETRIES; intento++) {
+    turn = await model.generate(opts)
+    inputTokens += turn.inputTokens
+    outputTokens += turn.outputTokens
+    if (!esVacio(turn)) break
+  }
+
+  return { ...turn, inputTokens, outputTokens }
+}
 
 export async function runAgent({
   message,
@@ -82,7 +116,7 @@ export async function runAgent({
 
   for (let step = 0; step < MAX_STEPS; step++) {
     const overBudget = inputTokens + outputTokens > TOKEN_CEILING
-    const turn = await model.generate({ contents, systemInstruction, withTools: !overBudget })
+    const turn = await generateConReintento(model, { contents, systemInstruction, withTools: !overBudget })
     inputTokens += turn.inputTokens
     outputTokens += turn.outputTokens
 
@@ -114,7 +148,7 @@ export async function runAgent({
   // Pasos agotados o anti-bucle: un último llamado sin tools, pidiéndole al modelo
   // que responda con lo que ya tiene en vez de intentar otra tool.
   contents.push({ role: 'user', parts: [{ text: FORCED_FINAL_MESSAGE }] })
-  const final = await model.generate({ contents, systemInstruction, withTools: false })
+  const final = await generateConReintento(model, { contents, systemInstruction, withTools: false })
   inputTokens += final.inputTokens
   outputTokens += final.outputTokens
   return { message: final.text ?? 'Me quedé sin pasos para resolver esto, ¿probamos de nuevo?', mutated, inputTokens, outputTokens }
@@ -140,6 +174,23 @@ export async function runAgent({
  * Único cast restante: `contents` — nuestro loop lo tipa `unknown[]` a propósito
  * para no acoplar `agent.ts` (ni los tests) al SDK; acá se castea a `Content[]`.
  */
+/**
+ * Techo del razonamiento interno de Gemini 2.5 Flash.
+ *
+ * Sin techo (el default: presupuesto "dinámico") el modelo devuelve turnos VACÍOS
+ * — `finishReason: STOP`, sin parts, 0 tokens de salida — y el chat contestaba el
+ * fallback a toda consulta que necesitara una tool. Medido contra DEV el
+ * 2026-08-27, mismo prompt y mismas 22 tools, 10 llamadas por fila:
+ *
+ *   dinámico (default) → 9/10 vacíos   |   1024 → 1/10
+ *   512                → 0/10          |   0    → 0/20
+ *
+ * 512 es el punto elegido: sin vacíos y con razonamiento acotado, que el agente
+ * necesita para elegir tool y armar args. Si vuelve a aparecer el síntoma, medir
+ * de nuevo antes de mover este número — el reintento de `runAgent` es la red.
+ */
+export const THINKING_BUDGET = 512
+
 export function createGeminiModel(apiKey: string): AgentModel {
   const ai = new GoogleGenAI({ apiKey })
   // El registro de tools es estático: las declarations se arman una sola vez.
@@ -155,6 +206,7 @@ export function createGeminiModel(apiKey: string): AgentModel {
         contents: contents as unknown as Content[],
         config: {
           systemInstruction,
+          thinkingConfig: { thinkingBudget: THINKING_BUDGET },
           ...(withTools ? { tools: [{ functionDeclarations }] } : {}),
         },
       })
