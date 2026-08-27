@@ -3,13 +3,22 @@ import withPWAInit from "@ducanh2912/next-pwa";
 import { construirSecurityHeaders } from "./src/lib/security/headers";
 
 /**
- * CSP en enforce. Se verificó primero en report-only recorriendo la app con
- * sesión (día y noche, las 10 pantallas) y la única violación era la prueba de
- * capacidad de Zod (`allowsEval`: `new Function("")` en un try/catch, cacheado),
- * que al fallar lo hace caer solo a su camino sin JIT — por eso NO hace falta
- * `'unsafe-eval'`. Ver `src/lib/security/headers.ts`.
+ * CSP en **report-only**: el navegador reporta lo que bloquearía y no rompe nada.
+ *
+ * En local ya se recorrió la app con sesión (10 pantallas, día y noche) en los
+ * dos modos, y la única violación es la prueba de capacidad de Zod (`allowsEval`:
+ * `new Function("")` en un try/catch, cacheado), que al fallar lo hace caer solo
+ * a su camino sin JIT — por eso NO hace falta `'unsafe-eval'`.
+ *
+ * Lo que falta y no se puede probar en local: **el login con Google**, que sólo
+ * existe en producción (DEV no lo tiene configurado). El flujo hace submit a
+ * 'self' → redirect a Supabase → Google, y `form-action` cubre las tres paradas,
+ * pero eso salió de leer el código, no de verlo andar. Report-only hasta
+ * confirmarlo en producción; después, `false` y listo.
+ *
+ * Ver `src/lib/security/headers.ts`.
  */
-const CSP_REPORT_ONLY = false;
+const CSP_REPORT_ONLY = true;
 
 const securityHeaders = construirSecurityHeaders(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
