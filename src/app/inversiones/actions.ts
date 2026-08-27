@@ -163,7 +163,7 @@ export async function deleteSaving(id: string): Promise<ActionResponse> {
 
 // --- MARKET PRICES ---
 
-export async function updateMarketPrices(): Promise<ActionResponse & { updated?: number }> {
+export async function updateMarketPrices(): Promise<ActionResponse & { updated?: number; skipped?: boolean }> {
   try {
     const supabase = await createClient()
     const {
@@ -171,10 +171,12 @@ export async function updateMarketPrices(): Promise<ActionResponse & { updated?:
     } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
-    const { updated } = await runUpdatePrices(supabase, user.id)
+    // `skipped` viaja hacia afuera: sin él, un refresco salteado por el umbral
+    // (M6) se reporta igual que uno que corrió y no encontró nada que cambiar.
+    const { updated, skipped } = await runUpdatePrices(supabase, user.id)
 
     revalidatePath('/inversiones')
-    return { success: true, updated }
+    return { success: true, updated, skipped }
   } catch (error) {
     console.error('Error updating market prices:', error)
     return { error: 'Ocurrio un error inesperado' }

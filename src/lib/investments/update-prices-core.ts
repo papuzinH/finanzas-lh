@@ -10,6 +10,23 @@ const BATCH_SIZE = 5
 /** Las 4 pairs que `fetchAllRates` intenta traer en cada corrida. */
 const RATE_PAIRS = ['USD_ARS_BLUE', 'USD_ARS_MEP', 'USD_ARS_CCL', 'USDT_ARS'] as const
 
+/**
+ * Ventana mínima entre refrescos reales (auditoría 2026-08-26, M6).
+ *
+ * Cada corrida pega a 5 APIs externas más un scrape por activo, así que sin
+ * techo un usuario en loop hace que los proveedores bloqueen la IP de Vercel y
+ * los precios se rompen para todos. El umbral de 1 h del cliente no cuenta: vive
+ * del lado que el atacante controla.
+ *
+ * Se mide sobre `exchange_rates`, que es global — o sea que el freno es global:
+ * si alguien acaba de refrescar, otro usuario espera hasta 10 minutos para
+ * actualizar SUS activos. Para una app con estos volúmenes es un precio barato
+ * (los precios quedan a lo sumo 10 minutos viejos) y evita una tabla de cuotas
+ * por usuario. Si algún día molesta, el paso siguiente es un contador por
+ * usuario como el de `chat_usage`.
+ */
+export const UMBRAL_REFRESCO_MS = 10 * 60 * 1000
+
 export interface UpdatePricesResult {
   updated: number
   /** Tickers de activos cuyo precio no se pudo actualizar. */
@@ -22,6 +39,13 @@ export interface UpdatePricesResult {
    * sin que nadie se enterara.
    */
   failedRates: string[]
+  /**
+   * `true` cuando no se hizo nada porque el último refresco fue hace menos de
+   * `UMBRAL_REFRESCO_MS`. Distinto de un fallo: no se intentó. La UI tiene que
+   * mirarlo antes que `failedRates`, o avisa «no se pudo traer el dólar» sobre
+   * algo que ni se pidió.
+   */
+  skipped: boolean
 }
 
 /**
@@ -36,6 +60,23 @@ export async function runUpdatePrices(
 ): Promise<UpdatePricesResult> {
   // Fail fast: si falta la key es un error de configuración, no de scraping.
   const admin = createAdminClient()
+
+  // Techo de frecuencia ANTES de tocar la red (M6): si las cotizaciones son
+  // recientes, esta corrida no aporta nada y sí gasta llamadas a terceros.
+  const { data: ultima } = await supabase
+    .from('exchange_rates')
+    .select('last_update')
+    .order('last_update', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const desdeElUltimo = ultima?.last_update
+    ? Date.now() - new Date(ultima.last_update).getTime()
+    : Number.POSITIVE_INFINITY
+
+  if (desdeElUltimo < UMBRAL_REFRESCO_MS) {
+    return { updated: 0, failed: [], rates_updated: false, failedRates: [], skipped: true }
+  }
 
   const { data: assets, error: assetsError } = await supabase
     .from('investment_assets')
@@ -141,5 +182,5 @@ export async function runUpdatePrices(
     console.error('Error fetching exchange rates:', e)
   }
 
-  return { updated, failed, rates_updated, failedRates }
+  return { updated, failed, rates_updated, failedRates, skipped: false }
 }

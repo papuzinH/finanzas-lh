@@ -54,6 +54,13 @@ export function FailedPricesDialog({
         toast.error(json.error)
         return
       }
+      // El server saltea si se actualizó hace menos de 10 minutos (M6). Sin este
+      // chequeo, `failed: []` se leería como «ya está todo bien» y el diálogo se
+      // cerraría diciendo que se arreglaron precios que siguen fallando.
+      if (json.skipped) {
+        toast.info('Los precios se actualizaron recién. Probá de nuevo en unos minutos.')
+        return
+      }
       const stillFailed: string[] = json.failed ?? []
       const updated: number = json.updated ?? 0
       // El retry pega al mismo endpoint, así que también reintenta cotizaciones.

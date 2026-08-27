@@ -81,6 +81,13 @@ export function InversionesClient() {
         toast.error(json.error)
         return
       }
+      // El server saltea si las cotizaciones son de hace menos de 10 minutos
+      // (M6): no es un fallo, no se intentó. Va antes que el resto porque si no
+      // se lee como «0 activos actualizados» y suena a error.
+      if (json.skipped) {
+        toast.info('Los precios ya están al día')
+        return
+      }
       const updated: number = json.updated ?? 0
       const failed: string[] = json.failed ?? []
       const failedRates: string[] = json.failedRates ?? []
