@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import withPWAInit from "@ducanh2912/next-pwa";
 import { construirSecurityHeaders } from "./src/lib/security/headers";
+import { construirRedirectsCanonicos } from "./src/lib/security/dominio-canonico";
 
 /**
  * CSP en **enforce**. Lo que se verificó antes de cortar:
@@ -42,6 +43,12 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
+  },
+  // Un solo hostname: www se va al apex. Sin esto el login con Google rebota
+  // al /login, porque el `redirectTo` del OAuth sale con el host de la request
+  // y www no está en la allow-list de Supabase. Ver `lib/security/dominio-canonico.ts`.
+  async redirects() {
+    return construirRedirectsCanonicos();
   },
 };
 
