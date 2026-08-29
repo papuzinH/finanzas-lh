@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { esRutaPublica } from '@/lib/rutas-publicas'
 import { debeSaltearElGate } from '@/lib/security/alcance-middleware'
+import { esArranqueDeAppInstalada, PARAM_ARRANQUE } from '@/lib/pwa/arranque'
 
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -46,6 +47,17 @@ export async function updateSession(request: NextRequest) {
   // 2026-08-22 sirve la landing pública y decide en el server qué renderizar,
   // y las páginas públicas de contenido (`lib/rutas-publicas.ts`).
   if (!user) {
+    // La app instalada abriéndose sin sesión va derecho al login: la landing y
+    // su «usar en el navegador» no son para alguien que ya la tiene puesta.
+    // Va acá y no en `page.tsx` porque el `loading.tsx` de la raíz hace que
+    // para entonces la respuesta ya esté streameando y el redirect se degrade
+    // a un salto de cliente. Ver `lib/pwa/arranque.ts`.
+    if (esArranqueDeAppInstalada(pathname, request.nextUrl.searchParams.get(PARAM_ARRANQUE))) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      url.searchParams.delete(PARAM_ARRANQUE)
+      return NextResponse.redirect(url)
+    }
     if (pathname === '/' || esRutaPublica(pathname)) {
       return supabaseResponse
     }

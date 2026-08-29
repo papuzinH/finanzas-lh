@@ -1,11 +1,21 @@
 import { MetadataRoute } from 'next'
+import { START_URL_APP } from '@/lib/pwa/arranque'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Chanchito',
     short_name: 'Chanchito',
     description: 'Tus gastos, cuotas y verdes del dia a dia, en orden',
-    start_url: '/',
+    // `id` clava la identidad de la PWA. Sin él, la identidad ES el
+    // `start_url`, y moverlo dejaría huérfana toda instalación existente y
+    // duplicaría la próxima. Con el valor que el start_url tuvo siempre ('/'),
+    // la app instalada sigue siendo la misma aunque cambie por dónde arranca.
+    id: '/',
+    // La app instalada se anuncia: el server no puede ver `display-mode:
+    // standalone` (eso vive en el navegador), así que sin este dato `/` le
+    // mostraría la landing —con su «usar en el navegador»— a alguien que ya la
+    // instaló. La otra punta la lee el middleware.
+    start_url: START_URL_APP,
     display: 'standalone',
     // Papel crema: es lo que ve alguien al instalar la PWA, antes de abrirla.
     background_color: '#F4EDDC',
