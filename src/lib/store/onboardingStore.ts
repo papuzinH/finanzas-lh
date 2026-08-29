@@ -62,6 +62,19 @@ export const TOUR_STEPS_BY_ROUTE: Record<TourRoute, { target: string; text: stri
  * Adónde va el usuario cuando el tour termina: al inicio, que es donde arrancó
  * y donde va a usar la app.
  */
+/**
+ * ¿El tour está esperando que el router llegue a la ruta del paso actual?
+ *
+ * `advanceTour()` mueve `tourRouteIndex` ANTES del `router.push`, así que entre
+ * una cosa y la otra el pathname todavía es el viejo. Derivarlo evita el estado
+ * `isNavigating` con su efecto, y de paso cubre al usuario que se fue del tour
+ * por la nav: en una ruta que no es la del paso, los targets no existen y el
+ * tour no tiene que dibujarse.
+ */
+export function elTourEstaNavegando(pathname: string, tourRouteIndex: number): boolean {
+  return pathname !== TOUR_ROUTE_ORDER[tourRouteIndex]
+}
+
 export const RUTA_AL_CERRAR = '/' as const
 
 /**

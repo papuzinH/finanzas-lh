@@ -46,26 +46,28 @@ export function SavingsGoalCard({ goal }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [contributeOpen, setContributeOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const [showCelebration, setShowCelebration] = useState(false)
 
   // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
   const store = useFinanceStore()
   const { fetchGoalsData, savingsGoalContributions } = store
   const progress = store.getSavingsGoalProgress(goal.id)
+  // Derivado, no estado: ponerlo en un efecto costaba un render de más y
+  // dibujaba «¡Lograda!» sin el 🎉 en la primera pasada.
+  const showCelebration = (progress?.percent ?? 0) >= 100
   const { celebrate } = useConfetti()
   const isMobile = useIsMobile()
 
+  // El efecto queda sólo para lo que de verdad es un efecto: tirar el confetti
+  // una única vez y dejar la marca en localStorage.
   useEffect(() => {
-    if (!progress) return
-    if (progress.percent < 100) return
-    const key = `confetti_goal_${goal.id}`
+    if (!showCelebration) return
     if (typeof window === 'undefined') return
+    const key = `confetti_goal_${goal.id}`
     if (!localStorage.getItem(key)) {
       localStorage.setItem(key, '1')
       celebrate()
     }
-    setShowCelebration(true)
-  }, [progress?.percent, goal.id, celebrate])
+  }, [showCelebration, goal.id, celebrate])
 
   if (!progress) return null
 

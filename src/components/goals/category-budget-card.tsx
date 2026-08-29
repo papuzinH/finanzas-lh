@@ -35,35 +35,47 @@ interface Props {
  * El emoji es el de la categoría del usuario: acá sí hay un ícono con
  * significado, así que la marca no se mete.
  */
+/**
+ * El badge de fin de mes aparece cuando el presupuesto viene bien y quedan 3
+ * días o menos para que termine el mes. Puro para poder testearlo sin render.
+ */
+export function esFinDeMesConPresupuestoOk(
+  status: string | undefined,
+  hoy: Date = new Date(),
+): boolean {
+  if (status !== 'ok') return false
+  const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate()
+  return hoy.getDate() >= ultimoDia - 3
+}
+
 export function CategoryBudgetCard({ budget }: Props) {
   const [deleting, setDeleting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const [showEndOfMonthBadge, setShowEndOfMonthBadge] = useState(false)
 
   // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
   const store = useFinanceStore()
   const { fetchGoalsData } = store
   const statusData = store.getCategoryBudgetStatus(budget.category_id)
   const projection = store.getBudgetProjection(budget.id)
+  // Derivado: «el presupuesto va bien y estamos en los últimos días del mes».
+  const showEndOfMonthBadge = esFinDeMesConPresupuestoOk(statusData?.status)
   const { celebrate } = useConfetti()
   const isMobile = useIsMobile()
 
+  // El efecto queda sólo para el confetti y su marca en localStorage.
   useEffect(() => {
-    if (!statusData || statusData.status !== 'ok') return
+    if (!showEndOfMonthBadge) return
+    if (typeof window === 'undefined') return
     const now = new Date()
-    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-    if (now.getDate() < lastDayOfMonth - 3) return
     const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const key = `confetti_budget_${budget.id}_${monthKey}`
-    if (typeof window === 'undefined') return
-    setShowEndOfMonthBadge(true)
     if (!localStorage.getItem(key)) {
       localStorage.setItem(key, '1')
       celebrate(true)
     }
-  }, [statusData?.status, budget.id, celebrate])
+  }, [showEndOfMonthBadge, budget.id, celebrate])
 
   if (!statusData) return null
 

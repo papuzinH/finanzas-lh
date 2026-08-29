@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from 'react'
 
 interface UseSpeechRecognitionOptions {
   lang?: string
@@ -66,13 +66,34 @@ const ERROR_MESSAGES: Record<string, string> = {
   'service-not-allowed': 'El servicio de voz no está disponible',
 }
 
+/**
+ * ¿Este navegador tiene la API de reconocimiento de voz? Es un dato del
+ * entorno, no estado de React: se lee, no se sincroniza con un efecto.
+ */
+export function haySoporteDeVoz(
+  ventana: (Window & typeof globalThis) | undefined = typeof window === 'undefined' ? undefined : window,
+): boolean {
+  if (!ventana) return false
+  return Boolean(ventana.SpeechRecognition || ventana.webkitSpeechRecognition)
+}
+
+/** El soporte no cambia durante la vida de la página: no hay a qué suscribirse. */
+const sinSuscripcion = () => () => {}
+const leerSoporte = () => haySoporteDeVoz()
+/**
+ * En el servidor se asume que sí, que es lo que este hook devolvía antes de
+ * hidratar: así el botón de micrófono no aparece de golpe en el navegador que
+ * sí lo soporta, que es el caso común.
+ */
+const soporteEnElServidor = () => true
+
 export function useSpeechRecognition(
   options?: UseSpeechRecognitionOptions
 ): UseSpeechRecognitionReturn {
   const { lang = 'es-AR', continuous = false, onResult, onError } = options || {}
 
   const [isListening, setIsListening] = useState(false)
-  const [isSupported, setIsSupported] = useState(true)
+  const isSupported = useSyncExternalStore(sinSuscripcion, leerSoporte, soporteEnElServidor)
   const [transcript, setTranscript] = useState('')
   const [finalTranscript, setFinalTranscript] = useState('')
 
@@ -86,10 +107,7 @@ export function useSpeechRecognition(
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition
 
-    if (!SpeechRecognition) {
-      setIsSupported(false)
-      return
-    }
+    if (!SpeechRecognition) return
 
     const recognition = new SpeechRecognition() as SpeechRecognitionInstance
     recognition.lang = lang

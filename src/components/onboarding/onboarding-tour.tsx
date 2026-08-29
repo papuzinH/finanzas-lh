@@ -7,6 +7,7 @@ import { useFinanceStore } from '@/lib/store/financeStore'
 import {
   useOnboardingStore,
   TOUR_ROUTE_ORDER,
+  elTourEstaNavegando,
   TOUR_STEPS_BY_ROUTE,
   TOUR_TOTAL_STEPS,
   getGlobalStepNumber,
@@ -128,24 +129,16 @@ export function OnboardingTour() {
 
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [tooltipSize, setTooltipSize] = useState({ width: 288, height: 160 })
-  const [isNavigating, setIsNavigating] = useState(false)
 
   const isNewUser = isInitialized && transactions.length === 0
+  // Derivado, no estado: ver `elTourEstaNavegando` en el store.
+  const isNavigating = elTourEstaNavegando(pathname, tourRouteIndex)
   const isActive = isNewUser && !tourCompleted && !tourSkipped && !isNavigating
 
   // Ruta actual del tour
   const currentRoute = TOUR_ROUTE_ORDER[tourRouteIndex]
   const stepsForRoute = TOUR_STEPS_BY_ROUTE[currentRoute] ?? []
   const currentStepData = stepsForRoute[tourStepInRoute] ?? null
-
-  // Sincronizar cuando el pathname cambia (después de navegación)
-  useEffect(() => {
-    if (!isNewUser || tourCompleted || tourSkipped) return
-    const expectedRoute = TOUR_ROUTE_ORDER[tourRouteIndex]
-    if (pathname === expectedRoute && isNavigating) {
-      setIsNavigating(false)
-    }
-  }, [pathname, tourRouteIndex, isNewUser, tourCompleted, tourSkipped, isNavigating])
 
   const targetRect = useTargetRect(currentStepData?.target ?? '', isActive)
 
@@ -180,8 +173,7 @@ export function OnboardingTour() {
   const handleNext = useCallback(() => {
     const nextRoute = advanceTour()
     if (nextRoute) {
-      // Necesitamos navegar a otra ruta
-      setIsNavigating(true)
+      // `isNavigating` se deriva del pathname: alcanza con pedir la navegación.
       router.push(nextRoute)
     }
   }, [advanceTour, router])
