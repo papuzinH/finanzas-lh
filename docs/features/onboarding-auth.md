@@ -7,7 +7,7 @@ Alta y acceso de usuarios: login con **Google OAuth (único proveedor)** vía Su
 
 ## Rutas / entry points
 - `/login` — `src/app/login/page.tsx` (Server) → `login-form.tsx` (Client, botón Google + errores por query param `?error=`).
-- `/auth/callback` — `src/app/auth/callback/route.ts` (GET): `exchangeCodeForSession(code)` → redirect a `next` (default `/`) o `/login?error=auth_callback_failed`.
+- `/auth/callback` — `src/app/auth/callback/route.ts` (GET): `exchangeCodeForSession(code)` → redirect al `next` **saneado** (default `/`) o `/login?error=auth_callback_failed`. El `next` pasa por `destinoSeguro` (`lib/security/destino-redirect.ts`): sólo rutas internas, porque `@evil.com` convertía `${origin}${next}` en una URL cuyo host es otro (auditoría 2026-08-26, L1).
 - `/onboarding` — `src/app/onboarding/page.tsx` (Server: redirige a `/login` sin user y a `/` si `onboarding_completed`) → `onboarding-flow.tsx` (Client).
 - **Middleware global**: `src/middleware.ts` → `updateSession` de `src/utils/supabase/middleware.ts`. Sin sesión deja pasar solo `/` (la landing) y las `RUTAS_PUBLICAS` de `src/lib/rutas-publicas.ts` (hoy `/privacidad`), que tampoco pasan por los gates de onboarding/puesta a punto: la política se tiene que poder leer con la cuenta a medio configurar.
 - `/privacidad` — política de privacidad y condiciones de uso, pública. Ver `docs/features/ajustes-perfil.md`.
@@ -45,7 +45,7 @@ Tablas escritas por el onboarding: `categories` y `payment_methods` — ambas in
 
 ## Flujos principales
 1. **Login**: `/login` → `signInWithGoogle()` (server action) → Google → `/auth/callback?code=...` → `exchangeCodeForSession` → cookies de sesión → redirect `/`.
-2. **Middleware** (todas las rutas salvo `/auth`, `/login`, `/signup`, `/_next`, `/api` y archivos con extensión): sin user → redirect `/login`; con user y fuera de `/onboarding`, consulta `users.onboarding_completed` y si no es `true` → redirect `/onboarding` (copiando cookies al redirect). Errores de DB (salvo `PGRST116`) dejan pasar.
+2. **Middleware** (todas las rutas salvo `/login`, `/auth/*`, `/api/*`, `/_next/*` — `debeSaltearElGate` en `lib/security/alcance-middleware.ts` — y los archivos con extensión, que filtra el `matcher`): sin user → redirect `/login`; con user y fuera de `/onboarding`, consulta `users.onboarding_completed` y si no es `true` → redirect `/onboarding` (copiando cookies al redirect). Errores de DB (salvo `PGRST116`) dejan pasar.
 3. **Onboarding (slides)**:
    - `saveOnboardingName(name)`: valida (no vacío, ≤50 chars) y actualiza `users.first_name`.
    - `saveOnboardingCategories(categories)`: **idempotente** — borra las categorías custom previas (`is_system=false`) e inserta las elegidas como `type:'expense'` + 2 categorías de ingreso por defecto ("Sueldo", "Freelance / Otros ingresos") para que el selector de Ingreso nunca quede vacío.
