@@ -1,0 +1,35 @@
+# L5 de la auditoría 2026-08-26: no había nada avisando de CVEs en las
+# dependencias. Next se comió decenas de avisos entre 16.0.7 y 16.3.3 (H2) y
+# nadie se enteró hasta que se corrió `npm audit` a mano.
+#
+# Semanal y agrupado: el ruido de un PR por parche no lo lee nadie, y este repo
+# no tiene CI que los verifique solo — cada PR se mira y se pasa por el gate
+# (npm test && npm run lint && npx tsc --noEmit && npm run build) a mano.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 5
+    labels:
+      - dependencias
+    commit-message:
+      prefix: chore(deps)
+      prefix-development: chore(deps-dev)
+    groups:
+      # Lo que corre en producción va separado de la toolchain: un aviso sobre
+      # `next` o `@supabase/*` importa distinto que uno sobre babel o vite.
+      produccion:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      toolchain:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
