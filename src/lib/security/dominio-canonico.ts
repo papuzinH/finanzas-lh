@@ -59,3 +59,43 @@ export function construirRedirectsCanonicos(): Redirects {
     },
   ]
 }
+
+/**
+ * Los orígenes desde los que el login puede pedir su callback.
+ *
+ * Es un espejo de la allow-list de redirects de Supabase Auth
+ * (`uri_allow_list`), que hoy tiene el apex y `localhost:3000`. Esa es la
+ * verdad: si el destino no está ahí, Supabase lo descarta y manda al
+ * `site_url`. Mantener las dos listas iguales es la condición para que el
+ * login funcione; si acá se agrega un origen, se agrega también allá.
+ */
+export const ORIGENES_DE_LOGIN = [
+  `https://${HOST_CANONICO}`,
+  'http://localhost:3000',
+] as const
+
+/**
+ * De qué origen se fía el login para armar el destino del OAuth.
+ *
+ * La server action lo derivaba del header `host` de la request, o sea de por
+ * dónde entró el usuario. Eso es lo que rompía el login desde www, y volvería a
+ * romperlo con cualquier alias nuevo que apunte al proyecto. Acá el host de la
+ * request se usa **sólo si es uno de los orígenes que Supabase ya acepta**; si
+ * no, se cae al de producción.
+ *
+ * El fallback no es un parche silencioso: un preview de Vercel tiene host
+ * dinámico, nunca estuvo en la allow-list y además apunta a DEV, donde Google
+ * ni siquiera está configurado — el login por preview no funciona por otros
+ * motivos y esto no lo cambia.
+ *
+ * @param host el header `host` de la request (puede traer puerto)
+ * @param protocolo el `x-forwarded-proto`, que un proxy puede mandar como
+ *   lista ("https,https"): se toma el primer valor, porque concatenarlo crudo
+ *   arma un origen inválido que Supabase rechaza sin explicar nada.
+ */
+export function origenCanonico(host: string | null, protocolo: string | null): string {
+  const esquema = (protocolo ?? 'https').split(',')[0].trim()
+  const candidato = `${esquema}://${host ?? ''}`
+  const permitido = (ORIGENES_DE_LOGIN as readonly string[]).includes(candidato)
+  return permitido ? candidato : `https://${HOST_CANONICO}`
+}

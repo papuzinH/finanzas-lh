@@ -16,7 +16,12 @@
  */
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { construirRedirectsCanonicos, HOST_CANONICO, HOST_WWW } from '../dominio-canonico'
+import {
+  construirRedirectsCanonicos,
+  origenCanonico,
+  HOST_CANONICO,
+  HOST_WWW,
+} from '../dominio-canonico'
 
 describe('el hostname canónico', () => {
   it('el canónico es el apex, que es lo que Supabase tiene como site_url', () => {
@@ -62,5 +67,50 @@ describe('quién la usa', () => {
     const config = readFileSync('next.config.ts', 'utf8')
     expect(config).toContain('construirRedirectsCanonicos')
     expect(config).toContain('async redirects()')
+  })
+})
+
+describe('origenCanonico', () => {
+  it('acepta el apex por https: es el origen de producción', () => {
+    expect(origenCanonico('michanchito.net', 'https')).toBe('https://michanchito.net')
+  })
+
+  it('acepta localhost:3000, que es por donde se desarrolla', () => {
+    // Está en la allow-list de Supabase, así que el callback funciona ahí.
+    expect(origenCanonico('localhost:3000', 'http')).toBe('http://localhost:3000')
+  })
+
+  it('www NO se usa como origen: cae al canónico', () => {
+    // El corazón del bug. Aunque el 308 hace que nadie llegue parado en www,
+    // esto evita que un alias nuevo reabra el mismo agujero en silencio.
+    expect(origenCanonico('www.michanchito.net', 'https')).toBe('https://michanchito.net')
+  })
+
+  it('un host desconocido cae al canónico', () => {
+    // Previews de Vercel: hosts dinámicos, nunca estuvieron en la allow-list y
+    // apuntan a DEV, que no tiene Google configurado.
+    expect(origenCanonico('finanzas-lh-abc123.vercel.app', 'https')).toBe('https://michanchito.net')
+    expect(origenCanonico(null, null)).toBe('https://michanchito.net')
+  })
+
+  it('normaliza un x-forwarded-proto con varios valores', () => {
+    // Un proxy puede mandarlo como lista ("https,https"). Concatenado crudo da
+    // un origen roto (`https,https://michanchito.net`) que Supabase rechaza, y
+    // el usuario vuelve al login sin que nada lo explique.
+    expect(origenCanonico('michanchito.net', 'https,https')).toBe('https://michanchito.net')
+  })
+
+  it('el protocolo tiene que coincidir: el apex por http no es el origen bueno', () => {
+    expect(origenCanonico('michanchito.net', 'http')).toBe('https://michanchito.net')
+  })
+})
+
+describe('quién usa origenCanonico', () => {
+  it('la server action del login no arma el origen a mano', () => {
+    // Si vuelve el `${protocol}://${host}` crudo, el destino del OAuth vuelve a
+    // depender de por dónde entró el usuario.
+    const action = readFileSync('src/app/login/actions.ts', 'utf8')
+    expect(action).toContain('origenCanonico')
+    expect(action).not.toMatch(/\$\{protocol\}:\/\/\$\{host\}/)
   })
 })
