@@ -70,6 +70,6 @@ anónima de `/`: solo trata `/login` y `/auth` como públicas. Cuando
 `true` y `AppShell` cae en la rama autenticada — la Landing queda envuelta en
 `MainNav` (sidebar `md:pl-64` en desktop, bottom-nav fijo en mobile),
 `ChatWidgetWrapper` y `OnboardingTour` (que además arranca solo porque un
-visitante nuevo nunca tiene `chanchito-tour` en `localStorage`). No es
-responsabilidad de esta doc arreglarlo — está reportado en
-`.superpowers/sdd/2026-08-22-landing-fase-2/task-6-report.md`.
+visitante nuevo nunca tiene `chanchito-tour` en `localStorage`). Eso es lo que
+arregló `5ec7160`, en esta misma rama: el relato queda como advertencia, no como
+pendiente.
