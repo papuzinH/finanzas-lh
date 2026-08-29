@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { useOnboardingStore } from '@/lib/store/onboardingStore';
 import { signOut } from '@/app/perfil/actions';
+import { limpiarCachesDeLaApp } from '@/lib/pwa/caches';
 import { BorrarCuenta } from './_components/borrar-cuenta';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,10 @@ export default function AjustesPerfilPage() {
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
+    // Antes de irse: el service worker cachea navegaciones enteras y en un
+    // teléfono compartido el próximo podría ver una pantalla vieja servida de
+    // caché (auditoría L6). `signOut` redirige, así que tiene que ser acá.
+    await limpiarCachesDeLaApp();
     await signOut();
   };
 

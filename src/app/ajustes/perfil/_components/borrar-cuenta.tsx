@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmationModal } from '@/components/shared/confirmation-modal';
 import { deleteMyAccount } from '@/app/perfil/actions';
+import { limpiarCachesDeLaApp } from '@/lib/pwa/caches';
 
 /**
  * El bloque «Borrar la cuenta» de Ajustes → Perfil. El disparador es
@@ -22,6 +23,9 @@ export function BorrarCuenta() {
 
   const confirmar = async () => {
     setBorrando(true);
+    // La cuenta se va entera: que no quede nada suyo cacheado por el service
+    // worker en este dispositivo (auditoría L6).
+    await limpiarCachesDeLaApp();
     const resultado = await deleteMyAccount();
     if (resultado?.error) {
       setBorrando(false);
