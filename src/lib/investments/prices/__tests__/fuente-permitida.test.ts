@@ -81,6 +81,13 @@ describe('el dispatcher ignora una URL no permitida y cae a la fuente canónica'
 })
 
 describe('fetchFromUrl (defensa en profundidad)', () => {
+  // Timeout propio de 15s, y no por lentitud del test: es el único de la suite
+  // que descarta el mock y vuelve a importar el módulo REAL, así que en frío
+  // paga adentro de su propia ventana la compilación que vite todavía no tiene
+  // cacheada. Con los 5s por defecto fallaba de a una corrida de cada tantas
+  // —tres veces el 27 y el 29 de agosto, en sesiones distintas— y el rojo
+  // aparecía en el guard de seguridad de H1, que es justo donde uno no quiere
+  // ruido: parece el guard fallando y es el reloj.
   it('no hace ningún fetch si la URL no es la de IOL del ticker', async () => {
     vi.doUnmock('../iol') // los tests del dispatcher lo mockearon; acá va el módulo real
     vi.resetModules()
@@ -91,5 +98,5 @@ describe('fetchFromUrl (defensa en profundidad)', () => {
     expect(r).toBeNull()
     expect(fetchSpy).not.toHaveBeenCalled()
     vi.unstubAllGlobals()
-  })
+  }, 15_000)
 })
