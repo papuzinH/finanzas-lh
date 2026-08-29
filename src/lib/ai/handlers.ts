@@ -26,6 +26,7 @@ import type {
   GoalDeleteData,
   GoalContributionData,
 } from './handlerTypes'
+import { getOrCreateCategoriaDescarte } from '@/lib/categorias/descarte'
 
 export interface ChatResponse {
   success: boolean
@@ -180,6 +181,7 @@ export async function handleTransaction(data: TransactionData, userId: string): 
     // distinto al detectado (ej. categoría de gasto para un ingreso), se
     // descarta en vez de guardar una combinación inconsistente.
     let categoryId = data.categoryId
+    let categoriaDescartada = false
     if (categoryId) {
       const { data: categoryRow } = await supabase
         .from('categories')
@@ -188,6 +190,15 @@ export async function handleTransaction(data: TransactionData, userId: string): 
         .single()
       if (categoryRow && categoryRow.type !== data.type) {
         categoryId = null
+        categoriaDescartada = true
+      }
+    }
+    // `category_id` es NOT NULL: descartar la categoria no puede significar
+    // `null` o el insert entero falla con 23502 y se pierde el movimiento.
+    if (!categoryId) {
+      categoryId = await getOrCreateCategoriaDescarte(supabase, userId, data.type)
+      if (!categoryId) {
+        return { success: false, message: 'Error al guardar la transacción' }
       }
     }
 
@@ -218,9 +229,13 @@ export async function handleTransaction(data: TransactionData, userId: string): 
         ? await checkBudgetAlert(supabase, userId, categoryId ?? null)
         : null
 
+    const avisoCategoria = categoriaDescartada
+      ? ' (quedó en «Sin categoría»: la que elegiste es de otro tipo)'
+      : ''
+
     return {
       success: true,
-      message: `✅ ${typeLabel} registrado: ${data.description} - $${data.amount}${methodLabel}${budgetAlert ?? ''}`,
+      message: `✅ ${typeLabel} registrado: ${data.description} - $${data.amount}${methodLabel}${avisoCategoria}${budgetAlert ?? ''}`,
     }
   } catch (error) {
     console.error('Unexpected error in handleTransaction:', error)
@@ -250,6 +265,12 @@ export async function handleInstallment(data: InstallmentData, userId: string): 
     // Calcular fecha real de pago base (aplica lógica de tarjeta de crédito si corresponde)
     const realPaymentDateBase = calculateRealPaymentDate(data.date, paymentMethod)
 
+    // Un plan de cuotas es siempre un gasto, y `category_id` es NOT NULL.
+    const categoryId = data.categoryId ?? (await getOrCreateCategoriaDescarte(supabase, userId, 'expense'))
+    if (!categoryId) {
+      return { success: false, message: 'Error al crear el plan de cuotas' }
+    }
+
     // 1. Crear el plan de cuotas
     const { data: plan, error: planError } = await supabase
       .from('installment_plans')
@@ -259,7 +280,7 @@ export async function handleInstallment(data: InstallmentData, userId: string): 
         total_amount: data.totalAmount,
         installments_count: data.installmentsCount,
         purchase_date: data.date,
-        category_id: data.categoryId,
+        category_id: categoryId,
         payment_method_id: paymentMethod?.id || null,
       })
       .select('id')
@@ -284,7 +305,7 @@ export async function handleInstallment(data: InstallmentData, userId: string): 
         amount: data.amount,
         date: formatLocalDate(installmentDate),
         type: 'expense' as const,
-        category_id: data.categoryId,
+        category_id: categoryId,
         installment_plan_id: plan.id,
         payment_method_id: paymentMethod?.id || null,
       }
@@ -333,6 +354,12 @@ export async function handleSubscription(data: SubscriptionData, userId: string)
       !data.paymentMethodName // exactMatch = true si no hay nombre
     )
 
+    // `category_id` es NOT NULL; una mensualidad es siempre un gasto.
+    const categoryId = data.categoryId ?? (await getOrCreateCategoriaDescarte(supabase, userId, 'expense'))
+    if (!categoryId) {
+      return { success: false, message: 'Error al crear la suscripción' }
+    }
+
     // Insertar la suscripción
     const { error } = await supabase.from('recurring_plans').insert({
       user_id: userId,
@@ -340,7 +367,7 @@ export async function handleSubscription(data: SubscriptionData, userId: string)
       amount: data.amount,
       currency: data.currency,
       frequency: data.frequency,
-      category_id: data.categoryId,
+      category_id: categoryId,
       payment_method_id: paymentMethod?.id || null,
       is_active: true,
     })
@@ -428,12 +455,14 @@ export async function handleCardConfig(data: CardConfigData, userId: string): Pr
         console.warn('Warning: could not fetch future transactions:', fetchError)
       } else if (futureTxns && futureTxns.length > 0) {
         // Separar cuotas de transacciones simples
-        const installmentTxns = futureTxns.filter((t: { installment_plan_id: string | null }) => t.installment_plan_id !== null)
-        const simpleTxns = futureTxns.filter((t: { installment_plan_id: string | null }) => t.installment_plan_id === null)
+        const installmentTxns = futureTxns.filter(
+          (t): t is typeof t & { installment_plan_id: string } => t.installment_plan_id !== null
+        )
+        const simpleTxns = futureTxns.filter((t) => t.installment_plan_id === null)
 
         // Para cuotas: recalcular desde purchase_date del plan usando la nueva configuración
         if (installmentTxns.length > 0) {
-          const planIds = [...new Set(installmentTxns.map((t: { installment_plan_id: string }) => t.installment_plan_id))]
+          const planIds = [...new Set(installmentTxns.map((t) => t.installment_plan_id))]
           const { data: plans } = await supabase
             .from('installment_plans')
             .select('id, purchase_date, installments_count')
@@ -443,7 +472,7 @@ export async function handleCardConfig(data: CardConfigData, userId: string): Pr
           if (plans) {
             for (const plan of plans) {
               const firstDate = calculateCreditPaymentDate(plan.purchase_date, data.closingDay, data.paymentDay)
-              const planTxns = installmentTxns.filter((t: { installment_plan_id: string }) => t.installment_plan_id === plan.id)
+              const planTxns = installmentTxns.filter((t) => t.installment_plan_id === plan.id)
 
               for (const txn of planTxns) {
                 // Extraer el índice de cuota desde la descripción "(X/Y)"

@@ -44,14 +44,13 @@ export async function generateCategoryDescription(categoryName: string) {
     }
 
     return { success: true, text: text.trim() };
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error detallado de IA:', error);
 
+    const mensaje = error instanceof Error ? error.message : String(error);
+
     // Si falla el 2.5-flash, el error 404 sugiere que quizás debas usar gemini-1.5-flash o revisar la versión del SDK
-    if (
-      error.message?.includes('404') ||
-      error.message?.includes('not found')
-    ) {
+    if (mensaje.includes('404') || mensaje.includes('not found')) {
       return {
         success: false,
         error:

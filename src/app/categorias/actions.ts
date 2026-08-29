@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { categorySchema, type CategoryFormValues } from '@/lib/schemas/category'
+import { getOrCreateCategoriaDescarte } from '@/lib/categorias/descarte'
 
 function revalidateAll() {
   revalidatePath('/ajustes/categorias')
@@ -151,11 +152,30 @@ export async function deleteCategoryUnlink(id: string) {
 
   if (!dbUser) return { error: 'Usuario no encontrado' }
 
-  await Promise.all([
-    supabase.from('transactions').update({ category_id: null }).eq('category_id', id).eq('user_id', dbUser.id),
-    supabase.from('installment_plans').update({ category_id: null }).eq('category_id', id).eq('user_id', dbUser.id),
-    supabase.from('recurring_plans').update({ category_id: null }).eq('category_id', id).eq('user_id', dbUser.id),
+  // `category_id` es NOT NULL en las tres tablas: mandar `null` fallaba con
+  // 23502 y, como nadie miraba el error del Promise.all, el DELETE de abajo
+  // seguía igual y moría con 23503 mostrándole al usuario el mensaje crudo de
+  // Postgres. Los movimientos van a la categoría de descarte de su mismo tipo.
+  const { data: categoria } = await supabase
+    .from('categories')
+    .select('type')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!categoria) return { error: 'Categoría no encontrada' }
+
+  const destino = await getOrCreateCategoriaDescarte(supabase, user.id, categoria.type)
+  if (!destino) return { error: 'No se pudo preparar la categoría «Sin categoría»' }
+
+  const desvinculados = await Promise.all([
+    supabase.from('transactions').update({ category_id: destino }).eq('category_id', id).eq('user_id', dbUser.id),
+    supabase.from('installment_plans').update({ category_id: destino }).eq('category_id', id).eq('user_id', dbUser.id),
+    supabase.from('recurring_plans').update({ category_id: destino }).eq('category_id', id).eq('user_id', dbUser.id),
   ])
+
+  const fallo = desvinculados.find((r) => r.error)
+  if (fallo?.error) return { error: `No se pudieron desvincular los movimientos: ${fallo.error.message}` }
 
   const { error } = await supabase
     .from('categories')

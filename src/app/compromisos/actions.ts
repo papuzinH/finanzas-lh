@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { dateToLocalString, parseLocalDate } from '@/lib/utils/dates';
 import { computeMissingAutomaticCharges } from '@/lib/finance/recurring';
+import type { TablesInsert } from '@/types/database'
 
 type ActionResponse = {
   error?: string;
@@ -346,7 +347,7 @@ export async function backfillRecurringPlansHistory(): Promise<ActionResponse & 
       coveredMonths.get(t.recurring_plan_id)!.add(m);
     }
 
-    const rows: Record<string, unknown>[] = [];
+    const rows: TablesInsert<'transactions'>[] = [];
 
     for (const plan of plans ?? []) {
       const start = new Date(plan.created_at);

@@ -55,6 +55,15 @@ export interface Database {
           type?: 'income' | 'expense'
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'categories_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
       }
       category_budgets: {
         Row: {
@@ -84,6 +93,15 @@ export interface Database {
           is_active?: boolean
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'category_budgets_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'categories'
+            referencedColumns: ['id']
+          },
+        ]
       }
       chat_budget: {
         Row: {
@@ -113,6 +131,7 @@ export interface Database {
           request_count?: number
           updated_at?: string
         }
+        Relationships: []
       }
       chat_usage: {
         Row: {
@@ -130,6 +149,15 @@ export interface Database {
           usage_date?: string
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'chat_usage_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
       }
       exchange_rates: {
         Row: {
@@ -153,6 +181,7 @@ export interface Database {
           rate?: number
           source?: string | null
         }
+        Relationships: []
       }
       installment_plans: {
         Row: {
@@ -188,6 +217,29 @@ export interface Database {
           total_amount?: number
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'installment_plans_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'categories'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'installment_plans_payment_method_id_fkey'
+            columns: ['payment_method_id']
+            isOneToOne: false
+            referencedRelation: 'payment_methods'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'installment_plans_user_id_fkey1'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
       }
       internal_transfers: {
         Row: {
@@ -229,6 +281,22 @@ export interface Database {
           transfer_type?: 'end_of_month_surplus' | 'manual'
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'internal_transfers_from_payment_method_id_fkey'
+            columns: ['from_payment_method_id']
+            isOneToOne: false
+            referencedRelation: 'payment_methods'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'internal_transfers_to_payment_method_id_fkey'
+            columns: ['to_payment_method_id']
+            isOneToOne: false
+            referencedRelation: 'payment_methods'
+            referencedColumns: ['id']
+          },
+        ]
       }
       investment_assets: {
         Row: {
@@ -270,6 +338,7 @@ export interface Database {
           updated_at?: string | null
           user_id?: string
         }
+        Relationships: []
       }
       investment_transactions: {
         Row: {
@@ -314,6 +383,15 @@ export interface Database {
           type?: 'buy' | 'sell' | 'dividend' | 'coupon' | 'interest'
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'investment_transactions_asset_id_fkey'
+            columns: ['asset_id']
+            isOneToOne: false
+            referencedRelation: 'investment_assets'
+            referencedColumns: ['id']
+          },
+        ]
       }
       investments: {
         Row: {
@@ -352,6 +430,15 @@ export interface Database {
           type?: string
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'investments_user_id_fkey1'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
       }
       market_prices: {
         Row: {
@@ -393,6 +480,7 @@ export interface Database {
           tir?: number | null
           tna?: number | null
         }
+        Relationships: []
       }
       payment_methods: {
         Row: {
@@ -437,6 +525,15 @@ export interface Database {
           type?: 'credit' | 'debit' | 'cash'
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'payment_methods_user_id_fkey1'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
       }
       recurring_plans: {
         Row: {
@@ -487,6 +584,29 @@ export interface Database {
           rate_pair?: string | null
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'recurring_plans_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'categories'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'recurring_plans_payment_method_id_fkey'
+            columns: ['payment_method_id']
+            isOneToOne: false
+            referencedRelation: 'payment_methods'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'recurring_plans_user_id_fkey1'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
       }
       savings: {
         Row: {
@@ -513,6 +633,7 @@ export interface Database {
           id?: string
           user_id?: string
         }
+        Relationships: []
       }
       savings_goal_contributions: {
         Row: {
@@ -545,6 +666,15 @@ export interface Database {
           note?: string | null
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'savings_goal_contributions_goal_id_fkey'
+            columns: ['goal_id']
+            isOneToOne: false
+            referencedRelation: 'savings_goals'
+            referencedColumns: ['id']
+          },
+        ]
       }
       savings_goals: {
         Row: {
@@ -580,6 +710,7 @@ export interface Database {
           type?: 'one_time' | 'monthly'
           user_id?: string
         }
+        Relationships: []
       }
       transactions: {
         Row: {
@@ -645,6 +776,50 @@ export interface Database {
           type?: 'expense' | 'income' | null
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'transactions_card_payment_for_fkey'
+            columns: ['card_payment_for']
+            isOneToOne: false
+            referencedRelation: 'payment_methods'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transactions_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'categories'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transactions_installment_plan_id_fkey'
+            columns: ['installment_plan_id']
+            isOneToOne: false
+            referencedRelation: 'installment_plans'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transactions_payment_method_id_fkey'
+            columns: ['payment_method_id']
+            isOneToOne: false
+            referencedRelation: 'payment_methods'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transactions_recurring_plan_id_fkey'
+            columns: ['recurring_plan_id']
+            isOneToOne: false
+            referencedRelation: 'recurring_plans'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transactions_user_id_fkey1'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
       }
       users: {
         Row: {
@@ -695,6 +870,7 @@ export interface Database {
           telegram_chat_id?: number | null
           tour_completed?: boolean
         }
+        Relationships: []
       }
     }
     Views: Record<string, never>
@@ -720,6 +896,8 @@ export interface Database {
 }
 
 export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
+export type TablesInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert']
+export type TablesUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update']
 
 // Tipos específicos para facilitar el uso
 export type User = Tables<'users'>

@@ -10,6 +10,7 @@ import { detectCurrencyFromTicker } from '@/lib/utils'
 import { fetchPriceForAsset } from '@/lib/investments/prices/dispatcher'
 import { runUpdatePrices } from '@/lib/investments/update-prices-core'
 import type { ASSET_TYPES } from '@/lib/schemas/investment-asset'
+import type { Json } from '@/types/database'
 
 type ActionResponse = {
   error?: string
@@ -52,7 +53,7 @@ export async function createInvestment(data: InvestmentSchema): Promise<ActionRe
       data_source_url: dataSourceUrl,
     }
 
-    const { error } = await supabase.from('investments').insert(insertData as any)
+    const { error } = await supabase.from('investments').insert(insertData)
 
     if (error) {
       console.error('Error creating investment:', error)
@@ -123,7 +124,7 @@ export async function createSaving(data: {
       user_id: user.id,
       amount: data.amount,
       currency: data.currency,
-    } as any)
+    })
 
     if (error) {
       console.error('Error creating saving:', error)
@@ -212,8 +213,8 @@ export async function createAsset(data: {
         asset_type: validated.data.asset_type,
         currency: validated.data.currency ?? null,
         data_source_url: validated.data.data_source_url || null,
-        metadata: validated.data.metadata ?? {},
-      } as any)
+        metadata: (validated.data.metadata ?? {}) as Json,
+      })
       .select('id')
       .single()
 
@@ -270,7 +271,7 @@ export async function createTransaction(data: {
       currency: validated.data.currency,
       date: validated.data.date,
       notes: validated.data.notes ?? null,
-    } as any)
+    })
 
     if (error) return { error: `Error al crear transaccion: ${error.message}` }
 
@@ -424,7 +425,7 @@ export async function deleteAsset(assetId: string): Promise<ActionResponse> {
 
     const { error } = await supabase
       .from('investment_assets')
-      .update({ is_active: false } as any)
+      .update({ is_active: false })
       .eq('id', assetId)
       .eq('user_id', user.id)
 

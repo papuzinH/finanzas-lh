@@ -5,6 +5,7 @@ import { installmentPlanSchema, type InstallmentPlanSchema, createInstallmentPla
 import { revalidatePath } from 'next/cache';
 import { addMonths } from 'date-fns';
 import { calculateCreditPaymentDate, dateToLocalString, parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
+import { getOrCreateCategoriaDescarte } from '@/lib/categorias/descarte'
 
 type ActionResponse = {
   error?: string;
@@ -137,7 +138,16 @@ export async function updateInstallmentPlan(id: string, data: InstallmentPlanSch
     }
 
     const { description, category_id } = validatedFields.data;
-    const finalCategoryId = category_id === '' ? null : category_id;
+    // `category_id` es NOT NULL: el campo vacío no puede guardarse como `null`
+    // (23502 → "Error al actualizar el plan de cuotas"), va a la de descarte.
+    const finalCategoryId =
+      category_id === '' || category_id == null
+        ? await getOrCreateCategoriaDescarte(supabase, user.id, 'expense')
+        : category_id;
+
+    if (!finalCategoryId) {
+      return { error: 'No se pudo preparar la categoría «Sin categoría»' };
+    }
 
     // 1. Actualizar el plan de cuotas
     const { error: planError } = await supabase

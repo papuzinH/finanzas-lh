@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { resolveRate } from '../financeStore';
+import type { ExchangeRate } from '@/types/database';
 
-const rates = [
+const rates: ExchangeRate[] = [
   { id: '1', pair: 'USD_ARS_MEP', rate: 1200, source: 'dolarapi', last_update: '' },
   { id: '2', pair: 'USD_ARS_CCL', rate: 1250, source: 'dolarapi', last_update: '' },
 ];
@@ -9,11 +10,11 @@ const blue = { compra: 1000, venta: 1100, fechaActualizacion: '' };
 
 describe('resolveRate', () => {
   it('usa la cotización del par cuando existe', () => {
-    expect(resolveRate('USD_ARS_MEP', rates as any, blue)).toBe(1200);
+    expect(resolveRate('USD_ARS_MEP', rates, blue)).toBe(1200);
   });
 
   it('cae al dólar blue (venta) si el par no está', () => {
-    expect(resolveRate('USDT_ARS', rates as any, blue)).toBe(1100);
+    expect(resolveRate('USDT_ARS', rates, blue)).toBe(1100);
   });
 
   it('usa el fallback (snapshot) si no hay par ni blue', () => {
@@ -25,7 +26,7 @@ describe('resolveRate', () => {
   });
 
   it('ignora rates <= 0', () => {
-    const bad = [{ id: '1', pair: 'USD_ARS_MEP', rate: 0, source: '', last_update: '' }];
-    expect(resolveRate('USD_ARS_MEP', bad as any, blue)).toBe(1100);
+    const bad: ExchangeRate[] = [{ id: '1', pair: 'USD_ARS_MEP', rate: 0, source: '', last_update: '' }];
+    expect(resolveRate('USD_ARS_MEP', bad, blue)).toBe(1100);
   });
 });

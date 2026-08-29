@@ -6,11 +6,14 @@ import { CategoriesWithStats } from '@/app/categorias/_components/categories-wit
 export default async function AjustesCategoriasPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  // El middleware ya exige sesion en esta ruta; el guard evita que un
+  // `.eq('user_id', undefined)` mande una query sin filtro si eso cambiara.
+  if (!user) return null;
 
   const { data: categories } = await supabase
     .from('categories')
     .select('*')
-    .eq('user_id', user?.id)
+    .eq('user_id', user.id)
     .order('name', { ascending: true });
 
   return (

@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
       const now = new Date()
       const todayDay = now.getDate()
 
-      const cardsNeedingUpdate = (creditCards || []).filter((m: { name: string; default_payment_day: number | null }) => {
+      const cardsNeedingUpdate = (creditCards || []).filter((m) => {
         if (!m.default_payment_day) return false
         const paymentDay = m.default_payment_day
         if (todayDay === paymentDay + 1) return true
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
         return false
       })
 
-      cardAlerts = cardsNeedingUpdate.map((m: { name: string; default_payment_day: number }) =>
+      cardAlerts = cardsNeedingUpdate.map((m) =>
         `La tarjeta "${m.name}" venció ayer (día ${m.default_payment_day}). Recordale al usuario que debe actualizar las fechas de cierre y vencimiento para el próximo ciclo.`
       )
     } catch {
@@ -185,10 +185,10 @@ export async function POST(req: NextRequest) {
         emoji: c.emoji,
         type: c.type,
       })),
-      paymentMethods: (methods ?? []).map((m: { name: string; type: string; is_default: boolean }) => ({
+      paymentMethods: (methods ?? []).map((m) => ({
         name: m.name,
         type: m.type,
-        isDefault: m.is_default,
+        isDefault: m.is_default ?? false,
       })),
       today: ctx.today,
       cardAlerts,
