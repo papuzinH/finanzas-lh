@@ -1,20 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { esRutaPublica } from '@/lib/rutas-publicas'
+import { debeSaltearElGate } from '@/lib/security/alcance-middleware'
 
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // 1. EXCLUSIÓN: No procesar middleware para rutas de auth o archivos estáticos
-  // Usamos includes para ser más flexibles con slashes iniciales o rutas anidadas
-  if (
-    pathname.includes('/auth') || 
-    pathname.includes('/login') || 
-    pathname.includes('/signup') ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname.includes('.')
-  ) {
+  // 1. EXCLUSIÓN: el flujo de auth, las API routes y los internos de Next.
+  // La decisión vive en `alcance-middleware.ts` con prefijos anclados: antes
+  // era por substring y cualquier ruta que *contuviera* `/auth` o un punto se
+  // salteaba el gate (auditoría L2). Los archivos los filtra el `matcher`.
+  if (debeSaltearElGate(pathname)) {
     return NextResponse.next({ request })
   }
 

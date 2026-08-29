@@ -8,12 +8,16 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - Any file with an extension (e.g. .svg, .png, .jpg, .webmanifest)
+     * Todo menos:
+     * - los internos de Next (_next/static, _next/image, _next/data…)
+     * - cualquier archivo con extensión AL FINAL del path (.png, .svg, .js,
+     *   .webmanifest, y también .txt/.xml/.woff2, que la lista vieja no
+     *   nombraba: un robots.txt agregado mañana no tiene que pedir sesión).
+     *
+     * El ancla `$` es la diferencia con el viejo `pathname.includes('.')` del
+     * middleware, que excluía del gate cualquier ruta con un punto en el medio
+     * (auditoría L2). `/x.y/z` es una ruta y sí pasa por acá.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|js|css|webmanifest)$).*)',
+    '/((?!_next/|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)',
   ],
 }
