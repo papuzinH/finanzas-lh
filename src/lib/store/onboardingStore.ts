@@ -104,7 +104,6 @@ interface OnboardingState {
   advanceTour: () => TourRoute | null
   skipTour: () => void
   completeTour: () => void
-  resetTour: () => void
   /** Sincroniza tourCompleted desde/hacia Supabase */
   syncTourFromSupabase: (userId: string) => Promise<void>
   /** Llamar al arribar a una ruta para sincronizar el índice */
@@ -160,15 +159,6 @@ export const useOnboardingStore = create<OnboardingState>()(
         })
       },
 
-      resetTour: () => {
-        set({ tourCompleted: false, tourSkipped: false, tourRouteIndex: 0, tourStepInRoute: 0 })
-        const supabase = createClient()
-        supabase.auth.getUser().then(({ data }) => {
-          if (data.user) {
-            supabase.from('users').update({ tour_completed: false }).eq('id', data.user.id).then(() => {})
-          }
-        })
-      },
 
       syncTourFromSupabase: async (userId: string) => {
         const supabase = createClient()

@@ -22,7 +22,7 @@ Hub de configuración de la app (`/ajustes`) con tres sub-pantallas — medios d
 | `src/app/dashboard/transactions/actions.ts` | `assignDefaultToUnassignedTransactions()`: asigna el medio default a todas las tx con `payment_method_id == null` (lo dispara el banner de `/ajustes/medios`) |
 | `src/app/ajustes/categorias/page.tsx` | Server: fetch de `categories` con `utils/supabase/server`, render con `CategoriesWithStats` (`src/app/categorias/_components/`) + `CreateCategoryDialog` |
 | `src/app/categorias/actions.ts` | Server actions CRUD de categorías |
-| `src/app/ajustes/perfil/page.tsx` | Client: avatar/email de auth (`authEmail`, `authAvatarUrl` del financeStore), info de cuenta (`first_name`, `telegram_chat_id`, `created_at`), botón "Reiniciar Tour Guiado" (`resetTour()` + `router.push('/')`) y "Cerrar sesión" |
+| `src/app/ajustes/perfil/page.tsx` | Client: avatar/email de auth (`authEmail`, `authAvatarUrl` del financeStore), info de cuenta (`first_name`, `telegram_chat_id`, `created_at`), y "Cerrar sesión" |
 | `src/app/perfil/actions.ts` | `signOut()`: `supabase.auth.signOut()` + `redirect('/login')`. `deleteMyAccount()`: borrado total en dos pasos — `rpc('delete_my_account')` con el cliente de sesión (purga atómica de las 15 tablas con `user_id` + `users`, resuelve `auth.uid()`) y recién después `createAdminClient().auth.admin.deleteUser(uid)` (identidad y sesiones); `signOut` + `redirect('/')`. Si falla la purga no se tocó nada; si falla Auth después, cierra la sesión igual y el mensaje da `MAIL_CONTACTO` (`lib/contacto.ts`) |
 | `src/app/ajustes/perfil/_components/borrar-cuenta.tsx` | El bloque «Borrar la cuenta», al final de Perfil: copy de qué se borra + link a `/privacidad` + botón `soft` con texto `bad` (el rojo fuerte queda para el `ConfirmationModal` destructivo — «Cerrar sesión», justo arriba, ya es rojo). Un error de la action se muestra con `toast.error` |
 | `src/lib/rutas-publicas.ts` | `RUTAS_PUBLICAS` / `esRutaPublica(pathname)`: la lista única de páginas públicas de contenido (hoy `/privacidad`). La consultan el middleware (no manda al login ni a onboarding) y el `AppShell` (sin shell). Test estructural: `src/lib/__tests__/rutas-publicas.test.ts` |
@@ -45,7 +45,11 @@ Confundir ambos ids produce queries que **nunca matchean sin tirar error** (gotc
 2. **Banner de no-asignadas**: si `getUnassignedTransactionsCount() > 0` y hay default, `/ajustes/medios` ofrece asignarlas todas con `assignDefaultToUnassignedTransactions()` y refresca el store.
 3. **Borrar un medio con dependencias**: `reassignAndDeletePaymentMethod` mueve transacciones/planes al medio destino antes de borrar.
 4. **Registrar pago de tarjeta de meses anteriores**: `RegisterCardPaymentDialog` → `payCreditCardCycle` (crea transacción `expense` con `card_payment_for` en el medio financiador; neutra para el Disponible Real global — ver sección "Medios de pago" de CLAUDE.md).
-5. **Cerrar sesión / reiniciar tour**: `/ajustes/perfil` → `signOut()` (redirect `/login`) o `resetTour()` (resetea el onboardingStore, marca `tour_completed=false` en DB y navega a `/`).
+5. **Cerrar sesión**: `/ajustes/perfil` → `signOut()` (redirect `/login`).
+   Hubo un botón «Reiniciar Tour Guiado» y se eliminó el 2026-08-29: el tour sólo
+   se muestra con `transactions.length === 0`, así que para cualquier usuario con
+   movimientos el botón reseteaba el estado, navegaba al inicio y no pasaba nada
+   visible. Para revisar el tour hay que usar una cuenta sin movimientos en DEV.
 6. **Borrar la cuenta** (2026-08-25): `/ajustes/perfil` → «Borrar mi cuenta» → `ConfirmationModal` destructivo → `deleteMyAccount()`. Inmediato e irreversible, sin período de gracia: la función SQL `delete_my_account()` (migración `20260825214502`) borra en orden FK-safe `pending_detections, savings_goal_contributions, investment_transactions, transactions, internal_transfers, installment_plans, recurring_plans, category_budgets, savings_goals, savings, investments, investment_assets, payment_methods, categories, chat_usage` y la fila de `users`, en una transacción. `staging_plans` (legacy, `user_id smallint`) queda afuera a propósito. `EXECUTE` solo para `authenticated` y `service_role`. Termina en la landing (`/`). Verificado contra producción con el usuario demo Emi (86 filas en 11 tablas → 0) y re-sembrado con `npm run seed:demo`.
 
 ## Invariantes y gotchas

@@ -2,22 +2,18 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { useOnboardingStore } from '@/lib/store/onboardingStore';
 import { signOut } from '@/app/perfil/actions';
 import { limpiarCachesDeLaApp } from '@/lib/pwa/caches';
 import { BorrarCuenta } from './_components/borrar-cuenta';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Mail, Calendar, LogOut, MessageCircle, ShieldCheck, Settings, RotateCcw } from 'lucide-react';
+import { User, Mail, Calendar, LogOut, MessageCircle, ShieldCheck, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export default function AjustesPerfilPage() {
   const { user, authEmail, authAvatarUrl } = useFinanceStore();
-  const resetTour = useOnboardingStore((s) => s.resetTour);
-  const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const createdAt = user?.created_at
@@ -112,19 +108,6 @@ export default function AjustesPerfilPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Reiniciar tour guiado */}
-        <Button
-          variant="outline"
-          className="w-full border-border text-text bg-surface-2"
-          onClick={() => {
-            resetTour();
-            router.push('/');
-          }}
-        >
-          <RotateCcw className="mr-2 h-4 w-4" />
-          Reiniciar Tour Guiado
-        </Button>
 
         {/* Cerrar sesión */}
         <Button

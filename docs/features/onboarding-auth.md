@@ -37,7 +37,7 @@ RLS efectiva de `users`: funciona por la política `"Users access own data"` (`a
 
 **Call-sites, releídos con esa realidad:**
 - Filtran `users` con `.eq('id', user.id)` pasando el UUID de auth (`src/utils/supabase/middleware.ts:62`, `src/app/onboarding/page.tsx:17`, `src/app/onboarding/actions.ts:42/201`, `src/lib/store/financeStore.ts:517`, `src/app/categorias/actions.ts:87`): **CORRECTOS** — `id` es el auth uid.
-- `onboardingStore.skipTour/completeTour/resetTour`: filtraban por `.eq('auth_user_id', <uuid>)` → actualizaban 0 filas y `tour_completed` nunca persistía en Supabase (el tour reaparecía en cada dispositivo). **Corregido** (commit `92c003f`): ahora filtran por `id`, igual que `syncTourFromSupabase`.
+- `onboardingStore.skipTour/completeTour` (y el `resetTour` que existió hasta el 2026-08-29): filtraban por `.eq('auth_user_id', <uuid>)` → actualizaban 0 filas y `tour_completed` nunca persistía en Supabase (el tour reaparecía en cada dispositivo). **Corregido** (commit `92c003f`): ahora filtran por `id`, igual que `syncTourFromSupabase`.
 - No filtran (solo RLS + `.single()`): `src/app/api/chat/route.ts:86-90` — funciona vía la política `auth.uid() = id`.
 
 Columnas de estado: `users.onboarding_completed` (gate del middleware), `users.tour_completed`, `users.first_name`.
@@ -52,7 +52,8 @@ Tablas escritas por el onboarding: `categories` y `payment_methods` — ambas in
    - `suggestCategoriesFromDescription(texto)` (opcional, "Personalizar con IA"): Gemini 2.5 Flash (`@google/genai`) devuelve JSON de 5-10 categorías; se renderizan como chips editables, **no se guardan automáticamente**.
    - `saveOnboardingPaymentMethods(methods, defaultName?)`: idempotente (delete + insert), setea días de cierre/vencimiento solo para `credit`, y marca `is_default` (reset de todos + marca el elegido).
    - `completeOnboarding()`: `users.onboarding_completed = true` → el middleware deja de redirigir; el flow hace `router.push('/')`.
-4. **Tour post-registro**: `AppShell` monta `OnboardingTour` en toda ruta autenticada. Recorre `TOUR_ROUTE_ORDER` (`/`, `/movimientos`, `/compromisos`, `/objetivos`, `/ajustes`, `/`) con pasos por ruta (`TOUR_STEPS_BY_ROUTE`) que apuntan a `data-tour="..."` (ej. `balance-card`, `fab`, `section-medios`). `advanceTour()` devuelve la próxima ruta a navegar o `null`. Completar/saltear persiste `tour_completed=true` en Supabase y en localStorage; `syncTourFromSupabase(user.id)` lo baja al iniciar. Se puede reiniciar desde `/ajustes/perfil` (`resetTour`).
+4. **Tour post-registro**: `AppShell` monta `OnboardingTour` en toda ruta autenticada. Recorre `TOUR_ROUTE_ORDER` (`/`, `/movimientos`, `/compromisos`, `/objetivos`, `/ajustes`) con pasos por ruta (`TOUR_STEPS_BY_ROUTE`) que apuntan a `data-tour="..."` (ej. `balance-card`, `fab`, `section-medios`). **Son 8 pasos y ninguna ruta se repite**: `'/'` figuraba también al final —para devolver al usuario al inicio— y el efecto era un tour de 10 pasos que repetía los dos primeros y anunciaba «10 de 8», porque el total se contaba sobre las claves del objeto (5) y el recorrido sobre el array (6). Volver al inicio es ahora un destino al cerrar (`RUTA_AL_CERRAR`), no una etapa. `advanceTour()` devuelve la próxima ruta a navegar, o `RUTA_AL_CERRAR` al terminar el último paso. Completar/saltear persiste `tour_completed=true` en Supabase y en localStorage; `syncTourFromSupabase(user.id)` lo baja al iniciar.
+   ⚠️ **El tour sólo se muestra si el usuario no tiene ninguna transacción** (`isNewUser = isInitialized && transactions.length === 0`). Por eso se eliminó el botón «Reiniciar Tour Guiado» de `/ajustes/perfil` el 2026-08-29: prometía algo que no cumplía para nadie con movimientos cargados. Para revisar el tour, cuenta sin movimientos en DEV.
 
 ## Invariantes y gotchas
 - El middleware excluye `/api/*`: los endpoints hacen su propia auth (ej. `/api/chat`).
@@ -60,7 +61,7 @@ Tablas escritas por el onboarding: `categories` y `payment_methods` — ambas in
 - Las actions de onboarding son **idempotentes por borrado previo**: re-correr el onboarding pisa categorías custom y medios de pago existentes — no reutilizarlas fuera de ese contexto.
 - El onboarding solo crea categorías de gasto desde el slide; las de ingreso default se agregan siempre.
 - `onboardingStore` conserva SOLO el tour (la parte de chat conversacional fue removida; ver nota en el header del archivo).
-- El estado del tour persiste en localStorage (`chanchito-tour`): probar en incógnito o con `resetTour` al debuggear.
+- El estado del tour persiste en localStorage (`chanchito-tour`): para debuggear, incógnito o borrar esa clave (y recordar que hace falta un usuario sin transacciones).
 
 ## Tests
 No hay tests dedicados de login/onboarding/tour (no existen `__tests__` bajo `src/app/login`, `src/app/onboarding` ni para `onboardingStore`). Los tests de stores viven en `src/lib/store/__tests__/` pero cubren finanzas, no el tour.
