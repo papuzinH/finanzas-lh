@@ -67,24 +67,48 @@ al cálculo del desvío (abajo).
 | Sólo `type = 'expense'` | Es un análisis de gasto |
 | Se excluyen `card_payment_for` y `is_balance_adjustment` | Es lo que ya hacen las analíticas de hoy; incluirlos cuenta dos veces |
 | Se excluye `date > hoy` | Hay cuotas fechadas hasta 2027-08: son compromisos, no historia |
-| Ventana de 6 meses, igual que `getRealAdjustedTrend` | Coherencia con la tab donde vive |
+| Ventana de 6 meses, igual que `getRealAdjustedTrend` | Coherencia con la tab donde vive. **Hoy la decisión no cambia nada** —con 5 meses de datos, 6 y 12 devuelven lo mismo— así que se difiere: `months` ya es parámetro. **Revisar cuando haya 12 meses reales (~marzo 2027)**, sopesando que más meses dan un promedio más estable pero arrastran cambios de vida viejos, y que 12 barras en un sparkline de 66 px son barras de 3 px |
 | Los meses sin actividad **no se dibujan** | 7 meses viejos con 1 movimiento son 7 puntos casi en cero que no significan nada |
 
-### El mes en curso
+### El mes en curso: se compara por tramo
 
-**Entra al sparkline, marcado; no entra al cálculo del desvío ni del promedio.**
+**El desvío habla del mes en curso, no del último mes cerrado.** La pregunta que uno hace
+un 29 de agosto es "¿cómo vengo este mes?"; que la pantalla conteste sobre julio es raro,
+y en los primeros días de septiembre seguiría hablando de julio.
 
-Agosto tiene 110 movimientos contra los 145 de julio, pero no porque se haya gastado
-menos: porque el mes va por la mitad. Compararlo contra meses completos reporta una
-caída que es del calendario. En la UI se dibuja con relleno rayado y un asterisco.
+Pero no se puede comparar directo: agosto lleva 110 movimientos y julio cerró con 145.
+Directo diría "bajaste 24%" cuando lo único que pasó es que el mes no terminó.
+
+**Se compara el mismo tramo**: lo que va de agosto hasta el día 29 contra lo que llevaban
+los meses previos **hasta su día 29**. No extrapola nada —son gastos que existen— y el
+día 31 converge solo a la comparación de meses completos.
+
+⚠️ **Por qué no se proyecta con regla de tres**, que es lo que ya hace
+`getBudgetProjection` en los presupuestos: esa fórmula asume gasto uniforme dentro del
+mes, y medido sobre datos reales eso es falso justo donde más duele. En la categoría
+**Casa**, el 75% del gasto cae en los primeros 10 días (alquiler y expensas):
+$2.897.747 entre el 1 y el 10 contra $84.582 entre el 11 y el 20. Mirando el día 6, con
+el alquiler ya pagado, la regla de tres proyecta cinco veces un número que no va a
+ocurrir — y Casa es la categoría más grande y la que más se movió. Las de consumo diario
+(comida afuera, supermercado, delivery) sí se reparten parejo, así que extrapolar
+funcionaría en la mitad de las categorías y mentiría en la otra mitad.
+
+**Bordes**:
+- Los primeros 2-3 días del mes el tramo es ruidoso de los dos lados. Si el mes en curso
+  no llega a 3 días o no tiene movimientos, se cae al último mes cerrado y **el
+  encabezado lo dice**.
+- El sparkline sigue mostrando **meses completos**, con el mes en curso en relleno rayado:
+  las barras muestran la historia, el porcentaje muestra el tramo. Son dos lecturas y la
+  UI tiene que distinguirlas.
 
 ### El desvío (el número de cada fila)
 
-Se compara el **último mes cerrado** contra una de dos varas, a elección del usuario:
+Se compara **el mes en curso, hasta el día de hoy**, contra una de dos varas —las dos
+recortadas al mismo tramo del mes—, a elección del usuario:
 
-- **Mi promedio** (default): el promedio de los meses cerrados previos dentro de la
-  ventana.
-- **El mes pasado**: el mes cerrado inmediatamente anterior.
+- **Mi promedio** (default): el promedio de los meses previos dentro de la ventana,
+  cada uno recortado al mismo día del mes.
+- **El mes pasado**: el mes anterior, recortado al mismo día del mes.
 
 El default es el promedio porque aguanta mejor un mes raro suelto. Medido sobre datos
 reales: con "mes pasado", Supermercado da +88% y con "mi promedio" +97%; la diferencia
@@ -92,6 +116,13 @@ es chica en categorías estables y enorme en las irregulares.
 
 **El toggle cambia sólo el divisor.** No toca el agrupado ni el orden de los grupos: si
 las filas saltaran de grupo al tocarlo, sería desconcertante.
+
+**Por qué un toggle y no sólo un encabezado explicativo** (decisión de Lauti, 2026-08-29):
+lo primero que piensa cualquiera al ver "+87%" es que la comparación es contra el mes
+pasado. Un encabezado lo aclara; el toggle lo *enseña*, porque se entiende que hay dos
+varas al ver los números moverse. Se evaluó el costo —dos estados que testear y una
+decisión más para el usuario, en una app sin analytics donde nunca se va a saber si se
+usa— y se aceptó.
 
 ### "Cambió de nivel" vs. "Fue una vez"
 
@@ -101,18 +132,35 @@ El hallazgo que motiva esta regla: en los datos reales, la categoría con mayor 
 encabeza la lista durante meses por encima de **Casa**, que subió 87% real *y se quedó
 arriba*, que es lo accionable.
 
-**Regla**: una categoría es un evento puntual si **un solo mes concentra más de la mitad
-del total de esa categoría en el período** (con al menos 3 meses cerrados con actividad).
+**Regla**: una categoría es un evento puntual si **su mes pico supera 3 veces la mediana
+de los otros meses** (con al menos 3 meses cerrados con actividad).
 
-El total se calcula sobre los **meses cerrados**, deflactados: el mes en curso queda
-fuera también acá, por la misma razón que en el desvío. Un mes parcial no puede decidir
-si algo fue un evento.
+Mediana y no promedio, porque el promedio ya está contaminado por el pico que se intenta
+detectar.
 
-Verificada contra los datos reales: Fernet 94% → evento · Uso personal 58% → evento ·
-Casa 38% → cambió de nivel.
+**Por qué no "más de la mitad del total", que fue la primera formulación**: ese umbral
+cambia de significado según cuántos meses haya. Para que un mes se lleve la mitad del
+total, el pico tiene que valer `(N−1)` veces un mes típico: con 4 meses alcanza con 3×,
+con 12 meses hacen falta 11×. La regla se volvería más exigente sola a medida que el
+usuario junta historia, y dentro de un año un gasto de 8 veces lo normal se colaría en
+"cambió de nivel", que es justo el grupo que hay que mantener limpio. **La pantalla
+empeoraría con el tiempo sin que nadie toque nada.** El ratio contra la mediana significa
+lo mismo con 4 meses que con 12.
 
-Se explica al usuario en una frase: *"más de la mitad de lo que gastaste ahí fue en un
-solo mes"*.
+Verificada contra los datos reales, con idéntica clasificación que la regla vieja pero
+sin la degradación: Fernet 255× → evento · Uso personal 5,4× → evento · Salud 2,1×,
+Supermercado 1,9×, Casa 1,9×, Comida afuera 1,5× → cambió de nivel.
+
+**Borde**: si la mediana de los otros meses da 0 (pasa: Fernet no tiene gasto en mayo),
+el ratio sería infinito y cualquier gasto sería evento. Se compara entonces contra el
+promedio de los meses **con** actividad; si no hay ninguno, la categoría no se clasifica.
+
+El agrupado se calcula sobre **meses cerrados**: hace falta un mes completo para saber si
+algo fue un evento. **Limitación conocida**: un evento que ocurre en el mes en curso
+aparece como "cambió de nivel" hasta que el mes cierre. Se aceptó para evitar que una
+fila salte de grupo a mitad de mes y vuelva sola.
+
+Se explica al usuario en una frase: *"gastaste ahí 3 veces lo que gastás normalmente"*.
 
 Las filas de eventos **muestran el monto y qué fue**, no el porcentaje: para un pico
 único el `%` no significa nada, pero `$768k · «Soberanía fernetera», 17 de julio` sí.
@@ -133,7 +181,8 @@ Debajo del gasto real mes a mes que ya vive ahí. Una fila por categoría:
 
 ```
 Qué se movió
-julio contra tu promedio de abril a junio · en pesos de hoy    [?]
+en lo que va de agosto, contra lo que llevabas
+a esta altura de abril a julio · en pesos de hoy    [?]
 [ vs. mi promedio | vs. el mes pasado ]
 
 CAMBIÓ DE NIVEL
@@ -189,9 +238,16 @@ Se respeta la regla de oro: ningún número lo genera el modelo.
 TDD sobre la función pura. Los casos salen de los datos reales, que ya sirvieron para
 encontrar los bordes:
 
-- Fernet → evento (un mes concentra el 94%)
-- Casa → cambió de nivel (38%, sube sostenido)
-- El mes en curso queda fuera del desvío y del promedio, y dentro del sparkline
+- Fernet → evento (pico 255× la mediana de los otros meses)
+- Casa → cambió de nivel (1,9×, sube sostenido)
+- **La regla no se degrada con la ventana**: el mismo escenario con 4 y con 12 meses
+  clasifica igual — es el defecto que tenía la formulación por porcentaje del total
+- Mediana 0 en los otros meses (el caso real de Fernet en mayo) → cae al promedio de los
+  meses con actividad
+- **El desvío se calcula por tramo**: un mes en curso al día 15 se compara contra los
+  previos recortados al día 15, no contra sus totales
+- Mes en curso con menos de 3 días o sin movimientos → cae al último mes cerrado
+- El sparkline muestra meses completos aunque el desvío hable de un tramo
 - Una categoría sin meses previos no entra al ranking
 - Un mes sin movimientos ≠ un mes con cero (no se dibuja)
 - Los dos modos del toggle sobre el mismo escenario
