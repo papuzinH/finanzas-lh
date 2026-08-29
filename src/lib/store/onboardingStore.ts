@@ -13,14 +13,25 @@ import { createClient } from '@/utils/supabase/client'
  * después del registro inicial.
  */
 
-/** Rutas en orden de secuencia del tour */
+/**
+ * Rutas en orden de secuencia del tour.
+ *
+ * ⚠️ Ninguna ruta puede repetirse: cada entrada de acá se camina entera, así que
+ * una repetida vuelve a mostrar sus pasos. `'/'` figuraba también al final —la
+ * intención era devolver al usuario al inicio— y el efecto era un tour de 10
+ * pasos que repetía los dos primeros y anunciaba «10 de 8». Volver al inicio es
+ * un destino al cerrar (`RUTA_AL_CERRAR`), no una etapa con pasos.
+ *
+ * El tipo no protege de esto: `TourRoute` es la unión de valores, así que el
+ * `Record` de abajo pide una clave por ruta distinta y no tiene cómo notar que
+ * el array trae una repetida. Lo cubre `onboarding-tour-recorrido.test.ts`.
+ */
 export const TOUR_ROUTE_ORDER = [
   '/',
   '/movimientos',
   '/compromisos',
   '/objetivos',
   '/ajustes',
-  '/',
 ] as const
 
 export type TourRoute = (typeof TOUR_ROUTE_ORDER)[number]
@@ -47,8 +58,40 @@ export const TOUR_STEPS_BY_ROUTE: Record<TourRoute, { target: string; text: stri
   ]
 }
 
-/** Total de pasos globales del tour */
-export const TOUR_TOTAL_STEPS = Object.values(TOUR_STEPS_BY_ROUTE).reduce((sum, steps) => sum + steps.length, 0)
+/**
+ * Adónde va el usuario cuando el tour termina: al inicio, que es donde arrancó
+ * y donde va a usar la app.
+ */
+export const RUTA_AL_CERRAR = '/' as const
+
+/**
+ * Total de pasos globales del tour.
+ *
+ * Se suma sobre `TOUR_ROUTE_ORDER` —lo que el tour efectivamente camina— y no
+ * sobre las claves de `TOUR_STEPS_BY_ROUTE`. Esa era la raíz del «10 de 8»: el
+ * recorrido iteraba el array (6 etapas) y el total contaba las claves del
+ * objeto (5), así que las dos cuentas medían cosas distintas.
+ */
+export const TOUR_TOTAL_STEPS = TOUR_ROUTE_ORDER.reduce(
+  (total, ruta) => total + TOUR_STEPS_BY_ROUTE[ruta].length,
+  0
+)
+
+/**
+ * Número de paso global (1-indexed) para el «X de N» del tooltip.
+ *
+ * Vive acá y no en el componente porque es la tercera cuenta sobre las mismas
+ * dos fuentes, y es la que el usuario ve: cuando divergió, en pantalla decía
+ * «10 de 8». Suma sobre `TOUR_ROUTE_ORDER`, igual que `TOUR_TOTAL_STEPS`, así
+ * que las dos no pueden volver a medir cosas distintas.
+ */
+export function getGlobalStepNumber(routeIndex: number, stepInRoute: number): number {
+  let total = 0
+  for (let i = 0; i < routeIndex; i++) {
+    total += TOUR_STEPS_BY_ROUTE[TOUR_ROUTE_ORDER[i]].length
+  }
+  return total + stepInRoute + 1
+}
 
 interface OnboardingState {
   // Tour post-registro (multi-ruta)
@@ -92,8 +135,9 @@ export const useOnboardingStore = create<OnboardingState>()(
           return TOUR_ROUTE_ORDER[nextIdx]
         }
 
+        // Último paso: se cierra el tour y se vuelve al inicio.
         get().completeTour()
-        return null
+        return RUTA_AL_CERRAR
       },
 
       skipTour: () => {

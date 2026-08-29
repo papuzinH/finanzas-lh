@@ -9,6 +9,7 @@ import {
   TOUR_ROUTE_ORDER,
   TOUR_STEPS_BY_ROUTE,
   TOUR_TOTAL_STEPS,
+  getGlobalStepNumber,
 } from '@/lib/store/onboardingStore'
 
 const SPOTLIGHT_PADDING = 8
@@ -107,15 +108,6 @@ function computeTooltipPosition(
   left = Math.max(12, Math.min(left, vw - tooltipWidth - 12))
 
   return { top, left, arrowSide }
-}
-
-/** Calcula el número de paso global (1-indexed) para mostrar "X de N" */
-function getGlobalStepNumber(routeIndex: number, stepInRoute: number): number {
-  let count = 0
-  for (let i = 0; i < routeIndex; i++) {
-    count += TOUR_STEPS_BY_ROUTE[TOUR_ROUTE_ORDER[i]].length
-  }
-  return count + stepInRoute + 1
 }
 
 export function OnboardingTour() {
