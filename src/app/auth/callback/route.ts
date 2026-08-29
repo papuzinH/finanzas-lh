@@ -1,11 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { destinoSeguro } from '@/lib/security/destino-redirect'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/'
+  // El `next` viene de la query: sólo se acepta una ruta interna, si no la
+  // sesión recién creada se podía llevar a otro host (auditoría L1).
+  const destino = destinoSeguro(searchParams.get('next'))
 
   if (code) {
     const cookieStore = await cookies()
@@ -33,7 +36,7 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      return NextResponse.redirect(`${origin}${destino}`)
     }
   }
 
