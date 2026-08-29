@@ -1239,7 +1239,7 @@ export async function handleEditGoal(data: GoalEditData): Promise<ChatResponse> 
       if (data.changes.fecha_objetivo) updates.target_date = data.changes.fecha_objetivo
       if (data.changes.moneda) updates.currency = data.changes.moneda
 
-      const { error } = await supabase.from('savings_goals').update(updates).eq('id', goal.id)
+      const { error } = await supabase.from('savings_goals').update(updates).eq('id', goal.id).eq('user_id', authId)
       if (error) return { success: false, message: `Error al editar: ${error.message}` }
 
       return { success: true, message: `✅ Meta **"${goal.name}"** actualizada correctamente.` }
@@ -1266,7 +1266,7 @@ export async function handleEditGoal(data: GoalEditData): Promise<ChatResponse> 
       if (data.changes.monto_limite) updates.amount = data.changes.monto_limite
       if (data.changes.moneda) updates.currency = data.changes.moneda
 
-      const { error } = await supabase.from('category_budgets').update(updates).eq('id', budget.id)
+      const { error } = await supabase.from('category_budgets').update(updates).eq('id', budget.id).eq('user_id', authId)
       if (error) return { success: false, message: `Error al editar: ${error.message}` }
 
       const catName = (budget as any).categories?.name || data.search
@@ -1298,7 +1298,7 @@ export async function handleDeleteGoal(data: GoalDeleteData): Promise<ChatRespon
       }
 
       const goal = goals[0]
-      const { error } = await supabase.from('savings_goals').delete().eq('id', goal.id)
+      const { error } = await supabase.from('savings_goals').delete().eq('id', goal.id).eq('user_id', authId)
       if (error) return { success: false, message: `Error al eliminar: ${error.message}` }
 
       return { success: true, message: `🗑️ Meta **"${goal.name}"** eliminada (incluyendo todos sus aportes).` }
@@ -1321,7 +1321,7 @@ export async function handleDeleteGoal(data: GoalDeleteData): Promise<ChatRespon
         return { success: false, message: `No encontré presupuesto para "${data.search}".` }
       }
 
-      const { error } = await supabase.from('category_budgets').delete().eq('id', budget.id)
+      const { error } = await supabase.from('category_budgets').delete().eq('id', budget.id).eq('user_id', authId)
       if (error) return { success: false, message: `Error al eliminar: ${error.message}` }
 
       const catName = (budget as any).categories?.name || data.search
