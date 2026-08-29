@@ -3,6 +3,8 @@
  */
 
 import { createClient } from '@/utils/supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database'
 import { addMonths } from 'date-fns'
 import { formatLocalDate, parseLocalDate, calculateCreditPaymentDate } from '@/lib/utils/dates'
 import { computePortfolioStatus } from '@/lib/finance/portfolio'
@@ -31,7 +33,7 @@ import { getOrCreateCategoriaDescarte } from '@/lib/categorias/descarte'
 export interface ChatResponse {
   success: boolean
   message: string
-  data?: any
+  data?: unknown
 }
 
 /**
@@ -50,7 +52,7 @@ interface ResolvedPaymentMethod {
  * Si no se proporciona nombre y exactMatch es true, busca el default.
  */
 async function resolvePaymentMethod(
-  supabase: any,
+  supabase: SupabaseClient<Database>,
   userId: string,
   paymentMethodName: string | null,
   exactMatch = false
@@ -523,7 +525,7 @@ function formatMoney(amount: number): string {
   }).format(amount)
 }
 
-export async function handlePortfolio(supabase: any, authUserId: string): Promise<ChatResponse> {
+export async function handlePortfolio(supabase: SupabaseClient<Database>, authUserId: string): Promise<ChatResponse> {
   // Portfolio v2: investment_assets/investment_transactions filtran por el UUID de
   // auth (authUserId), NO por users.id numérico. La tabla legacy `investments` (v1)
   // quedó vacía y ya no se consulta.
@@ -1283,7 +1285,7 @@ export async function handleEditGoal(data: GoalEditData): Promise<ChatResponse> 
 
       if (!budgets) return { success: false, message: 'Error al buscar presupuestos.' }
 
-      const budget = budgets.find((b: any) =>
+      const budget = budgets.find((b) =>
         b.categories?.name?.toLowerCase().includes(data.search.toLowerCase())
       )
 
@@ -1298,7 +1300,7 @@ export async function handleEditGoal(data: GoalEditData): Promise<ChatResponse> 
       const { error } = await supabase.from('category_budgets').update(updates).eq('id', budget.id).eq('user_id', authId)
       if (error) return { success: false, message: `Error al editar: ${error.message}` }
 
-      const catName = (budget as any).categories?.name || data.search
+      const catName = budget.categories?.name || data.search
       return { success: true, message: `✅ Presupuesto de **${catName}** actualizado.` }
     }
 
@@ -1342,7 +1344,7 @@ export async function handleDeleteGoal(data: GoalDeleteData): Promise<ChatRespon
 
       if (!budgets) return { success: false, message: 'Error al buscar presupuestos.' }
 
-      const budget = budgets.find((b: any) =>
+      const budget = budgets.find((b) =>
         b.categories?.name?.toLowerCase().includes(data.search.toLowerCase())
       )
 
@@ -1353,7 +1355,7 @@ export async function handleDeleteGoal(data: GoalDeleteData): Promise<ChatRespon
       const { error } = await supabase.from('category_budgets').delete().eq('id', budget.id).eq('user_id', authId)
       if (error) return { success: false, message: `Error al eliminar: ${error.message}` }
 
-      const catName = (budget as any).categories?.name || data.search
+      const catName = budget.categories?.name || data.search
       return { success: true, message: `🗑️ Presupuesto de **${catName}** eliminado.` }
     }
 
@@ -1399,14 +1401,14 @@ export async function handleGoalContribution(data: GoalContributionData): Promis
       .select('amount, date')
       .eq('goal_id', goal.id)
 
-    const total = contributions?.reduce((s: number, c: any) => s + Number(c.amount), 0) ?? data.amount
+    const total = contributions?.reduce((s, c) => s + Number(c.amount), 0) ?? data.amount
 
     // Para metas mensuales el progreso se mide por el mes actual
     const now = new Date()
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const monthTotal = contributions
-      ?.filter((c: any) => c.date.startsWith(currentMonth))
-      .reduce((s: number, c: any) => s + Number(c.amount), 0) ?? data.amount
+      ?.filter((c) => c.date.startsWith(currentMonth))
+      .reduce((s, c) => s + Number(c.amount), 0) ?? data.amount
 
     const effectiveTotal = goal.type === 'monthly' ? monthTotal : total
     const targetAmount = Number(goal.target_amount)
