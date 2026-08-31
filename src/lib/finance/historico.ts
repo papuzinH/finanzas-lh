@@ -184,3 +184,63 @@ export function computeDesvioPorTramo(
     usaMesCerrado,
   }
 }
+
+export type Clasificacion = 'nivel' | 'evento'
+export type Pico = { month: string; monto: number }
+
+/**
+ * Cuántas veces el mes típico tiene que valer el pico para ser un evento.
+ *
+ * Se compara contra la MEDIANA de los otros meses, no contra su promedio: el
+ * promedio ya está contaminado por el pico que se intenta detectar.
+ *
+ * La primera formulación de esta regla era «un mes concentra más de la mitad
+ * del total», y se descartó porque cambia de significado con la ventana: para
+ * llevarse la mitad del total el pico tiene que valer (N−1) veces un mes
+ * típico, o sea 3× con 4 meses y 11× con 12. La regla se volvía más exigente
+ * sola a medida que el usuario junta historia.
+ */
+const VECES_PARA_SER_EVENTO = 3
+
+/** Meses cerrados mínimos para animarse a clasificar. */
+const MESES_MINIMOS = 3
+
+function mediana(valores: number[]): number {
+  if (valores.length === 0) return 0
+  const orden = [...valores].sort((a, b) => a - b)
+  const medio = Math.floor(orden.length / 2)
+  return orden.length % 2 === 0 ? (orden[medio - 1] + orden[medio]) / 2 : orden[medio]
+}
+
+/**
+ * ¿La categoría cambió de nivel, o tuvo un gasto excepcional?
+ *
+ * Sólo mira meses CERRADOS: hace falta un mes completo para saber si algo fue
+ * un evento. Limitación conocida: un evento del mes en curso se clasifica como
+ * «nivel» hasta que el mes cierre — se aceptó para que una fila no salte de
+ * grupo a mitad de mes y vuelva sola.
+ */
+export function clasificarSerie(puntos: PuntoMes[]): {
+  clasificacion: Clasificacion
+  pico: Pico | null
+} {
+  const cerrados = puntos.filter((p) => !p.enCurso)
+  if (cerrados.length < MESES_MINIMOS) return { clasificacion: 'nivel', pico: null }
+
+  const pico = cerrados.reduce((max, p) => (p.real > max.real ? p : max), cerrados[0])
+  const otros = cerrados.filter((p) => p.month !== pico.month).map((p) => p.real)
+
+  let referencia = mediana(otros)
+  if (referencia === 0) {
+    // Pasa de verdad: una categoría sin gasto en algún mes (Fernet en mayo).
+    // Con mediana 0 cualquier pico sería infinito, así que se usa el promedio
+    // de los meses que sí tuvieron actividad.
+    const activos = otros.filter((v) => v > 0)
+    if (activos.length === 0) return { clasificacion: 'nivel', pico: null }
+    referencia = activos.reduce((a, b) => a + b, 0) / activos.length
+  }
+
+  return pico.real > referencia * VECES_PARA_SER_EVENTO
+    ? { clasificacion: 'evento', pico: { month: pico.month, monto: pico.real } }
+    : { clasificacion: 'nivel', pico: null }
+}
