@@ -244,3 +244,83 @@ export function clasificarSerie(puntos: PuntoMes[]): {
     ? { clasificacion: 'evento', pico: { month: pico.month, monto: pico.real } }
     : { clasificacion: 'nivel', pico: null }
 }
+
+export type FilaHistorico = {
+  categoryId: string
+  categoryName: string
+  emoji: string | null
+  /** Meses completos con actividad, para el sparkline. */
+  puntos: PuntoMes[]
+  /** `null` si la categoría no tiene meses previos con los que compararse. */
+  desvio: Desvio | null
+  clasificacion: Clasificacion
+  /** Sólo cuando la clasificación es 'evento'. */
+  pico: Pico | null
+}
+
+export type Historico = {
+  filas: FilaHistorico[]
+  /** Hasta qué día del mes se recortaron los meses de referencia. */
+  diaDeCorte: number
+  usaMesCerrado: boolean
+  /** El mes del que habla el desvío ('YYYY-MM'). */
+  mesAncla: string
+  /** Los meses contra los que se comparó, para poder nombrarlos en la UI. */
+  mesesDeReferencia: string[]
+}
+
+export function computeHistorico(
+  transactions: ProcessedTransaction[],
+  categories: Category[],
+  inflacion: Array<{ month: string; rate: number }>,
+  opciones: { vara: Vara; months?: number; now?: Date },
+): Historico {
+  const months = opciones.months ?? 6
+  const now = opciones.now ?? new Date()
+  const series = computeSeriesPorCategoria(transactions, categories, inflacion, months, now)
+
+  // Si el usuario no cargó NADA este mes, el tramo no dice nada y se cae al
+  // último mes cerrado. Se mira sobre el total, no por categoría: que UNA
+  // categoría no tenga gastos este mes es información, no falta de datos.
+  const mesEnCurso = format(now, 'yyyy-MM')
+  const mesEnCursoVacio = !series.some((s) => s.puntos.some((p) => p.month === mesEnCurso))
+
+  const filas: FilaHistorico[] = series.map((serie) => {
+    const suyas = transactions.filter((t) => t.category_id === serie.categoryId)
+    const { clasificacion, pico } = clasificarSerie(serie.puntos)
+    const desvioCrudo = computeDesvioPorTramo(suyas, inflacion, opciones.vara, months, now, mesEnCursoVacio)
+    // Con vara 'promedio', sin NINGÚN mes previo con actividad, computeDesvioPorTramo
+    // no devuelve null: devuelve { referencia: 0, pct: null, ... } (no hay "0% de
+    // cambio" que decir, hay ausencia de referencia). Acá se traduce ese caso a
+    // desvío null: la categoría no se movió, nació.
+    const desvio = desvioCrudo && desvioCrudo.pct === null ? null : desvioCrudo
+    return {
+      categoryId: serie.categoryId,
+      categoryName: serie.categoryName,
+      emoji: serie.emoji,
+      puntos: serie.puntos,
+      desvio,
+      clasificacion,
+      pico,
+    }
+  })
+
+  const diaDeHoy = now.getDate()
+  const usaMesCerrado = diaDeHoy < DIAS_MINIMOS_DE_TRAMO || mesEnCursoVacio
+  const mesAncla = usaMesCerrado ? format(subMonths(now, 1), 'yyyy-MM') : format(now, 'yyyy-MM')
+  const desde = format(subMonths(now, months - 1), 'yyyy-MM')
+  const mesesDeReferencia: string[] = []
+  for (let k = 1; k < months; k++) {
+    const mes = format(subMonths(parseLocalDate(`${mesAncla}-01`), k), 'yyyy-MM')
+    if (mes < desde) break
+    mesesDeReferencia.push(mes)
+  }
+
+  return {
+    filas,
+    diaDeCorte: usaMesCerrado ? 31 : diaDeHoy,
+    usaMesCerrado,
+    mesAncla,
+    mesesDeReferencia,
+  }
+}

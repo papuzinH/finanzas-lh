@@ -54,6 +54,8 @@ import type { AvailableToSpend, IncomeRhythm } from '@/lib/finance/pocket';
 import { computePortfolioStatus } from '@/lib/finance/portfolio';
 import type { PortfolioStatus, PortfolioDisplayCurrency } from '@/lib/finance/portfolio';
 import { daysSinceLastRegistration } from '@/lib/finance/reconcile';
+import { computeHistorico } from '@/lib/finance/historico';
+import type { Historico, Vara } from '@/lib/finance/historico';
 
 export type { ProcessedTransaction } from '@/lib/finance/types';
 export { resolveRate } from '@/lib/finance/prepare';
@@ -347,6 +349,9 @@ interface FinanceState {
     available: boolean;
     rows: Array<{ month: string; nominalExpenses: number; realExpenses: number }>;
   };
+
+  /** Histórico por categoría en pesos de hoy. Wrapper fino de computeHistorico. */
+  getHistorico: (vara: Vara, months?: number) => Historico;
 
   getInstallmentsRealCost: () => {
     remainingARS: number;
@@ -1773,6 +1778,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     });
 
     return { available: true, rows };
+  },
+
+  getHistorico: (vara, months = 6) => {
+    const { transactions, categories, inflationSeries } = get();
+    return computeHistorico(transactions, categories, inflationSeries, { vara, months });
   },
 
   getInstallmentsRealCost: () => {
