@@ -11,12 +11,20 @@ const tx = (date: string, amount: number) => ({
   is_balance_adjustment: false, periodDate: date, realPaymentDate: date,
 })
 
+// IPC de prueba para los tests que quieren `deflactado: true` (la mayoría acá no
+// prueba la honestidad de la unidad). El test dedicado a `deflactado: false`
+// (fix-final, Important 3) usa `inflationSeries: []` explícito más abajo.
+const IPC_PRUEBA = [
+  { month: '2026-05', rate: 2 }, { month: '2026-06', rate: 2 },
+  { month: '2026-07', rate: 2 }, { month: '2026-08', rate: 2 },
+]
+
 describe('DetalleCategoria', () => {
   beforeEach(() => {
     useFinanceStore.setState({
       installmentPlans: [], paymentMethods: [], recurringPlans: [], categoryBudgets: [],
       savingsGoals: [], savingsGoalContributions: [], exchangeRates: [], dolarBlue: null,
-      displayCurrency: 'ARS', internalTransfers: [], isInitialized: true, inflationSeries: [],
+      displayCurrency: 'ARS', internalTransfers: [], isInitialized: true, inflationSeries: IPC_PRUEBA,
       categories: [{ id: 'c1', user_id: 'u1', name: 'Casa', emoji: '🏠', type: 'expense' }],
       transactions: [tx('2026-05-05', 500), tx('2026-06-05', 550), tx('2026-07-05', 900)],
     } as never)
@@ -41,6 +49,26 @@ describe('DetalleCategoria', () => {
   it('por default compara contra el promedio, y lo nombra', () => {
     const out = renderToStaticMarkup(<DetalleCategoria categoryId="c1" />)
     expect(out).toMatch(/contra tu promedio/)
+  })
+})
+
+// Fix-final, ola 1 — Important 3: sin IPC, `real === nominal` y decir "pesos de
+// hoy" sería afirmar un ajuste que no ocurrió.
+describe('DetalleCategoria · sin datos de inflación (Important 3)', () => {
+  beforeEach(() => {
+    useFinanceStore.setState({
+      installmentPlans: [], paymentMethods: [], recurringPlans: [], categoryBudgets: [],
+      savingsGoals: [], savingsGoalContributions: [], exchangeRates: [], dolarBlue: null,
+      displayCurrency: 'ARS', internalTransfers: [], isInitialized: true, inflationSeries: [],
+      categories: [{ id: 'c1', user_id: 'u1', name: 'Casa', emoji: '🏠', type: 'expense' }],
+      transactions: [tx('2026-05-05', 500), tx('2026-06-05', 550), tx('2026-07-05', 900)],
+    } as never)
+  })
+
+  it('dice "pesos corrientes" en vez de "pesos de hoy"', () => {
+    const out = renderToStaticMarkup(<DetalleCategoria categoryId="c1" />)
+    expect(out).toMatch(/pesos corrientes/i)
+    expect(out).not.toMatch(/pesos de hoy/i)
   })
 })
 

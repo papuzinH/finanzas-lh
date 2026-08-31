@@ -80,15 +80,18 @@ export function QueSeMovio({
         <div className="flex items-center gap-1.5">
           <h3 className="font-display text-[19px] text-text">Qué se movió</h3>
           <InfoHint label="Qué muestra">
-            Compara {tramo} en <b>pesos de hoy</b>: cada mes se ajusta por inflación para
-            que sean comparables. La vara por defecto es tu promedio y no el mes pasado
-            porque un mes raro suelto mueve menos el promedio.
+            Compara {tramo} en <b>{historico.deflactado ? 'pesos de hoy' : 'pesos corrientes'}</b>
+            {historico.deflactado
+              ? ': cada mes se ajusta por inflación para que sean comparables.'
+              : ': no hay datos de inflación disponibles ahora mismo, así que los montos NO están ajustados.'}{' '}
+            La vara por defecto es tu promedio y no el mes pasado porque un mes raro suelto
+            mueve menos el promedio.
           </InfoHint>
         </div>
         <p className="text-[12px] text-muted">
           {tramo}
           {contraQueCompara && ` · ${contraQueCompara}`}
-          {' · en pesos de hoy'}
+          {historico.deflactado ? ' · en pesos de hoy' : ' · en pesos corrientes'}
         </p>
       </div>
 
@@ -109,20 +112,26 @@ export function QueSeMovio({
         ))}
       </div>
 
-      {nivel.length > 0 && <Grupo titulo="Cambió de nivel" filas={nivel} onSelect={onSelect} />}
-      {eventos.length > 0 && <Grupo titulo="Fue una vez" filas={eventos} onSelect={onSelect} esEvento />}
+      {nivel.length > 0 && (
+        <Grupo titulo="Cambió de nivel" filas={nivel} onSelect={onSelect} deflactado={historico.deflactado} />
+      )}
+      {eventos.length > 0 && (
+        <Grupo titulo="Fue una vez" filas={eventos} onSelect={onSelect} deflactado={historico.deflactado} esEvento />
+      )}
     </div>
   );
 }
 
 function Grupo({
-  titulo, filas, onSelect, esEvento = false,
+  titulo, filas, onSelect, deflactado, esEvento = false,
 }: {
   titulo: string;
   filas: FilaHistorico[];
   onSelect: (categoryId: string) => void;
+  deflactado: boolean;
   esEvento?: boolean;
 }) {
+  const unidadTexto = deflactado ? 'en pesos de hoy' : 'en pesos corrientes';
   return (
     <div>
       <p className="text-[10.5px] uppercase tracking-wider text-muted font-bold mb-1.5">{titulo}</p>
@@ -142,7 +151,7 @@ function Grupo({
               key={f.categoryId}
               type="button"
               onClick={() => onSelect(f.categoryId)}
-              aria-label={`${f.categoryName}: ${resumen}. Tendencia mes a mes en pesos de hoy: ${tendenciaTexto}.`}
+              aria-label={`${f.categoryName}: ${resumen}. Tendencia mes a mes ${unidadTexto}: ${tendenciaTexto}.`}
               className="w-full flex items-center gap-2.5 py-2.5 border-b-[1.5px] border-border/10 last:border-b-0 text-left min-h-[44px]"
             >
               <span className="w-7 h-7 grid place-items-center rounded-lg border-[1.5px] border-border bg-surface-2 text-sm flex-none">

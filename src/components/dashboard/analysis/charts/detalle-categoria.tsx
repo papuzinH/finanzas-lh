@@ -38,7 +38,7 @@ export function DetalleCategoria({ categoryId, vara = 'promedio' }: { categoryId
     <div className="grid gap-3 py-2">
       <div className="text-center">
         <p className="text-xs text-muted uppercase tracking-wider mb-1">
-          {fila.emoji} {fila.categoryName} · en pesos de hoy
+          {fila.emoji} {fila.categoryName} · en {historico.deflactado ? 'pesos de hoy' : 'pesos corrientes'}
         </p>
         <p className="font-display tnum text-3xl text-text">
           {formatCurrency(ultimoCerrado?.real ?? 0)}

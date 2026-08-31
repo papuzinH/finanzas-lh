@@ -9,6 +9,20 @@ import { InfoHint } from '@/components/ui/info-hint';
 import { Modal } from '@/components/shared/modal';
 import { useFinanceStore } from '@/lib/store/financeStore';
 
+/**
+ * Bug pre-existente NO resuelto acá: dos categorías con el mismo nombre pero
+ * distinto id son indistinguibles en este selector (el total de arriba agrega por
+ * NOMBRE y suma las dos). Esta rama sí agregó una cara nueva del mismo bug —
+ * `DetalleCategoria` resolvía un id "arbitrario" (el primero del `.find`) para el
+ * histórico — así que acá se cierra esa cara con lo mínimo: si hay homónimos, no
+ * se monta el detalle en vez de arriesgarse a mostrar la serie de la categoría
+ * que no es.
+ */
+export function hayHomonimos(categories: { name: string }[], name: string | null): boolean {
+  if (!name) return false;
+  return categories.filter((c) => c.name === name).length > 1;
+}
+
 export function TabCategorias() {
   // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
   const store = useFinanceStore();
@@ -75,7 +89,7 @@ export function TabCategorias() {
             <p className="text-sm text-muted mt-2">{item.percentage.toFixed(1)}% del total</p>
           </div>
         )}
-        {item && (
+        {item && !hayHomonimos(store.categories, selected) && (
           <DetalleCategoria
             categoryId={store.categories.find((c) => c.name === selected)?.id ?? ''}
           />
