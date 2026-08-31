@@ -91,3 +91,96 @@ export function computeSeriesPorCategoria(
     }
   })
 }
+
+/** Contra qué se compara el mes en curso. */
+export type Vara = 'promedio' | 'mes_anterior'
+
+export type Desvio = {
+  /** Gasto del tramo del mes en curso, en pesos de hoy. */
+  actual: number
+  /** La vara, recortada al mismo tramo y en pesos de hoy. */
+  referencia: number
+  /** (actual − referencia) / referencia. `null` si la referencia es 0. */
+  pct: number | null
+  /** Hasta qué día del mes se recortaron los meses previos. */
+  diaDeCorte: number
+  /** true cuando el mes en curso tenía muy pocos días y se usó el último mes cerrado. */
+  usaMesCerrado: boolean
+}
+
+/** Días mínimos del mes en curso para que el tramo diga algo. */
+const DIAS_MINIMOS_DE_TRAMO = 3
+
+export function computeDesvioPorTramo(
+  txsDeLaCategoria: ProcessedTransaction[],
+  inflacion: Array<{ month: string; rate: number }>,
+  vara: Vara,
+  months: number,
+  now: Date,
+  forzarMesCerrado?: boolean,
+): Desvio | null {
+  const diaDeHoy = now.getDate()
+  const usaMesCerrado = diaDeHoy < DIAS_MINIMOS_DE_TRAMO || forzarMesCerrado === true
+  const mesAncla = usaMesCerrado
+    ? format(subMonths(now, 1), 'yyyy-MM')
+    : format(now, 'yyyy-MM')
+  const diaDeCorte = usaMesCerrado ? 31 : diaDeHoy
+
+  const desde = format(subMonths(now, months - 1), 'yyyy-MM')
+
+  /** Suma de una categoría en un mes, recortada al día de corte, en pesos de hoy. */
+  const totalDelTramo = (mes: string): number =>
+    txsDeLaCategoria
+      .filter((t) => {
+        if (t.type !== 'expense') return false
+        if (t.card_payment_for || t.is_balance_adjustment) return false
+        const fecha = parseLocalDate(t.date)
+        if (fecha > now) return false
+        if ((t.periodDate || t.date).slice(0, 7) !== mes) return false
+        return parseLocalDate(t.periodDate || t.date).getDate() <= diaDeCorte
+      })
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0) *
+    factorAPesosDeHoy(mes, inflacion, now)
+
+  const mesesPrevios: string[] = []
+  for (let k = 1; k < months; k++) {
+    const mes = format(subMonths(parseLocalDate(`${mesAncla}-01`), k), 'yyyy-MM')
+    if (mes < desde) break
+    mesesPrevios.push(mes)
+  }
+  if (mesesPrevios.length === 0) return null
+
+  const actual = totalDelTramo(mesAncla)
+
+  if (vara === 'mes_anterior') {
+    // El único mes de referencia posible es el inmediato anterior: si no hay
+    // nada cargado ahí, no hay con qué comparar (a diferencia de 'promedio',
+    // acá no hay otros meses en los que apoyarse).
+    const referencia = totalDelTramo(mesesPrevios[0])
+    if (referencia === 0) return null
+    return {
+      actual,
+      referencia,
+      pct: (actual - referencia) / referencia,
+      diaDeCorte,
+      usaMesCerrado,
+    }
+  }
+
+  // 'promedio': se promedia solo entre los meses CON actividad en el tramo —
+  // promediar contra meses vacíos (categoría sin historial esos meses)
+  // diluiría la referencia en vez de reflejar el gasto habitual real.
+  const mesesConActividad = mesesPrevios.map((mes) => totalDelTramo(mes)).filter((total) => total > 0)
+  const referencia =
+    mesesConActividad.length > 0
+      ? mesesConActividad.reduce((acc, total) => acc + total, 0) / mesesConActividad.length
+      : 0
+
+  return {
+    actual,
+    referencia,
+    pct: referencia > 0 ? (actual - referencia) / referencia : null,
+    diaDeCorte,
+    usaMesCerrado,
+  }
+}
