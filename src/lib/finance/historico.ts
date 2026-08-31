@@ -48,6 +48,23 @@ export function factorAPesosDeHoy(
   return factor
 }
 
+/**
+ * ¿Este movimiento cuenta como gasto del histórico? Predicado único, reusado por
+ * `computeSeriesPorCategoria` y `computeDesvioPorTramo` — antes vivía duplicado en
+ * las dos funciones y una de las dos copias comparaba `t.date` contra `now` (fecha
+ * de VENCIMIENTO en una compra con tarjeta) en vez de `t.periodDate` (a qué mes
+ * pertenece la compra), dejando invisible el gasto con tarjeta del mes en curso.
+ * `t.periodDate || t.date` es el mismo fallback que ya usa el resto del archivo
+ * para determinar el mes: acá se aplica también al chequeo de futuro, para que
+ * los dos miren la misma fecha.
+ */
+function esGastoComputable(t: ProcessedTransaction, now: Date): boolean {
+  if (t.type !== 'expense') return false
+  if (t.card_payment_for || t.is_balance_adjustment) return false
+  if (parseLocalDate(t.periodDate || t.date) > now) return false // cuotas futuras: no son historia
+  return true
+}
+
 export function computeSeriesPorCategoria(
   transactions: ProcessedTransaction[],
   categories: Category[],
@@ -59,9 +76,7 @@ export function computeSeriesPorCategoria(
   const desde = format(subMonths(now, months - 1), 'yyyy-MM')
 
   const relevantes = transactions.filter((t) => {
-    if (t.type !== 'expense') return false
-    if (t.card_payment_for || t.is_balance_adjustment) return false
-    if (parseLocalDate(t.date) > now) return false // cuotas futuras: no son historia
+    if (!esGastoComputable(t, now)) return false
     const mes = (t.periodDate || t.date).slice(0, 7)
     return mes >= desde && mes <= mesActual
   })
@@ -98,7 +113,14 @@ export type Vara = 'promedio' | 'mes_anterior'
 export type Desvio = {
   /** Gasto del tramo del mes en curso, en pesos de hoy. */
   actual: number
-  /** La vara, recortada al mismo tramo y en pesos de hoy. */
+  /**
+   * La vara, recortada al mismo tramo y en pesos de hoy. En modo `'promedio'` es el
+   * promedio de sólo los meses previos CON actividad dentro del tramo — un mes sin
+   * gasto ese tramo se excluye del divisor, no se promedia como si valiera 0 (si no,
+   * un mes vacío diluiría la referencia en vez de reflejar el gasto habitual real;
+   * ver `mesesConActividad` más abajo). En modo `'mes_anterior'` es siempre el mes
+   * inmediato anterior, sin promediar nada.
+   */
   referencia: number
   /** (actual − referencia) / referencia. `null` si la referencia es 0. */
   pct: number | null
@@ -111,14 +133,25 @@ export type Desvio = {
 /** Días mínimos del mes en curso para que el tramo diga algo. */
 const DIAS_MINIMOS_DE_TRAMO = 3
 
-export function computeDesvioPorTramo(
-  txsDeLaCategoria: ProcessedTransaction[],
-  inflacion: Array<{ month: string; rate: number }>,
-  vara: Vara,
-  months: number,
-  now: Date,
-  forzarMesCerrado?: boolean,
-): Desvio | null {
+type Tramo = {
+  /** Hasta qué día del mes se recortan los meses de referencia. */
+  diaDeCorte: number
+  /** true cuando el mes en curso tenía muy pocos días (o está vacío) y se usó el último mes cerrado. */
+  usaMesCerrado: boolean
+  /** El mes del que habla el desvío. */
+  mesAncla: string
+  /** Los meses contra los que se compara `mesAncla`, del más nuevo al más viejo, recortados a la ventana de `months`. */
+  mesesPrevios: string[]
+}
+
+/**
+ * Resuelve a qué mes se ancla el desvío y contra qué meses previos se compara.
+ * Reusado por `computeDesvioPorTramo` (con `mesesPrevios` como candidatos de
+ * referencia) y `computeHistorico` (con el mismo resultado expuesto como
+ * `mesesDeReferencia`) — antes cada función recalculaba esto por separado y las dos
+ * derivaciones coincidían sólo por construcción, no por compartir la fuente.
+ */
+function resolveTramo(now: Date, months: number, forzarMesCerrado?: boolean): Tramo {
   const diaDeHoy = now.getDate()
   const usaMesCerrado = diaDeHoy < DIAS_MINIMOS_DE_TRAMO || forzarMesCerrado === true
   const mesAncla = usaMesCerrado
@@ -127,27 +160,37 @@ export function computeDesvioPorTramo(
   const diaDeCorte = usaMesCerrado ? 31 : diaDeHoy
 
   const desde = format(subMonths(now, months - 1), 'yyyy-MM')
-
-  /** Suma de una categoría en un mes, recortada al día de corte, en pesos de hoy. */
-  const totalDelTramo = (mes: string): number =>
-    txsDeLaCategoria
-      .filter((t) => {
-        if (t.type !== 'expense') return false
-        if (t.card_payment_for || t.is_balance_adjustment) return false
-        const fecha = parseLocalDate(t.date)
-        if (fecha > now) return false
-        if ((t.periodDate || t.date).slice(0, 7) !== mes) return false
-        return parseLocalDate(t.periodDate || t.date).getDate() <= diaDeCorte
-      })
-      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0) *
-    factorAPesosDeHoy(mes, inflacion, now)
-
   const mesesPrevios: string[] = []
   for (let k = 1; k < months; k++) {
     const mes = format(subMonths(parseLocalDate(`${mesAncla}-01`), k), 'yyyy-MM')
     if (mes < desde) break
     mesesPrevios.push(mes)
   }
+
+  return { diaDeCorte, usaMesCerrado, mesAncla, mesesPrevios }
+}
+
+export function computeDesvioPorTramo(
+  txsDeLaCategoria: ProcessedTransaction[],
+  inflacion: Array<{ month: string; rate: number }>,
+  vara: Vara,
+  months: number,
+  now: Date,
+  forzarMesCerrado?: boolean,
+): Desvio | null {
+  const { diaDeCorte, usaMesCerrado, mesAncla, mesesPrevios } = resolveTramo(now, months, forzarMesCerrado)
+
+  /** Suma de una categoría en un mes, recortada al día de corte, en pesos de hoy. */
+  const totalDelTramo = (mes: string): number =>
+    txsDeLaCategoria
+      .filter((t) => {
+        if (!esGastoComputable(t, now)) return false
+        if ((t.periodDate || t.date).slice(0, 7) !== mes) return false
+        return parseLocalDate(t.periodDate || t.date).getDate() <= diaDeCorte
+      })
+      .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0) *
+    factorAPesosDeHoy(mes, inflacion, now)
+
   if (mesesPrevios.length === 0) return null
 
   const actual = totalDelTramo(mesAncla)
@@ -275,6 +318,15 @@ export type Historico = {
   mesAncla: string
   /** Los meses contra los que se comparó, para poder nombrarlos en la UI. */
   mesesDeReferencia: string[]
+  /**
+   * `false` cuando no hay ningún dato de IPC (`inflacion` vacío: el fetch del
+   * cliente es best-effort y puede fallar) — en ese caso todos los factores de
+   * `factorAPesosDeHoy` dan 1 y `real === nominal`: los montos son nominales, no
+   * "pesos de hoy". Quien consuma `Historico` tiene que usar este flag para decir
+   * la unidad correcta en vez de afirmar siempre que está ajustado (mismo patrón
+   * que `getRealAdjustedTrend().available` en el store).
+   */
+  deflactado: boolean
 }
 
 export function computeHistorico(
@@ -321,22 +373,18 @@ export function computeHistorico(
     }
   })
 
-  const diaDeHoy = now.getDate()
-  const usaMesCerrado = diaDeHoy < DIAS_MINIMOS_DE_TRAMO || mesEnCursoVacio
-  const mesAncla = usaMesCerrado ? format(subMonths(now, 1), 'yyyy-MM') : format(now, 'yyyy-MM')
-  const desde = format(subMonths(now, months - 1), 'yyyy-MM')
-  const mesesDeReferencia: string[] = []
-  for (let k = 1; k < months; k++) {
-    const mes = format(subMonths(parseLocalDate(`${mesAncla}-01`), k), 'yyyy-MM')
-    if (mes < desde) break
-    mesesDeReferencia.push(mes)
-  }
+  const { diaDeCorte, usaMesCerrado, mesAncla, mesesPrevios: mesesDeReferencia } = resolveTramo(
+    now,
+    months,
+    mesEnCursoVacio,
+  )
 
   return {
     filas,
-    diaDeCorte: usaMesCerrado ? 31 : diaDeHoy,
+    diaDeCorte,
     usaMesCerrado,
     mesAncla,
     mesesDeReferencia,
+    deflactado: inflacion.length > 0,
   }
 }

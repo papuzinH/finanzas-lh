@@ -109,4 +109,26 @@ describe('computeSeriesPorCategoria', () => {
 
     expect(series[0].puntos.map((p) => p.month)).toEqual(['2026-03'])
   })
+
+  // CRITICAL (fix-final, ola 1): una compra con tarjeta de crédito tiene `date` =
+  // fecha de VENCIMIENTO del resumen (futura respecto de la compra), mientras que
+  // `periodDate` dice a qué mes pertenece la compra. El filtro de "no son historia"
+  // tiene que mirar `periodDate`, igual que el resto del cálculo — si mira `date`
+  // excluye del mes en curso justo las compras con tarjeta, que son las que vencen
+  // el mes que viene.
+  it('incluye una compra con tarjeta cuyo vencimiento (`date`) todavía no llegó, si su `periodDate` (el mes al que pertenece) ya pasó', () => {
+    const series = computeSeriesPorCategoria(
+      [
+        // Compra del 3/8, tarjeta que vence el 5/9 (fecha de venc. FUTURA respecto de HOY=29/8).
+        // Pertenece al mes en curso (agosto) porque periodDate así lo dice.
+        tx({ id: 'a', date: '2026-09-05', periodDate: '2026-08-03', amount: 700 }),
+      ],
+      [cat()], IPC, 6, HOY,
+    )
+
+    expect(series).toHaveLength(1)
+    const agosto = series[0].puntos.find((p) => p.month === '2026-08')
+    expect(agosto?.nominal).toBe(700)
+    expect(agosto?.enCurso).toBe(true)
+  })
 })

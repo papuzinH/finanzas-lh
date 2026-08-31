@@ -101,4 +101,16 @@ describe('computeHistorico', () => {
     expect(alquiler.puntos.length).toBeGreaterThan(0) // sí tiene historia real: 3 meses cargados
     expect(alquiler.desvio).toBeNull() // pero el tramo (día <= 15) no alcanza a verla
   })
+
+  // Fix-final, ola 1 — Important 3: sin datos de IPC, todos los montos son
+  // nominales (`real === nominal`, factor 1) y afirmar "pesos de hoy" sería
+  // afirmar un ajuste que no ocurrió. `deflactado` es lo único que distingue
+  // los dos casos: el resto del objeto `Historico` es idéntico en forma.
+  it('deflactado es true sólo si hay datos de IPC', () => {
+    const sinIPC = computeHistorico(movimientos, cats, [], { vara: 'promedio', now: HOY })
+    const conIPC = computeHistorico(movimientos, cats, [{ month: '2026-07', rate: 2 }], { vara: 'promedio', now: HOY })
+
+    expect(sinIPC.deflactado).toBe(false)
+    expect(conIPC.deflactado).toBe(true)
+  })
 })

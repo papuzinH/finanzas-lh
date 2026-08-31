@@ -93,4 +93,23 @@ describe('computeDesvioPorTramo', () => {
 
     expect(d).toBeNull()
   })
+
+  // CRITICAL (fix-final, ola 1): igual que en computeSeriesPorCategoria, el chequeo
+  // de "no son historia" tiene que mirar `periodDate` (a qué mes pertenece la
+  // compra), no `date` (cuándo vence el resumen de la tarjeta). Con `date`, una
+  // compra con tarjeta del mes en curso queda invisible en su propio tramo.
+  it('cuenta el tramo con `periodDate`, no con `date`: una compra con tarjeta que vence el mes que viene sigue perteneciendo al tramo del mes en curso', () => {
+    const compraConTarjeta: ProcessedTransaction = {
+      ...tx('2026-08-05', 700), // placeholder, se pisa periodDate/date abajo
+      date: '2026-09-05', // vencimiento del resumen: todavía no llegó
+      periodDate: '2026-08-05', // la compra es de agosto, el mes en curso (HOY = 15 ago)
+    }
+
+    const d = computeDesvioPorTramo(
+      [compraConTarjeta, tx('2026-07-10', 400), tx('2026-06-10', 200)],
+      SIN_IPC, 'promedio', 6, HOY,
+    )
+
+    expect(d!.actual).toBe(700) // no 0: la compra de agosto tiene que contar en agosto
+  })
 })
