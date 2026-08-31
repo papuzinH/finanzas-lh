@@ -51,7 +51,7 @@ export async function fetchDolarBlue(): Promise<DolarBlue | null> {
  * recién en producción. Nunca lanza: sin IPC, `computeHistorico` deflacta con
  * factor 1 (montos nominales) en vez de romper el chat.
  */
-async function fetchInflacion(): Promise<Array<{ month: string; rate: number }>> {
+export async function fetchInflacion(): Promise<Array<{ month: string; rate: number }>> {
   try {
     const res = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/inflacion', {
       signal: AbortSignal.timeout(3000),

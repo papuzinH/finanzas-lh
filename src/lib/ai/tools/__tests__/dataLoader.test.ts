@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { loadFinanceData, fetchDolarBlue } from '@/lib/ai/tools/dataLoader'
+import { loadFinanceData, fetchDolarBlue, fetchInflacion } from '@/lib/ai/tools/dataLoader'
 import type { AgentContext } from '@/lib/ai/tools/types'
 import type {
   Transaction,
@@ -421,6 +421,58 @@ describe('fetchDolarBlue', () => {
     await fetchDolarBlue()
     expect(fetchMock).toHaveBeenCalledWith(
       'https://dolarapi.com/v1/dolares/blue',
+      expect.objectContaining({ signal: expect.any(Object) })
+    )
+  })
+})
+
+describe('fetchInflacion', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('devuelve [] si fetch rechaza (timeout u otro error de red)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('timeout')))
+    const result = await fetchInflacion()
+    expect(result).toEqual([])
+  })
+
+  it('devuelve [] si la respuesta no es ok', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }))
+    const result = await fetchInflacion()
+    expect(result).toEqual([])
+  })
+
+  it('devuelve la serie parseada (fecha→month, valor→rate) si la respuesta es ok', async () => {
+    const payload = [
+      { fecha: '2026-05-01', valor: 3.5 },
+      { fecha: '2026-06-01', valor: 4.1 },
+    ]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => payload }))
+    const result = await fetchInflacion()
+    expect(result).toEqual([
+      { month: '2026-05', rate: 3.5 },
+      { month: '2026-06', rate: 4.1 },
+    ])
+  })
+
+  it('recorta a los últimos 24 meses', async () => {
+    const payload = Array.from({ length: 30 }, (_, i) => ({
+      fecha: `2024-${String((i % 12) + 1).padStart(2, '0')}-01`,
+      valor: i,
+    }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => payload }))
+    const result = await fetchInflacion()
+    expect(result).toHaveLength(24)
+    expect(result[0]).toEqual({ month: payload[6].fecha.slice(0, 7), rate: 6 })
+  })
+
+  it('llama a api.argentinadatos.com/v1/finanzas/indices/inflacion con un timeout de 3s', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [] })
+    vi.stubGlobal('fetch', fetchMock)
+    await fetchInflacion()
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.argentinadatos.com/v1/finanzas/indices/inflacion',
       expect.objectContaining({ signal: expect.any(Object) })
     )
   })
