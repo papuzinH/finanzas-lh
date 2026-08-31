@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { CategoryDistribution } from './charts/category-distribution';
 import { CategoryFrequencyRanking } from './charts/category-frequency-ranking';
+import { DetalleCategoria } from './charts/detalle-categoria';
 import { CurrencyExposureCard } from './cards/currency-exposure-card';
 import { InfoHint } from '@/components/ui/info-hint';
 import { Modal } from '@/components/shared/modal';
@@ -73,6 +74,11 @@ export function TabCategorias() {
             <p className="font-display tnum text-3xl text-text">{store.formatDisplay(item.value)}</p>
             <p className="text-sm text-muted mt-2">{item.percentage.toFixed(1)}% del total</p>
           </div>
+        )}
+        {item && (
+          <DetalleCategoria
+            categoryId={store.categories.find((c) => c.name === selected)?.id ?? ''}
+          />
         )}
       </Modal>
 

@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import { QueSeMovio } from './charts/que-se-movio';
+import { DetalleCategoria } from './charts/detalle-categoria';
 import { SavingsRateBars } from './charts/savings-rate-bars';
 import { InfoHint } from '@/components/ui/info-hint';
+import { Modal } from '@/components/shared/modal';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +29,7 @@ export function TabTendencia() {
   const savingsSeries = store.getSavingsRateSeries(6);
   const hasSavingsData = savingsSeries.some((d) => d.net !== 0);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [categoriaDetalle, setCategoriaDetalle] = useState<string | null>(null);
 
   let realHint: string | null = null;
   if (real.available && real.rows.length >= 2) {
@@ -61,8 +64,7 @@ export function TabTendencia() {
           </p>
         )}
       </div>
-      {/* onSelect es un no-op por ahora: la Task 8 cablea acá el estado que abre el modal de detalle. */}
-      <QueSeMovio onSelect={() => {}} />
+      <QueSeMovio onSelect={setCategoriaDetalle} />
       <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
         <h3 className="text-sm font-bold text-text mb-2 flex items-center gap-1.5">
           Tasa de ahorro mensual
@@ -86,6 +88,10 @@ export function TabTendencia() {
         )}
         <SavingsRateBars selectedMonth={selectedMonth} onSelectMonth={setSelectedMonth} />
       </div>
+
+      <Modal isOpen={!!categoriaDetalle} onClose={() => setCategoriaDetalle(null)} title="Cómo viene">
+        {categoriaDetalle && <DetalleCategoria categoryId={categoriaDetalle} />}
+      </Modal>
     </div>
   );
 }
