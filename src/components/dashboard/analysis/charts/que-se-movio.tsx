@@ -12,6 +12,30 @@ const NOMBRE_MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'juli
 
 const mesLargo = (yyyymm: string) => NOMBRE_MES[Number(yyyymm.slice(5, 7)) - 1];
 
+/**
+ * Contra qué se compara, en una frase corta para no tener que abrir el InfoHint.
+ *
+ * `mesesDeReferencia` es la ventana ESTRUCTURAL (todos los meses del rango,
+ * `mesAncla` hacia atrás), pero el promedio de cada categoría corre sólo sobre
+ * SUS meses con actividad (`mesesConActividad` en `computeDesvioPorTramo`) —
+ * una fila puede promediar sólo sobre 2 de esos 5 meses. Por eso acá no se dice
+ * "promediamos de X a Y" (afirmaría más de lo que el cálculo garantiza para
+ * cada fila): se dice "según lo que tengas cargado entre X y Y", cierto sea
+ * cual sea la fila. Con `mes_anterior` no hay ventana: la comparación es
+ * siempre contra un único mes exacto (`mesesDeReferencia[0]`, el inmediato
+ * anterior a `mesAncla`), así que nombrarlo tal cual es preciso, no una
+ * aproximación.
+ */
+export function textoReferencia(vara: Vara, mesesDeReferencia: string[]): string | null {
+  if (mesesDeReferencia.length === 0) return null;
+  const masNuevo = mesesDeReferencia[0];
+  if (vara === 'mes_anterior') return `contra ${mesLargo(masNuevo)}`;
+  const masViejo = mesesDeReferencia[mesesDeReferencia.length - 1];
+  return masViejo === masNuevo
+    ? `según lo que tengas cargado en ${mesLargo(masViejo)}`
+    : `según lo que tengas cargado entre ${mesLargo(masViejo)} y ${mesLargo(masNuevo)}`;
+}
+
 export function QueSeMovio({ onSelect }: { onSelect: (categoryId: string) => void }) {
   const [vara, setVara] = useState<Vara>('promedio');
   // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
@@ -28,7 +52,7 @@ export function QueSeMovio({ onSelect }: { onSelect: (categoryId: string) => voi
 
   if (nivel.length === 0 && eventos.length === 0) return null;
 
-  const referencia = historico.mesesDeReferencia.slice().reverse();
+  const contraQueCompara = textoReferencia(vara, historico.mesesDeReferencia);
   const tramo = historico.usaMesCerrado
     ? `${mesLargo(historico.mesAncla)}, el último mes cerrado`
     : `lo que va de ${mesLargo(historico.mesAncla)}, contra lo que llevabas a esta altura`;
@@ -46,7 +70,7 @@ export function QueSeMovio({ onSelect }: { onSelect: (categoryId: string) => voi
         </div>
         <p className="text-[12px] text-muted">
           {tramo}
-          {referencia.length > 0 && ` de ${mesLargo(referencia[referencia.length - 1])} a ${mesLargo(referencia[0])}`}
+          {contraQueCompara && ` · ${contraQueCompara}`}
           {' · en pesos de hoy'}
         </p>
       </div>
@@ -56,9 +80,10 @@ export function QueSeMovio({ onSelect }: { onSelect: (categoryId: string) => voi
           <button
             key={v}
             type="button"
+            aria-pressed={vara === v}
             onClick={() => setVara(v)}
             className={cn(
-              'px-3 py-1.5 text-[11.5px] font-sans transition-colors',
+              'min-h-11 flex items-center justify-center px-3 text-[11.5px] font-sans transition-colors',
               vara === v ? 'bg-text text-surface font-bold' : 'bg-surface text-muted',
             )}
           >
