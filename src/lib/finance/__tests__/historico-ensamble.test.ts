@@ -70,4 +70,35 @@ describe('computeHistorico', () => {
     const casaMes = conMesAnterior.filas.find((f) => f.categoryId === 'c1')!.desvio!
     expect(casaProm.referencia).not.toBe(casaMes.referencia)
   })
+
+  it('un gasto tardío en el mes da desvío null por el recorte del tramo, NO por falta de historia', () => {
+    // Alquiler: se paga el 28 de cada mes, con tres meses previos reales de historia.
+    // Evaluado un día 15, el tramo de cada mes de referencia se recorta a
+    // getDate() <= 15 y ninguno de los tres "28" entra: mesesConActividad queda
+    // vacío y computeDesvioPorTramo devuelve { referencia: 0, pct: null } aunque la
+    // categoría tenga historia real (a diferencia de 'Nueva' en el test de arriba,
+    // que directamente no tiene meses previos).
+    const catsConAlquiler: Category[] = [
+      ...cats,
+      { id: 'c4', user_id: 'u1', name: 'Alquiler', emoji: '🏠', type: 'expense' } as Category,
+    ]
+    const movimientosConAlquiler = [
+      tx('2026-05-28', 900_000, 'c4'),
+      tx('2026-06-28', 900_000, 'c4'),
+      tx('2026-07-28', 900_000, 'c4'),
+      // Otra categoría con actividad en el mes en curso, para que usaMesCerrado
+      // quede en false y el tramo se recorte al día de hoy (15), no al mes cerrado.
+      tx('2026-08-05', 500),
+    ]
+
+    const h = computeHistorico(movimientosConAlquiler, catsConAlquiler, [], {
+      vara: 'promedio',
+      now: HOY,
+    })
+    const alquiler = h.filas.find((f) => f.categoryId === 'c4')!
+
+    expect(h.usaMesCerrado).toBe(false)
+    expect(alquiler.puntos.length).toBeGreaterThan(0) // sí tiene historia real: 3 meses cargados
+    expect(alquiler.desvio).toBeNull() // pero el tramo (día <= 15) no alcanza a verla
+  })
 })

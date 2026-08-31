@@ -251,7 +251,15 @@ export type FilaHistorico = {
   emoji: string | null
   /** Meses completos con actividad, para el sparkline. */
   puntos: PuntoMes[]
-  /** `null` si la categoría no tiene meses previos con los que compararse. */
+  /**
+   * `null` cuando ningún mes de referencia tiene actividad DENTRO del tramo
+   * comparado (los primeros `diaDeCorte` días de cada mes) — no sólo cuando
+   * la categoría carece de historia. Una categoría con años de gasto que cae
+   * tarde en el mes (ej. un alquiler que se paga el 28) evaluada un día 15
+   * también cae acá: cada mes de referencia se recorta a los primeros 15 días
+   * y da 0, indistinguible en este campo de "nació ayer" — ver el comentario
+   * sobre `desvioCrudo` más abajo.
+   */
   desvio: Desvio | null
   clasificacion: Clasificacion
   /** Sólo cuando la clasificación es 'evento'. */
@@ -289,10 +297,18 @@ export function computeHistorico(
     const suyas = transactions.filter((t) => t.category_id === serie.categoryId)
     const { clasificacion, pico } = clasificarSerie(serie.puntos)
     const desvioCrudo = computeDesvioPorTramo(suyas, inflacion, opciones.vara, months, now, mesEnCursoVacio)
-    // Con vara 'promedio', sin NINGÚN mes previo con actividad, computeDesvioPorTramo
-    // no devuelve null: devuelve { referencia: 0, pct: null, ... } (no hay "0% de
-    // cambio" que decir, hay ausencia de referencia). Acá se traduce ese caso a
-    // desvío null: la categoría no se movió, nació.
+    // Con vara 'promedio', computeDesvioPorTramo devuelve { referencia: 0, pct: null, ... }
+    // (no null) cada vez que NINGÚN mes de referencia tiene actividad DENTRO del
+    // tramo recortado (getDate() <= diaDeCorte) — eso pasa tanto si la categoría no
+    // tiene historia como si SÍ la tiene pero cae tarde en el mes (ej. un alquiler
+    // que se paga el 28, evaluado un día 15: los tres meses previos existen pero el
+    // tramo los corta antes de que ocurra el gasto). En ningún caso hay un "0% de
+    // cambio" real que decir, así que acá se traduce a `null` para cumplir el
+    // contrato de FilaHistorico.desvio. El collapse vive en este ensamblador y NO en
+    // computeDesvioPorTramo porque el test de la Task 2 exige que esa función
+    // devuelva el objeto con `pct: null` para este escenario (no `null` directo);
+    // decidir qué significa "no hay con qué comparar" para la UI es responsabilidad
+    // de Task 4, no de la función pura de Task 2.
     const desvio = desvioCrudo && desvioCrudo.pct === null ? null : desvioCrudo
     return {
       categoryId: serie.categoryId,
