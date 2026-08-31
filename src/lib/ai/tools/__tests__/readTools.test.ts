@@ -129,6 +129,7 @@ const financeData: FinanceData = {
   categories: [],
   installmentPlans: [],
   incomeRhythm: 'monthly',
+  inflacion: [],
 }
 
 describe('readTools', () => {

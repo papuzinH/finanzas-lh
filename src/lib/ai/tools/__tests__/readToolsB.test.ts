@@ -131,6 +131,7 @@ function baseFinanceData(overrides: Partial<FinanceData> = {}): FinanceData {
     categories: [catComida, catTransporte, catSueldo],
     installmentPlans: [],
     incomeRhythm: 'monthly',
+    inflacion: [],
     ...overrides,
   }
 }

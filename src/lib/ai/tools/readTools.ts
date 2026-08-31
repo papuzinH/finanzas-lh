@@ -5,6 +5,7 @@ import { computePendingCreditCards, computePaymentMethodStatus } from '@/lib/fin
 import { computePendingFixedExpenses } from '@/lib/finance/pending'
 import { computeMonthlyBalance, computeExpensesByCategory } from '@/lib/finance/analysis'
 import { computeAvailableToSpend, computeAccountBalance } from '@/lib/finance/pocket'
+import { computeHistorico } from '@/lib/finance/historico'
 import { handlePortfolio } from '@/lib/ai/handlers'
 import type { ToolDef } from './types'
 import { loadFinanceData } from './dataLoader'
@@ -51,6 +52,16 @@ const installmentsStatusSchema = z.object({
 const recurringPlansSchema = z.object({})
 const goalsAndBudgetsSchema = z.object({})
 const portfolioStatusSchema = z.object({})
+
+const historialCategoriaSchema = z.object({
+  categoria: z.string().describe('Nombre de la categoría, tal como la tiene el usuario'),
+  vara: z.enum(['promedio', 'mes_anterior']).optional()
+    .describe('Contra qué comparar: el promedio de los meses previos (default) o el mes anterior'),
+})
+
+const queSeMovioSchema = z.object({
+  vara: z.enum(['promedio', 'mes_anterior']).optional(),
+})
 
 export const readTools: ToolDef[] = [
   {
@@ -456,6 +467,71 @@ export const readTools: ToolDef[] = [
       const res = await handlePortfolio(ctx.supabase, ctx.authUserId)
       if (!res.success) return { ok: false, error: res.message }
       return { ok: true, data: { resumen: res.message } }
+    },
+  },
+  {
+    name: 'get_historial_categoria',
+    description:
+      'Cómo viene el gasto de UNA categoría mes a mes, en pesos de hoy (ajustado por inflación). Devuelve la serie y cuánto se desvía el mes en curso. Usar para "cómo viene supermercado", "gasté más en salidas que antes".',
+    kind: 'read',
+    schema: historialCategoriaSchema,
+    execute: async (rawArgs, ctx) => {
+      const args = rawArgs as z.infer<typeof historialCategoriaSchema>
+      const data = await loadFinanceData(ctx)
+      const h = computeHistorico(data.transactions, data.categories, data.inflacion, {
+        vara: args.vara ?? 'promedio',
+      })
+      const buscada = args.categoria.toLowerCase()
+      const fila = h.filas.find((f) => f.categoryName.toLowerCase().includes(buscada))
+      if (!fila) {
+        return { ok: false, error: `No encontré movimientos en una categoría parecida a "${args.categoria}".` }
+      }
+      return {
+        ok: true,
+        data: {
+          categoria: fila.categoryName,
+          unidad: 'pesos de hoy (ajustado por inflación)',
+          meses: fila.puntos.map((p) => ({ mes: p.month, monto: Math.round(p.real), en_curso: p.enCurso })),
+          desvio_pct: fila.desvio?.pct ?? null,
+          comparado_contra: args.vara === 'mes_anterior' ? 'el mes anterior' : 'el promedio de los meses previos',
+          recortado_al_dia: h.diaDeCorte,
+          clasificacion: fila.clasificacion,
+        },
+      }
+    },
+  },
+  {
+    name: 'get_que_se_movio',
+    description:
+      'Qué categorías se movieron respecto de lo normal del usuario, en pesos de hoy. Separa las que cambiaron de nivel de las que tuvieron un gasto excepcional de una sola vez. Usar para "en qué gasté de más", "qué cambió", "en qué me estoy yendo".',
+    kind: 'read',
+    schema: queSeMovioSchema,
+    execute: async (rawArgs, ctx) => {
+      const args = rawArgs as z.infer<typeof queSeMovioSchema>
+      const data = await loadFinanceData(ctx)
+      const h = computeHistorico(data.transactions, data.categories, data.inflacion, {
+        vara: args.vara ?? 'promedio',
+      })
+      const conDesvio = h.filas.filter((f) => f.desvio?.pct != null)
+      return {
+        ok: true,
+        data: {
+          unidad: 'pesos de hoy (ajustado por inflación)',
+          mes: h.mesAncla,
+          recortado_al_dia: h.diaDeCorte,
+          comparado_contra: args.vara === 'mes_anterior' ? 'el mes anterior' : 'el promedio de los meses previos',
+          categorias: conDesvio
+            .filter((f) => f.clasificacion === 'nivel')
+            .sort((a, b) => Math.abs(b.desvio!.pct!) - Math.abs(a.desvio!.pct!))
+            .slice(0, 8)
+            .map((f) => ({ categoria: f.categoryName, desvio_pct: f.desvio!.pct })),
+          gastos_de_una_vez: h.filas
+            .filter((f) => f.clasificacion === 'evento')
+            .sort((a, b) => (b.pico?.monto ?? 0) - (a.pico?.monto ?? 0))
+            .slice(0, 5)
+            .map((f) => ({ categoria: f.categoryName, mes: f.pico!.month, monto: Math.round(f.pico!.monto) })),
+        },
+      }
     },
   },
 ]

@@ -22,6 +22,8 @@ export interface FinanceData {
   installmentPlans: InstallmentPlan[]
   /** Ritmo de cobro declarado: define qué compromisos descuenta el disponible. */
   incomeRhythm: IncomeRhythm
+  /** Serie mensual de IPC para deflactar a pesos de hoy. Vacía si la API falla. */
+  inflacion: Array<{ month: string; rate: number }>
 }
 
 /**
@@ -38,6 +40,27 @@ export async function fetchDolarBlue(): Promise<DolarBlue | null> {
     return (await res.json()) as DolarBlue
   } catch {
     return null // resolveRate cae al snapshot exchange_rate de cada fila
+  }
+}
+
+/**
+ * Serie de IPC (api.argentinadatos.com), MISMO endpoint y mismo shape
+ * (`{fecha, valor}` → `{month, rate}`, últimos 24 meses) que `parseInflation`
+ * en `financeStore.ts` (cliente): si el chat y el home parsearan distinto la
+ * misma API, la paridad podría dar bien en un test con datos vacíos y romperse
+ * recién en producción. Nunca lanza: sin IPC, `computeHistorico` deflacta con
+ * factor 1 (montos nominales) en vez de romper el chat.
+ */
+async function fetchInflacion(): Promise<Array<{ month: string; rate: number }>> {
+  try {
+    const res = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/inflacion', {
+      signal: AbortSignal.timeout(3000),
+    })
+    if (!res.ok) return []
+    const raw = (await res.json()) as Array<{ fecha: string; valor: number }>
+    return raw.map((r) => ({ month: r.fecha.slice(0, 7), rate: r.valor })).slice(-24)
+  } catch {
+    return [] // sin IPC, los montos quedan nominales; nunca rompe el chat
   }
 }
 
@@ -92,7 +115,7 @@ function assertNoQueryError<T extends { error: { message: string } | null }>(res
 async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> {
   const { supabase, userId, authUserId } = ctx
 
-  const [tx, pm, rp, it, cat, ip, er, usr, blue] = await Promise.all([
+  const [tx, pm, rp, it, cat, ip, er, usr, blue, inflacion] = await Promise.all([
     supabase.from('transactions').select('*').eq('user_id', userId),
     supabase.from('payment_methods').select('*').eq('user_id', userId),
     supabase.from('recurring_plans').select('*').eq('user_id', userId),
@@ -102,6 +125,7 @@ async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> 
     supabase.from('exchange_rates').select('*'),
     supabase.from('users').select('income_rhythm').eq('id', authUserId),
     fetchDolarBlue(), // legítimamente degrada a null (nunca trae `.error`): no se chequea acá.
+    fetchInflacion(), // ídem: legítimamente degrada a [] (nunca trae `.error`).
   ])
 
   assertNoQueryError(tx, 'transactions')
@@ -124,15 +148,17 @@ async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> 
     categories: (cat.data ?? []) as Category[],
     installmentPlans: (ip.data ?? []) as InstallmentPlan[],
     incomeRhythm: ((usr.data ?? [])[0]?.income_rhythm as IncomeRhythm) ?? 'monthly',
+    inflacion,
   }
 }
 
 /**
  * Memoiza el snapshot por request en `ctx._financeCache`: varias read tools dentro
  * del mismo loop de `runAgent` comparten UNA sola ronda de queries en vez de repetir
- * las 8 queries + fetch del dólar blue por cada llamada (hasta 6 veces en un loop
- * largo). Cachear la PROMESA (no el resultado ya resuelto) evita también condiciones
- * de carrera si dos tools la piden "al mismo tiempo" antes de que la primera resuelva.
+ * las 8 queries + fetch del dólar blue + fetch de inflación por cada llamada (hasta
+ * 6 veces en un loop largo). Cachear la PROMESA (no el resultado ya resuelto) evita
+ * también condiciones de carrera si dos tools la piden "al mismo tiempo" antes de
+ * que la primera resuelva.
  * `runAgent` invalida el cache (`ctx._financeCache = undefined`) después de ejecutar
  * una write tool mutada, para que las lecturas siguientes no vean datos stale.
  */
