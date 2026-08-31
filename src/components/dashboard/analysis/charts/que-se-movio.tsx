@@ -36,8 +36,25 @@ export function textoReferencia(vara: Vara, mesesDeReferencia: string[]): string
     : `según lo que tengas cargado entre ${mesLargo(masViejo)} y ${mesLargo(masNuevo)}`;
 }
 
-export function QueSeMovio({ onSelect }: { onSelect: (categoryId: string) => void }) {
-  const [vara, setVara] = useState<Vara>('promedio');
+export function QueSeMovio({
+  onSelect,
+  onVaraChange,
+}: {
+  onSelect: (categoryId: string) => void;
+  /**
+   * Fix round 1 — Hallazgo 1: el toggle de vara vive acá, pero el modal de
+   * detalle lo monta `TabTendencia`, más arriba. Este callback opcional deja
+   * que el padre se entere de la vara activa sin volver a este componente
+   * controlado (el estado sigue siendo interno, para no tocar los tests
+   * existentes que lo montan sin esta prop).
+   */
+  onVaraChange?: (vara: Vara) => void;
+}) {
+  const [vara, setVaraInterna] = useState<Vara>('promedio');
+  const setVara = (v: Vara) => {
+    setVaraInterna(v);
+    onVaraChange?.(v);
+  };
   // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
   const store = useFinanceStore();
   const historico = store.getHistorico(vara);

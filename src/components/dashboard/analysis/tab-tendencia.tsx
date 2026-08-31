@@ -9,6 +9,7 @@ import { InfoHint } from '@/components/ui/info-hint';
 import { Modal } from '@/components/shared/modal';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { cn } from '@/lib/utils';
+import type { Vara } from '@/lib/finance/historico';
 
 const TONE_LABEL: Record<'good' | 'warn' | 'bad', string> = {
   good: 'Sólido',
@@ -30,6 +31,10 @@ export function TabTendencia() {
   const hasSavingsData = savingsSeries.some((d) => d.net !== 0);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [categoriaDetalle, setCategoriaDetalle] = useState<string | null>(null);
+  // Fix round 1 — Hallazgo 1: <QueSeMovio> tiene su propio toggle de vara; acá
+  // sólo lo espejamos (no lo controlamos) para pasárselo a <DetalleCategoria>
+  // y que el modal compare contra la misma referencia que la fila que lo abrió.
+  const [varaDetalle, setVaraDetalle] = useState<Vara>('promedio');
 
   let realHint: string | null = null;
   if (real.available && real.rows.length >= 2) {
@@ -64,7 +69,7 @@ export function TabTendencia() {
           </p>
         )}
       </div>
-      <QueSeMovio onSelect={setCategoriaDetalle} />
+      <QueSeMovio onSelect={setCategoriaDetalle} onVaraChange={setVaraDetalle} />
       <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
         <h3 className="text-sm font-bold text-text mb-2 flex items-center gap-1.5">
           Tasa de ahorro mensual
@@ -90,7 +95,7 @@ export function TabTendencia() {
       </div>
 
       <Modal isOpen={!!categoriaDetalle} onClose={() => setCategoriaDetalle(null)} title="Cómo viene">
-        {categoriaDetalle && <DetalleCategoria categoryId={categoriaDetalle} />}
+        {categoriaDetalle && <DetalleCategoria categoryId={categoriaDetalle} vara={varaDetalle} />}
       </Modal>
     </div>
   );

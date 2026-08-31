@@ -2,13 +2,28 @@
 
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { formatCurrency, cn } from '@/lib/utils';
+import type { Vara } from '@/lib/finance/historico';
 
 const NOMBRE_MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-export function DetalleCategoria({ categoryId }: { categoryId: string }) {
+/**
+ * Fix round 1 — Hallazgo 1: a este componente sólo se llega desde una fila de
+ * `<QueSeMovio>`, que tiene su propio toggle de vara. Si el porcentaje de la
+ * fila se calculó "vs. el mes pasado" y acá seguíamos llamando
+ * `getHistorico('promedio')` fijo, el modal podía mostrar la dirección
+ * CONTRARIA (subió/bajó) para la misma categoría en la misma sesión. `vara`
+ * es opcional con default 'promedio' porque `tab-categorias.tsx` no tiene
+ * ese toggle: siempre quiere la lectura por defecto.
+ */
+const VARA_LABEL: Record<Vara, string> = {
+  promedio: 'tu promedio',
+  mes_anterior: 'el mes pasado',
+};
+
+export function DetalleCategoria({ categoryId, vara = 'promedio' }: { categoryId: string; vara?: Vara }) {
   // El store entero, no sus getters sueltos (ver store-freshness.test.ts).
   const store = useFinanceStore();
-  const historico = store.getHistorico('promedio');
+  const historico = store.getHistorico(vara);
   const fila = historico.filas.find((f) => f.categoryId === categoryId);
 
   if (!fila) {
@@ -25,10 +40,17 @@ export function DetalleCategoria({ categoryId }: { categoryId: string }) {
         <p className="text-xs text-muted uppercase tracking-wider mb-1">
           {fila.emoji} {fila.categoryName} · en pesos de hoy
         </p>
-        <p className="font-display tnum text-3xl text-text">{formatCurrency(ultimoCerrado?.real ?? 0)}</p>
+        <p className="font-display tnum text-3xl text-text">
+          {formatCurrency(ultimoCerrado?.real ?? 0)}
+          {/* Fix round 1 — Hallazgo 2: si el único punto disponible es el mes en
+              curso (categoría nueva, o primer mes de uso), la cifra hero es un
+              total que todavía corre. Misma convención de asterisco que ya usan
+              las etiquetas de mes del gráfico, pero pegada al número. */}
+          {ultimoCerrado?.enCurso && '*'}
+        </p>
         {pct != null && (
           <p className="text-sm text-muted mt-1">
-            {pct > 0 ? 'Subió' : 'Bajó'} {Math.abs(pct * 100).toFixed(0)}% contra tu promedio
+            {pct > 0 ? 'Subió' : 'Bajó'} {Math.abs(pct * 100).toFixed(0)}% contra {VARA_LABEL[vara]}
           </p>
         )}
       </div>
