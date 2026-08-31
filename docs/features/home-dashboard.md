@@ -21,8 +21,8 @@
 | `src/components/dashboard/incomplete-credit-cards-banner.tsx` | Aviso de tarjetas de crédito sin `closing_day`/`payment_day` |
 | `src/components/dashboard/analysis/analysis-section.tsx` | Tabs `este mes / tendencia / categorías` + toggle ARS/USD (`displayCurrency`; los montos salen de `store.formatDisplay()`, que convierte y formatea junto) |
 | `analysis/tab-este-mes.tsx` | "¿Llegás a fin de mes?" (`getMonthlySpendingPace`: gasto acumulado + proyección lineal vs ingreso) + `InstallmentsRealCostCard` (`getInstallmentsRealCost`: cuotas futuras deflactadas por IPC) |
-| `analysis/tab-tendencia.tsx` | `TrendChart` (`getMonthlyTrend(6)`) + hint ajustado por inflación (`getRealAdjustedTrend`) + tasa de ahorro (`getSavingsRateSeries`: `net/income`, tono good ≥15% / warn ≥0 / bad) |
-| `analysis/tab-categorias.tsx` | `getCategoryBreakdown` (torta, scope mes/histórico), `getCategoryFrequencyRanking` (cuenta movimientos, no montos), `CurrencyExposureCard` |
+| `analysis/tab-tendencia.tsx` | `TrendChart` (`getMonthlyTrend(6)`) + hint ajustado por inflación (`getRealAdjustedTrend`) + tasa de ahorro (`getSavingsRateSeries`: `net/income`, tono good ≥15% / warn ≥0 / bad) + bloque **«Qué se movió»** (`QueSeMovio`, `getHistorico(vara)`): categorías que cambiaron de nivel vs. gasto de una vez, en pesos de hoy (o "pesos corrientes" si `deflactado` da `false`), con toggle de vara y modal `DetalleCategoria` |
+| `analysis/tab-categorias.tsx` | `getCategoryBreakdown` (torta, scope mes/histórico), `getCategoryFrequencyRanking` (cuenta movimientos, no montos), `CurrencyExposureCard`, modal `DetalleCategoria` (histórico por categoría vía `getHistorico`) — no se monta si hay categorías homónimas (mismo nombre, ids distintos) |
 | `src/components/dashboard/month-selector.tsx` (+ `month-picker-dialog.tsx`) | Vive en `dashboard/` pero **hoy solo lo usa `/movimientos`** (el home no filtra por mes) |
 | `src/lib/store/financeStore.ts` | Única fuente cliente. Getters = wrappers finos sobre `lib/finance/` |
 | `src/lib/finance/pocket.ts` | `computeAvailableToSpend` (el número central), `computeAccountBalance`, `computeCommitments` — ver `docs/features/bolsillo.md` |

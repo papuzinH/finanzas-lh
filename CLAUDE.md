@@ -63,6 +63,7 @@ Getters disponibles:
   son "en pesos" vs "dolarizado" por definición y no siguen el toggle.
 - `getUnassignedTransactionsCount()` – transacciones con `payment_method_id == null`.
 - `isCreditCardCyclePaid(methodId)` – true si existe un pago (`card_payment_for`) en el mes del vencimiento del ciclo vigente. (El viejo flag `paidCycles`/localStorage fue eliminado del store.)
+- `getHistorico(vara, months?)` – histórico de gasto por categoría en pesos de hoy (deflactado por IPC). `vara`: `'promedio'` (default en la UI) o `'mes_anterior'`, contra qué se compara el mes en curso **por tramo** (mismo recorte de día en los meses previos, no el total). Clasifica cada categoría en `'nivel'` (cambio sostenido) o `'evento'` (gasto puntual: pico > 3× la mediana de los otros meses cerrados). `deflactado: false` cuando no hay IPC cargado (`inflationSeries` vacío) — ahí los montos son nominales y hay que decir "pesos corrientes", no "pesos de hoy". Wrapper fino de `computeHistorico` (`lib/finance/historico.ts`); las mismas dos tools del chat (`get_historial_categoria`, `get_que_se_movio`) llaman a esa función pura, así que la pantalla y el chat no pueden decir números distintos.
 
 `fetchAllData()` → Promise.all desde Supabase + API dólar blue (non-blocking).
 
@@ -76,6 +77,7 @@ Funciones PURAS (sin Zustand ni Supabase) — **fuente única de cálculos** par
 - `prepare.ts` — `resolveRate`, `prepareTransactions` (periodDate + USD→ARS), `prepareRecurringPlans`
 - `balances.ts` — `computeGlobalBalance`, `computePaymentMethodStatus`, `computePendingCreditCards`, `hasCardPaymentInCycle`
 - `pending.ts` — `computePendingFixedExpenses` · `analysis.ts` — `computeExpensesByCategory`, `computeMonthlyBalance`
+- `historico.ts` — `computeHistorico` (histórico de gasto por categoría en pesos de hoy, deflactado por IPC), `computeSeriesPorCategoria`, `computeDesvioPorTramo`, `clasificarSerie`, `factorAPesosDeHoy`
 - Tipos compartidos (`ProcessedTransaction`, `CreditCardCycleSummary`, `DolarBlue`) en `types.ts`.
 **Cambios de lógica financiera van acá**, nunca duplicados en tools/handlers/componentes. Tests directos en `lib/finance/__tests__/`.
 

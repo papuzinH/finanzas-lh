@@ -15,8 +15,8 @@ Chat conversacional dentro de la app que registra movimientos, cuotas, mensualid
 | `src/app/api/chat/route.ts` | Auth, cuota (`usageGuard`), contexto (categorías/medios/alertas de tarjeta), arma prompt y corre `runAgent`; acumula tokens al final |
 | `src/lib/ai/agent.ts` | `runAgent` (loop), constantes `MAX_STEPS=6`, `TOKEN_CEILING=50_000`, `MAX_EMPTY_RETRIES=2`, anti-bucle; `createGeminiModel` (adapter `@google/genai`, modelo `gemini-2.5-flash`, `THINKING_BUDGET=512`) |
 | `src/lib/ai/agentPrompt.ts` | `buildAgentPrompt`: identidad + 4 reglas duras + diccionario categorías (nombre→UUID) + medios + fecha + `cardAlerts` + nombre del usuario |
-| `src/lib/ai/tools/registry.ts` | `allTools` (22), `getFunctionDeclarations`, `executeToolWith` (valida Zod, **nunca lanza**) |
-| `src/lib/ai/tools/readTools.ts` | 9 tools de lectura (números vía `lib/finance/`) |
+| `src/lib/ai/tools/registry.ts` | `allTools` (24), `getFunctionDeclarations`, `executeToolWith` (valida Zod, **nunca lanza**) |
+| `src/lib/ai/tools/readTools.ts` | 11 tools de lectura (números vía `lib/finance/`), incluye `get_historial_categoria`/`get_que_se_movio` sobre `lib/finance/historico.ts` |
 | `src/lib/ai/tools/writeTools.ts` | 12 tools de escritura (envuelven handlers) |
 | `src/lib/ai/tools/appHelp.ts` | `get_app_help`: diccionario estático de conceptos (mantener fiel a CLAUDE.md) |
 | `src/lib/ai/tools/dataLoader.ts` | `loadFinanceData` + `fetchDolarBlue` + memoización por request |
@@ -54,8 +54,8 @@ Confundirlos produce **queries que nunca matchean, sin error** (fuente de 5 bugs
    - Para cambiar límites o precios: `UPDATE public.chat_config SET ...` (efecto inmediato, sin deploy). Las env vars `CHAT_DAILY_LIMIT_*`, `CHAT_MONTHLY_BUDGET_USD` y `GEMINI_*_PRICE_PER_1M` quedaron sin uso.
    - Quedan wrappers con las firmas viejas para no romper el deploy vigente; dropearlos después de desplegar (ver el pie de esa migración).
 
-## Catálogo de tools (22)
-- **Lectura (10)**: `get_balance_snapshot`, `get_payment_method_status`, `get_monthly_summary`, `get_expenses_by_category`, `search_transactions`, `get_installments_status`, `list_recurring_plans`, `list_goals_and_budgets`, `get_portfolio_status`, `get_app_help`.
+## Catálogo de tools (24)
+- **Lectura (12)**: `get_balance_snapshot`, `get_payment_method_status`, `get_monthly_summary`, `get_expenses_by_category`, `search_transactions`, `get_installments_status`, `list_recurring_plans`, `list_goals_and_budgets`, `get_portfolio_status`, `get_app_help`, `get_historial_categoria`, `get_que_se_movio`.
 - **Escritura (12)**: `create_transaction`, `create_installment_plan`, `create_recurring_plan`, `set_card_dates`, `create_category`, `create_payment_method`, `update_entity`, `delete_entity`, `delete_goal_or_budget`, `create_goal`, `create_budget`, `contribute_to_goal`.
 
 ## Invariantes y gotchas
