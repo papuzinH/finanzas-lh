@@ -89,4 +89,24 @@ describe('computeSeriesPorCategoria', () => {
     expect(series.map((s) => s.categoryName).sort()).toEqual(['Casa', 'Supermercado'])
     expect(series.find((s) => s.categoryId === 'c2')!.emoji).toBe('🏠')
   })
+
+  it('no incluye una transacción fuera de la ventana de `months` meses', () => {
+    // 7 meses antes de HOY (2026-08-29): enero 2026, fuera de la ventana de 6.
+    const series = computeSeriesPorCategoria(
+      [tx({ id: 'a', date: '2026-01-29', periodDate: '2026-01-29' })],
+      [cat()], IPC, 6, HOY,
+    )
+
+    expect(series).toEqual([])
+  })
+
+  it('incluye una transacción en el borde exacto de la ventana de `months` meses', () => {
+    // El mes más viejo que months = 6 todavía alcanza desde HOY (2026-08-29) es 2026-03.
+    const series = computeSeriesPorCategoria(
+      [tx({ id: 'a', date: '2026-03-05', periodDate: '2026-03-05' })],
+      [cat()], IPC, 6, HOY,
+    )
+
+    expect(series[0].puntos.map((p) => p.month)).toEqual(['2026-03'])
+  })
 })
