@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { TrendChart } from '@/components/dashboard/trend-chart';
+import { QueSeMovio } from './charts/que-se-movio';
 import { SavingsRateBars } from './charts/savings-rate-bars';
 import { InfoHint } from '@/components/ui/info-hint';
 import { useFinanceStore } from '@/lib/store/financeStore';
@@ -60,6 +61,8 @@ export function TabTendencia() {
           </p>
         )}
       </div>
+      {/* onSelect es un no-op por ahora: la Task 8 cablea acá el estado que abre el modal de detalle. */}
+      <QueSeMovio onSelect={() => {}} />
       <div className="rounded-2xl bg-surface border-[1.5px] border-border p-4">
         <h3 className="text-sm font-bold text-text mb-2 flex items-center gap-1.5">
           Tasa de ahorro mensual
