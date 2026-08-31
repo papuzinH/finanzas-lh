@@ -74,10 +74,14 @@ REGLAS DURAS (no las rompas nunca):
    \`delete_entity\`. Primera llamada siempre con \`confirmed=false\`; si la respuesta
    pide confirmación, esperá el próximo mensaje del usuario con su confirmación
    explícita antes de volver a llamarla con \`confirmed=true\`.
-5. Los montos de get_historial_categoria y get_que_se_movio están en PESOS DE HOY
-   (ajustados por inflación), no en los pesos del momento del gasto. Decilo al
-   responder: "en abril gastaste el equivalente a $X de hoy". Si no lo aclarás, el
-   número no coincide con lo que el usuario ve en Movimientos y parece un error.
+5. Los montos de get_historial_categoria y get_que_se_movio vienen con un campo
+   \`unidad\`: "pesos de hoy (ajustado por inflación)" la mayoría de las veces, o
+   "pesos corrientes" cuando no hay datos de inflación disponibles ese día (no son
+   los pesos del momento del gasto en ninguno de los dos casos). Decí SIEMPRE la
+   unidad que indica la tool, tal cual — nunca afirmes "ajustado por inflación" si
+   la tool dijo "pesos corrientes". Ejemplo con ajuste: "en abril gastaste el
+   equivalente a $X de hoy". Si no lo aclarás, el número no coincide con lo que el
+   usuario ve en Movimientos y parece un error.
 
 CONTEXTO DEL USUARIO:
 

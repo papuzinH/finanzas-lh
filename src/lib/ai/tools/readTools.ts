@@ -481,8 +481,18 @@ export const readTools: ToolDef[] = [
       const h = computeHistorico(data.transactions, data.categories, data.inflacion, {
         vara: args.vara ?? 'promedio',
       })
+      // Match exacto primero, después prefijo, y recién después el `includes` más
+      // corto — un `.find` con sólo `includes` devuelve el primer hit en orden de
+      // inserción del Map (la categoría con la transacción más vieja), así que
+      // "Auto" podía contestar con la serie de "Autos y repuestos" sin ninguna señal
+      // de que sustituyó. `categoria` en la respuesta ya deja ver qué resolvió.
       const buscada = args.categoria.toLowerCase()
-      const fila = h.filas.find((f) => f.categoryName.toLowerCase().includes(buscada))
+      const fila =
+        h.filas.find((f) => f.categoryName.toLowerCase() === buscada) ??
+        h.filas.find((f) => f.categoryName.toLowerCase().startsWith(buscada)) ??
+        h.filas
+          .filter((f) => f.categoryName.toLowerCase().includes(buscada))
+          .sort((a, b) => a.categoryName.length - b.categoryName.length)[0]
       if (!fila) {
         return { ok: false, error: `No encontré movimientos en una categoría parecida a "${args.categoria}".` }
       }
@@ -490,7 +500,7 @@ export const readTools: ToolDef[] = [
         ok: true,
         data: {
           categoria: fila.categoryName,
-          unidad: 'pesos de hoy (ajustado por inflación)',
+          unidad: h.deflactado ? 'pesos de hoy (ajustado por inflación)' : 'pesos corrientes',
           meses: fila.puntos.map((p) => ({ mes: p.month, monto: Math.round(p.real), en_curso: p.enCurso })),
           desvio_pct: fila.desvio?.pct ?? null,
           comparado_contra: args.vara === 'mes_anterior' ? 'el mes anterior' : 'el promedio de los meses previos',
@@ -516,7 +526,7 @@ export const readTools: ToolDef[] = [
       return {
         ok: true,
         data: {
-          unidad: 'pesos de hoy (ajustado por inflación)',
+          unidad: h.deflactado ? 'pesos de hoy (ajustado por inflación)' : 'pesos corrientes',
           mes: h.mesAncla,
           recortado_al_dia: h.diaDeCorte,
           comparado_contra: args.vara === 'mes_anterior' ? 'el mes anterior' : 'el promedio de los meses previos',
