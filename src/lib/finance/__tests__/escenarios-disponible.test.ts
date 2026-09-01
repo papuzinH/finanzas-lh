@@ -233,3 +233,52 @@ describe('integracion: el store cablea bien la funcion pura', () => {
     expect(r.available).toBe(120000);
   });
 });
+
+describe('E10 — tarjeta con compras en dolares', () => {
+  // Caso real (Lauti, 2026-09-01): la Visa vencia ese dia con $260.582 en pesos
+  // y otros $63.496 en compras en dolares. El disponible descontaba SOLO la
+  // parte en pesos, asi que la plata libre estaba inflada por el valor de las
+  // compras en USD; y al marcar la tarjeta pagada, el pago (que si registra el
+  // total) hacia caer el disponible por esa diferencia. E8 no lo veia porque su
+  // fixture pone totalARS === total, o sea una tarjeta sin una sola compra en USD.
+  const conDolares = summary({
+    totalARS: 100000,   // gastos cuya moneda original es el peso
+    totalUSD: 100,      // u$s 100 del resumen...
+    total: 150000,      // ...que valen $50.000: el resumen entero sale $150.000
+    nextPaymentDate: new Date(2026, 7, 28),
+  });
+
+  it('descuenta el resumen COMPLETO, no solo la parte en pesos', () => {
+    const r = run({
+      paymentMethods: [acct({ initial_balance: 300000 }), acct({ id: 'cred', type: 'credit', is_default: false })],
+      pendingCards: [conDolares],
+    });
+
+    expect(r.committed).toBe(150000);
+    expect(r.available).toBe(150000);
+  });
+
+  it('pagarla no mueve el disponible (E8, ahora con dolares adentro)', () => {
+    const cuentas = [acct({ initial_balance: 300000 }), acct({ id: 'cred', type: 'credit', is_default: false })];
+
+    const antes = run({ paymentMethods: cuentas, pendingCards: [conDolares] });
+
+    // El pago real que registra payCreditCardCycle: card.total, el resumen entero.
+    const pago = {
+      id: 'pago', user_id: 'u1', type: 'expense', amount: 150000,
+      date: '2026-08-20', periodDate: '2026-08-20', realPaymentDate: '2026-08-20',
+      payment_method_id: 'poc', category_id: 'c1', card_payment_for: 'cred',
+      installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
+    } as ProcessedTransaction;
+    const despues = run({
+      paymentMethods: cuentas,
+      transactions: [pago],
+      pendingCards: [{ ...conDolares, isPending: false }],
+    });
+
+    expect(antes.available).toBe(150000);
+    expect(despues.available).toBe(150000);
+    expect(despues.pocketTotal).toBe(150000);
+    expect(despues.committed).toBe(0);
+  });
+});

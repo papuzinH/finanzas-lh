@@ -153,19 +153,32 @@ export function computeCommitments(
   }
 
   // Tarjetas: se descuentan si vencen dentro del período; si no, quedan para el próximo.
+  //
+  // Va `total` y NO `totalARS`: `totalARS` son sólo los gastos cuya moneda ORIGINAL
+  // es el peso, un campo pensado para el desglose visual de la tarjeta ("$X + u$s Y",
+  // que no mezcla monedas a propósito). `total` es el resumen entero, con las compras
+  // en dólares ya convertidas por `prepareTransactions` — que es lo que el banco te va
+  // a cobrar, y lo que registra `payCreditCardCycle` al marcarla pagada.
+  //
+  // Usar el campo de presentación acá tenía dos efectos, los dos medidos contra
+  // producción el 2026-09-01: el disponible quedaba inflado por el valor en pesos de
+  // las compras en USD (Visa $63.496 + Mastercard $152.920 = $216.416 de más), y al
+  // marcar la tarjeta pagada el disponible CAÍA por esa diferencia, rompiendo el
+  // invariante de E8 — el pago bajaba el bolsillo por `total` y el compromiso sólo
+  // liberaba `totalARS`. Ver E10 en escenarios-disponible.test.ts.
   for (const card of pendingCards) {
     if (!card.isPending) continue;
     if (withinPeriod(card.nextPaymentDate)) {
       items.push({
         id: card.methodId,
         name: card.name,
-        amount: card.totalARS,
+        amount: card.total,
         kind: 'card',
         dueDate: card.nextPaymentDate,
         isCycleClosed: card.isCycleClosed,
       });
     } else {
-      nextPeriod += card.totalARS;
+      nextPeriod += card.total;
     }
   }
 
