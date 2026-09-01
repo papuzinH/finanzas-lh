@@ -51,7 +51,7 @@
 - `src/lib/ai/handlers.ts` — se retira el re-fechado de cuotas de `handleCardConfig`
 - `src/lib/finance/__tests__/escenarios-disponible.test.ts` — E13, E14, E16, E17
 
-**Sin tocar en este plan:** ningún componente de `src/components/`. Si una task necesita cambiar UI, está mal cortada.
+**Sin tocar en este plan:** ningún componente de `src/components/`, con **una excepción declarada**: la Task 10 cambia la firma de `payCreditCardCycle` / `undoCreditCardPayment` y actualiza a sus dos llamadores (`credit-card-cycle-card.tsx`, `register-card-payment-dialog.tsx`). Es propagación de firma, no diseño. Cualquier otra necesidad de tocar UI significa que la task está mal cortada.
 
 ---
 
@@ -537,7 +537,7 @@ export function generarCiclos(
 - [ ] **Step 4: Correr los tests y verificar que pasan**
 
 Run: `npx vitest run src/lib/finance/__tests__/cycles.test.ts`
-Expected: PASS, 16 tests.
+Expected: PASS, 18 tests.
 
 - [ ] **Step 5: Verificar que el guard del borde puede fallar**
 
