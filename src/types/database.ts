@@ -833,6 +833,7 @@ export interface Database {
           id: string
           income_rhythm: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode: string | null
+          last_seen_version: string | null
           onboarding_completed: boolean | null
           pocket_setup_completed: boolean
           telegram_chat_id: number | null
@@ -849,6 +850,7 @@ export interface Database {
           id: string
           income_rhythm?: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode?: string | null
+          last_seen_version?: string | null
           onboarding_completed?: boolean | null
           pocket_setup_completed?: boolean
           telegram_chat_id?: number | null
@@ -865,6 +867,7 @@ export interface Database {
           id?: string
           income_rhythm?: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode?: string | null
+          last_seen_version?: string | null
           onboarding_completed?: boolean | null
           pocket_setup_completed?: boolean
           telegram_chat_id?: number | null

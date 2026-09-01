@@ -15,6 +15,15 @@ const OnboardingTour = dynamic(
   { ssr: false }
 );
 
+// Se monta acá, y no en el home, porque este componente ya decide qué pantallas
+// van sin chrome: rutas públicas, /login, /auth, /onboarding, /puesta-a-punto y
+// la landing anónima devuelven `children` pelado. El popup hereda todas esas
+// exclusiones sin escribir una sola condición nueva.
+const NovedadesModal = dynamic(
+  () => import('@/components/novedades/novedades-modal').then(m => m.NovedadesModal),
+  { ssr: false }
+);
+
 // Rutas sin autenticación (sin shell). Las páginas públicas de contenido
 // (`/privacidad`) salen de `lib/rutas-publicas.ts`, la misma lista que usa el
 // middleware.
@@ -71,6 +80,7 @@ export function AppShell({ children, sesionInicial }: { children: React.ReactNod
       </main>
       <ChatWidgetWrapper />
       <OnboardingTour />
+      <NovedadesModal />
     </>
   );
 }
