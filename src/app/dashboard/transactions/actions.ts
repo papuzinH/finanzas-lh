@@ -3,7 +3,10 @@
 import { createClient } from '@/utils/supabase/server';
 import { transactionSchema, type TransactionSchema, createTransactionSchema, type CreateTransactionSchema } from '@/lib/schemas/transaction';
 import { revalidatePath } from 'next/cache';
-import { calculateCreditPaymentDate, dateToLocalString } from '@/lib/utils/dates';
+import { calculateCreditPaymentDate, dateToLocalString, parseLocalDate } from '@/lib/utils/dates';
+import { addMonths, subMonths } from 'date-fns';
+import { asegurarCiclos } from '@/lib/ciclos/asegurar';
+import { cicloDeCompra } from '@/lib/finance/cycles';
 
 type ActionResponse = {
   error?: string;
@@ -33,6 +36,8 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
     // Para gastos con tarjeta de crédito, calcular la fecha real de pago según el ciclo de la tarjeta.
     // Para débito/efectivo, se guarda la fecha de compra sin modificar.
     let storedDate = dateToLocalString(new Date(date));
+    const purchaseDate = storedDate; // la fecha que eligió el usuario ES la de compra
+    let cycleId: string | null = null;
     const resolvedMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
     // El medio tiene que ser del usuario (M4): RLS no impide que la transacción
@@ -41,7 +46,7 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
     if (resolvedMethodId) {
       const { data: method } = await supabase
         .from('payment_methods')
-        .select('type, default_closing_day, default_payment_day')
+        .select('*')
         .eq('id', resolvedMethodId)
         .eq('user_id', user.id)
         .single();
@@ -49,7 +54,25 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
       if (!method) return { error: 'Medio de pago inválido' };
 
       if (type === 'expense' && method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
-        storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
+        // Se materializan los resúmenes alrededor de la compra: uno hacia atrás
+        // (una compra vieja puede caer en un ciclo que todavía no existe) y dos
+        // hacia adelante (margen para que cicloDeCompra encuentre destino).
+        const ciclos = await asegurarCiclos(
+          supabase,
+          method,
+          subMonths(parseLocalDate(purchaseDate), 1),
+          addMonths(parseLocalDate(purchaseDate), 2),
+        );
+        const ciclo = cicloDeCompra(purchaseDate, ciclos);
+        if (ciclo) {
+          cycleId = ciclo.id;
+          storedDate = ciclo.due_date;
+        } else {
+          // No debería pasar con el margen de arriba. Si pasa, la compra se guarda
+          // igual con la fecha estimada y sin ciclo: perder el movimiento sería peor
+          // que perder la imputación, y sin cycle_id cae al branch de "sin ciclo".
+          storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
+        }
       }
     }
 
@@ -75,6 +98,8 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
         original_amount: amount,
         rate_pair: isUsd ? rate_pair : null,
         exchange_rate: rate,
+        cycle_id: cycleId,
+        purchase_date: type === 'expense' ? purchaseDate : null,
       });
 
     if (error) {
@@ -123,6 +148,7 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
     // crédito distinto al que tenía, se recalcula el vencimiento tratando `date`
     // como fecha de compra (evita re-desplazar la fecha de un crédito ya cargado).
     let storedDate = dateToLocalString(new Date(date));
+    const purchaseDate = storedDate; // fecha de compra SOLO si termina resolviendo un ciclo/medio nuevo
 
     const { data: current } = await supabase
       .from('transactions')
@@ -133,12 +159,19 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
 
     const methodChanged = (current?.payment_method_id ?? null) !== resolvedMethodId;
 
+    // cycle_id/purchase_date sólo se tocan cuando el medio cambió (E13: editar
+    // descripción o monto nunca mueve la compra de resumen). Si el medio no
+    // cambió, `date` en un crédito es el VENCIMIENTO que ya tenía la fila -no
+    // una fecha de compra nueva-, así que reescribir purchase_date con eso la
+    // corrompería: se omiten ambas keys del update y quedan como estaban.
+    let cycleId: string | null = null;
+
     // Si cambia a un medio nuevo, tiene que ser del usuario (M4). Se valida
     // aunque no sea 'expense': el payment_method_id se guarda igual.
     if (methodChanged && resolvedMethodId) {
       const { data: method } = await supabase
         .from('payment_methods')
-        .select('type, default_closing_day, default_payment_day')
+        .select('*')
         .eq('id', resolvedMethodId)
         .eq('user_id', user.id)
         .single();
@@ -146,7 +179,19 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
       if (!method) return { error: 'Medio de pago inválido' };
 
       if (type === 'expense' && method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
-        storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
+        const ciclos = await asegurarCiclos(
+          supabase,
+          method,
+          subMonths(parseLocalDate(purchaseDate), 1),
+          addMonths(parseLocalDate(purchaseDate), 2),
+        );
+        const ciclo = cicloDeCompra(purchaseDate, ciclos);
+        if (ciclo) {
+          cycleId = ciclo.id;
+          storedDate = ciclo.due_date;
+        } else {
+          storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
+        }
       }
     }
 
@@ -163,6 +208,7 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
         original_amount: amount,
         rate_pair: isUsd ? rate_pair : null,
         exchange_rate: rate,
+        ...(methodChanged ? { cycle_id: cycleId, purchase_date: type === 'expense' ? purchaseDate : null } : {}),
       })
       .eq('id', id)
       .eq('user_id', user.id);
