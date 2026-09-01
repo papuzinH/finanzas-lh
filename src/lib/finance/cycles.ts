@@ -1,0 +1,122 @@
+//
+// El resumen de tarjeta como entidad. PURO: sin Zustand ni Supabase, como todo
+// lo de lib/finance/ -- lo consumen el store (cliente) y las tools del chat (servidor).
+//
+// Las fechas se comparan como strings 'yyyy-MM-dd' y no como Date: el orden
+// lexicografico coincide con el cronologico y no depende de la TZ del runtime
+// (Vercel corre en UTC, la maquina de desarrollo no). Es la leccion de rangoDelMes.
+//
+// Spec: docs/superpowers/specs/2026-09-01-ciclos-tarjeta-design.md
+import { addMonths, getDaysInMonth, setDate } from 'date-fns'
+import { formatLocalDate } from '@/lib/utils/dates'
+import type { Database, PaymentMethod } from '@/types/database'
+
+export type CreditCardCycle = Database['public']['Tables']['credit_card_cycles']['Row']
+export type CicloNuevo = Omit<CreditCardCycle, 'id' | 'created_at'>
+
+/** Los ciclos de UNA tarjeta, ordenados por cierre ascendente. */
+export function ciclosDeMetodo(methodId: string, ciclos: CreditCardCycle[]): CreditCardCycle[] {
+  return ciclos
+    .filter((c) => c.payment_method_id === methodId)
+    .sort((a, b) => a.closing_date.localeCompare(b.closing_date))
+}
+
+/**
+ * A que resumen pertenece una compra: el primero que cierra en su fecha o despues.
+ *
+ * El `>=` es la regla del borde: una compra hecha EL DIA del cierre entra en el
+ * ciclo que cierra, porque el ciclo corre hasta las 23:59 de esa fecha. Es la regla
+ * del banco, confirmada por el usuario, y es la que ya tenia calculateCreditPaymentDate
+ * (saltaba de ciclo con `diaCompra > closingDay`, que con 27 > 27 da false).
+ *
+ * Devuelve undefined si ningun ciclo materializado la contiene: quien llame decide
+ * si generar mas (asegurarCiclos) o dejar la transaccion sin ciclo. Nunca inventa uno.
+ */
+export function cicloDeCompra(purchaseDate: string, ciclos: CreditCardCycle[]): CreditCardCycle | undefined {
+  return ciclos.filter((c) => c.closing_date >= purchaseDate)[0]
+}
+
+/**
+ * El resumen vigente: el de menor vencimiento que todavia no paso.
+ *
+ * El dia EXACTO del vencimiento sigue siendo el vigente -- ese dia todavia hay que
+ * pagarlo. Mismo criterio que tenia getCreditCycleDates, que esta funcion reemplaza.
+ */
+export function cicloVigente(ciclos: CreditCardCycle[], now: Date): CreditCardCycle | undefined {
+  const hoy = formatLocalDate(now)
+  return [...ciclos].sort((a, b) => a.due_date.localeCompare(b.due_date)).find((c) => c.due_date >= hoy)
+}
+
+/** El resumen inmediatamente anterior a `ciclo` por fecha de cierre. */
+export function cicloAnterior(ciclos: CreditCardCycle[], ciclo: CreditCardCycle): CreditCardCycle | undefined {
+  const previos = ciclos.filter((c) => c.closing_date < ciclo.closing_date)
+  return previos[previos.length - 1]
+}
+
+/**
+ * El ciclo que esta `n` resumenes despues de `desde` (n = 0 es `desde`).
+ *
+ * Las cuotas cuentan RESUMENES, no meses: con vencimientos reales de 4-sep y 9-oct,
+ * addMonths(primera, 1) daria 4-oct, que no es ninguna fecha de esa tarjeta.
+ */
+export function cicloNEsimo(
+  ciclos: CreditCardCycle[],
+  desde: CreditCardCycle,
+  n: number,
+): CreditCardCycle | undefined {
+  const i = ciclos.findIndex((c) => c.id === desde.id)
+  if (i < 0) return undefined
+  return ciclos[i + n]
+}
+
+/**
+ * Pare los ciclos que faltan entre `desde` y `hasta` (ambos inclusive, por mes)
+ * a partir de los defaults de la tarjeta.
+ *
+ * `default_closing_day` / `default_payment_day` sobreviven como GENERADOR, no como
+ * verdad: paren el proximo ciclo cuando no hay dato mejor. Un mes que ya tiene ciclo
+ * no se toca, sea 'generated' o 'declared' -- de ahi sale el invariante de que
+ * regenerar nunca pisa lo que el usuario leyo del resumen.
+ *
+ * Limitacion asumida: UN ciclo por mes calendario. Los emisores relevados (Macro,
+ * Ciudad, Galicia, Naranja X, Uala) cierran una vez por mes por tarjeta; el "cada
+ * jueves" de Macro es un cierre por cartera, no cuatro para la misma tarjeta.
+ */
+export function generarCiclos(
+  method: PaymentMethod,
+  desde: Date,
+  hasta: Date,
+  existentes: CreditCardCycle[],
+): CicloNuevo[] {
+  const closingDay = method.default_closing_day
+  const paymentDay = method.default_payment_day
+  if (method.type !== 'credit' || !closingDay || !paymentDay) return []
+
+  const mesesOcupados = new Set(
+    ciclosDeMetodo(method.id, existentes).map((c) => c.closing_date.slice(0, 7)),
+  )
+
+  const nuevos: CicloNuevo[] = []
+  let cursor = new Date(desde.getFullYear(), desde.getMonth(), 1)
+  const fin = new Date(hasta.getFullYear(), hasta.getMonth(), 1)
+
+  while (cursor <= fin) {
+    const mes = formatLocalDate(cursor).slice(0, 7)
+    if (!mesesOcupados.has(mes)) {
+      const cierre = setDate(cursor, Math.min(closingDay, getDaysInMonth(cursor)))
+      // paymentDay > closingDay: vence en el mismo mes del cierre (cierra 10, vence 25).
+      // paymentDay <= closingDay: vence el mes siguiente (cierra 20, vence 1).
+      const mesDelPago = paymentDay > closingDay ? cursor : addMonths(cursor, 1)
+      const vencimiento = setDate(mesDelPago, Math.min(paymentDay, getDaysInMonth(mesDelPago)))
+      nuevos.push({
+        user_id: method.user_id,
+        payment_method_id: method.id,
+        closing_date: formatLocalDate(cierre),
+        due_date: formatLocalDate(vencimiento),
+        source: 'generated',
+      })
+    }
+    cursor = addMonths(cursor, 1)
+  }
+  return nuevos
+}
