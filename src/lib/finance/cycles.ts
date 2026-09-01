@@ -31,6 +31,9 @@ export function ciclosDeMetodo(methodId: string, ciclos: CreditCardCycle[]): Cre
  *
  * Devuelve undefined si ningun ciclo materializado la contiene: quien llame decide
  * si generar mas (asegurarCiclos) o dejar la transaccion sin ciclo. Nunca inventa uno.
+ *
+ * Precondicion: `ciclos` debe llegar ya filtrado por tarjeta y ordenado ascendente por
+ * `closing_date`, como lo produce `ciclosDeMetodo`. Quien llame es responsable del orden.
  */
 export function cicloDeCompra(purchaseDate: string, ciclos: CreditCardCycle[]): CreditCardCycle | undefined {
   return ciclos.filter((c) => c.closing_date >= purchaseDate)[0]
@@ -44,10 +47,18 @@ export function cicloDeCompra(purchaseDate: string, ciclos: CreditCardCycle[]): 
  */
 export function cicloVigente(ciclos: CreditCardCycle[], now: Date): CreditCardCycle | undefined {
   const hoy = formatLocalDate(now)
+  // Se ordena por due_date, que para los ciclos generados coincide siempre con el orden
+  // de closing_date. Para 'declared' con due_date atípico (cambio de feriado, etc), se
+  // asume que esa anomalía es pequeña y no invierte el orden real de vencimientos.
   return [...ciclos].sort((a, b) => a.due_date.localeCompare(b.due_date)).find((c) => c.due_date >= hoy)
 }
 
-/** El resumen inmediatamente anterior a `ciclo` por fecha de cierre. */
+/**
+ * El resumen inmediatamente anterior a `ciclo` por fecha de cierre.
+ *
+ * Precondicion: `ciclos` debe llegar ya filtrado por tarjeta y ordenado ascendente por
+ * `closing_date`, como lo produce `ciclosDeMetodo`. Quien llame es responsable del orden.
+ */
 export function cicloAnterior(ciclos: CreditCardCycle[], ciclo: CreditCardCycle): CreditCardCycle | undefined {
   const previos = ciclos.filter((c) => c.closing_date < ciclo.closing_date)
   return previos[previos.length - 1]
@@ -58,6 +69,9 @@ export function cicloAnterior(ciclos: CreditCardCycle[], ciclo: CreditCardCycle)
  *
  * Las cuotas cuentan RESUMENES, no meses: con vencimientos reales de 4-sep y 9-oct,
  * addMonths(primera, 1) daria 4-oct, que no es ninguna fecha de esa tarjeta.
+ *
+ * Precondicion: `ciclos` debe llegar ya filtrado por tarjeta y ordenado ascendente por
+ * `closing_date`, como lo produce `ciclosDeMetodo`. Quien llame es responsable del orden.
  */
 export function cicloNEsimo(
   ciclos: CreditCardCycle[],
