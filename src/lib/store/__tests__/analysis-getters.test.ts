@@ -389,9 +389,13 @@ describe('pago de tarjeta (card_payment_for)', () => {
 describe('getPaymentMethodStatus (tarjeta de crédito)', () => {
   const CARD_ID = '10';
 
-  // now = 2026-07-15. Ciclo vigente: cierra 20, vence 5 → cierra 2026-07-20, vence
-  // 2026-08-05. La pertenencia es por cycle_id, no por t.date: el id '4' lleva un
-  // cycle_id de otro ciclo (el que vence 5-sep) aunque su t.date esté ya calculado.
+  // now = 2026-07-15. Ciclo vigente: cierra 2026-07-20, vence 2026-08-05. La
+  // pertenencia es por cycle_id, no por t.date: el id '4' lleva un cycle_id de
+  // otro ciclo aunque su t.date esté ya calculado. OTHER_CYCLE_ID queda a
+  // propósito DESPAREJO respecto de CYCLE_ID (24/08 → 08/09, no "un mes exacto
+  // mismo día") y desalineado de los defaults de la tarjeta (closing 20/payment
+  // 5): fixturear ciclos parejos es cómo se escondieron los últimos bugs grandes
+  // del repo — ver Finding 2, revisión 2026-09-01 de Task 3.
   const CYCLE_ID = 'visa-ago';
   const OTHER_CYCLE_ID = 'visa-sep';
 
@@ -406,7 +410,7 @@ describe('getPaymentMethodStatus (tarjeta de crédito)', () => {
       ],
       creditCardCycles: [
         { id: CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-07-20', due_date: '2026-08-05', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
-        { id: OTHER_CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-08-20', due_date: '2026-09-05', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+        { id: OTHER_CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-08-24', due_date: '2026-09-08', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
       ],
       transactions: [
         // compra NORMAL (1 cuota) que vence el 5-ago → debe contar
@@ -415,8 +419,8 @@ describe('getPaymentMethodStatus (tarjeta de crédito)', () => {
         { id: '2', type: 'expense', amount: -3200, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: '100', original_currency: 'ARS', cycle_id: CYCLE_ID },
         // reintegro que vence en el mismo ciclo
         { id: '3', type: 'income', amount: 2000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: CYCLE_ID },
-        // compra de OTRO ciclo (vence 5-sep) → NO debe contar
-        { id: '4', type: 'expense', amount: -99999, date: '2026-09-05', periodDate: '2026-08-05', realPaymentDate: '2026-09-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: OTHER_CYCLE_ID },
+        // compra de OTRO ciclo (vence 8-sep) → NO debe contar
+        { id: '4', type: 'expense', amount: -99999, date: '2026-09-08', periodDate: '2026-08-24', realPaymentDate: '2026-09-08', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: OTHER_CYCLE_ID },
       ],
     });
   }
