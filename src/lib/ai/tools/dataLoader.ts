@@ -1,6 +1,7 @@
 import { prepareTransactions, prepareRecurringPlans } from '@/lib/finance/prepare'
 import type { DolarBlue, ProcessedTransaction } from '@/lib/finance/types'
 import type { IncomeRhythm } from '@/lib/finance/pocket'
+import type { CreditCardCycle } from '@/lib/finance/cycles'
 import type {
   Transaction,
   PaymentMethod,
@@ -20,6 +21,7 @@ export interface FinanceData {
   internalTransfers: InternalTransfer[]
   categories: Category[]
   installmentPlans: InstallmentPlan[]
+  creditCardCycles: CreditCardCycle[]
   /** Ritmo de cobro declarado: define qué compromisos descuenta el disponible. */
   incomeRhythm: IncomeRhythm
   /** Serie mensual de IPC para deflactar a pesos de hoy. Vacía si la API falla. */
@@ -111,11 +113,16 @@ function assertNoQueryError<T extends { error: { message: string } | null }>(res
  *
  * - `users`: la fila del usuario vive en `users.id` = UUID de auth (igual que
  *   `categories`) → se filtra con `ctx.authUserId`. Solo se lee `income_rhythm`.
+ *
+ * - `credit_card_cycles`: `user_id: string` (UUID) FK a `public.users(id)`, y
+ *   `users.id` ES el UID de auth → mismo criterio que `transactions`, se filtra
+ *   con `ctx.userId`. Ordenado por `closing_date` ascendente: las funciones puras
+ *   de `lib/finance/cycles.ts` documentan esa precondición.
  */
 async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> {
   const { supabase, userId, authUserId } = ctx
 
-  const [tx, pm, rp, it, cat, ip, er, usr, blue, inflacion] = await Promise.all([
+  const [tx, pm, rp, it, cat, ip, er, usr, ccc, blue, inflacion] = await Promise.all([
     supabase.from('transactions').select('*').eq('user_id', userId),
     supabase.from('payment_methods').select('*').eq('user_id', userId),
     supabase.from('recurring_plans').select('*').eq('user_id', userId),
@@ -124,6 +131,7 @@ async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> 
     supabase.from('installment_plans').select('*').eq('user_id', userId),
     supabase.from('exchange_rates').select('*'),
     supabase.from('users').select('income_rhythm').eq('id', authUserId),
+    supabase.from('credit_card_cycles').select('*').eq('user_id', userId).order('closing_date', { ascending: true }),
     fetchDolarBlue(), // legítimamente degrada a null (nunca trae `.error`): no se chequea acá.
     fetchInflacion(), // ídem: legítimamente degrada a [] (nunca trae `.error`).
   ])
@@ -136,6 +144,7 @@ async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> 
   assertNoQueryError(ip, 'installment_plans')
   assertNoQueryError(er, 'exchange_rates')
   assertNoQueryError(usr, 'users')
+  assertNoQueryError(ccc, 'credit_card_cycles')
 
   const methods = (pm.data ?? []) as PaymentMethod[]
   const rates = (er.data ?? []) as ExchangeRate[]
@@ -147,6 +156,7 @@ async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> 
     internalTransfers: (it.data ?? []) as InternalTransfer[],
     categories: (cat.data ?? []) as Category[],
     installmentPlans: (ip.data ?? []) as InstallmentPlan[],
+    creditCardCycles: (ccc.data ?? []) as CreditCardCycle[],
     incomeRhythm: ((usr.data ?? [])[0]?.income_rhythm as IncomeRhythm) ?? 'monthly',
     inflacion,
   }

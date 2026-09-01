@@ -40,6 +40,7 @@ import {
   sameMonthYear,
 } from '@/lib/finance/creditCycle';
 import type { ProcessedTransaction, CreditCardCycleSummary as CreditCardCycleSummaryType, DolarBlue } from '@/lib/finance/types';
+import type { CreditCardCycle } from '@/lib/finance/cycles';
 import { resolveRate, prepareTransactions, prepareRecurringPlans } from '@/lib/finance/prepare';
 import { computePendingFixedExpenses } from '@/lib/finance/pending';
 import {
@@ -81,6 +82,7 @@ interface FinanceState {
   categories: Category[];
   savings: Saving[];
   internalTransfers: InternalTransfer[];
+  creditCardCycles: CreditCardCycle[];
   /** Ritmo de cobro declarado por el usuario. Define qué compromisos descuenta el disponible. */
   incomeRhythm: IncomeRhythm;
   savingsGoals: SavingsGoal[];
@@ -438,6 +440,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   marketPrices: [],
   savings: [],
   internalTransfers: [],
+  creditCardCycles: [],
   incomeRhythm: 'monthly',
   savingsGoals: [],
   savingsGoalContributions: [],
@@ -492,6 +495,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         { data: userData, error: userError },
         { data: savingsData, error: savError },
         { data: internalTransfersData, error: internalTransfersError },
+        { data: creditCardCyclesData, error: creditCardCyclesError },
         { data: savingsGoalsData, error: goalsError },
         { data: contributionsData, error: contribError },
         { data: budgetsData, error: budgetsError },
@@ -543,6 +547,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           .select('*')
           .eq('user_id', authUser.id)
           .order('period_date', { ascending: false }),
+        supabase
+          .from('credit_card_cycles')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .order('closing_date', { ascending: true }),
         supabase
           .from('savings_goals')
           .select('*')
@@ -612,6 +621,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       if (savError) throw savError;
       if (userError && userError.code !== 'PGRST116') throw userError; // PGRST116 is "no rows returned"
       if (internalTransfersError) console.warn('Internal transfers fetch error (may be missing migration):', internalTransfersError.message);
+      if (creditCardCyclesError) console.warn('Credit card cycles fetch error (may be missing migration):', creditCardCyclesError.message);
       // Goals errors are non-blocking (tables may not exist yet in DEV)
       if (goalsError) console.warn('Goals fetch error (may be missing migration):', goalsError.message);
       if (contribError) console.warn('Contributions fetch error:', contribError.message);
@@ -640,6 +650,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         categories: (categories as Category[]) || [],
         savings: (savingsData as Saving[]) || [],
         internalTransfers: (internalTransfersData as InternalTransfer[]) || [],
+        creditCardCycles: (creditCardCyclesData as CreditCardCycle[]) ?? [],
         savingsGoals: (savingsGoalsData as SavingsGoal[]) || [],
         savingsGoalContributions: (contributionsData as SavingsGoalContribution[]) || [],
         categoryBudgets: (budgetsData as CategoryBudget[]) || [],

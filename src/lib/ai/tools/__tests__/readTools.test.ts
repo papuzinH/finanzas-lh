@@ -128,6 +128,7 @@ const financeData: FinanceData = {
   internalTransfers: [],
   categories: [],
   installmentPlans: [],
+  creditCardCycles: [],
   incomeRhythm: 'monthly',
   inflacion: [],
 }
