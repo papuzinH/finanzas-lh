@@ -30,4 +30,18 @@ export type Version = {
 }
 
 /** La más reciente primero. Con la lista vacía, el popup no se le muestra a nadie. */
-export const VERSIONES: Version[] = []
+export const VERSIONES: Version[] = [
+  {
+    version: '1.0.0',
+    // ⚠️ Si el release sale otro día, mover esta fecha: es la que decide quién
+    // ve el popup. Un usuario dado de alta DESPUÉS de esta fecha no lo ve, y si
+    // la fecha queda vieja, quien se registre en el medio se lo pierde.
+    fecha: '2026-09-01',
+    titulo: 'Las tarjetas ahora cuentan bien los dólares',
+    items: [
+      'Tu plata libre ya no ignora lo que compraste en dólares con la tarjeta.',
+      'Si te vence un resumen y no lo marcaste, te lo avisamos en el inicio.',
+      'Podés ver en qué se te fue la plata mes a mes, en pesos de hoy.',
+    ],
+  },
+]
