@@ -7,15 +7,34 @@ const visa = {
   default_closing_day: 20, default_payment_day: 1,
 } as PaymentMethod
 
-/** Doble minimo del cliente: registra lo insertado y devuelve lo que se le siembra. */
+/** Test double: registra lo insertado y devuelve datos actualizados tras upsert. */
 function fakeSupabase(existentes: unknown[]) {
   const insertados: unknown[] = []
+  let upsertHappened = false
+
   const client = {
     from: () => ({
-      select: () => ({ eq: () => ({ order: () => Promise.resolve({ data: existentes, error: null }) }) }),
+      select: () => ({
+        eq: () => ({
+          order: () => {
+            // After upsert, return existentes + insertados (with synthetic id/created_at)
+            if (upsertHappened) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- doble de test
+              const inserted = insertados.map((row: any) => ({
+                ...row,
+                id: `gen-${row.closing_date}`,
+                created_at: '2026-01-01T00:00:00Z',
+              }))
+              return Promise.resolve({ data: [...existentes, ...inserted], error: null })
+            }
+            return Promise.resolve({ data: existentes, error: null })
+          },
+        }),
+      }),
       upsert: (rows: unknown[]) => {
         insertados.push(...rows)
-        return { select: () => Promise.resolve({ data: rows, error: null }) }
+        upsertHappened = true
+        return { select: () => Promise.resolve({ data: [], error: null }) }
       },
     }),
   }
@@ -44,8 +63,9 @@ describe('asegurarCiclos', () => {
     ]
     const { client, insertados } = fakeSupabase(todos)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- doble de test
-    await asegurarCiclos(client as any, visa, new Date(2026, 7, 1), new Date(2026, 7, 1))
+    const r = await asegurarCiclos(client as any, visa, new Date(2026, 7, 1), new Date(2026, 7, 1))
     expect(insertados).toHaveLength(0)
+    expect(r.map((c) => c.closing_date)).toEqual(['2026-08-20'])
   })
 
   it('una tarjeta sin ciclo configurado no genera nada', async () => {

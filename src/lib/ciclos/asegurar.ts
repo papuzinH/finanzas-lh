@@ -16,7 +16,10 @@ import { ciclosDeMetodo, generarCiclos, type CreditCardCycle } from '@/lib/finan
  *
  * El upsert va con `ignoreDuplicates` sobre la unique (payment_method_id,
  * closing_date): dos requests del mismo usuario en paralelo --el chat y la
- * pantalla, por ejemplo-- pueden intentar generar el mismo mes.
+ * pantalla, por ejemplo-- pueden intentar generar el mismo mes. Bajo concurrencia,
+ * `INSERT ... ON CONFLICT DO NOTHING RETURNING *` solo devuelve las filas que se
+ * insertaron; las que perdieron el conflicto quedan afuera. Por eso, tras un upsert
+ * exitoso, se relee la tabla para garantizar que el return refleja la verdad de la DB.
  */
 export async function asegurarCiclos(
   supabase: SupabaseClient<Database>,
@@ -36,12 +39,21 @@ export async function asegurarCiclos(
   const faltantes = generarCiclos(method, desde, hasta, actuales)
   if (faltantes.length === 0) return ciclosDeMetodo(method.id, actuales)
 
-  const { data: creados, error: insertError } = await supabase
+  const { error: insertError } = await supabase
     .from('credit_card_cycles')
     .upsert(faltantes, { onConflict: 'payment_method_id,closing_date', ignoreDuplicates: true })
     .select('*')
 
   if (insertError) throw new Error(`No pude crear los resumenes de la tarjeta: ${insertError.message}`)
 
-  return ciclosDeMetodo(method.id, [...actuales, ...((creados ?? []) as CreditCardCycle[])])
+  // Re-read from DB to ensure we get all cycles, including those that won a conflict
+  const { data: todos, error: leerError } = await supabase
+    .from('credit_card_cycles')
+    .select('*')
+    .eq('payment_method_id', method.id)
+    .order('closing_date', { ascending: true })
+
+  if (leerError) throw new Error(`No pude leer los resumenes despues de crearlos: ${leerError.message}`)
+
+  return ciclosDeMetodo(method.id, (todos ?? []) as CreditCardCycle[])
 }
