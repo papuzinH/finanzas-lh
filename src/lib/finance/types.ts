@@ -13,6 +13,8 @@ export interface DolarBlue {
 }
 
 export type CreditCardCycleSummary = {
+  /** El resumen al que corresponde. Es lo que permite imputarle el pago sin pasar por el mes. */
+  cycleId: string
   methodId: string
   name: string
   total: number

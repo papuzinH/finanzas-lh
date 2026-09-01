@@ -34,7 +34,7 @@ const fixed = (over: Partial<RecurringPlan>): RecurringPlan => ({
 } as RecurringPlan);
 
 const summary = (over: Partial<CreditCardCycleSummary>): CreditCardCycleSummary => ({
-  methodId: 'cred', name: 'Tarjeta', total: 0, totalARS: 0, totalUSD: 0,
+  cycleId: 'c1', methodId: 'cred', name: 'Tarjeta', total: 0, totalARS: 0, totalUSD: 0,
   nextPaymentDate: new Date(2026, 8, 1), isCycleClosed: true, isPending: true, isPaidManually: false, isOverdue: false,
   ...over,
 });
@@ -354,23 +354,27 @@ describe('E12 — el resumen vencido sin pago sigue descontado', () => {
     initial_balance: 0, initial_balance_at: null,
   } as PaymentMethod;
 
-  // Ciclo vencido (1-ago, impago) y el vigente visto desde AGOSTO_5 (cierra 19-ago,
-  // vence 1-sep) -- computePendingCreditCards necesita los dos para derivar cuál es
-  // "el anterior" de cuál.
+  // Ciclos DESPAREJOS (cierres 23-jul/20-ago, vencimientos 3-ago/1-sep — no un mes
+  // exacto entre uno y otro) a propósito: fixturear ciclos parejos es cómo se
+  // escondieron los últimos dos bugs grandes del repo (E8, el histórico), y es
+  // justamente lo que le permitió a Finding 1 (revisión 2026-09-01) pasar
+  // desapercibido en este mismo E12 durante la primera ronda. El ciclo vencido
+  // (3-ago, impago) y el vigente visto desde HOY (cierra 20-ago, vence 1-sep) --
+  // computePendingCreditCards necesita los dos para derivar cuál es "el anterior".
   const cycles: CreditCardCycle[] = [
-    { id: 'ago', user_id: 'u1', payment_method_id: 'cred', closing_date: '2026-07-19', due_date: '2026-08-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
-    { id: 'sep', user_id: 'u1', payment_method_id: 'cred', closing_date: '2026-08-19', due_date: '2026-09-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+    { id: 'jul', user_id: 'u1', payment_method_id: 'cred', closing_date: '2026-07-23', due_date: '2026-08-03', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+    { id: 'ago', user_id: 'u1', payment_method_id: 'cred', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
   ];
 
   const consumo = {
     id: 'compra', user_id: 'u1', type: 'expense', amount: 50000,
-    date: '2026-08-01', periodDate: '2026-08-01', realPaymentDate: '2026-08-01',
+    date: '2026-08-03', periodDate: '2026-08-03', realPaymentDate: '2026-08-03',
     payment_method_id: 'cred', category_id: 'c1', card_payment_for: null,
     installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
-    cycle_id: 'ago',
+    cycle_id: 'jul',
   } as ProcessedTransaction;
 
-  const AGOSTO_5 = new Date(2026, 7, 5);   // el vencimiento del 1-ago ya pasó
+  const HOY = new Date(2026, 7, 10);   // 10-ago: el vencimiento del 3-ago ya pasó
   const cuentas = [acct({ initial_balance: 300000, initial_balance_at: '2026-07-01' }), visa];
 
   const correr = (transactions: ProcessedTransaction[]) =>
@@ -379,9 +383,9 @@ describe('E12 — el resumen vencido sin pago sigue descontado', () => {
       transactions,
       transfers: [],
       recurringPlans: [],
-      pendingCards: computePendingCreditCards(cuentas, transactions, [], AGOSTO_5, cycles),
+      pendingCards: computePendingCreditCards(cuentas, transactions, [], cycles, HOY),
       rhythm: 'monthly',
-      now: AGOSTO_5,
+      now: HOY,
     });
 
   it('sin pago registrado, el disponible NO sube: el resumen sigue pesando', () => {
@@ -393,10 +397,10 @@ describe('E12 — el resumen vencido sin pago sigue descontado', () => {
   it('con el pago registrado, el compromiso se libera y el saldo baja a la vez', () => {
     const pago = {
       id: 'pago', user_id: 'u1', type: 'expense', amount: 50000,
-      date: '2026-08-01', periodDate: '2026-08-01', realPaymentDate: '2026-08-01',
+      date: '2026-08-03', periodDate: '2026-08-03', realPaymentDate: '2026-08-03',
       payment_method_id: 'poc', category_id: 'c1', card_payment_for: 'cred',
       installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
-      cycle_id: 'ago',
+      cycle_id: 'jul',
     } as ProcessedTransaction;
 
     const r = correr([consumo, pago]);

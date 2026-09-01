@@ -973,7 +973,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
   getPendingCreditCardByCard: () => {
     const { paymentMethods, transactions, recurringPlans, creditCardCycles } = get();
-    return computePendingCreditCards(paymentMethods, transactions, recurringPlans, new Date(), creditCardCycles);
+    return computePendingCreditCards(paymentMethods, transactions, recurringPlans, creditCardCycles, new Date());
   },
 
   /**

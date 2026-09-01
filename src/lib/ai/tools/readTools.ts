@@ -77,8 +77,8 @@ export const readTools: ToolDef[] = [
         data.paymentMethods,
         data.transactions,
         data.recurringPlans,
-        now,
         data.creditCardCycles,
+        now,
       )
       const r = computeAvailableToSpend({
         paymentMethods: data.paymentMethods,
@@ -128,7 +128,7 @@ export const readTools: ToolDef[] = [
       // isCycleClosed no es un output de computePaymentMethodStatus: lo tomamos de
       // computePendingCreditCards (misma fuente que get_balance_snapshot) para no
       // reimplementar la comparación de fechas a mano.
-      const pendingCards = computePendingCreditCards(data.paymentMethods, data.transactions, data.recurringPlans, now, data.creditCardCycles)
+      const pendingCards = computePendingCreditCards(data.paymentMethods, data.transactions, data.recurringPlans, data.creditCardCycles, now)
 
       const summarize = (method: (typeof data.paymentMethods)[number]) => {
         const status = computePaymentMethodStatus(method, data.transactions, data.recurringPlans, now, data.creditCardCycles)
