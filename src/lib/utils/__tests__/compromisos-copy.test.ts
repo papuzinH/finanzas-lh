@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cicloSub, montoDelCiclo } from '../compromisos-copy';
+import { cicloSub, montoDelCiclo, avisoDeVencidos } from '../compromisos-copy';
 import { formatCurrency } from '@/lib/utils';
 
 describe('cicloSub', () => {
@@ -65,5 +65,40 @@ describe('montoDelCiclo', () => {
       principal: formatCurrency(5000),
       secundario: null,
     });
+  });
+});
+
+describe('avisoDeVencidos', () => {
+  // El aviso es la unica via para que el usuario salde un resumen vencido, y por
+  // eso tambien es la explicacion de por que su disponible esta mas bajo: el
+  // resumen sigue descontado hasta que lo marque (computePendingCreditCards).
+  const vencido = (over = {}) => ({
+    methodId: 'c1', name: 'Visa Galicia', total: 324078, totalARS: 324078, totalUSD: 0,
+    nextPaymentDate: new Date(2026, 8, 1), isCycleClosed: true, isPending: true,
+    isPaidManually: false, isOverdue: true, ...over,
+  });
+
+  it('sin resumenes vencidos no hay aviso', () => {
+    expect(avisoDeVencidos([])).toBeNull();
+    expect(avisoDeVencidos([vencido({ isOverdue: false })])).toBeNull();
+  });
+
+  it('con uno, lo nombra y dice cuanto', () => {
+    const a = avisoDeVencidos([vencido()]);
+    expect(a?.titulo).toContain('Visa Galicia');
+    expect(a?.detalle).toContain(formatCurrency(324078));
+  });
+
+  it('dice que lo sigue descontando: es la explicacion del numero, no un reto', () => {
+    expect(avisoDeVencidos([vencido()])?.detalle).toMatch(/descont/i);
+  });
+
+  it('con varios no enumera montos sueltos: cuenta cuantos y suma', () => {
+    const a = avisoDeVencidos([
+      vencido(),
+      vencido({ methodId: 'c2', name: 'Mastercard', total: 100000, totalARS: 100000 }),
+    ]);
+    expect(a?.titulo).toContain('2');
+    expect(a?.detalle).toContain(formatCurrency(424078));
   });
 });

@@ -1,5 +1,6 @@
 // Sub-líneas de la card de ciclo de tarjeta (mock 2026-08-14). Puro.
 import { formatCurrency, formatUsd } from '@/lib/utils';
+import type { CreditCardCycleSummary } from '@/lib/finance/types';
 
 const fmtDia = (d: Date) =>
   `${d.getDate()} ${new Intl.DateTimeFormat('es-AR', { month: 'short' }).format(d).replace('.', '')}`;
@@ -52,4 +53,34 @@ export function montoDelCiclo(card: { total: number; totalARS: number; totalUSD:
   // Sin desglose (puede pasar si el ciclo sólo trae ingresos/ajustes): el total
   // es lo único que queda, y es mejor que mostrar cero.
   return { principal: formatCurrency(total), secundario: null };
+}
+
+/**
+ * El aviso de resúmenes vencidos sin pago registrado.
+ *
+ * Es la contracara visible de que `computePendingCreditCards` los retiene: mientras
+ * el usuario no marque el pago, ese monto sigue descontado de su disponible. Por eso
+ * el texto dice que lo estamos descontando — el aviso no es un reto por no anotar,
+ * es la explicación de por qué el número está más bajo, y la única vía para saldarlo.
+ *
+ * Con varios no se enumeran montos sueltos: se cuenta cuántos y se suma, porque lo
+ * accionable es "andá a marcarlos", no comparar resúmenes entre sí.
+ */
+export function avisoDeVencidos(
+  cards: CreditCardCycleSummary[],
+): { titulo: string; detalle: string } | null {
+  const vencidos = cards.filter((c) => c.isOverdue);
+  if (vencidos.length === 0) return null;
+
+  const total = vencidos.reduce((acc, c) => acc + c.total, 0);
+  const uno = vencidos.length === 1;
+
+  return {
+    titulo: uno
+      ? `Venció el resumen de tu ${vencidos[0].name}`
+      : `Vencieron ${vencidos.length} resúmenes de tarjeta`,
+    detalle: uno
+      ? `${formatCurrency(total)}. Lo seguimos descontando de tu plata libre hasta que nos digas que lo pagaste.`
+      : `${formatCurrency(total)} en total. Los seguimos descontando de tu plata libre hasta que nos digas que los pagaste.`,
+  };
 }

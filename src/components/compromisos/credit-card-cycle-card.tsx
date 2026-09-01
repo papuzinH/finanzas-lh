@@ -161,7 +161,9 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
         className="inline-flex items-center gap-1 min-h-11 px-3 rounded-full text-[11px] font-bold bg-warn/10 text-warn border border-warn/20 cursor-pointer select-none hover:bg-warn/15 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
       >
         <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-        Pendiente
+        {/* Un resumen vencido necesita una acción, no un estado: "Pendiente"
+            junto al aviso de vencimiento no le dice al usuario qué hacer. */}
+        {card.isOverdue ? '¿La pagaste?' : 'Pendiente'}
       </button>
 
       <AlertDialog open={open} onOpenChange={(v) => !confirming && setOpen(v)}>
@@ -247,8 +249,12 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
           <CreditCard className="h-4 w-4 text-accent-deep" aria-hidden="true" />
         </span>
         <div className="min-w-0 grid gap-px">
-          <span className="font-sans font-bold text-[13.5px] text-text truncate">{card.name} · ciclo actual</span>
-          <span className="text-[11.5px] text-muted">{ciclo.fechas}</span>
+          <span className="font-sans font-bold text-[13.5px] text-text truncate">
+            {card.name} · {card.isOverdue ? 'resumen vencido' : 'ciclo actual'}
+          </span>
+          <span className={`text-[11.5px] ${card.isOverdue ? 'text-warn font-bold' : 'text-muted'}`}>
+            {card.isOverdue ? `venció el ${formattedDate} y no lo marcaste` : ciclo.fechas}
+          </span>
         </div>
         <span className={`ml-auto text-right whitespace-nowrap ${card.isPending ? 'text-bad' : 'text-text'}`}>
           <span className="block font-display tnum text-[15px]">{monto.principal}</span>
@@ -258,11 +264,13 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
         </span>
       </div>
 
-      <ProgressBar value={ciclo.pct} height={8} tone="accent" label="Días transcurridos del ciclo" />
+      {!card.isOverdue && (
+        <ProgressBar value={ciclo.pct} height={8} tone="accent" label="Días transcurridos del ciclo" />
+      )}
 
       {/* Días del ciclo + acciones (chip de pago y desglose USD), conservadas */}
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[11.5px] text-muted">{ciclo.dias}</span>
+        <span className="text-[11.5px] text-muted">{card.isOverdue ? '' : ciclo.dias}</span>
         <div className="flex items-center gap-2 shrink-0">
           {/* El u$s del resumen vive arriba, junto a los pesos (montoDelCiclo): suelto
               acá se leía como un dato aparte y no como la otra mitad de lo que debés. */}
