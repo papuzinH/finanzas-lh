@@ -282,3 +282,59 @@ describe('E10 — tarjeta con compras en dolares', () => {
     expect(despues.committed).toBe(0);
   });
 });
+
+describe('E11 — qué pasa si NO se marca el pago de la tarjeta', () => {
+  // Responde a "¿la funcionalidad de pagar tarjeta tiene sentido?" (2026-09-01).
+  // La intuición es que no agrega nada, porque el resumen YA se descuenta del
+  // disponible. Pero el ciclo avanza solo al día siguiente del vencimiento
+  // (getCreditCycleDates) y el resumen viejo desaparece: si nadie registró la
+  // salida de plata, el compromiso se libera y el bolsillo nunca baja.
+  const HOY_VENCE = new Date(2026, 8, 1);      // 1-sep: la tarjeta vence hoy
+  const YA_VENCIO = new Date(2026, 8, 2);      // 2-sep: el ciclo ya avanzó
+  const RESUMEN = 324078;
+
+  const cuenta = () => [
+    acct({ initial_balance: 500000, initial_balance_at: '2026-08-21' }),
+    acct({ id: 'cred', name: 'Visa', type: 'credit', is_default: false }),
+  ];
+  const visa = summary({
+    methodId: 'cred', name: 'Visa', total: RESUMEN, totalARS: RESUMEN,
+    nextPaymentDate: HOY_VENCE,
+  });
+
+  it('el día del vencimiento el resumen está descontado', () => {
+    const r = computeAvailableToSpend({
+      paymentMethods: cuenta(), transactions: [], transfers: [], recurringPlans: [],
+      pendingCards: [visa], rhythm: 'monthly', now: HOY_VENCE,
+    });
+    expect(r.committed).toBe(RESUMEN);
+    expect(r.available).toBe(500000 - RESUMEN);
+  });
+
+  it('sin marcarlo, al día siguiente el disponible SUBE por plata que ya no está', () => {
+    // El ciclo avanzó: el resumen viejo ya no figura como pendiente y el nuevo
+    // todavía no acumuló nada. Nadie registró que salieron $324.078 de la cuenta.
+    const r = computeAvailableToSpend({
+      paymentMethods: cuenta(), transactions: [], transfers: [], recurringPlans: [],
+      pendingCards: [], rhythm: 'monthly', now: YA_VENCIO,
+    });
+    expect(r.committed).toBe(0);
+    expect(r.pocketTotal).toBe(500000);   // el saldo nunca bajó
+    expect(r.available).toBe(500000);     // +$324.078 de la nada
+  });
+
+  it('marcándolo, el disponible no se mueve: la plata sale de donde salió de verdad', () => {
+    const pago = {
+      id: 'pago', user_id: 'u1', type: 'expense', amount: RESUMEN,
+      date: '2026-09-01', periodDate: '2026-09-01', realPaymentDate: '2026-09-01',
+      payment_method_id: 'poc', category_id: 'c1', card_payment_for: 'cred',
+      installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
+    } as ProcessedTransaction;
+    const r = computeAvailableToSpend({
+      paymentMethods: cuenta(), transactions: [pago], transfers: [], recurringPlans: [],
+      pendingCards: [], rhythm: 'monthly', now: YA_VENCIO,
+    });
+    expect(r.pocketTotal).toBe(500000 - RESUMEN);
+    expect(r.available).toBe(500000 - RESUMEN);
+  });
+});
