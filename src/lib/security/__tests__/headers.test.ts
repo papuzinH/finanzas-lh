@@ -119,3 +119,24 @@ describe('construirSecurityHeaders', () => {
     expect(mapa['Permissions-Policy']).toContain('microphone=(self)')
   })
 })
+
+describe("'unsafe-eval' sólo en desarrollo", () => {
+  // React en modo desarrollo NECESITA eval() y sin él se degrada solo: la consola
+  // avisa "React requires eval() in development mode" y el error overlay deja de
+  // andar. En producción no hace falta y no se agrega — Zod ya cae a su camino
+  // interpretado cuando no puede compilar (ver zod-sin-jit.test.ts).
+  it('la CSP de producción NO lo lleva', () => {
+    expect(construirCSP('https://x.supabase.co')).not.toContain('unsafe-eval');
+  });
+
+  it('la de desarrollo sí', () => {
+    expect(construirCSP('https://x.supabase.co', { desarrollo: true })).toContain("'unsafe-eval'");
+  });
+
+  it('lo agrega en script-src y no en otra directiva', () => {
+    const dev = construirCSP('https://x.supabase.co', { desarrollo: true });
+    const scriptSrc = dev.split('; ').find((d) => d.startsWith('script-src'));
+    expect(scriptSrc).toContain("'unsafe-eval'");
+    expect(dev.split('; ').filter((d) => d.includes('unsafe-eval'))).toHaveLength(1);
+  });
+});

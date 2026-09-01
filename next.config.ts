@@ -24,7 +24,9 @@ const CSP_REPORT_ONLY = false;
 
 const securityHeaders = construirSecurityHeaders(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  { reportOnly: CSP_REPORT_ONLY },
+  // `next dev` corre con NODE_ENV=development y ahí React necesita eval(): sin
+  // esto la app renderiza pero con React degradado y sin error overlay.
+  { reportOnly: CSP_REPORT_ONLY, desarrollo: process.env.NODE_ENV !== 'production' },
 );
 
 const nextConfig: NextConfig = {

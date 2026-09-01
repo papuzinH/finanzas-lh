@@ -32,7 +32,10 @@ const AVATAR_GOOGLE = 'https://lh3.googleusercontent.com'
  * Preview apunta a DEV y producción a su propio proyecto: un host fijo dejaría
  * a los previews sin base.
  */
-export function construirCSP(supabaseUrl: string | undefined): string {
+export function construirCSP(
+  supabaseUrl: string | undefined,
+  { desarrollo = false }: { desarrollo?: boolean } = {},
+): string {
   const supabase: string[] = []
   if (supabaseUrl) {
     supabase.push(supabaseUrl)
@@ -47,7 +50,13 @@ export function construirCSP(supabaseUrl: string | undefined): string {
     // Cambiarlo por nonces exige generarlos en el middleware y pasárselos a Next
     // (ver la nota de la auditoría). Aun con esto, el resto de la política cierra
     // exfiltración (`connect-src`), embebido (`frame-ancestors`) y `base-uri`.
-    "script-src 'self' 'unsafe-inline'",
+    // 'unsafe-eval' SÓLO en desarrollo: React en modo dev lo necesita y sin él se
+    // degrada solo ("React requires eval() in development mode" en consola, y el
+    // error overlay deja de andar). Producción no lo lleva — Zod detecta que no
+    // puede compilar con new Function y cae a su camino interpretado
+    // (zod-sin-jit.test.ts). El flag viene por parámetro y no de process.env para
+    // que la diferencia sea testeable sin tocar variables globales.
+    `script-src 'self' 'unsafe-inline'${desarrollo ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${AVATAR_GOOGLE}`,
     "font-src 'self'", // next/font las self-hostea en el build
@@ -80,12 +89,12 @@ export interface SecurityHeader {
  */
 export function construirSecurityHeaders(
   supabaseUrl: string | undefined,
-  { reportOnly }: { reportOnly: boolean },
+  { reportOnly, desarrollo = false }: { reportOnly: boolean; desarrollo?: boolean },
 ): SecurityHeader[] {
   return [
     {
       key: reportOnly ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy',
-      value: construirCSP(supabaseUrl),
+      value: construirCSP(supabaseUrl, { desarrollo }),
     },
     // Redundante con `frame-ancestors` en navegadores modernos, y sigue haciendo
     // falta para los que no leen esa directiva.
