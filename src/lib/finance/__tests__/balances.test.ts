@@ -276,8 +276,8 @@ describe('computePendingCreditCards — resúmenes vencidos sin pago', () => {
   // en silencio (ver E11 en escenarios-disponible.test.ts). Retenerlo hasta que haya
   // un pago registrado es la lectura conservadora.
   //
-  // Ciclos DESPAREJOS a propósito (cierres 23-jul/22-ago, vencimientos 3-ago/3-sep
-  // — no un mes exacto entre uno y otro): fixturear ciclos parejos es cómo se
+  // Ciclos DESPAREJOS a propósito (cierres 23-jul/22-ago, vencimientos 3-ago/8-sep
+  // — ni los cierres ni los vencimientos están a un mes exacto entre sí): fixturear ciclos parejos es cómo se
   // escondieron los últimos dos bugs grandes del repo (E8, el histórico) y es lo
   // que dejó pasar Finding 1 en la primera ronda de esta misma task. Los defaults
   // de la tarjeta (closing 20/payment 1) quedan deliberadamente desalineados de
@@ -295,10 +295,10 @@ describe('computePendingCreditCards — resúmenes vencidos sin pago', () => {
   const visa = credit({ id: '1', name: 'Visa', default_closing_day: 20, default_payment_day: 1 })
   const cycles = [
     cycle({ id: 'jul', payment_method_id: '1', closing_date: '2026-07-23', due_date: '2026-08-03' }),
-    cycle({ id: 'ago', payment_method_id: '1', closing_date: '2026-08-22', due_date: '2026-09-03' }),
+    cycle({ id: 'ago', payment_method_id: '1', closing_date: '2026-08-22', due_date: '2026-09-08' }),
   ]
   const consumo = [tx({ payment_method_id: '1', type: 'expense', date: '2026-08-03', periodDate: '2026-08-03', amount: -50000, cycle_id: 'jul' })]
-  const HOY = new Date(2026, 7, 10) // 10-ago: el vencimiento del 3-ago ya pasó, el vigente (3-sep) todavía no
+  const HOY = new Date(2026, 7, 10) // 10-ago: el vencimiento del 3-ago ya pasó, el vigente (8-sep) todavía no
 
   it('retiene el resumen vencido y lo marca como tal', () => {
     const r = computePendingCreditCards([visa, bolsillo()], consumo, [], cycles, HOY)
@@ -321,7 +321,7 @@ describe('computePendingCreditCards — resúmenes vencidos sin pago', () => {
 
   it('no retiene lo que venció ANTES del último saldo declarado', () => {
     // El ancla del 15-ago (posterior al vencimiento 3-ago, anterior al vigente
-    // 3-sep) ya refleja que ese resumen se pagó: retenerlo lo restaría dos veces.
+    // 8-sep) ya refleja que ese resumen se pagó: retenerlo lo restaría dos veces.
     // Es el agujero de −$850.613 del 2026-08-21, que no se puede reabrir.
     const anclaPosterior = bolsillo({ initial_balance_at: '2026-08-15' });
     const luego = new Date(2026, 7, 20) // 20-ago, con el ancla ya puesta
@@ -334,10 +334,10 @@ describe('computePendingCreditCards — resúmenes vencidos sin pago', () => {
   })
 
   it('con ciclos desparejos, el vencido es el ciclo ANTERIOR, no "un mes antes"', () => {
-    // Cierres 23-jul/22-ago, vencimientos 3-ago/3-sep: ni un mes exacto entre sí ni
+    // Cierres 23-jul/22-ago, vencimientos 3-ago/8-sep: ni un mes exacto entre sí ni
     // alineados con los defaults de la tarjeta (20/1). El modelo viejo restaba un
-    // mes al vencimiento vigente (subMonths) para adivinar la fecha del anterior;
-    // eso podía apuntar a una fecha que ningún ciclo real tenía (el agujero de E11)
+    // mes al vencimiento vigente (subMonths) para adivinar la fecha del anterior —
+    // acá daría 8-ago, que no es el vencimiento de ningún ciclo; eso podía apuntar a una fecha que ningún ciclo real tenía (el agujero de E11)
     // o, peor, "caer para adelante" y devolver el mismo ciclo vigente duplicado
     // como "vencido" (Finding 1). Con la entidad, "el anterior" es una consulta real
     // (cicloAnterior sobre la tabla de ciclos), nunca una resta de calendario.
