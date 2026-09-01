@@ -9,6 +9,7 @@
 // La integracion store<->funcion se cubre en el ultimo describe.
 import { describe, it, expect } from 'vitest';
 import { computeAvailableToSpend, type AvailableInputs } from '../pocket';
+import { computePendingCreditCards } from '../balances';
 import type { PaymentMethod, RecurringPlan, InternalTransfer } from '@/types/database';
 import type { ProcessedTransaction, CreditCardCycleSummary } from '../types';
 
@@ -32,7 +33,7 @@ const fixed = (over: Partial<RecurringPlan>): RecurringPlan => ({
 
 const summary = (over: Partial<CreditCardCycleSummary>): CreditCardCycleSummary => ({
   methodId: 'cred', name: 'Tarjeta', total: 0, totalARS: 0, totalUSD: 0,
-  nextPaymentDate: new Date(2026, 8, 1), isCycleClosed: true, isPending: true, isPaidManually: false,
+  nextPaymentDate: new Date(2026, 8, 1), isCycleClosed: true, isPending: true, isPaidManually: false, isOverdue: false,
   ...over,
 });
 
@@ -231,5 +232,164 @@ describe('integracion: el store cablea bien la funcion pura', () => {
     expect(r.pocketTotal).toBe(120000);
     expect(r.reserveTotal).toBe(900000);
     expect(r.available).toBe(120000);
+  });
+});
+
+describe('E10 — tarjeta con compras en dolares', () => {
+  // Caso real (Lauti, 2026-09-01): la Visa vencia ese dia con $260.582 en pesos
+  // y otros $63.496 en compras en dolares. El disponible descontaba SOLO la
+  // parte en pesos, asi que la plata libre estaba inflada por el valor de las
+  // compras en USD; y al marcar la tarjeta pagada, el pago (que si registra el
+  // total) hacia caer el disponible por esa diferencia. E8 no lo veia porque su
+  // fixture pone totalARS === total, o sea una tarjeta sin una sola compra en USD.
+  const conDolares = summary({
+    totalARS: 100000,   // gastos cuya moneda original es el peso
+    totalUSD: 100,      // u$s 100 del resumen...
+    total: 150000,      // ...que valen $50.000: el resumen entero sale $150.000
+    nextPaymentDate: new Date(2026, 7, 28),
+  });
+
+  it('descuenta el resumen COMPLETO, no solo la parte en pesos', () => {
+    const r = run({
+      paymentMethods: [acct({ initial_balance: 300000 }), acct({ id: 'cred', type: 'credit', is_default: false })],
+      pendingCards: [conDolares],
+    });
+
+    expect(r.committed).toBe(150000);
+    expect(r.available).toBe(150000);
+  });
+
+  it('pagarla no mueve el disponible (E8, ahora con dolares adentro)', () => {
+    const cuentas = [acct({ initial_balance: 300000 }), acct({ id: 'cred', type: 'credit', is_default: false })];
+
+    const antes = run({ paymentMethods: cuentas, pendingCards: [conDolares] });
+
+    // El pago real que registra payCreditCardCycle: card.total, el resumen entero.
+    const pago = {
+      id: 'pago', user_id: 'u1', type: 'expense', amount: 150000,
+      date: '2026-08-20', periodDate: '2026-08-20', realPaymentDate: '2026-08-20',
+      payment_method_id: 'poc', category_id: 'c1', card_payment_for: 'cred',
+      installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
+    } as ProcessedTransaction;
+    const despues = run({
+      paymentMethods: cuentas,
+      transactions: [pago],
+      pendingCards: [{ ...conDolares, isPending: false }],
+    });
+
+    expect(antes.available).toBe(150000);
+    expect(despues.available).toBe(150000);
+    expect(despues.pocketTotal).toBe(150000);
+    expect(despues.committed).toBe(0);
+  });
+});
+
+describe('E11 — qué pasa si NO se marca el pago de la tarjeta', () => {
+  // Responde a "¿la funcionalidad de pagar tarjeta tiene sentido?" (2026-09-01).
+  // La intuición es que no agrega nada, porque el resumen YA se descuenta del
+  // disponible. Pero el ciclo avanza solo al día siguiente del vencimiento
+  // (getCreditCycleDates) y el resumen viejo desaparece: si nadie registró la
+  // salida de plata, el compromiso se libera y el bolsillo nunca baja.
+  const HOY_VENCE = new Date(2026, 8, 1);      // 1-sep: la tarjeta vence hoy
+  const YA_VENCIO = new Date(2026, 8, 2);      // 2-sep: el ciclo ya avanzó
+  const RESUMEN = 324078;
+
+  const cuenta = () => [
+    acct({ initial_balance: 500000, initial_balance_at: '2026-08-21' }),
+    acct({ id: 'cred', name: 'Visa', type: 'credit', is_default: false }),
+  ];
+  const visa = summary({
+    methodId: 'cred', name: 'Visa', total: RESUMEN, totalARS: RESUMEN,
+    nextPaymentDate: HOY_VENCE,
+  });
+
+  it('el día del vencimiento el resumen está descontado', () => {
+    const r = computeAvailableToSpend({
+      paymentMethods: cuenta(), transactions: [], transfers: [], recurringPlans: [],
+      pendingCards: [visa], rhythm: 'monthly', now: HOY_VENCE,
+    });
+    expect(r.committed).toBe(RESUMEN);
+    expect(r.available).toBe(500000 - RESUMEN);
+  });
+
+  it('sin marcarlo, al día siguiente el disponible SUBE por plata que ya no está', () => {
+    // El ciclo avanzó: el resumen viejo ya no figura como pendiente y el nuevo
+    // todavía no acumuló nada. Nadie registró que salieron $324.078 de la cuenta.
+    const r = computeAvailableToSpend({
+      paymentMethods: cuenta(), transactions: [], transfers: [], recurringPlans: [],
+      pendingCards: [], rhythm: 'monthly', now: YA_VENCIO,
+    });
+    expect(r.committed).toBe(0);
+    expect(r.pocketTotal).toBe(500000);   // el saldo nunca bajó
+    expect(r.available).toBe(500000);     // +$324.078 de la nada
+  });
+
+  it('marcándolo, el disponible no se mueve: la plata sale de donde salió de verdad', () => {
+    const pago = {
+      id: 'pago', user_id: 'u1', type: 'expense', amount: RESUMEN,
+      date: '2026-09-01', periodDate: '2026-09-01', realPaymentDate: '2026-09-01',
+      payment_method_id: 'poc', category_id: 'c1', card_payment_for: 'cred',
+      installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
+    } as ProcessedTransaction;
+    const r = computeAvailableToSpend({
+      paymentMethods: cuenta(), transactions: [pago], transfers: [], recurringPlans: [],
+      pendingCards: [], rhythm: 'monthly', now: YA_VENCIO,
+    });
+    expect(r.pocketTotal).toBe(500000 - RESUMEN);
+    expect(r.available).toBe(500000 - RESUMEN);
+  });
+});
+
+describe('E12 — el resumen vencido sin pago sigue descontado', () => {
+  // Cierre del agujero que mide E11: acá no se fabrica el resumen a mano, se pide
+  // a computePendingCreditCards con los mismos datos que tendría la app, para que
+  // el escenario pruebe la cadena entera (ciclo -> compromiso -> disponible) y no
+  // sólo el ensamblador.
+  const visa = {
+    id: 'cred', user_id: 'u1', name: 'Visa', type: 'credit',
+    default_closing_day: 19, default_payment_day: 1, created_at: '2026-01-01',
+    is_personal: false, is_default: false, bucket: 'pocket',
+    initial_balance: 0, initial_balance_at: null,
+  } as PaymentMethod;
+
+  const consumo = {
+    id: 'compra', user_id: 'u1', type: 'expense', amount: 50000,
+    date: '2026-08-01', periodDate: '2026-08-01', realPaymentDate: '2026-08-01',
+    payment_method_id: 'cred', category_id: 'c1', card_payment_for: null,
+    installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
+  } as ProcessedTransaction;
+
+  const AGOSTO_5 = new Date(2026, 7, 5);   // el vencimiento del 1-ago ya pasó
+  const cuentas = [acct({ initial_balance: 300000, initial_balance_at: '2026-07-01' }), visa];
+
+  const correr = (transactions: ProcessedTransaction[]) =>
+    computeAvailableToSpend({
+      paymentMethods: cuentas,
+      transactions,
+      transfers: [],
+      recurringPlans: [],
+      pendingCards: computePendingCreditCards(cuentas, transactions, [], AGOSTO_5),
+      rhythm: 'monthly',
+      now: AGOSTO_5,
+    });
+
+  it('sin pago registrado, el disponible NO sube: el resumen sigue pesando', () => {
+    const r = correr([consumo]);
+    expect(r.committed).toBe(50000);
+    expect(r.available).toBe(250000);
+  });
+
+  it('con el pago registrado, el compromiso se libera y el saldo baja a la vez', () => {
+    const pago = {
+      id: 'pago', user_id: 'u1', type: 'expense', amount: 50000,
+      date: '2026-08-01', periodDate: '2026-08-01', realPaymentDate: '2026-08-01',
+      payment_method_id: 'poc', category_id: 'c1', card_payment_for: 'cred',
+      installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
+    } as ProcessedTransaction;
+
+    const r = correr([consumo, pago]);
+    expect(r.committed).toBe(0);
+    expect(r.pocketTotal).toBe(250000);
+    expect(r.available).toBe(250000);  // el mismo número que sin pagar: neto cero
   });
 });

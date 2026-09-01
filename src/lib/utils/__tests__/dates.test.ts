@@ -6,6 +6,7 @@ import {
   isInSameMonth,
   getCreditCardPeriod,
   calculateCreditPaymentDate,
+  rangoDelMes,
 } from '../dates'
 
 describe('dates.ts', () => {
@@ -240,3 +241,21 @@ describe('dates.ts', () => {
     })
   })
 })
+
+describe('rangoDelMes', () => {
+  // Nace de un bug real (2026-09-01): el guard anti-duplicado de payCreditCardCycle
+  // derivaba el mes con `new Date('2026-09-01')`, que es medianoche UTC — en una TZ
+  // negativa como la argentina eso cae el 31 de agosto, así que para una tarjeta que
+  // vence el DÍA 1 el guard buscaba pagos en el mes anterior. Efecto doble: dejaba
+  // duplicar el pago del mes en curso, y si había uno del mes anterior devolvía
+  // "listo" sin guardar nada. Por eso el rango se deriva del string, sin Date.
+  it('toma el mes del string, no el que resulte de interpretarlo en UTC', () => {
+    expect(rangoDelMes('2026-09-01')).toEqual({ start: '2026-09-01', end: '2026-09-30' });
+  });
+
+  it('resuelve el último día de cada mes, febrero bisiesto incluido', () => {
+    expect(rangoDelMes('2026-02-15').end).toBe('2026-02-28');
+    expect(rangoDelMes('2024-02-15').end).toBe('2024-02-29');
+    expect(rangoDelMes('2026-12-31').end).toBe('2026-12-31');
+  });
+});

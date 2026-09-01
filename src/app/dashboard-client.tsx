@@ -20,6 +20,7 @@ import { SectionTitle } from '@/components/shared/section-title';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { BalanceCard } from '@/components/dashboard/balance-card';
 import { IncompleteCreditCardsBanner } from '@/components/dashboard/incomplete-credit-cards-banner';
+import { OverdueCardPaymentBanner } from '@/components/dashboard/overdue-card-payment-banner';
 import { ReconcileReminderCard } from '@/components/pocket/reconcile-reminder-card';
 import { MetricGrid } from '@/components/dashboard/metric-grid';
 import { BudgetGaugeCard } from '@/components/dashboard/budget-gauge-card';
@@ -95,6 +96,10 @@ export default function DashboardClient() {
 
         {/* Aviso: tarjetas de crédito sin fechas configuradas */}
         <IncompleteCreditCardsBanner />
+
+        {/* Aviso: resúmenes vencidos sin pago registrado. Va ARRIBA del hero a
+            propósito: explica por qué el disponible de abajo está más bajo. */}
+        <OverdueCardPaymentBanner />
 
         <ReconcileReminderCard />
 

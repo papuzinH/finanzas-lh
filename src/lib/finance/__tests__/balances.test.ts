@@ -216,3 +216,54 @@ describe('hasCardPaymentInCycle', () => {
     expect(hasCardPaymentInCycle([tx({ card_payment_for: '2' })], debit, now)).toBe(false)
   })
 })
+
+describe('computePendingCreditCards — resúmenes vencidos sin pago', () => {
+  // El ciclo avanza solo al día siguiente del vencimiento (getCreditCycleDates) y el
+  // resumen viejo desaparecía: el compromiso se liberaba sin que la plata saliera de
+  // ninguna cuenta, así que el disponible SUBÍA por el monto del resumen, todos los
+  // meses y en silencio (ver E11 en escenarios-disponible.test.ts). Retenerlo hasta
+  // que haya un pago registrado es la lectura conservadora.
+  const bolsillo = (over: Partial<PaymentMethod> = {}): PaymentMethod => ({
+    id: 'poc', user_id: '1', name: 'Billetera', type: 'debit',
+    default_closing_day: null, default_payment_day: null,
+    is_default: true, is_personal: false, created_at: '2025-01-01',
+    bucket: 'pocket', initial_balance: 0, initial_balance_at: '2026-07-01',
+    ...over,
+  } as PaymentMethod)
+
+  // Visa cierre 19 vence 1. El resumen que venció el 1-ago quedó impago.
+  const visa = credit({ id: '1', name: 'Visa', default_closing_day: 19, default_payment_day: 1 })
+  const consumo = [tx({ payment_method_id: '1', type: 'expense', date: '2026-08-01', periodDate: '2026-08-01', amount: -50000 })]
+  const HOY = new Date(2026, 7, 5) // 5-ago: el vencimiento del 1-ago ya pasó
+
+  it('retiene el resumen vencido y lo marca como tal', () => {
+    const r = computePendingCreditCards([visa, bolsillo()], consumo, [], HOY)
+
+    expect(r).toHaveLength(1)
+    expect(r[0].isOverdue).toBe(true)
+    expect(r[0].isPending).toBe(true)
+    expect(r[0].total).toBe(50000)
+    expect(r[0].nextPaymentDate.getMonth()).toBe(7) // agosto: el vencimiento que pasó
+  })
+
+  it('con el pago registrado en el mes del vencimiento, no lo retiene', () => {
+    const pagado = [
+      ...consumo,
+      tx({ id: 'p', payment_method_id: 'poc', type: 'expense', date: '2026-08-01', card_payment_for: '1', amount: -50000 }),
+    ]
+    expect(computePendingCreditCards([visa, bolsillo()], pagado, [], HOY)).toHaveLength(0)
+  })
+
+  it('no retiene lo que venció ANTES del último saldo declarado', () => {
+    // El ancla del 20-ago ya refleja que ese resumen se pagó: retenerlo lo restaría
+    // dos veces. Es el agujero de −$850.613 del 2026-08-21, que no se puede reabrir.
+    const anclaPosterior = bolsillo({ initial_balance_at: '2026-08-20' });
+    const luego = new Date(2026, 7, 25) // 25-ago, con el ancla ya puesta
+    expect(computePendingCreditCards([visa, anclaPosterior], consumo, [], luego)).toHaveLength(0)
+  })
+
+  it('sin ninguna cuenta anclada no retiene nada: no hay piso que lo haga seguro', () => {
+    const sinAncla = bolsillo({ initial_balance_at: null })
+    expect(computePendingCreditCards([visa, sinAncla], consumo, [], HOY)).toHaveLength(0)
+  })
+})

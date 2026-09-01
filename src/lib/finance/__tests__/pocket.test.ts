@@ -147,7 +147,7 @@ describe('computeCommitments', () => {
 
   const card = (over: Partial<CreditCardCycleSummary>): CreditCardCycleSummary => ({
     methodId: 'cred', name: 'Tarjeta', total: 100000, totalARS: 100000, totalUSD: 0,
-    nextPaymentDate: new Date(2026, 8, 1), isCycleClosed: true, isPending: true, isPaidManually: false,
+    nextPaymentDate: new Date(2026, 8, 1), isCycleClosed: true, isPending: true, isPaidManually: false, isOverdue: false,
     ...over,
   });
 

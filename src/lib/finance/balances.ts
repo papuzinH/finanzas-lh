@@ -1,5 +1,5 @@
 // src/lib/finance/balances.ts
-import { isAfter, isBefore, isSameMonth, startOfDay, endOfMonth } from 'date-fns'
+import { isAfter, isBefore, isSameMonth, startOfDay, endOfMonth, subMonths } from 'date-fns'
 import { parseLocalDate } from '@/lib/utils/dates'
 import { getCreditCycleDates, isExpenseInCurrentMonthScope, sameMonthYear } from '@/lib/finance/creditCycle'
 import type { PaymentMethod, RecurringPlan, InternalTransfer } from '@/types/database'
@@ -169,7 +169,96 @@ export function hasCardPaymentInCycle(
   )
 }
 
-/** Resumen de ciclo pendiente por cada tarjeta de crédito. */
+/**
+ * Hasta dónde se puede mirar hacia atrás sin contar dos veces: la fecha del
+ * último saldo declarado entre las cuentas del bolsillo.
+ *
+ * Un resumen que venció ANTES de esa fecha ya está reflejado en el saldo que el
+ * usuario declaró (si lo pagó, la plata ya no estaba cuando lo declaró), así que
+ * retenerlo como compromiso lo restaría dos veces. Ese es exactamente el agujero
+ * de -$850.613 del 2026-08-21: el ancla absorbe lo ya pagado y el compromiso lo
+ * volvía a restar. Sin ninguna cuenta anclada no hay piso seguro y no se retiene
+ * nada, porque el modelo viejo suma desde el primer movimiento y no distingue.
+ */
+function pisoDeVencidos(paymentMethods: PaymentMethod[]): Date | null {
+  const anclas = paymentMethods
+    .filter((m) => m.type !== 'credit' && !m.is_personal && m.initial_balance_at)
+    .map((m) => startOfDay(parseLocalDate(m.initial_balance_at as string)))
+  if (anclas.length === 0) return null
+  return anclas.reduce((max, d) => (d > max ? d : max))
+}
+
+/**
+ * Arma el resumen de UN ciclo, el que corresponda a `referencia`.
+ *
+ * `referencia` es la fecha desde la que se mira: con `now` sale el ciclo vigente,
+ * y con el vencimiento anterior sale ese ciclo. Reusar la misma función para los
+ * dos casos es lo que evita una segunda definición de "qué le debo a la tarjeta":
+ * la regla de pertenencia al ciclo vive sólo en computePaymentMethodStatus.
+ */
+function resumenDelCiclo(
+  method: PaymentMethod,
+  transactions: ProcessedTransaction[],
+  recurringPlans: RecurringPlan[],
+  referencia: Date,
+  now: Date,
+  isOverdue: boolean,
+): CreditCardCycleSummary | null {
+  const status = computePaymentMethodStatus(method, transactions, recurringPlans, referencia)
+  const { projectedTotal, nextPaymentDate, nextClosingDate, usdExpenses, arsExpenses } = status
+
+  // projectedTotal = income - expenses (negative when user owes money to the card)
+  if (!nextPaymentDate || projectedTotal >= 0) return null
+
+  // Ciclo cerrado = el cierre ya pasó (o es hoy): el resumen está fijado y a pagar.
+  // Ciclo en curso = todavía acumula consumo. Diferencia por qué una tarjeta muestra
+  // consumo de un período anterior (cerrado) y otra el del período vigente (en curso).
+  const isCycleClosed = nextClosingDate
+    ? !isBefore(startOfDay(now), startOfDay(nextClosingDate))
+    : false
+
+  // El estado "pagada" se deriva de la existencia de una transacción de pago
+  // (card_payment_for) cuya fecha cae en el mes del vencimiento del ciclo.
+  const isPaidManually = hasCardPaymentInCycle(transactions, method, referencia)
+  if (isOverdue && isPaidManually) return null
+
+  // Pendiente mientras no se pagó y el vencimiento no pasó. Comparación por
+  // día (no por timestamp) para que el día EXACTO del vencimiento siga contando
+  // como pendiente, coherente con getCreditCycleDates. Un resumen vencido e impago
+  // sigue pendiente por definición: es justo lo que todavía debés.
+  const isPending = isOverdue
+    ? true
+    : !isPaidManually && !isAfter(startOfDay(now), startOfDay(nextPaymentDate))
+
+  return {
+    methodId: method.id,
+    name: method.name,
+    total: Math.abs(projectedTotal),
+    totalARS: arsExpenses,
+    totalUSD: usdExpenses,
+    nextPaymentDate,
+    isCycleClosed,
+    isPending,
+    isPaidManually,
+    isOverdue,
+  }
+}
+
+/**
+ * Resumen de ciclo pendiente por cada tarjeta de crédito: el vigente y, si quedó
+ * impago, el que ya venció.
+ *
+ * Lo segundo existe porque `getCreditCycleDates` avanza al siguiente resumen al día
+ * siguiente del vencimiento: el viejo desaparecía, el compromiso se liberaba solo y
+ * la plata nunca salía de ninguna cuenta, así que el disponible subía por el monto
+ * del resumen todos los meses y en silencio (E11 en escenarios-disponible.test.ts).
+ * Retenerlo hasta que haya un pago registrado es la lectura conservadora: si el
+ * usuario lo pagó y lo marca, el compromiso se libera y el saldo baja a la vez.
+ *
+ * Sólo se mira UN ciclo hacia atrás. Con dos meses seguidos sin marcar, el más viejo
+ * se pierde: alcanza para que el número deje de inflarse mes a mes, y el aviso ya
+ * venía apareciendo desde el primero.
+ */
 export function computePendingCreditCards(
   paymentMethods: PaymentMethod[],
   transactions: ProcessedTransaction[],
@@ -177,41 +266,20 @@ export function computePendingCreditCards(
   now: Date,
 ): CreditCardCycleSummary[] {
   const creditCards = paymentMethods.filter((m) => m.type === 'credit')
+  const piso = pisoDeVencidos(paymentMethods)
 
   return creditCards.reduce<CreditCardCycleSummary[]>((acc, method) => {
-    const status = computePaymentMethodStatus(method, transactions, recurringPlans, now)
-    const { projectedTotal, nextPaymentDate, nextClosingDate, usdExpenses, arsExpenses } = status
+    const vigente = resumenDelCiclo(method, transactions, recurringPlans, now, now, false)
+    if (vigente) acc.push(vigente)
 
-    // projectedTotal = income - expenses (negative when user owes money to the card)
-    if (!nextPaymentDate || projectedTotal >= 0) return acc
-
-    // Ciclo cerrado = el cierre ya pasó (o es hoy): el resumen está fijado y a pagar.
-    // Ciclo en curso = todavía acumula consumo. Diferencia por qué una tarjeta muestra
-    // consumo de un período anterior (cerrado) y otra el del período vigente (en curso).
-    const isCycleClosed = nextClosingDate
-      ? !isBefore(startOfDay(now), startOfDay(nextClosingDate))
-      : false
-
-    // El estado "pagada" se deriva de la existencia de una transacción de pago
-    // (card_payment_for) cuya fecha cae en el mes del vencimiento del ciclo.
-    const isPaidManually = hasCardPaymentInCycle(transactions, method, now)
-
-    // Pendiente mientras no se pagó y el vencimiento no pasó. Comparación por
-    // día (no por timestamp) para que el día EXACTO del vencimiento siga contando
-    // como pendiente, coherente con getCreditCycleDates.
-    const isPending = !isPaidManually && !isAfter(startOfDay(now), startOfDay(nextPaymentDate))
-
-    acc.push({
-      methodId: method.id,
-      name: method.name,
-      total: Math.abs(projectedTotal),
-      totalARS: arsExpenses,
-      totalUSD: usdExpenses,
-      nextPaymentDate,
-      isCycleClosed,
-      isPending,
-      isPaidManually,
-    })
+    const cicloVigente = getCreditCycleDates(method, now)
+    if (piso && cicloVigente) {
+      const vencimientoAnterior = subMonths(cicloVigente.nextPaymentDate, 1)
+      if (isAfter(startOfDay(vencimientoAnterior), piso)) {
+        const vencido = resumenDelCiclo(method, transactions, recurringPlans, vencimientoAnterior, now, true)
+        if (vencido) acc.push(vencido)
+      }
+    }
     return acc
   }, [])
 }
