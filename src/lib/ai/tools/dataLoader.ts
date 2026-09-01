@@ -148,15 +148,16 @@ async function loadFinanceDataUncached(ctx: AgentContext): Promise<FinanceData> 
 
   const methods = (pm.data ?? []) as PaymentMethod[]
   const rates = (er.data ?? []) as ExchangeRate[]
+  const cycles = (ccc.data ?? []) as CreditCardCycle[]
 
   return {
-    transactions: prepareTransactions((tx.data ?? []) as Transaction[], methods, rates, blue),
+    transactions: prepareTransactions((tx.data ?? []) as Transaction[], methods, rates, blue, cycles),
     paymentMethods: methods,
     recurringPlans: prepareRecurringPlans((rp.data ?? []) as RecurringPlan[], rates, blue),
     internalTransfers: (it.data ?? []) as InternalTransfer[],
     categories: (cat.data ?? []) as Category[],
     installmentPlans: (ip.data ?? []) as InstallmentPlan[],
-    creditCardCycles: (ccc.data ?? []) as CreditCardCycle[],
+    creditCardCycles: cycles,
     incomeRhythm: ((usr.data ?? [])[0]?.income_rhythm as IncomeRhythm) ?? 'monthly',
     inflacion,
   }

@@ -1,8 +1,7 @@
 // src/lib/finance/prepare.ts
-import { format, getDate, subMonths } from 'date-fns';
-import { parseLocalDate } from '@/lib/utils/dates';
 import type { Transaction, PaymentMethod, RecurringPlan, ExchangeRate } from '@/types/database';
 import type { ProcessedTransaction, DolarBlue } from './types';
+import type { CreditCardCycle } from './cycles';
 
 /**
  * Resuelve la cotización ARS de un par dado.
@@ -27,35 +26,28 @@ export function resolveRate(
  * Convierte filas crudas de `transactions` en ProcessedTransaction:
  * calcula periodDate (mes visual según ciclo de crédito) y normaliza amount a ARS.
  * Misma lógica que usaba fetchAllData — extraída para que el servidor la comparta.
+ *
+ * `methods` queda sin uso dentro de la función tras retirar la heurística del `+2`:
+ * no se saca de la firma acá (lo consumen 2 llamadores y sacarlo mezcla dos cambios
+ * en el mismo diff) — se retira en el Plan 2, junto a la limpieza de getCreditCycleDates.
  */
 export function prepareTransactions(
   raw: Transaction[],
-  methods: PaymentMethod[],
+  _methods: PaymentMethod[],
   exchangeRates: ExchangeRate[],
   dolarBlue: DolarBlue | null,
+  cycles: CreditCardCycle[],
 ): ProcessedTransaction[] {
+  const ciclosPorId = new Map(cycles.map((c) => [c.id, c]));
+
   return raw.map((t) => {
-    const method = methods.find((m) => m.id === t.payment_method_id);
-    let periodDate = t.date; // Default: Misma fecha
-
-    if (method && method.type === 'credit') {
-      const localTDate = parseLocalDate(t.date);
-      const dayOfMonth = getDate(localTDate);
-
-      // t.date = fecha de pago calculada al crear la transacción.
-      // Si paymentDay < closingDay: el pago vence el mes SIGUIENTE al cierre,
-      // por lo que el período visual corresponde al mes anterior al pago.
-      // Si paymentDay >= closingDay: el pago vence el mismo mes del cierre,
-      // el período visual ES el mes del pago (sin ajuste).
-      if (
-        method.default_payment_day &&
-        method.default_closing_day &&
-        method.default_payment_day < method.default_closing_day &&
-        dayOfMonth <= method.default_payment_day + 2
-      ) {
-        periodDate = format(subMonths(localTDate, 1), 'yyyy-MM-dd');
-      }
-    }
+    // El mes visual de un consumo de credito es el mes de CIERRE de su resumen.
+    // Antes se adivinaba mirando el dia del mes de t.date contra
+    // `default_payment_day + 2` --un +2 sin justificacion escrita--, que ademas
+    // fallaba en cuanto el vencimiento real se movia dentro del mes.
+    // Sin ciclo (tarjeta sin configurar, o movimiento no-credito) queda t.date.
+    const ciclo = t.cycle_id ? ciclosPorId.get(t.cycle_id) : undefined;
+    const periodDate = ciclo ? ciclo.closing_date : t.date;
 
     const amountArs =
       t.original_currency === 'USD' && t.original_amount != null

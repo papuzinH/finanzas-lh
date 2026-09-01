@@ -80,7 +80,8 @@ const tx = {
   description: 'Compra',
   category_id: 'c1',
   amount: 5000,
-  date: '2026-07-08', // paymentDay(10) < closingDay(20) y day(8) <= 10+2 → retrocede un mes
+  date: '2026-07-08',
+  cycle_id: 'cyc1', // pertenece al resumen `cycle` (cierre 2026-06-20): periodDate sale de ahí, no de adivinar por el día
   type: 'expense',
   installment_plan_id: null,
   recurring_plan_id: null,
@@ -188,7 +189,7 @@ describe('loadFinanceData', () => {
     const result = await loadFinanceData(ctx)
 
     expect(result.transactions).toHaveLength(1)
-    expect(result.transactions[0].periodDate).toBe('2026-06-08')
+    expect(result.transactions[0].periodDate).toBe('2026-06-20') // cierre del ciclo `cyc1`, no un cómputo por día
     expect(result.transactions[0].realPaymentDate).toBe('2026-07-08')
   })
 

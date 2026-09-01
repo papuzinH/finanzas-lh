@@ -635,7 +635,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
       // PROCESAMIENTO INTELIGENTE DEL FRONTEND
       // Creamos 'periodDate' para agrupar visualmente en el mes del resumen
-      const processedTransactions = prepareTransactions(rawTransactions, methods, (exchangeRatesData as ExchangeRate[]) || [], dolarBlue);
+      const processedTransactions = prepareTransactions(rawTransactions, methods, (exchangeRatesData as ExchangeRate[]) || [], dolarBlue, (creditCardCyclesData as CreditCardCycle[]) ?? []);
       const recomputedRecurring = prepareRecurringPlans(((recurring as RecurringPlan[]) || []), (exchangeRatesData as ExchangeRate[]) || [], dolarBlue);
 
       set({
