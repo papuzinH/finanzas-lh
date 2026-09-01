@@ -250,7 +250,7 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
         </span>
         <div className="min-w-0 grid gap-px">
           <span className="font-sans font-bold text-[13.5px] text-text truncate">
-            {card.name} · {card.isOverdue ? 'resumen vencido' : 'ciclo actual'}
+            {card.name} · {card.isOverdue ? 'vencido' : 'ciclo actual'}
           </span>
           <span className={`text-[11.5px] ${card.isOverdue ? 'text-warn font-bold' : 'text-muted'}`}>
             {card.isOverdue ? `venció el ${formattedDate} y no lo marcaste` : ciclo.fechas}
