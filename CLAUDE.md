@@ -166,10 +166,10 @@ Los mocks finales (identidad 2026-08-13, snapshot 2026-08-14) viven en `../claud
 
 ## Deploy
 - ⚠️ **El repo `papuzinH/finanzas-lh` es PÚBLICO en GitHub** (verificado 2026-08-26). Nada sensible entra a git: `.env*` está ignorado, `SECURITY_AUDIT.md` (auditoría con hallazgos abiertos) también. Refs de Supabase, hosts del pooler y rutas del VPS que aparecen en docs son visibles para cualquiera — el password de la base es lo único que separa eso de los datos.
-- `master` → producción automática en Vercel.
+- **`master` es la rama de trabajo; `produccion` es la que despliega** (desde 2026-09-01). Las ramas `feat/*` se mergean a `master` como siempre, y eso ya NO publica: genera un preview en `finanzas-lh-git-master-…` contra la base DEV, que es el staging que antes no existía. Publicar es un acto explícito — `git checkout produccion && git merge master && git push` — y va **agrupado en versiones**, no de a un cambio: con usuarios reales adentro, cada subida trae su popup de novedades. Una excepción (un número equivocado ya visible en producción) la decide Lauti, no se asume. ⚠️ **Nunca «Promote to Production» un preview desde el dashboard de Vercel**: los `NEXT_PUBLIC_*` quedan inlineados en el build y un preview se construyó contra DEV — promoverlo apunta el sitio público a la base equivocada. Para publicar hay que **buildear** desde `produccion`, o sea pushear ahí.
 - **Dos bases desde 2026-08-26.** PRODUCCIÓN = `LHStudio` (ref `mkkgdjxaotgimqwhyesx`, cuenta A); DEV = `Chanchito DEV` (ref `hgxuxoqyrooaariimqmg`, **cuenta B**, org STUDIO — el cupo Free de la cuenta A estaba lleno). `.env.local` apunta a **DEV**: desarrollar en local ya no toca datos reales. Todo lo de producción vive con sufijo `_PROD` en `.env.local` y se usa **a propósito** (migraciones a prod, scripts admin). En DEV el login es email/password (Google no está configurado ahí); en prod, **solo Google** — el provider email se apagó el 26-ago. Ojo: Free pausa DEV tras ~1 semana sin uso; se despierta desde el dashboard (cuenta B).
 - **Backup diario de la base** (desde 2026-08-26): `pg_dump` corre por cron en el VPS a las 04:00 AR, retiene los últimos 14 dumps verificados. Script versionado en `infra/vps/chanchito-backup.sh` (deploy por scp), restore y detalles en `infra/vps/README.md`. El vigía de Panchito avisa si el último dump pasa las 26 h. ⚠️ Rotar `SUPABASE_DB_PASSWORD` toca tres consumidores: `.env.local`, la credencial de n8n **y** `/opt/chanchito-backup/.env` del VPS.
-- Cambios de schema SQL: aplicar **antes** del merge (van a producción en el acto, por lo de arriba). Si el cambio rompe la firma de algo que el deploy vigente ya usa, hacerlo compatible hacia atrás (ej. wrappers) para no abrir una ventana de fallas hasta el próximo deploy.
+- Cambios de schema SQL: se aplican a producción **antes de publicar** — antes del merge a `produccion`, no del merge a `master`. Separada la rama publicada, hay ventana real entre mergear y desplegar, así que el DDL puede ir pegado al release en vez de adelantarse días. Si el cambio rompe la firma de algo que el deploy vigente ya usa, hacerlo compatible hacia atrás (ej. wrappers) para no abrir una ventana de fallas hasta que la versión salga.
 
 ## Migraciones (leer antes de escribir SQL)
 
@@ -186,7 +186,7 @@ supabase migration new <nombre>   # crea el archivo con timestamp de 14 dígitos
 # escribir el SQL
 supabase db push --linked         # aplica Y registra en DEV
 supabase migration list --linked  # DEV: Local y Remote deben coincidir
-# verificar la app contra DEV; y ANTES del merge, producción, a propósito:
+# verificar la app contra DEV; y ANTES de publicar (merge a `produccion`), prod, a propósito:
 supabase db push --db-url "postgresql://postgres.mkkgdjxaotgimqwhyesx:${SUPABASE_DB_PASSWORD_PROD}@aws-1-sa-east-1.pooler.supabase.com:5432/postgres"
 ```
 
