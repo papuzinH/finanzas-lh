@@ -40,7 +40,7 @@ import {
   sameMonthYear,
 } from '@/lib/finance/creditCycle';
 import type { ProcessedTransaction, CreditCardCycleSummary as CreditCardCycleSummaryType, DolarBlue } from '@/lib/finance/types';
-import type { CreditCardCycle } from '@/lib/finance/cycles';
+import { ciclosDeMetodo, cicloVigente, type CreditCardCycle } from '@/lib/finance/cycles';
 import { resolveRate, prepareTransactions, prepareRecurringPlans } from '@/lib/finance/prepare';
 import { computePendingFixedExpenses } from '@/lib/finance/pending';
 import {
@@ -959,19 +959,21 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   isCreditCardCyclePaid: (methodId: string) => {
-    const { transactions, paymentMethods } = get();
+    const { transactions, paymentMethods, creditCardCycles } = get();
     const method = paymentMethods.find((m) => m.id === methodId);
-    return method ? hasCardPaymentInCycle(transactions, method, new Date()) : false;
+    if (!method) return false;
+    const ciclo = cicloVigente(ciclosDeMetodo(method.id, creditCardCycles), new Date());
+    return ciclo ? hasCardPaymentInCycle(transactions, method, ciclo) : false;
   },
 
   getPaymentMethodStatus: (methodId: string) => {
-    const { transactions, recurringPlans, paymentMethods } = get();
-    return computePaymentMethodStatus(paymentMethods.find((m) => m.id === methodId), transactions, recurringPlans, new Date());
+    const { transactions, recurringPlans, paymentMethods, creditCardCycles } = get();
+    return computePaymentMethodStatus(paymentMethods.find((m) => m.id === methodId), transactions, recurringPlans, new Date(), creditCardCycles);
   },
 
   getPendingCreditCardByCard: () => {
-    const { paymentMethods, transactions, recurringPlans } = get();
-    return computePendingCreditCards(paymentMethods, transactions, recurringPlans, new Date());
+    const { paymentMethods, transactions, recurringPlans, creditCardCycles } = get();
+    return computePendingCreditCards(paymentMethods, transactions, recurringPlans, new Date(), creditCardCycles);
   },
 
   /**

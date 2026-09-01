@@ -11,7 +11,7 @@ beforeEach(() => {
   useFinanceStore.setState({
     transactions: [], installmentPlans: [], paymentMethods: [], recurringPlans: [],
     categories: [], exchangeRates: [], dolarBlue: null, displayCurrency: 'ARS',
-    inflationSeries: [],
+    inflationSeries: [], creditCardCycles: [],
   } as never);
 });
 
@@ -321,6 +321,9 @@ describe('pago de tarjeta (card_payment_for)', () => {
   const MP_ID = '20'; // Mercado Pago (débito, medio financiador)
   const CARD_ID = '10'; // tarjeta de crédito (cierra 20, vence 5 → vto 2026-08-05)
 
+  // Ciclo vigente (now=2026-07-15, cierre 20, vence 5): cierra 2026-07-20, vence 2026-08-05.
+  const CYCLE_ID = 'visa-ago';
+
   function base(extra: Record<string, unknown>[] = []) {
     seed({
       paymentMethods: [
@@ -328,11 +331,14 @@ describe('pago de tarjeta (card_payment_for)', () => {
         { id: CARD_ID, type: 'credit', default_closing_day: 20, default_payment_day: 5, name: 'Visa', is_personal: false },
       ],
       recurringPlans: [],
+      creditCardCycles: [
+        { id: CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-07-20', due_date: '2026-08-05', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+      ],
       transactions: [
         // ingreso en Mercado Pago
         { id: '1', type: 'income', amount: 100000, date: '2026-07-01', periodDate: '2026-07-01', realPaymentDate: '2026-07-01', payment_method_id: MP_ID, installment_plan_id: null, recurring_plan_id: null, card_payment_for: null, original_currency: 'ARS' },
         // compra con la tarjeta (vence 2026-08-05)
-        { id: '2', type: 'expense', amount: -50000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, card_payment_for: null, original_currency: 'ARS' },
+        { id: '2', type: 'expense', amount: -50000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, card_payment_for: null, original_currency: 'ARS', cycle_id: CYCLE_ID },
         ...extra,
       ],
     });
@@ -350,7 +356,7 @@ describe('pago de tarjeta (card_payment_for)', () => {
 
       // Con el pago de la tarjeta desde MP (expense marcado card_payment_for)
       base([
-        { id: '3', type: 'expense', amount: -50000, date: '2026-08-05', periodDate: '2026-08-05', realPaymentDate: '2026-08-05', payment_method_id: MP_ID, installment_plan_id: null, recurring_plan_id: null, card_payment_for: CARD_ID, original_currency: 'ARS' },
+        { id: '3', type: 'expense', amount: -50000, date: '2026-08-05', periodDate: '2026-08-05', realPaymentDate: '2026-08-05', payment_method_id: MP_ID, installment_plan_id: null, recurring_plan_id: null, card_payment_for: CARD_ID, original_currency: 'ARS', cycle_id: CYCLE_ID },
       ]);
       const st2 = useFinanceStore.getState();
       expect(st2.getGlobalBalance()).toBe(50000); // NEUTRO: el pago no cambia el Disponible
@@ -367,7 +373,7 @@ describe('pago de tarjeta (card_payment_for)', () => {
       base();
       expect(useFinanceStore.getState().isCreditCardCyclePaid(CARD_ID)).toBe(false);
       base([
-        { id: '3', type: 'expense', amount: -50000, date: '2026-08-05', periodDate: '2026-08-05', realPaymentDate: '2026-08-05', payment_method_id: MP_ID, installment_plan_id: null, recurring_plan_id: null, card_payment_for: CARD_ID, original_currency: 'ARS' },
+        { id: '3', type: 'expense', amount: -50000, date: '2026-08-05', periodDate: '2026-08-05', realPaymentDate: '2026-08-05', payment_method_id: MP_ID, installment_plan_id: null, recurring_plan_id: null, card_payment_for: CARD_ID, original_currency: 'ARS', cycle_id: CYCLE_ID },
       ]);
       const st = useFinanceStore.getState();
       expect(st.isCreditCardCyclePaid(CARD_ID)).toBe(true);
@@ -383,9 +389,12 @@ describe('pago de tarjeta (card_payment_for)', () => {
 describe('getPaymentMethodStatus (tarjeta de crédito)', () => {
   const CARD_ID = '10';
 
-  // now = 2026-07-15. Ciclo: cierra 20, vence 5 → próximo vencimiento = 2026-08-05.
-  // En crédito, transactions.date ya es la fecha de VENCIMIENTO calculada, así que
-  // los movimientos del ciclo llevan date en agosto (mes de nextPaymentDate).
+  // now = 2026-07-15. Ciclo vigente: cierra 20, vence 5 → cierra 2026-07-20, vence
+  // 2026-08-05. La pertenencia es por cycle_id, no por t.date: el id '4' lleva un
+  // cycle_id de otro ciclo (el que vence 5-sep) aunque su t.date esté ya calculado.
+  const CYCLE_ID = 'visa-ago';
+  const OTHER_CYCLE_ID = 'visa-sep';
+
   function seedCard() {
     seed({
       paymentMethods: [
@@ -395,15 +404,19 @@ describe('getPaymentMethodStatus (tarjeta de crédito)', () => {
         { id: '100', payment_method_id: CARD_ID, is_active: true, amount: 3200, currency: 'ARS', description: 'Spotify' },
         { id: '200', payment_method_id: CARD_ID, is_active: true, amount: 5900, currency: 'ARS', description: 'Netflix' },
       ],
+      creditCardCycles: [
+        { id: CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-07-20', due_date: '2026-08-05', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+        { id: OTHER_CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-08-20', due_date: '2026-09-05', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+      ],
       transactions: [
         // compra NORMAL (1 cuota) que vence el 5-ago → debe contar
-        { id: '1', type: 'expense', amount: -42000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS' },
+        { id: '1', type: 'expense', amount: -42000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: CYCLE_ID },
         // mensualidad Spotify YA posteada este ciclo (no debe contarse doble)
-        { id: '2', type: 'expense', amount: -3200, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: '100', original_currency: 'ARS' },
+        { id: '2', type: 'expense', amount: -3200, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: '100', original_currency: 'ARS', cycle_id: CYCLE_ID },
         // reintegro que vence en el mismo ciclo
-        { id: '3', type: 'income', amount: 2000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS' },
+        { id: '3', type: 'income', amount: 2000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: CYCLE_ID },
         // compra de OTRO ciclo (vence 5-sep) → NO debe contar
-        { id: '4', type: 'expense', amount: -99999, date: '2026-09-05', periodDate: '2026-08-05', realPaymentDate: '2026-09-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS' },
+        { id: '4', type: 'expense', amount: -99999, date: '2026-09-05', periodDate: '2026-08-05', realPaymentDate: '2026-09-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: OTHER_CYCLE_ID },
       ],
     });
   }
@@ -434,8 +447,11 @@ describe('getPaymentMethodStatus (tarjeta de crédito)', () => {
           { id: CARD_ID, type: 'credit', default_closing_day: 20, default_payment_day: 5, name: 'Visa', is_personal: false },
         ],
         recurringPlans: [],
+        creditCardCycles: [
+          { id: CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-07-20', due_date: '2026-08-05', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+        ],
         transactions: [
-          { id: '1', type: 'expense', amount: -30000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS' },
+          { id: '1', type: 'expense', amount: -30000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: CYCLE_ID },
         ],
       });
       const s = useFinanceStore.getState().getPaymentMethodStatus(CARD_ID);

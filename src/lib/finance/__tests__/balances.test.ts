@@ -7,6 +7,7 @@ import {
 } from '@/lib/finance/balances'
 import type { PaymentMethod, RecurringPlan } from '@/types/database'
 import type { ProcessedTransaction } from '@/lib/finance/types'
+import type { CreditCardCycle } from '@/lib/finance/cycles'
 
 // Builders duplicados de src/lib/finance/__tests__/creditCycle.test.ts (Task 1).
 // YAGNI: no se extrae un helper compartido hasta el tercer uso real.
@@ -32,18 +33,27 @@ const plan = (over: Partial<RecurringPlan> = {}): RecurringPlan =>
     ...over,
   }) as RecurringPlan
 
+const cycle = (over: Partial<CreditCardCycle> = {}): CreditCardCycle => ({
+  id: 'c1', user_id: '1', payment_method_id: '1',
+  closing_date: '2026-07-19', due_date: '2026-08-01',
+  source: 'generated', created_at: '2026-01-01T00:00:00Z',
+  ...over,
+})
+
 describe('computePaymentMethodStatus (crédito)', () => {
-  it('suma al ciclo solo tx cuyo t.date cae en el mes de nextPaymentDate; separa ARS/USD', () => {
-    // tarjeta cierre 19 vence 1; hoy 15 jul 2026 -> nextPaymentDate = 1 ago 2026
+  // tarjeta cierre 19 vence 1; hoy 15 jul 2026 -> ciclo vigente cierra 19-jul, vence 1-ago
+  const cicloVigenteFixture = cycle({ closing_date: '2026-07-19', due_date: '2026-08-01' })
+
+  it('suma al ciclo solo tx cuyo cycle_id coincide con el ciclo vigente; separa ARS/USD', () => {
     const now = new Date(2026, 6, 15)
     const transactions = [
-      tx({ payment_method_id: '1', type: 'expense', date: '2026-08-01', amount: -1000 }),
+      tx({ payment_method_id: '1', type: 'expense', date: '2026-08-01', amount: -1000, cycle_id: 'c1' }),
       tx({
         id: '2', payment_method_id: '1', type: 'expense', date: '2026-08-01',
-        amount: -12000, original_currency: 'USD', original_amount: 10,
+        amount: -12000, original_currency: 'USD', original_amount: 10, cycle_id: 'c1',
       }),
     ]
-    const status = computePaymentMethodStatus(credit(), transactions, [], now)
+    const status = computePaymentMethodStatus(credit(), transactions, [], now, [cicloVigenteFixture])
     expect(status.nextPaymentDate?.getMonth()).toBe(7) // agosto
     expect(status.arsExpenses).toBe(1000)
     expect(status.usdExpenses).toBe(10)
@@ -51,36 +61,47 @@ describe('computePaymentMethodStatus (crédito)', () => {
     expect(status.projectedTotal).toBe(-13000)
   })
 
+  it('una tx con cycle_id de OTRO ciclo no entra, aunque su t.date caiga en el mismo mes', () => {
+    const now = new Date(2026, 6, 15)
+    const transactions = [
+      tx({ payment_method_id: '1', type: 'expense', date: '2026-08-01', amount: -1000, cycle_id: 'c1' }),
+      tx({ id: '2', payment_method_id: '1', type: 'expense', date: '2026-08-01', amount: -99999, cycle_id: 'otro-ciclo' }),
+    ]
+    const status = computePaymentMethodStatus(credit(), transactions, [], now, [cicloVigenteFixture])
+    expect(status.projectedTotal).toBe(-1000)
+  })
+
   it('mensualidad adherida sin tx en el ciclo se suma; con tx en el ciclo NO se duplica', () => {
     const now = new Date(2026, 6, 15) // nextPaymentDate = 1 ago 2026
     const recurringPlans = [plan({ id: '5', payment_method_id: '1', amount: 2000, currency: 'ARS' })]
 
     // Sin tx vinculada: la mensualidad se suma al ciclo.
-    const withoutTx = computePaymentMethodStatus(credit(), [], recurringPlans, now)
+    const withoutTx = computePaymentMethodStatus(credit(), [], recurringPlans, now, [cicloVigenteFixture])
     expect(withoutTx.fixedCosts).toBe(2000)
     expect(withoutTx.projectedTotal).toBe(-2000)
 
     // Con tx vinculada (recurring_plan_id 5) dentro del ciclo: no se duplica.
     const transactions = [
-      tx({ payment_method_id: '1', type: 'expense', date: '2026-08-01', amount: -2000, recurring_plan_id: '5' }),
+      tx({ payment_method_id: '1', type: 'expense', date: '2026-08-01', amount: -2000, recurring_plan_id: '5', cycle_id: 'c1' }),
     ]
-    const withTx = computePaymentMethodStatus(credit(), transactions, recurringPlans, now)
+    const withTx = computePaymentMethodStatus(credit(), transactions, recurringPlans, now, [cicloVigenteFixture])
     expect(withTx.projectedTotal).toBe(-2000)
   })
 
   it('reintegros (income del ciclo) restan', () => {
     const now = new Date(2026, 6, 15) // nextPaymentDate = 1 ago 2026
     const baseTransactions = [
-      tx({ payment_method_id: '1', type: 'expense', date: '2026-08-01', amount: -1000 }),
+      tx({ payment_method_id: '1', type: 'expense', date: '2026-08-01', amount: -1000, cycle_id: 'c1' }),
     ]
-    const withoutRefund = computePaymentMethodStatus(credit(), baseTransactions, [], now)
+    const withoutRefund = computePaymentMethodStatus(credit(), baseTransactions, [], now, [cicloVigenteFixture])
     expect(withoutRefund.projectedTotal).toBe(-1000)
 
     const withRefund = computePaymentMethodStatus(
       credit(),
-      [...baseTransactions, tx({ id: '2', payment_method_id: '1', type: 'income', date: '2026-08-01', amount: 500 })],
+      [...baseTransactions, tx({ id: '2', payment_method_id: '1', type: 'income', date: '2026-08-01', amount: 500, cycle_id: 'c1' })],
       [],
       now,
+      [cicloVigenteFixture],
     )
     // -1000 + 500 = -500 (sube 500 respecto de -1000)
     expect(withRefund.projectedTotal).toBe(-500)
@@ -100,7 +121,7 @@ describe('computePaymentMethodStatus (débito)', () => {
         installment_plan_id: '7', date: '2026-07-31', periodDate: '2026-07-31',
       }),
     ]
-    const status = computePaymentMethodStatus(method, transactions, [], now)
+    const status = computePaymentMethodStatus(method, transactions, [], now, [])
     expect(status.nextPaymentDate).toBeUndefined()
     // 10000 - 3000 - 1000 = 6000
     expect(status.projectedTotal).toBe(6000)
@@ -155,15 +176,16 @@ describe('computeGlobalBalance', () => {
 })
 
 describe('computePendingCreditCards', () => {
-  it('isPending true hasta el día del vencimiento inclusive; isPaidManually si hay card_payment_for en el mes del vencimiento', () => {
+  it('isPending true hasta el día del vencimiento inclusive; isPaidManually si hay card_payment_for imputado al ciclo', () => {
     // Master: cierra 2, vence 13. Hoy = 13 jul (día exacto del vencimiento).
     const method = credit({ id: '1', name: 'Master', default_closing_day: 2, default_payment_day: 13 })
     const now = new Date(2026, 6, 13, 10, 0, 0)
+    const cycles = [cycle({ id: 'master-jul', closing_date: '2026-07-02', due_date: '2026-07-13' })]
     const baseTransactions = [
-      tx({ payment_method_id: '1', type: 'expense', date: '2026-07-13', periodDate: '2026-07-13', amount: -50000 }),
+      tx({ payment_method_id: '1', type: 'expense', date: '2026-07-13', periodDate: '2026-07-13', amount: -50000, cycle_id: 'master-jul' }),
     ]
 
-    const before = computePendingCreditCards([method], baseTransactions, [], now)
+    const before = computePendingCreditCards([method], baseTransactions, [], now, cycles)
     expect(before[0].isPending).toBe(true)
     expect(before[0].isPaidManually).toBe(false)
 
@@ -171,10 +193,10 @@ describe('computePendingCreditCards', () => {
       ...baseTransactions,
       tx({
         id: '2', payment_method_id: '2', type: 'expense', date: '2026-07-05',
-        periodDate: '2026-07-05', amount: -50000, card_payment_for: '1',
+        periodDate: '2026-07-05', amount: -50000, card_payment_for: '1', cycle_id: 'master-jul',
       }),
     ]
-    const after = computePendingCreditCards([method], paidTransactions, [], now)
+    const after = computePendingCreditCards([method], paidTransactions, [], now, cycles)
     expect(after[0].isPaidManually).toBe(true)
     expect(after[0].isPending).toBe(false)
   })
@@ -185,11 +207,15 @@ describe('computePendingCreditCards', () => {
     const master = credit({ id: '1', name: 'Master', default_closing_day: 2, default_payment_day: 13 })
     // Visa cierra el 23 jul (vence 3 ago) -> en curso
     const visa = credit({ id: '2', name: 'Visa', default_closing_day: 23, default_payment_day: 3 })
-    const transactions = [
-      tx({ payment_method_id: '1', type: 'expense', date: '2026-07-13', periodDate: '2026-07-13', amount: -50000 }),
-      tx({ id: '2', payment_method_id: '2', type: 'expense', date: '2026-08-03', periodDate: '2026-08-03', amount: -90000 }),
+    const cycles = [
+      cycle({ id: 'master-jul', payment_method_id: '1', closing_date: '2026-07-02', due_date: '2026-07-13' }),
+      cycle({ id: 'visa-jul', payment_method_id: '2', closing_date: '2026-07-23', due_date: '2026-08-03' }),
     ]
-    const result = computePendingCreditCards([master, visa], transactions, [], now)
+    const transactions = [
+      tx({ payment_method_id: '1', type: 'expense', date: '2026-07-13', periodDate: '2026-07-13', amount: -50000, cycle_id: 'master-jul' }),
+      tx({ id: '2', payment_method_id: '2', type: 'expense', date: '2026-08-03', periodDate: '2026-08-03', amount: -90000, cycle_id: 'visa-jul' }),
+    ]
+    const result = computePendingCreditCards([master, visa], transactions, [], now, cycles)
     const masterItem = result.find((i) => i.methodId === '1')
     const visaItem = result.find((i) => i.methodId === '2')
     expect(masterItem?.isCycleClosed).toBe(true)
@@ -198,22 +224,22 @@ describe('computePendingCreditCards', () => {
 })
 
 describe('hasCardPaymentInCycle', () => {
-  it('true si hay una transacción card_payment_for con fecha en el mes del vencimiento vigente', () => {
+  const ciclo = cycle({ id: 'master-jul', closing_date: '2026-07-02', due_date: '2026-07-13' })
+
+  it('true si hay una transacción card_payment_for imputada (cycle_id) a este ciclo', () => {
     const method = credit({ id: '1', default_closing_day: 2, default_payment_day: 13 })
-    const now = new Date(2026, 6, 13)
     const transactions = [
-      tx({ payment_method_id: '2', type: 'expense', date: '2026-07-05', card_payment_for: '1', amount: -50000 }),
+      tx({ payment_method_id: '2', type: 'expense', date: '2026-07-05', card_payment_for: '1', cycle_id: 'master-jul', amount: -50000 }),
     ]
-    expect(hasCardPaymentInCycle(transactions, method, now)).toBe(true)
+    expect(hasCardPaymentInCycle(transactions, method, ciclo)).toBe(true)
   })
 
-  it('false sin pago vinculado o si el método no tiene ciclo de crédito', () => {
+  it('false sin pago vinculado, o si el pago apunta a otro ciclo', () => {
     const method = credit({ id: '1', default_closing_day: 2, default_payment_day: 13 })
-    const now = new Date(2026, 6, 13)
-    expect(hasCardPaymentInCycle([], method, now)).toBe(false)
+    expect(hasCardPaymentInCycle([], method, ciclo)).toBe(false)
 
-    const debit = credit({ id: '2', type: 'debit', default_closing_day: null, default_payment_day: null })
-    expect(hasCardPaymentInCycle([tx({ card_payment_for: '2' })], debit, now)).toBe(false)
+    const pagoDeOtroCiclo = tx({ card_payment_for: '1', cycle_id: 'otro-ciclo' })
+    expect(hasCardPaymentInCycle([pagoDeOtroCiclo], method, ciclo)).toBe(false)
   })
 })
 
@@ -231,13 +257,18 @@ describe('computePendingCreditCards — resúmenes vencidos sin pago', () => {
     ...over,
   } as PaymentMethod)
 
-  // Visa cierre 19 vence 1. El resumen que venció el 1-ago quedó impago.
+  // Visa cierre 19 vence 1. El resumen que venció el 1-ago quedó impago. El ciclo
+  // vigente (visto desde HOY=5-ago) es el que cierra 19-ago y vence 1-sep.
   const visa = credit({ id: '1', name: 'Visa', default_closing_day: 19, default_payment_day: 1 })
-  const consumo = [tx({ payment_method_id: '1', type: 'expense', date: '2026-08-01', periodDate: '2026-08-01', amount: -50000 })]
+  const cycles = [
+    cycle({ id: 'ago', payment_method_id: '1', closing_date: '2026-07-19', due_date: '2026-08-01' }),
+    cycle({ id: 'sep', payment_method_id: '1', closing_date: '2026-08-19', due_date: '2026-09-01' }),
+  ]
+  const consumo = [tx({ payment_method_id: '1', type: 'expense', date: '2026-08-01', periodDate: '2026-08-01', amount: -50000, cycle_id: 'ago' })]
   const HOY = new Date(2026, 7, 5) // 5-ago: el vencimiento del 1-ago ya pasó
 
   it('retiene el resumen vencido y lo marca como tal', () => {
-    const r = computePendingCreditCards([visa, bolsillo()], consumo, [], HOY)
+    const r = computePendingCreditCards([visa, bolsillo()], consumo, [], HOY, cycles)
 
     expect(r).toHaveLength(1)
     expect(r[0].isOverdue).toBe(true)
@@ -249,9 +280,9 @@ describe('computePendingCreditCards — resúmenes vencidos sin pago', () => {
   it('con el pago registrado en el mes del vencimiento, no lo retiene', () => {
     const pagado = [
       ...consumo,
-      tx({ id: 'p', payment_method_id: 'poc', type: 'expense', date: '2026-08-01', card_payment_for: '1', amount: -50000 }),
+      tx({ id: 'p', payment_method_id: 'poc', type: 'expense', date: '2026-08-01', card_payment_for: '1', amount: -50000, cycle_id: 'ago' }),
     ]
-    expect(computePendingCreditCards([visa, bolsillo()], pagado, [], HOY)).toHaveLength(0)
+    expect(computePendingCreditCards([visa, bolsillo()], pagado, [], HOY, cycles)).toHaveLength(0)
   })
 
   it('no retiene lo que venció ANTES del último saldo declarado', () => {
@@ -259,11 +290,11 @@ describe('computePendingCreditCards — resúmenes vencidos sin pago', () => {
     // dos veces. Es el agujero de −$850.613 del 2026-08-21, que no se puede reabrir.
     const anclaPosterior = bolsillo({ initial_balance_at: '2026-08-20' });
     const luego = new Date(2026, 7, 25) // 25-ago, con el ancla ya puesta
-    expect(computePendingCreditCards([visa, anclaPosterior], consumo, [], luego)).toHaveLength(0)
+    expect(computePendingCreditCards([visa, anclaPosterior], consumo, [], luego, cycles)).toHaveLength(0)
   })
 
   it('sin ninguna cuenta anclada no retiene nada: no hay piso que lo haga seguro', () => {
     const sinAncla = bolsillo({ initial_balance_at: null })
-    expect(computePendingCreditCards([visa, sinAncla], consumo, [], HOY)).toHaveLength(0)
+    expect(computePendingCreditCards([visa, sinAncla], consumo, [], HOY, cycles)).toHaveLength(0)
   })
 })
