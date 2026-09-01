@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { dateToLocalString, parseLocalDate } from '@/lib/utils/dates';
+import { dateToLocalString, parseLocalDate, rangoDelMes } from '@/lib/utils/dates';
 import { computeMissingAutomaticCharges } from '@/lib/finance/recurring';
 import type { TablesInsert } from '@/types/database'
 
@@ -165,9 +165,11 @@ export async function payCreditCardCycle(params: {
     if (!amountArs || amountArs <= 0) return { error: 'El monto del pago es inválido' };
 
     // Guard anti-duplicado: ya hay un pago de esta tarjeta en ese mes.
-    const d = new Date(date);
-    const monthStart = dateToLocalString(new Date(d.getFullYear(), d.getMonth(), 1));
-    const monthEnd = dateToLocalString(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+    // El rango sale del string y no de `new Date(date)`: ese constructor lee un
+    // 'yyyy-MM-dd' como medianoche UTC, y en zona negativa una fecha del día 1
+    // (la Visa que vence el 1) caía en el mes anterior — el guard miraba el mes
+    // equivocado en las dos direcciones. Ver rangoDelMes en lib/utils/dates.ts.
+    const { start: monthStart, end: monthEnd } = rangoDelMes(date);
     const { data: existing } = await supabase
       .from('transactions')
       .select('id')

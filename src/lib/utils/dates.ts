@@ -112,3 +112,23 @@ export function calculateCreditPaymentDate(
   fechaPago.setDate(paymentDay)
   return formatLocalDate(fechaPago)
 }
+
+/**
+ * Primer y último día del mes al que pertenece `dateString` ('yyyy-MM-dd'),
+ * como strings del mismo formato.
+ *
+ * Se deriva del STRING y no de un `Date` a propósito: `new Date('2026-09-01')`
+ * es medianoche UTC, que en una zona negativa como la argentina cae el 31 de
+ * agosto — así que `getMonth()` devuelve el mes anterior justo para las fechas
+ * del día 1. El guard anti-duplicado de `payCreditCardCycle` tenía ese bug, y
+ * pega en la tarjeta que vence el día 1: dejaba registrar un pago duplicado del
+ * mes en curso y, si existía uno del mes anterior, cortaba con "listo" sin
+ * guardar nada. Sin `Date` de por medio el resultado no depende de la TZ del
+ * runtime (el server de Vercel corre en UTC y la máquina de desarrollo no).
+ */
+export function rangoDelMes(dateString: string): { start: string; end: string } {
+  const [year, month] = dateString.split('-').map(Number);
+  const ultimoDia = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const mm = String(month).padStart(2, '0');
+  return { start: `${year}-${mm}-01`, end: `${year}-${mm}-${String(ultimoDia).padStart(2, '0')}` };
+}
