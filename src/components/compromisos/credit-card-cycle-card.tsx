@@ -28,7 +28,7 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { useFinanceStore, CreditCardCycleSummary } from '@/lib/store/financeStore';
 import { payCreditCardCycle, undoCreditCardPayment } from '@/app/compromisos/actions';
 import { formatCurrency } from '@/lib/utils';
-import { cicloSub } from '@/lib/utils/compromisos-copy';
+import { cicloSub, montoDelCiclo } from '@/lib/utils/compromisos-copy';
 
 interface CreditCardCycleChipProps {
   card: CreditCardCycleSummary;
@@ -237,10 +237,11 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
   const store = useFinanceStore();
   const status = store.getPaymentMethodStatus(card.methodId);
   const ciclo = cicloSub(status.nextClosingDate, card.nextPaymentDate);
+  const monto = montoDelCiclo(card);
 
   return (
     <Card className="px-4 py-3 grid gap-2">
-      {/* Cabecera del mock: tarjeta · ciclo actual, fechas y monto ARS */}
+      {/* Cabecera del mock: tarjeta · ciclo actual, fechas y monto del resumen */}
       <div className="flex items-center gap-2.5">
         <span className="w-[34px] h-[34px] flex-none grid place-items-center bg-surface-2 border-[1.5px] border-border rounded-[11px]">
           <CreditCard className="h-4 w-4 text-accent-deep" aria-hidden="true" />
@@ -249,8 +250,11 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
           <span className="font-sans font-bold text-[13.5px] text-text truncate">{card.name} · ciclo actual</span>
           <span className="text-[11.5px] text-muted">{ciclo.fechas}</span>
         </div>
-        <span className={`ml-auto font-display tnum text-[15px] whitespace-nowrap ${card.isPending ? 'text-bad' : 'text-text'}`}>
-          {card.totalARS > 0 ? formatCurrency(card.totalARS) : formatCurrency(card.total)}
+        <span className={`ml-auto text-right whitespace-nowrap ${card.isPending ? 'text-bad' : 'text-text'}`}>
+          <span className="block font-display tnum text-[15px]">{monto.principal}</span>
+          {monto.secundario && (
+            <span className="block font-display tnum text-[12px] opacity-80">{monto.secundario}</span>
+          )}
         </span>
       </div>
 
@@ -260,11 +264,8 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
       <div className="flex items-center justify-between gap-3">
         <span className="text-[11.5px] text-muted">{ciclo.dias}</span>
         <div className="flex items-center gap-2 shrink-0">
-          {card.totalUSD > 0 && (
-            <span className={`font-display tnum text-[13px] ${card.isPending ? 'text-bad' : 'text-muted'}`}>
-              u$s {card.totalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          )}
+          {/* El u$s del resumen vive arriba, junto a los pesos (montoDelCiclo): suelto
+              acá se leía como un dato aparte y no como la otra mitad de lo que debés. */}
           <CreditCardCycleChip card={card} formattedDate={formattedDate} />
         </div>
       </div>
