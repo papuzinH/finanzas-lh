@@ -36,6 +36,13 @@ describe('ContenidoNovedades', () => {
     expect(out).not.toContain('1.2.0')
   })
 
+  it('el botón llega a los 44px de alto', () => {
+    // Medido en el navegador: con el tamaño por defecto del <Button> quedaba en
+    // 40px, contra la regla dura de ≥44 del sistema. El markup no puede medir
+    // píxeles, así que se fija la clase que los da (h-12 = 48px).
+    expect(out).toContain(' h-12 ')
+  })
+
   it('respeta los tokens y el borde de 1.5px del sistema', () => {
     const clases = (out.match(/class="[^"]*"/g) ?? []).join(' ')
     expect(clases).not.toMatch(/\b(?:bg|text|border)-(?:slate|gray|zinc|emerald|rose|red|blue|amber|stone|indigo|violet)-\d{2,3}\b/)

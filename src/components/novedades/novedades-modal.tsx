@@ -45,8 +45,9 @@ export function ContenidoNovedades({
         ))}
       </ul>
 
-      {/* Una sola salida: es un changelog, no una decisión. */}
-      <Button variant="accent" className="mt-6 w-full" onClick={onCerrar}>
+      {/* Una sola salida: es un changelog, no una decisión. `size="lg"` porque el
+          default del <Button> son 40px y la regla del sistema es ≥44. */}
+      <Button variant="accent" size="lg" className="mt-6 w-full" onClick={onCerrar}>
         Listo
       </Button>
     </div>
@@ -85,7 +86,10 @@ export function NovedadesModal() {
 
   return (
     <Dialog open onOpenChange={cerrar}>
-      <DialogContent className="max-w-sm">
+      {/* `aria-describedby={undefined}` es la salida que Radix documenta para un
+          diálogo sin descripción aparte: sin esto avisa por consola. El título
+          accesible lo da `DialogTitle`, y los items se leen como contenido. */}
+      <DialogContent className="max-w-sm" aria-describedby={undefined}>
         <DialogTitle className="sr-only">{novedad.titulo}</DialogTitle>
         <ContenidoNovedades version={novedad} onCerrar={cerrar} />
       </DialogContent>
