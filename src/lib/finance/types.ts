@@ -22,4 +22,10 @@ export type CreditCardCycleSummary = {
   isCycleClosed: boolean
   isPending: boolean
   isPaidManually: boolean
+  /**
+   * true = este resumen YA VENCIO y no tiene pago registrado. Se sigue contando
+   * como compromiso a proposito (ver computePendingCreditCards): el ciclo avanza
+   * solo y sin esto el disponible subia por plata que ya no esta.
+   */
+  isOverdue: boolean
 }

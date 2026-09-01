@@ -9,6 +9,7 @@
 // La integracion store<->funcion se cubre en el ultimo describe.
 import { describe, it, expect } from 'vitest';
 import { computeAvailableToSpend, type AvailableInputs } from '../pocket';
+import { computePendingCreditCards } from '../balances';
 import type { PaymentMethod, RecurringPlan, InternalTransfer } from '@/types/database';
 import type { ProcessedTransaction, CreditCardCycleSummary } from '../types';
 
@@ -32,7 +33,7 @@ const fixed = (over: Partial<RecurringPlan>): RecurringPlan => ({
 
 const summary = (over: Partial<CreditCardCycleSummary>): CreditCardCycleSummary => ({
   methodId: 'cred', name: 'Tarjeta', total: 0, totalARS: 0, totalUSD: 0,
-  nextPaymentDate: new Date(2026, 8, 1), isCycleClosed: true, isPending: true, isPaidManually: false,
+  nextPaymentDate: new Date(2026, 8, 1), isCycleClosed: true, isPending: true, isPaidManually: false, isOverdue: false,
   ...over,
 });
 
@@ -336,5 +337,59 @@ describe('E11 — qué pasa si NO se marca el pago de la tarjeta', () => {
     });
     expect(r.pocketTotal).toBe(500000 - RESUMEN);
     expect(r.available).toBe(500000 - RESUMEN);
+  });
+});
+
+describe('E12 — el resumen vencido sin pago sigue descontado', () => {
+  // Cierre del agujero que mide E11: acá no se fabrica el resumen a mano, se pide
+  // a computePendingCreditCards con los mismos datos que tendría la app, para que
+  // el escenario pruebe la cadena entera (ciclo -> compromiso -> disponible) y no
+  // sólo el ensamblador.
+  const visa = {
+    id: 'cred', user_id: 'u1', name: 'Visa', type: 'credit',
+    default_closing_day: 19, default_payment_day: 1, created_at: '2026-01-01',
+    is_personal: false, is_default: false, bucket: 'pocket',
+    initial_balance: 0, initial_balance_at: null,
+  } as PaymentMethod;
+
+  const consumo = {
+    id: 'compra', user_id: 'u1', type: 'expense', amount: 50000,
+    date: '2026-08-01', periodDate: '2026-08-01', realPaymentDate: '2026-08-01',
+    payment_method_id: 'cred', category_id: 'c1', card_payment_for: null,
+    installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
+  } as ProcessedTransaction;
+
+  const AGOSTO_5 = new Date(2026, 7, 5);   // el vencimiento del 1-ago ya pasó
+  const cuentas = [acct({ initial_balance: 300000, initial_balance_at: '2026-07-01' }), visa];
+
+  const correr = (transactions: ProcessedTransaction[]) =>
+    computeAvailableToSpend({
+      paymentMethods: cuentas,
+      transactions,
+      transfers: [],
+      recurringPlans: [],
+      pendingCards: computePendingCreditCards(cuentas, transactions, [], AGOSTO_5),
+      rhythm: 'monthly',
+      now: AGOSTO_5,
+    });
+
+  it('sin pago registrado, el disponible NO sube: el resumen sigue pesando', () => {
+    const r = correr([consumo]);
+    expect(r.committed).toBe(50000);
+    expect(r.available).toBe(250000);
+  });
+
+  it('con el pago registrado, el compromiso se libera y el saldo baja a la vez', () => {
+    const pago = {
+      id: 'pago', user_id: 'u1', type: 'expense', amount: 50000,
+      date: '2026-08-01', periodDate: '2026-08-01', realPaymentDate: '2026-08-01',
+      payment_method_id: 'poc', category_id: 'c1', card_payment_for: 'cred',
+      installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
+    } as ProcessedTransaction;
+
+    const r = correr([consumo, pago]);
+    expect(r.committed).toBe(0);
+    expect(r.pocketTotal).toBe(250000);
+    expect(r.available).toBe(250000);  // el mismo número que sin pagar: neto cero
   });
 });
