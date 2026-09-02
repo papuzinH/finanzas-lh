@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { FilasDelResumen } from '../filas-del-resumen';
+import { Fila, FilasDelResumen } from '../filas-del-resumen';
 import type { ProcessedTransaction } from '@/lib/finance/types';
 
 const tx = (over: Partial<ProcessedTransaction>): ProcessedTransaction => ({
@@ -68,5 +68,39 @@ describe('FilasDelResumen', () => {
       <FilasDelResumen filas={{ conFecha: [tx({})], sinFecha: [] }} />,
     );
     expect(html).not.toContain('Sin fecha de compra');
+  });
+});
+
+describe('Fila (fechaDe)', () => {
+  it('default "compra": usa purchase_date, igual que antes', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({ purchase_date: '2026-08-05', date: '2026-09-01' })} />,
+    );
+    expect(html).toContain('5 ago');
+    expect(html).not.toContain('1 sep');
+  });
+
+  it('"compra" sin purchase_date muestra "Sin fecha" (el caso de un ingreso en un resumen de tarjeta)', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({ type: 'income', purchase_date: null, date: '2026-09-01' })} />,
+    );
+    expect(html).toContain('Sin fecha');
+    expect(html).not.toContain('1 sep');
+  });
+
+  it('"movimiento": usa t.date, ignora purchase_date', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({ purchase_date: '2026-08-05', date: '2026-09-01' })} fechaDe="movimiento" />,
+    );
+    expect(html).toContain('1 sep');
+    expect(html).not.toContain('5 ago');
+  });
+
+  it('"movimiento" en un ingreso (purchase_date null por diseño) muestra la fecha real, no "Sin fecha"', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({ type: 'income', description: 'Sueldo', purchase_date: null, date: '2026-09-01' })} fechaDe="movimiento" />,
+    );
+    expect(html).toContain('1 sep');
+    expect(html).not.toContain('Sin fecha');
   });
 });

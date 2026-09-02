@@ -79,7 +79,7 @@ export function DetalleClient({ methodId }: { methodId: string }) {
         <DetalleDeCuenta
           method={method}
           cuenta={cuenta}
-          fixedCosts={store.getPaymentMethodStatus(methodId).fixedCosts}
+          status={store.getPaymentMethodStatus(methodId)}
           transactions={store.transactions}
           paymentMethods={store.paymentMethods}
         />

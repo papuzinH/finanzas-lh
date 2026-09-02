@@ -14,17 +14,32 @@ const monto = (t: ProcessedTransaction) =>
     ? formatUsd(Math.abs(Number(t.original_amount)))
     : formatCurrency(Math.abs(Number(t.amount)));
 
-/** Exportada: la Task 7 la reusa para la lista del mes de cuentas y medios personales. */
-export function Fila({ t }: { t: ProcessedTransaction }) {
+/**
+ * Exportada: la Task 7 la reusa para la lista del mes de cuentas y medios personales.
+ *
+ * `fechaDe` elige de qué campo sale la fecha:
+ * - `'compra'` (default): `purchase_date`, y "Sin fecha" si no hay -- lo que usan los
+ *   resúmenes de tarjeta, sin cambios. `t.date` en crédito es el VENCIMIENTO, sería la
+ *   misma fecha repetida en todas las filas del resumen.
+ * - `'movimiento'`: `t.date`, la fecha real del movimiento -- lo que usa
+ *   `DetalleDeCuenta` para débito/efectivo y medios personales. Ahí `purchase_date` es
+ *   `null` en TODO ingreso por diseño (el sueldo, transferencias: el caso frecuente,
+ *   no el raro), así que quedaba "Sin fecha" en cada uno.
+ */
+export function Fila({ t, fechaDe = 'compra' }: { t: ProcessedTransaction; fechaDe?: 'compra' | 'movimiento' }) {
+  const fecha =
+    fechaDe === 'movimiento'
+      ? format(parseLocalDate(t.date), 'd MMM', { locale: es })
+      : t.purchase_date
+        ? format(parseLocalDate(t.purchase_date), 'd MMM', { locale: es })
+        : 'Sin fecha';
+
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border-[1.5px] border-border bg-surface-2 p-3">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-text">{t.description}</p>
         <p className="text-[10px] text-muted">
-          {/* La fecha de COMPRA. t.date en credito es el vencimiento: seria la misma en todas las filas. */}
-          {t.purchase_date
-            ? format(parseLocalDate(t.purchase_date), "d MMM", { locale: es })
-            : 'Sin fecha'}
+          {fecha}
           {t.installment_plan_id && ' · Cuota'}
           {t.recurring_plan_id && ' · Mensualidad'}
         </p>
