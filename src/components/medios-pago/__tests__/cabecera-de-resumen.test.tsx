@@ -54,10 +54,38 @@ describe('CabeceraDeResumen', () => {
     expect(html).not.toContain('-$');
   });
 
+  it('un saldo a favor (deuda negativa) tambien dice "Al dia"', () => {
+    const html = render({ deuda: -5000, totalARS: 0, totalUSD: 0 });
+    expect(html).toContain('Al día');
+    expect(html).toContain('text-good');
+  });
+
   it('desglosa ARS y USD sin mezclarlos', () => {
     const html = render({ deuda: 175500, totalARS: 20000, totalUSD: 100 });
     expect(html).toContain('20.000');
     expect(html).toContain('100');
+    expect(html).toContain('shadow-bandera');
+    expect(html.match(/shadow-bandera/g)?.length).toBe(1);
+  });
+
+  it('muestra deuda solo en ARS en la cifra principal', () => {
+    const html = render({ deuda: 20000, totalARS: 20000, totalUSD: 0 });
+    expect(html).toContain('20.000');
+    expect(html).not.toContain('u$s');
+    expect(html.match(/shadow-bandera/g)?.length).toBe(1);
+  });
+
+  it('muestra deuda solo en USD en la cifra principal', () => {
+    const html = render({ deuda: 5000, totalARS: 0, totalUSD: 100 });
+    expect(html).toContain('u$s 100');
+    expect(html.match(/u\$s/g)?.length).toBe(1);
+    expect(html.match(/shadow-bandera/g)?.length).toBe(1);
+  });
+
+  it('no muestra monto secundario en USD cuando esta al dia', () => {
+    const html = render({ deuda: 0, totalARS: 0, totalUSD: 100 });
+    expect(html).toContain('Al día');
+    expect(html).not.toContain('u$s 100');
   });
 
   it('ofrece corregir las fechas, con touch target valido', () => {

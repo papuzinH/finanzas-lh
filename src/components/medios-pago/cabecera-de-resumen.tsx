@@ -37,6 +37,13 @@ export function CabeceraDeResumen({
   onCorregirFechas: () => void;
 }) {
   const alDia = deuda <= 0;
+  const mainAmount = alDia
+    ? null
+    : totalARS > 0
+      ? formatCurrency(totalARS)
+      : totalUSD > 0
+        ? formatUsd(totalUSD)
+        : formatCurrency(deuda);
 
   return (
     <div className="rounded-2xl border-[1.5px] border-border bg-surface p-5 grid gap-3">
@@ -54,15 +61,15 @@ export function CabeceraDeResumen({
 
       <div className="pr-3 pb-2">
         {alDia ? (
-          <p className="font-display tnum text-3xl leading-[--leading-display] text-good shadow-bandera">
+          <p className="font-display tnum text-3xl leading-[var(--leading-display)] text-good shadow-bandera">
             Al día
           </p>
         ) : (
-          <p className="font-display tnum text-3xl leading-[--leading-display] text-text shadow-bandera">
-            {formatCurrency(totalARS)}
+          <p className="font-display tnum text-3xl leading-[var(--leading-display)] text-text shadow-bandera">
+            {mainAmount}
           </p>
         )}
-        {totalUSD > 0 && (
+        {!alDia && totalARS > 0 && totalUSD > 0 && (
           <p className="font-display tnum mt-1 text-sm text-muted">+ {formatUsd(totalUSD)}</p>
         )}
       </div>
