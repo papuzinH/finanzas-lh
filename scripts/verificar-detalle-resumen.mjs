@@ -109,6 +109,12 @@ async function alturaMin44(locator) {
   return (box?.height ?? 0) >= 43.5;
 }
 
+/** Nombre de un medio como regex. Son datos del usuario y pueden traer metacaracteres
+ * ("Visa (Galicia)", "MP +", el "[gate] Deuda con Juan" que siembra este mismo script):
+ * sin escapar, el assert 7 se cae con un error de sintaxis o -peor- matchea cualquier
+ * cosa. Una sola definicion para los dos usos; el del debito iba sin escapar. */
+const literal = (nombre) => new RegExp(nombre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+
 const totalDe = () => page.locator('[data-testid="total-resumen"]').innerText();
 const resumenDeLaUrl = () => new URL(page.url()).searchParams.get('resumen');
 
@@ -251,13 +257,13 @@ await page.goto(`${BASE}/ajustes/medios/${debito.id}`, { waitUntil: 'networkidle
 await page.locator('main').last().locator('h1').waitFor({ state: 'visible' });
 await page.waitForTimeout(300);
 const textoDebito = await main();
-const debitoOk = new RegExp(debito.name).test(textoDebito) && /Costos fijos/i.test(textoDebito);
+const debitoOk = literal(debito.name).test(textoDebito) && /Costos fijos/i.test(textoDebito);
 
 await page.goto(`${BASE}/ajustes/medios/${personal.id}`, { waitUntil: 'networkidle' });
 await page.locator('main').last().locator('h1').waitFor({ state: 'visible' });
 await page.waitForTimeout(300);
 const textoPersonal = await main();
-const personalOk = new RegExp(personal.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(textoPersonal)
+const personalOk = literal(personal.name).test(textoPersonal)
   && /Costos fijos/i.test(textoPersonal);
 
 check('7. una cuenta de débito y un medio personal abren la pantalla, con "Costos fijos"',
