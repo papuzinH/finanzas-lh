@@ -24,6 +24,16 @@ describe('ruta /ajustes/medios/[id]', () => {
     expect(src).not.toMatch(/const\s*\{[^}]*getCardCycleDetail[^}]*\}\s*=\s*useFinanceStore/);
   });
 
+  it('una tarjeta sin resumenes no queda en un callejon sin salida', () => {
+    // Las tarjetas sin default_closing_day no tienen ciclos (asegurarCiclos las saltea,
+    // el backfill las excluye): getCardCycleDetail devuelve resumenes: []. El modal que
+    // esta pantalla reemplazo SI les mostraba sus movimientos, por mes calendario.
+    const src = readFileSync(resolve(raiz, 'src/app/ajustes/medios/[id]/detalle-client.tsx'), 'utf8');
+    const rama = src.slice(src.indexOf('no tiene resúmenes cargados'));
+    expect(rama).toContain('<DetalleDeCuenta');
+    expect(rama).toContain('mostrarSaldo={false}');
+  });
+
   it('EditarCicloDialog se monta con key por resumen', () => {
     // Su estado se inicializa una sola vez, en el useState. Navegar entre resumenes es
     // router.replace sobre el mismo segmento: React re-renderiza pero NO remonta, asi

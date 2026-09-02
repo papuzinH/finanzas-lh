@@ -15,6 +15,14 @@ import type { PaymentMethod } from '@/types/database';
  * Detalle de una cuenta de debito/efectivo o de un medio personal: el contenido que
  * tenia el modal, PORTADO tal cual. No se rediseña acá -- queda fuera de alcance del
  * plan del detalle por resumen (spec 2026-09-02).
+ *
+ * `mostrarSaldo={false}` es para la tarjeta de credito SIN resumenes materializados
+ * (sin `default_closing_day` no hay ciclos: asegurarCiclos la saltea y el backfill la
+ * excluye). Ahi la pantalla necesita mostrar los movimientos y los costos fijos --
+ * antes era un callejon sin salida --, pero NO el saldo: para una tarjeta ese numero
+ * no es un "saldo actual", y la card de la lista muestra "A pagar este ciclo: Al día"
+ * porque sin ciclo el desglose es 0. Dos numeros distintos para lo mismo es
+ * exactamente lo que esta pantalla existe para evitar.
  */
 export function DetalleDeCuenta({
   method,
@@ -22,12 +30,14 @@ export function DetalleDeCuenta({
   status,
   transactions,
   paymentMethods,
+  mostrarSaldo = true,
 }: {
   method: PaymentMethod;
   cuenta: AccountBalance | null;
   status: { fixedCosts: number; projectedTotal: number };
   transactions: ProcessedTransaction[];
   paymentMethods: PaymentMethod[];
+  mostrarSaldo?: boolean;
 }) {
   const now = new Date();
   // La MISMA regla que usaba getPaymentMethodTransactionsForCurrentMonth para
@@ -53,18 +63,20 @@ export function DetalleDeCuenta({
 
   return (
     <div className="grid gap-5">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-2xl border-[1.5px] border-border bg-surface-2 p-4">
-          <p className="mb-1 text-[10px] font-semibold uppercase text-muted">
-            {esDeuda ? (negativo ? 'Le debés' : 'A favor') : 'Saldo actual'}
-          </p>
-          <p className={cn('font-display tnum text-xl leading-none', negativo ? 'text-bad' : 'text-good')}>
-            {formatCurrency(monto)}
-          </p>
-          {cuenta && !cuenta.anchored && (
-            <p className="mt-1 text-[10px] text-faint">Sin saldo declarado</p>
-          )}
-        </div>
+      <div className={cn('grid gap-4', mostrarSaldo ? 'grid-cols-2' : 'grid-cols-1')}>
+        {mostrarSaldo && (
+          <div className="rounded-2xl border-[1.5px] border-border bg-surface-2 p-4">
+            <p className="mb-1 text-[10px] font-semibold uppercase text-muted">
+              {esDeuda ? (negativo ? 'Le debés' : 'A favor') : 'Saldo actual'}
+            </p>
+            <p className={cn('font-display tnum text-xl leading-none', negativo ? 'text-bad' : 'text-good')}>
+              {formatCurrency(monto)}
+            </p>
+            {cuenta && !cuenta.anchored && (
+              <p className="mt-1 text-[10px] text-faint">Sin saldo declarado</p>
+            )}
+          </div>
+        )}
         <div className="rounded-2xl border-[1.5px] border-border bg-surface-2 p-4">
           <p className="mb-1 text-[10px] font-semibold uppercase text-muted">Costos fijos</p>
           <p className="font-display tnum text-xl leading-none text-text">{formatCurrency(status.fixedCosts)}</p>

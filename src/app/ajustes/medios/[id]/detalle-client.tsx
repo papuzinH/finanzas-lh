@@ -138,10 +138,27 @@ export function DetalleClient({ methodId }: { methodId: string }) {
           )}
         </>
       ) : (
-        <p className="text-sm text-muted">
-          Esta tarjeta todavía no tiene resúmenes cargados. Configurá el día de cierre y el de
-          vencimiento en la ficha para que la app los pueda armar.
-        </p>
+        // Sin `default_closing_day` la tarjeta no tiene ciclos (asegurarCiclos la saltea
+        // y el backfill la excluye), asi que no hay resumen que mostrar. Eso no la deja
+        // sin movimientos: se listan por mes calendario, que es lo que hacia el modal
+        // que esta pantalla reemplazo. Sin esto la pantalla era un callejon sin salida.
+        // El saldo NO se muestra: para una tarjeta ese numero no es un "saldo actual" y
+        // contradiria el "Al día" que la card de la lista dibuja cuando no hay ciclo.
+        <>
+          <p className="text-sm text-muted">
+            Esta tarjeta todavía no tiene resúmenes cargados. Configurá el día de cierre y el de
+            vencimiento en la ficha para que la app los pueda armar; mientras tanto, esto es lo
+            que gastaste este mes.
+          </p>
+          <DetalleDeCuenta
+            method={method}
+            cuenta={null}
+            status={store.getPaymentMethodStatus(methodId)}
+            transactions={store.transactions}
+            paymentMethods={store.paymentMethods}
+            mostrarSaldo={false}
+          />
+        </>
       )}
     </main>
   );
