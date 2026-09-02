@@ -238,7 +238,14 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
 /**
  * Asigna el medio de pago predeterminado del usuario a TODAS sus transacciones
  * que hoy no tienen medio (payment_method_id null). Si el default es una tarjeta
- * de crédito, recalcula la fecha de vencimiento de cada gasto.
+ * de crédito con ciclo configurado, además imputa cada gasto a su resumen.
+ *
+ * Antes sólo re-fechaba con `calculateCreditPaymentDate` y dejaba `cycle_id` NULL:
+ * desde esta rama la pertenencia al resumen sale de la FK, así que esas filas
+ * quedaban huérfanas para siempre — no aparecían en ningún resumen ni sumaban al
+ * "a pagar en el vencimiento", justo las transacciones que este botón viene a
+ * ordenar. Se toma `r.date` como fecha de compra (es lo que el usuario cargó: la
+ * fila nunca tuvo medio, así que nadie la desplazó a un vencimiento).
  */
 export async function assignDefaultToUnassignedTransactions(): Promise<ActionResponse & { updated?: number }> {
   try {
@@ -248,9 +255,11 @@ export async function assignDefaultToUnassignedTransactions(): Promise<ActionRes
     } = await supabase.auth.getUser();
     if (!user) return { error: 'No autorizado' };
 
+    // select('*'): `asegurarCiclos` necesita el medio completo (user_id incluido)
+    // para generar los resúmenes que falten.
     const { data: def } = await supabase
       .from('payment_methods')
-      .select('id, type, default_closing_day, default_payment_day')
+      .select('*')
       .eq('user_id', user.id)
       .eq('is_default', true)
       .single();
@@ -278,15 +287,37 @@ export async function assignDefaultToUnassignedTransactions(): Promise<ActionRes
         return { error: 'Error al asignar el medio' };
       }
     } else {
-      // Crédito: recalcular el vencimiento por fila (los gastos usan la fecha de compra).
+      // Un solo `asegurarCiclos` para TODAS las filas: cubre desde un mes antes de
+      // la más vieja hasta dos meses después de la más nueva (mismo margen que el
+      // alta). Es idempotente y barato — inserta sólo los meses que falten.
+      const fechas = rows.map((r) => r.date).sort();
+      const ciclos = await asegurarCiclos(
+        supabase,
+        def,
+        subMonths(parseLocalDate(fechas[0]), 1),
+        addMonths(parseLocalDate(fechas[fechas.length - 1]), 2),
+      );
+
       for (const r of rows) {
-        const newDate =
-          r.type === 'expense'
-            ? calculateCreditPaymentDate(r.date, def.default_closing_day!, def.default_payment_day!)
-            : r.date;
+        const ciclo = cicloDeCompra(r.date, ciclos);
+        const fila: {
+          payment_method_id: string;
+          date: string;
+          cycle_id: string | null;
+          purchase_date?: string | null;
+        } = ciclo
+          ? { payment_method_id: def.id, date: ciclo.due_date, cycle_id: ciclo.id }
+          : {
+              // Sin resumen que la contenga: la fecha estimada de siempre y sin ciclo.
+              payment_method_id: def.id,
+              date: calculateCreditPaymentDate(r.date, def.default_closing_day!, def.default_payment_day!),
+              cycle_id: null,
+            };
+        if (r.type === 'expense') fila.purchase_date = r.date;
+
         const { error } = await supabase
           .from('transactions')
-          .update({ payment_method_id: def.id, date: newDate })
+          .update(fila)
           .eq('id', r.id)
           .eq('user_id', user.id);
         if (error) {
