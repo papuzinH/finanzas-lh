@@ -389,15 +389,22 @@ describe('pago de tarjeta (card_payment_for)', () => {
 describe('getPaymentMethodStatus (tarjeta de crédito)', () => {
   const CARD_ID = '10';
 
-  // now = 2026-07-15. Ciclo vigente: cierra 2026-07-20, vence 2026-08-05. La
-  // pertenencia es por cycle_id, no por t.date: el id '4' lleva un cycle_id de
-  // otro ciclo aunque su t.date esté ya calculado. OTHER_CYCLE_ID queda a
-  // propósito DESPAREJO respecto de CYCLE_ID (24/08 → 08/09, no "un mes exacto
-  // mismo día") y desalineado de los defaults de la tarjeta (closing 20/payment
-  // 5): fixturear ciclos parejos es cómo se escondieron los últimos bugs grandes
-  // del repo — ver Finding 2, revisión 2026-09-01 de Task 3.
-  const CYCLE_ID = 'visa-ago';
+  // now = 2026-07-15. La pertenencia es por cycle_id, no por t.date: el id '4'
+  // lleva un cycle_id de otro ciclo aunque su t.date esté ya calculado.
+  //
+  // Los ciclos son DESPAREJOS entre sí (08/07 → 31/07 y 24/08 → 08/09: ni un
+  // corrimiento exacto de un mes ni el mismo día) y, sobre todo, DESALINEADOS de
+  // los defaults de la tarjeta (closing 20 / payment 5), que para el 15-jul darían
+  // un vencimiento el 2026-08-05. Es el caso real de Finding 1: el usuario declaró
+  // las fechas que le dice el resumen y los defaults quedaron viejos. Con el
+  // fixture anterior — el ciclo vigente calcado de los defaults — la lista y el
+  // total coincidían por casualidad aunque el getter derivara el ciclo de los
+  // defaults, y el defecto no se veía: fixturear ciclos parejos es cómo se
+  // escondieron los últimos bugs grandes del repo.
+  const CYCLE_ID = 'visa-jul';
   const OTHER_CYCLE_ID = 'visa-sep';
+  const CICLO_VIGENTE = { id: CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-07-08', due_date: '2026-07-31', source: 'declared', created_at: '2026-01-01T00:00:00Z' };
+  const CICLO_SIGUIENTE = { id: OTHER_CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-08-24', due_date: '2026-09-08', source: 'declared', created_at: '2026-01-01T00:00:00Z' };
 
   function seedCard() {
     seed({
@@ -408,17 +415,14 @@ describe('getPaymentMethodStatus (tarjeta de crédito)', () => {
         { id: '100', payment_method_id: CARD_ID, is_active: true, amount: 3200, currency: 'ARS', description: 'Spotify' },
         { id: '200', payment_method_id: CARD_ID, is_active: true, amount: 5900, currency: 'ARS', description: 'Netflix' },
       ],
-      creditCardCycles: [
-        { id: CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-07-20', due_date: '2026-08-05', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
-        { id: OTHER_CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-08-24', due_date: '2026-09-08', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
-      ],
+      creditCardCycles: [CICLO_VIGENTE, CICLO_SIGUIENTE],
       transactions: [
-        // compra NORMAL (1 cuota) que vence el 5-ago → debe contar
-        { id: '1', type: 'expense', amount: -42000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: CYCLE_ID },
+        // compra NORMAL (1 cuota) que vence el 31-jul → debe contar
+        { id: '1', type: 'expense', amount: -42000, date: '2026-07-31', periodDate: '2026-07-08', realPaymentDate: '2026-07-31', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: CYCLE_ID },
         // mensualidad Spotify YA posteada este ciclo (no debe contarse doble)
-        { id: '2', type: 'expense', amount: -3200, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: '100', original_currency: 'ARS', cycle_id: CYCLE_ID },
+        { id: '2', type: 'expense', amount: -3200, date: '2026-07-31', periodDate: '2026-07-08', realPaymentDate: '2026-07-31', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: '100', original_currency: 'ARS', cycle_id: CYCLE_ID },
         // reintegro que vence en el mismo ciclo
-        { id: '3', type: 'income', amount: 2000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: CYCLE_ID },
+        { id: '3', type: 'income', amount: 2000, date: '2026-07-31', periodDate: '2026-07-08', realPaymentDate: '2026-07-31', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: CYCLE_ID },
         // compra de OTRO ciclo (vence 8-sep) → NO debe contar
         { id: '4', type: 'expense', amount: -99999, date: '2026-09-08', periodDate: '2026-08-24', realPaymentDate: '2026-09-08', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: OTHER_CYCLE_ID },
       ],
@@ -451,11 +455,9 @@ describe('getPaymentMethodStatus (tarjeta de crédito)', () => {
           { id: CARD_ID, type: 'credit', default_closing_day: 20, default_payment_day: 5, name: 'Visa', is_personal: false },
         ],
         recurringPlans: [],
-        creditCardCycles: [
-          { id: CYCLE_ID, user_id: 'u1', payment_method_id: CARD_ID, closing_date: '2026-07-20', due_date: '2026-08-05', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
-        ],
+        creditCardCycles: [CICLO_VIGENTE],
         transactions: [
-          { id: '1', type: 'expense', amount: -30000, date: '2026-08-05', periodDate: '2026-07-05', realPaymentDate: '2026-08-05', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: CYCLE_ID },
+          { id: '1', type: 'expense', amount: -30000, date: '2026-07-31', periodDate: '2026-07-08', realPaymentDate: '2026-07-31', payment_method_id: CARD_ID, installment_plan_id: null, recurring_plan_id: null, original_currency: 'ARS', cycle_id: CYCLE_ID },
         ],
       });
       const s = useFinanceStore.getState().getPaymentMethodStatus(CARD_ID);
@@ -475,6 +477,11 @@ describe('getPaymentMethodStatus (tarjeta de crédito)', () => {
       const movs = st.getPaymentMethodTransactionsForCurrentMonth(CARD_ID);
       // posteados en el ciclo: compra (1), Spotify (2), reintegro (3). El id 4 es otro ciclo.
       expect(movs.map((m) => m.id).sort()).toEqual(['1', '2', '3']);
+      // Procedencia: los tres vencen el 31-jul, y los defaults de la tarjeta
+      // (closing 20 / payment 5) pondrían el vencimiento vigente en AGOSTO. Si la
+      // lista siguiera saliendo de `getCreditCycleDates` + mes de `t.date`, esto
+      // daría vacío. La membresía es la FK, la misma que usa el status.
+      expect(movs.every((m) => m.cycle_id === CYCLE_ID)).toBe(true);
       const postedExpenses = movs
         .filter((m) => m.type === 'expense')
         .reduce((a, m) => a + Math.abs(Number(m.amount)), 0);

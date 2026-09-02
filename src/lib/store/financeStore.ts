@@ -1138,17 +1138,31 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getPaymentMethodTransactionsForCurrentMonth: (methodId) => {
-    const { transactions, paymentMethods } = get();
+    const { transactions, paymentMethods, creditCardCycles } = get();
     const now = new Date();
     const method = paymentMethods.find((m) => m.id === methodId);
+    // MISMA regla de pertenencia que computePaymentMethodStatus: el resumen vigente
+    // sale de `credit_card_cycles` y la membresía es la FK. /ajustes/medios muestra
+    // esta lista y ese total lado a lado, así que derivar el ciclo de los defaults
+    // acá (getCreditCycleDates) los desacoplaba en cuanto las fechas declaradas del
+    // resumen no coincidían con los defaults de la tarjeta: el número decía una cosa
+    // y el detalle que lo explica, otra.
+    const vigente = cicloVigente(ciclosDeMetodo(methodId, creditCardCycles), now);
     const nextPaymentDate = method ? getCreditCycleDates(method, now)?.nextPaymentDate : undefined;
 
     return transactions.filter(t => {
       if (t.payment_method_id !== methodId) return false;
 
-      // Crédito con ciclo: gastos e ingresos pertenecen al ciclo si su fecha de
-      // vencimiento (t.date) cae en el mes de nextPaymentDate. Así la lista cuadra
-      // exactamente con el número "A pagar en el vencimiento".
+      // Crédito con resumen materializado: gastos e ingresos pertenecen al ciclo
+      // vigente sii apuntan a él. Así la lista cuadra exactamente con el número
+      // "A pagar en el vencimiento".
+      if (vigente) {
+        return t.cycle_id === vigente.id;
+      }
+
+      // Tarjeta configurada pero SIN ciclos materializados: fallback a la regla
+      // vieja (mes del vencimiento estimado). Se va con el Plan 2, junto con
+      // calculateCreditPaymentDate.
       if (nextPaymentDate) {
         return sameMonthYear(parseLocalDate(t.date), nextPaymentDate);
       }
