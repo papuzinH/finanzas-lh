@@ -27,7 +27,7 @@ describe('SelectorDeResumen', () => {
 
   // React emite los atributos en el orden del JSX: aria-label viene ANTES de
   // disabled, asi que hay que mirar hacia ADELANTE desde el label hasta cerrar
-  // la etiqueta. Mirar hacia atras da un falso rojo.
+  // la etiqueta. Buscamos disabled="" para no matchear "disabled:opacity-40" en el class.
   const atributosDelBoton = (html: string, label: string) => {
     const i = html.indexOf(`aria-label="${label}"`);
     return i === -1 ? '' : html.slice(i, html.indexOf('>', i));
@@ -35,20 +35,20 @@ describe('SelectorDeResumen', () => {
 
   it('en el primer resumen la flecha de anterior queda deshabilitada', () => {
     const html = renderToStaticMarkup(<SelectorDeResumen resumenes={R} actualId="jul" onSelect={() => {}} />);
-    expect(atributosDelBoton(html, 'Resumen anterior')).toContain('disabled');
-    expect(atributosDelBoton(html, 'Resumen siguiente')).not.toContain('disabled');
+    expect(atributosDelBoton(html, 'Resumen anterior')).toContain('disabled=""');
+    expect(atributosDelBoton(html, 'Resumen siguiente')).not.toContain('disabled=""');
   });
 
   it('en el ultimo resumen la flecha de siguiente queda deshabilitada', () => {
     const html = renderToStaticMarkup(<SelectorDeResumen resumenes={R} actualId="sep" onSelect={() => {}} />);
-    expect(atributosDelBoton(html, 'Resumen siguiente')).toContain('disabled');
-    expect(atributosDelBoton(html, 'Resumen anterior')).not.toContain('disabled');
+    expect(atributosDelBoton(html, 'Resumen siguiente')).toContain('disabled=""');
+    expect(atributosDelBoton(html, 'Resumen anterior')).not.toContain('disabled=""');
   });
 
   it('en un resumen del medio ninguna flecha esta deshabilitada', () => {
     const html = renderToStaticMarkup(<SelectorDeResumen resumenes={R} actualId="ago" onSelect={() => {}} />);
-    expect(atributosDelBoton(html, 'Resumen anterior')).not.toContain('disabled');
-    expect(atributosDelBoton(html, 'Resumen siguiente')).not.toContain('disabled');
+    expect(atributosDelBoton(html, 'Resumen anterior')).not.toContain('disabled=""');
+    expect(atributosDelBoton(html, 'Resumen siguiente')).not.toContain('disabled=""');
   });
 
   it('los controles cumplen el minimo de 44px', () => {
@@ -68,6 +68,29 @@ describe('SelectorDeResumen', () => {
   it('una tarjeta con un solo resumen no ofrece navegacion rota', () => {
     const uno = [R[1]];
     const html = renderToStaticMarkup(<SelectorDeResumen resumenes={uno} actualId="ago" onSelect={() => {}} />);
-    expect(html.match(/disabled/g)?.length).toBe(2);
+    expect(html.match(/disabled=""/g)?.length).toBe(2);
+  });
+
+  it('con dos resumenes que cierran el mismo mes pero anos distintos, el label muestra la fecha completa', () => {
+    const diferentesAnos: ResumenNavegable[] = [
+      { id: 'ago26', closingDate: '2026-08-20', dueDate: '2026-09-01', source: 'generated', estado: 'pagado' },
+      { id: 'ago27', closingDate: '2027-08-20', dueDate: '2027-09-01', source: 'generated', estado: 'pendiente' },
+    ];
+    const html1 = renderToStaticMarkup(<SelectorDeResumen resumenes={diferentesAnos} actualId="ago26" onSelect={() => {}} />);
+    const html2 = renderToStaticMarkup(<SelectorDeResumen resumenes={diferentesAnos} actualId="ago27" onSelect={() => {}} />);
+    // Ambos deben mostrar la fecha completa para desambiguar
+    expect(html1).toContain('2026');
+    expect(html2).toContain('2027');
+  });
+
+  it('sin homónimo, el label muestra solo el mes, sin día ni año', () => {
+    const unoPorMes: ResumenNavegable[] = [
+      { id: 'jul', closingDate: '2026-07-23', dueDate: '2026-08-03', source: 'generated', estado: 'pagado' },
+      { id: 'ago', closingDate: '2026-08-20', dueDate: '2026-09-01', source: 'generated', estado: 'pendiente' },
+    ];
+    const html = renderToStaticMarkup(<SelectorDeResumen resumenes={unoPorMes} actualId="ago" onSelect={() => {}} />);
+    // Debe mostrar solo "agosto", sin día ni año
+    expect(html).toContain('agosto');
+    expect(html).not.toContain('2026');
   });
 });

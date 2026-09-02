@@ -38,11 +38,13 @@ export function SelectorDeResumen({
   const actual = resumenes[i];
   if (!actual) return null;
 
-  // Si otro resumen cierra en el mismo mes calendario, el mes solo no alcanza.
+  // Si otro resumen cierra en el mismo mes calendario (independientemente del año),
+  // el mes solo no alcanza. La unique (payment_method_id, closing_date) garantiza
+  // que dos resúmenes nunca comparten fecha exacta, así que la fecha completa desambigua.
   const mes = mesDe(actual.closingDate);
   const hayHomonimo = resumenes.some((r) => r.id !== actual.id && mesDe(r.closingDate) === mes);
   const etiqueta = hayHomonimo
-    ? `${mes} ${format(parseLocalDate(actual.closingDate), 'd')}`
+    ? format(parseLocalDate(actual.closingDate), 'd MMM yyyy', { locale: es })
     : mes;
 
   return (
@@ -52,10 +54,7 @@ export function SelectorDeResumen({
         aria-label="Resumen anterior"
         disabled={i <= 0}
         onClick={() => onSelect(resumenes[i - 1].id)}
-        className={cn(
-          'flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-[1.5px] border-border text-muted',
-          i <= 0 && 'opacity-40',
-        )}
+        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-[1.5px] border-border text-muted disabled:opacity-40"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
@@ -74,10 +73,7 @@ export function SelectorDeResumen({
         aria-label="Resumen siguiente"
         disabled={i >= resumenes.length - 1}
         onClick={() => onSelect(resumenes[i + 1].id)}
-        className={cn(
-          'flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-[1.5px] border-border text-muted',
-          i >= resumenes.length - 1 && 'opacity-40',
-        )}
+        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-[1.5px] border-border text-muted disabled:opacity-40"
       >
         <ChevronRight className="h-4 w-4" />
       </button>
