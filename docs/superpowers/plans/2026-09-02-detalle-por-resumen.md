@@ -959,18 +959,29 @@ export function CabeceraDeResumen({
         </span>
       </div>
 
+      {/* La cifra principal NUNCA es formatCurrency(totalARS) a secas: un resumen
+          cuyo consumo es 100% en dolares (totalARS === 0, totalUSD > 0) mostraria
+          "$0,00" con la firma encima y la deuda real relegada al renglon chico.
+          Existe en produccion: tarjetas cuyo resumen es una suscripcion en USD.
+          Misma guarda que credit-card-cycle-card.tsx:208-211. */}
       <div className="pr-3 pb-2">
         {alDia ? (
-          <p className="font-display tnum text-3xl leading-[--leading-display] text-good shadow-bandera">
+          <p className="font-display tnum text-3xl leading-[var(--leading-display)] text-good shadow-bandera">
             Al día
           </p>
-        ) : (
-          <p className="font-display tnum text-3xl leading-[--leading-display] text-text shadow-bandera">
-            {formatCurrency(totalARS)}
+        ) : totalARS === 0 && totalUSD > 0 ? (
+          <p className="font-display tnum text-3xl leading-[var(--leading-display)] text-text shadow-bandera">
+            {formatUsd(totalUSD)}
           </p>
-        )}
-        {totalUSD > 0 && (
-          <p className="font-display tnum mt-1 text-sm text-muted">+ {formatUsd(totalUSD)}</p>
+        ) : (
+          <>
+            <p className="font-display tnum text-3xl leading-[var(--leading-display)] text-text shadow-bandera">
+              {formatCurrency(totalARS > 0 ? totalARS : deuda)}
+            </p>
+            {totalUSD > 0 && (
+              <p className="font-display tnum mt-1 text-sm text-muted">+ {formatUsd(totalUSD)}</p>
+            )}
+          </>
         )}
       </div>
 
