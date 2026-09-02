@@ -330,7 +330,7 @@ git commit -m "feat(detalle): los resumenes navegables de una tarjeta y sus fila
 Create `src/lib/store/__tests__/detalle-resumen-getter.test.ts`:
 
 ```ts
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { useFinanceStore } from '../financeStore'
 import { computePendingCreditCards } from '@/lib/finance/balances'
 import type { CreditCardCycle } from '@/lib/finance/cycles'
@@ -433,6 +433,14 @@ describe('getCardCycleDetail', () => {
 })
 
 describe('paridad con Compromisos', () => {
+  // EL RELOJ VA CONGELADO. Sin esto el test pasa por casualidad del calendario:
+  // con la fecha real, el ciclo vigente seria 'sep', que no tiene movimientos, asi
+  // que resumenDelCiclo devuelve null, computePendingCreditCards devuelve [] y el
+  // for no itera -- verde sin haber comparado nada. Es literalmente el defecto que
+  // el plan del historico encontro en SU test de paridad el 31-ago.
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-08-25T12:00:00')) })
+  afterEach(() => { vi.useRealTimers() })
+
   it('la deuda del resumen vigente es IDENTICA a la que muestra Compromisos', () => {
     // El invariante de la pantalla: el detalle no puede contradecir al numero que
     // el usuario ya vio. Si esto se rompe, es el bug del 31-ago otra vez.
@@ -441,10 +449,12 @@ describe('paridad con Compromisos', () => {
       compra({ id: 'b', cycle_id: 'ago', amount: 5000 }),
     ])
     const s = useFinanceStore.getState()
-    const now = new Date()
     const desdeCompromisos = computePendingCreditCards(
-      s.paymentMethods, s.transactions, s.recurringPlans, s.creditCardCycles, now,
+      s.paymentMethods, s.transactions, s.recurringPlans, s.creditCardCycles, new Date(),
     )
+    // Sin esta linea el test es vacuo: verifica que un for vacio no falle.
+    expect(desdeCompromisos.length).toBeGreaterThan(0)
+
     for (const resumen of desdeCompromisos) {
       const d = s.getCardCycleDetail(resumen.methodId, resumen.cycleId)
       expect(d?.deuda).toBe(resumen.total)
@@ -591,16 +601,30 @@ describe('SelectorDeResumen', () => {
     expect(html).toContain('Resumen siguiente');
   });
 
+  // React emite los atributos en el orden del JSX: aria-label viene ANTES de
+  // disabled, asi que hay que mirar hacia ADELANTE desde el label hasta cerrar
+  // la etiqueta. Mirar hacia atras da un falso rojo.
+  const atributosDelBoton = (html: string, label: string) => {
+    const i = html.indexOf(`aria-label="${label}"`);
+    return i === -1 ? '' : html.slice(i, html.indexOf('>', i));
+  };
+
   it('en el primer resumen la flecha de anterior queda deshabilitada', () => {
     const html = renderToStaticMarkup(<SelectorDeResumen resumenes={R} actualId="jul" onSelect={() => {}} />);
-    const anterior = html.slice(html.indexOf('Resumen anterior') - 260, html.indexOf('Resumen anterior'));
-    expect(anterior).toContain('disabled');
+    expect(atributosDelBoton(html, 'Resumen anterior')).toContain('disabled');
+    expect(atributosDelBoton(html, 'Resumen siguiente')).not.toContain('disabled');
   });
 
   it('en el ultimo resumen la flecha de siguiente queda deshabilitada', () => {
     const html = renderToStaticMarkup(<SelectorDeResumen resumenes={R} actualId="sep" onSelect={() => {}} />);
-    const siguiente = html.slice(html.indexOf('Resumen siguiente') - 260, html.indexOf('Resumen siguiente'));
-    expect(siguiente).toContain('disabled');
+    expect(atributosDelBoton(html, 'Resumen siguiente')).toContain('disabled');
+    expect(atributosDelBoton(html, 'Resumen anterior')).not.toContain('disabled');
+  });
+
+  it('en un resumen del medio ninguna flecha esta deshabilitada', () => {
+    const html = renderToStaticMarkup(<SelectorDeResumen resumenes={R} actualId="ago" onSelect={() => {}} />);
+    expect(atributosDelBoton(html, 'Resumen anterior')).not.toContain('disabled');
+    expect(atributosDelBoton(html, 'Resumen siguiente')).not.toContain('disabled');
   });
 
   it('los controles cumplen el minimo de 44px', () => {
@@ -746,7 +770,7 @@ export function SelectorDeResumen({
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/components/medios-pago/__tests__/selector-de-resumen.test.tsx`
-Expected: PASS, 7 tests.
+Expected: PASS, 8 tests.
 
 - [ ] **Step 5: Full verification and commit**
 
@@ -1557,6 +1581,7 @@ git commit -m "refactor(detalle): el modal muere y todos los medios van a la pan
 
 **Files:**
 - Modify: `docs/features/medios-de-pago.md`
+- Modify: `src/components/medios-pago/cabecera-de-resumen.tsx` (Task 4) y la card de resumen de `/compromisos` — sólo para agregar el `data-testid` que el gate necesita para leer el mismo total en las dos pantallas
 - Modify: `CLAUDE.md` (sección «Medios de pago»)
 - Create: `scripts/verificar-detalle-resumen.mjs`
 
