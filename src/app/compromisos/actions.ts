@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { addMonths } from 'date-fns';
+import { addMonths, subMonths } from 'date-fns';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { dateToLocalString, parseLocalDate } from '@/lib/utils/dates';
@@ -454,34 +454,37 @@ export async function syncAutomaticRecurringCharges(): Promise<ActionResponse & 
       ? String(firstIncomeTx[0].date).slice(0, 7)
       : dateToLocalString(new Date()).slice(0, 7);
 
-    // Ciclos de cada tarjeta con planes automáticos, un asegurarCiclos por
-    // tarjeta (no por plan): desde el mes del plan más viejo de esa tarjeta
-    // hasta hoy + 1 mes de margen.
+    // Ciclos de TODA tarjeta de crédito configurada (día de cierre y de
+    // vencimiento cargados), un asegurarCiclos por tarjeta.
+    //
+    // No sólo las que tienen planes automáticos: este sync corre una vez por carga
+    // y es el único lugar que materializa resúmenes "de fondo". Una tarjeta
+    // configurada sin compras nuevas ni planes se quedaba sin ciclo vigente,
+    // `computePendingCreditCards` la dejaba caer (`if (!vigente) return acc`), su
+    // deuda dejaba de comprometerse y el disponible subía en silencio: la vuelta de
+    // E11. Las tarjetas que ya existían están cubiertas hasta 2027-09 por el
+    // backfill; las creadas después del deploy, no.
+    //
+    // Idempotente y barato: un select por tarjeta, e inserta sólo lo que falta.
+    // La ventana va de hoy − 1 mes a hoy + 2 meses, y se estira hacia atrás hasta
+    // el mes del plan automático más viejo de esa tarjeta cuando lo hay (el
+    // historial de mensualidades puede empezar mucho antes).
     // `plans` ya salió de la DB filtrado por is_active = true (query de arriba).
-    const methodsById = new Map((methods ?? []).map((m) => [m.id, m]));
     const planesActivos = plans ?? [];
-    const cardIdsConAutomatico = new Set<string>();
-    for (const plan of planesActivos) {
-      const method = plan.payment_method_id ? methodsById.get(plan.payment_method_id) : undefined;
-      if (method && isAutomaticPlan(plan, method)) cardIdsConAutomatico.add(method.id);
-    }
+    const hoy = new Date();
 
     let ciclos: CreditCardCycle[] = [];
-    for (const cardId of cardIdsConAutomatico) {
-      const method = methodsById.get(cardId);
-      if (!method) continue;
-      const planesDeLaTarjeta = planesActivos.filter(
-        (p) => p.payment_method_id === cardId && isAutomaticPlan(p, method),
-      );
-      const primerMes = planesDeLaTarjeta
+    for (const method of methods ?? []) {
+      if (method.type !== 'credit' || !method.default_closing_day || !method.default_payment_day) continue;
+      const mesesDeSusPlanes = planesActivos
+        .filter((p) => p.payment_method_id === method.id && isAutomaticPlan(p, method))
         .map((p) => String(p.created_at).slice(0, 7))
-        .sort()[0];
-      const ciclosDeLaTarjeta = await asegurarCiclos(
-        supabase,
-        method,
-        parseLocalDate(`${primerMes}-01`),
-        addMonths(new Date(), 1),
-      );
+        .sort();
+      const desdePorDefecto = subMonths(hoy, 1);
+      const desde = mesesDeSusPlanes[0]
+        ? new Date(Math.min(parseLocalDate(`${mesesDeSusPlanes[0]}-01`).getTime(), desdePorDefecto.getTime()))
+        : desdePorDefecto;
+      const ciclosDeLaTarjeta = await asegurarCiclos(supabase, method, desde, addMonths(hoy, 2));
       ciclos = ciclos.concat(ciclosDeLaTarjeta);
     }
 

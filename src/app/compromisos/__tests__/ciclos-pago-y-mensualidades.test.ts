@@ -6,6 +6,7 @@
  * cycles.test.ts (cicloSaldadoEn) sobre las funciones puras.
  */
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
+import { addMonths, subMonths } from 'date-fns'
 import type { CreditCardCycle } from '@/lib/finance/cycles'
 import { expectedChargeDate } from '@/lib/finance/recurring'
 import type { RecurringPlan, PaymentMethod } from '@/types/database'
@@ -298,6 +299,44 @@ describe('syncAutomaticRecurringCharges: las mensualidades se postean con cycle_
     // del ciclo real, coincidiría con esto — y no coincide.
     expect(filas[0].date).not.toBe(expectedChargeDate(plan as unknown as RecurringPlan, method as unknown as PaymentMethod, '2026-07'))
     expect(filas[1].date).not.toBe(expectedChargeDate(plan as unknown as RecurringPlan, method as unknown as PaymentMethod, '2026-08'))
+  })
+
+  it('asegura los ciclos de TODA tarjeta configurada, aunque no tenga ningún plan automático', async () => {
+    // El sync corre una vez por carga y era el único lugar que materializaba
+    // ciclos "de fondo", pero sólo para tarjetas con planes automáticos. Una
+    // tarjeta configurada sin compras nuevas ni planes se quedaba sin ciclo
+    // vigente materializado, `computePendingCreditCards` la dejaba caer
+    // (`if (!vigente) return acc`) y su deuda dejaba de comprometerse: el
+    // disponible subía en silencio. Es la vuelta de E11.
+    estado.cliente = clienteFalso({
+      plans: [],
+      methods: [method],
+      existingTxs: [],
+      firstIncomeDate: '2026-01-15',
+    })
+
+    const r = await syncAutomaticRecurringCharges()
+
+    expect(r.error).toBeUndefined()
+    expect(asegurarCiclosMock).toHaveBeenCalledTimes(1)
+    const [, methodArg, desde, hasta] = asegurarCiclosMock.mock.calls[0]
+    expect(methodArg).toMatchObject({ id: CARD })
+    expect(desde.getTime()).toBeLessThanOrEqual(subMonths(new Date(), 1).getTime())
+    expect(hasta.getTime()).toBeGreaterThanOrEqual(addMonths(new Date(), 2).getTime())
+  })
+
+  it('no toca una tarjeta sin día de cierre/vencimiento: no hay ciclos que generar', async () => {
+    estado.cliente = clienteFalso({
+      plans: [],
+      methods: [{ ...method, default_closing_day: null, default_payment_day: null }],
+      existingTxs: [],
+      firstIncomeDate: '2026-01-15',
+    })
+
+    const r = await syncAutomaticRecurringCharges()
+
+    expect(r.error).toBeUndefined()
+    expect(asegurarCiclosMock).not.toHaveBeenCalled()
   })
 
   it('no duplica un mes que ya tiene su transacción posteada', async () => {
