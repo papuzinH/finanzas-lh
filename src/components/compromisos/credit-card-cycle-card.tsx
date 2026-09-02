@@ -27,8 +27,12 @@ import { Card } from '@/components/ui/card';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { useFinanceStore, CreditCardCycleSummary } from '@/lib/store/financeStore';
 import { payCreditCardCycle, undoCreditCardPayment } from '@/app/compromisos/actions';
+import { declararCiclo } from '@/app/medios-pago/actions';
 import { formatCurrency } from '@/lib/utils';
 import { cicloSub, montoDelCiclo } from '@/lib/utils/compromisos-copy';
+import { ciclosDeMetodo, cicloNEsimo } from '@/lib/finance/cycles';
+import { DeclararProximoCiclo } from '@/components/medios-pago/declarar-proximo-ciclo';
+import type { FechasDeCiclo } from '@/components/medios-pago/ciclo-fechas-field';
 
 interface CreditCardCycleChipProps {
   card: CreditCardCycleSummary;
@@ -42,8 +46,9 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
   // El store entero, no sus getters sueltos: son referencias estables y el
   // React Compiler congelaría el resultado (ver store-freshness.test.ts).
   const store = useFinanceStore();
-  const { paymentMethods, getDefaultPaymentMethod, fetchAllData } = store;
+  const { paymentMethods, creditCardCycles, getDefaultPaymentMethod, fetchAllData } = store;
   const status = store.getPaymentMethodStatus(card.methodId);
+  const [fechasDeclaradas, setFechasDeclaradas] = useState<FechasDeCiclo | null>(null);
   const cycleNotClosedYet =
     status.nextClosingDate !== undefined && new Date() < status.nextClosingDate;
   const closingDateLabel = status.nextClosingDate
@@ -124,6 +129,13 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
     );
   }
 
+  // El resumen que sigue al que se esta pagando: es donde se le ofrece al usuario
+  // declarar las fechas reales (paso opcional, ver DeclararProximoCiclo). Si no hay
+  // ninguno materializado todavia, el paso directamente no se muestra.
+  const ciclosDeLaTarjeta = ciclosDeMetodo(card.methodId, creditCardCycles);
+  const cicloActual = ciclosDeLaTarjeta.find((c) => c.id === card.cycleId);
+  const proximo = cicloActual ? cicloNEsimo(ciclosDeLaTarjeta, cicloActual, 1) : undefined;
+
   const handleConfirm = async () => {
     const fundingMethod = fundingMethods.find((m) => String(m.id) === fundingId);
     if (!fundingMethod) {
@@ -132,7 +144,7 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
     }
     setConfirming(true);
     try {
-      const res = await payCreditCardCycle({
+      const pago = await payCreditCardCycle({
         cardMethodId: card.methodId,
         fundingMethodId: fundingMethod.id,
         amountArs: card.total,
@@ -140,13 +152,33 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
         cardName: card.name,
         cycleId: card.cycleId,
       });
-      if (res.error) {
-        toast.error(res.error);
-      } else {
-        toast.success(`Pago registrado en ${fundingMethod.name}`);
-        await refresh();
-        setOpen(false);
+      if (pago.error) {
+        toast.error(pago.error);
+        return;
       }
+
+      // El pago es lo que el usuario vino a hacer: va primero. Declarar el proximo
+      // resumen es secundario y solo si el usuario abrio el paso (fechasDeclaradas)
+      // Y ese resumen siguiente existe -- si nunca lo abrio, fechasDeclaradas es
+      // null y la estimacion sigue siendo estimacion. Un fallo aca no deshace el
+      // pago ni se reporta como error: se avisa con un toast.
+      if (fechasDeclaradas && proximo) {
+        const d = await declararCiclo({
+          paymentMethodId: card.methodId,
+          // El resumen exacto que mostro el paso: sin el id, la escritura lo resuelve por
+          // mes calendario y con cierres cerca del borde de mes apunta al de al lado.
+          cycleId: proximo.id,
+          closingDate: fechasDeclaradas.closingDate,
+          dueDate: fechasDeclaradas.dueDate,
+        });
+        if (d.error) {
+          toast.warning('Registramos el pago, pero no pudimos guardar las fechas: ' + d.error);
+        }
+      }
+
+      toast.success(`Pago registrado en ${fundingMethod.name}`);
+      await refresh();
+      setOpen(false);
     } finally {
       setConfirming(false);
     }
@@ -156,7 +188,7 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => { setFechasDeclaradas(null); setOpen(true); }}
         aria-label={`Registrar pago de ${card.name}`}
         className="inline-flex items-center gap-1 min-h-11 px-3 rounded-full text-[11px] font-bold bg-warn/10 text-warn border border-warn/20 cursor-pointer select-none hover:bg-warn/15 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
       >
@@ -208,6 +240,15 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
               </SelectContent>
             </Select>
           </div>
+
+          {proximo && (
+            <DeclararProximoCiclo
+              key={proximo.id}
+              methodId={card.methodId}
+              estimado={{ closingDate: proximo.closing_date, dueDate: proximo.due_date }}
+              onDeclarar={setFechasDeclaradas}
+            />
+          )}
 
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel disabled={confirming} className="w-full sm:w-auto">

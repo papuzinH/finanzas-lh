@@ -3,6 +3,9 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createPaymentMethodSchema, type CreatePaymentMethodSchema } from '@/lib/schemas/payment-method'
+import { declararCicloSchema, type DeclararCicloSchema } from '@/lib/schemas/ciclo'
+import { guardarDeclaracion, realinearFuturos } from '@/lib/ciclos/declarar'
+import { dateToLocalString } from '@/lib/utils/dates'
 
 type ActionResponse = {
   error?: string
@@ -64,6 +67,15 @@ export async function updatePaymentMethod(id: string, data: CreatePaymentMethodS
 
     const isDefault = validated.data.is_default ?? false
 
+    // Tarjeta como estaba guardada, para comparar los dias despues del update
+    // y decidir si hay que re-fechar los resumenes futuros.
+    const { data: previo } = await supabase
+      .from('payment_methods')
+      .select('type, default_closing_day, default_payment_day')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
     // Invariante: un solo predeterminado por usuario. Si este pasa a ser el
     // default, primero se resetean todos (incluido este) y luego se marca.
     if (isDefault) {
@@ -89,6 +101,30 @@ export async function updatePaymentMethod(id: string, data: CreatePaymentMethodS
     if (error) {
       console.error('Error updating payment method:', error)
       return { error: 'Error al actualizar el medio de pago' }
+    }
+
+    const diasCambiaron =
+      previo?.default_closing_day !== (validated.data.default_closing_day ?? null) ||
+      previo?.default_payment_day !== (validated.data.default_payment_day ?? null)
+
+    if (validated.data.type === 'credit' && diasCambiaron) {
+      // Los resumenes que todavia no cerraron toman los dias nuevos. Los que ya
+      // cerraron no: sus compras ya estan imputadas. Los declarados tampoco: son
+      // dato que el usuario leyo del resumen real. Si esto falla, la tarjeta ya
+      // se guardo: dejar los resumenes desalineados es el estado de hoy y se
+      // corrige en el proximo intento -- devolver error diria "no se guardo" y
+      // no seria cierto.
+      try {
+        const { data: method } = await supabase
+          .from('payment_methods')
+          .select('*')
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .maybeSingle()
+        if (method) await realinearFuturos(supabase, method, dateToLocalString(new Date()))
+      } catch (e) {
+        console.error('Error re-fechando resumenes futuros:', e)
+      }
     }
 
     revalidatePath('/ajustes/medios')
@@ -212,6 +248,70 @@ export async function reassignAndDeletePaymentMethod(
     }
 
     revalidatePath('/ajustes/medios')
+    return { success: true }
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    return { error: 'Ocurrió un error inesperado' }
+  }
+}
+
+export async function declararCiclo(input: DeclararCicloSchema): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const parsed = declararCicloSchema.safeParse(input)
+    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Datos invalidos' }
+
+    // Dueno del id que llega del cliente (auditoria M4): RLS impide mutar filas ajenas, pero no
+    // impide que una fila propia apunte a una tarjeta de otro.
+    const { data: method } = await supabase
+      .from('payment_methods')
+      .select('*')
+      .eq('id', parsed.data.paymentMethodId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!method) return { error: 'Medio de pago invalido' }
+    if (method.type !== 'credit') return { error: 'Solo las tarjetas de credito tienen resumenes' }
+
+    try {
+      await guardarDeclaracion(
+        supabase,
+        method,
+        parsed.data.closingDate,
+        parsed.data.dueDate,
+        dateToLocalString(new Date()),
+        parsed.data.cycleId,
+      )
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'No pude guardar el resumen' }
+    }
+
+    revalidatePath('/ajustes/medios')
+    revalidatePath('/compromisos')
+    revalidatePath('/')
+    return { success: true }
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    return { error: 'Ocurrió un error inesperado' }
+  }
+}
+
+export async function posponerRecordatorioDeCiclo(cycleId: string): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { error } = await supabase
+      .from('credit_card_cycles')
+      .update({ reminder_dismissed_at: new Date().toISOString() })
+      .eq('id', cycleId)
+      .eq('user_id', user.id)
+    if (error) return { error: 'No pude guardar' }
+
+    revalidatePath('/compromisos')
     return { success: true }
   } catch (error) {
     console.error('Unexpected error:', error)

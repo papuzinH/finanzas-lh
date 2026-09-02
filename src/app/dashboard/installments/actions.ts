@@ -3,11 +3,11 @@
 import { createClient } from '@/utils/supabase/server';
 import { installmentPlanSchema, type InstallmentPlanSchema, createInstallmentPlanSchema, type CreateInstallmentPlanSchema } from '@/lib/schemas/installment-plan';
 import { revalidatePath } from 'next/cache';
-import { addMonths, subMonths } from 'date-fns';
+import { addMonths } from 'date-fns';
 import { calculateCreditPaymentDate, parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
 import { getOrCreateCategoriaDescarte } from '@/lib/categorias/descarte'
-import { asegurarCiclos } from '@/lib/ciclos/asegurar';
-import { cicloDeCompra, cicloNEsimo, type CreditCardCycle } from '@/lib/finance/cycles';
+import { resolverCicloDeCompra } from '@/lib/ciclos/resolver';
+import { cicloNEsimo, type CreditCardCycle } from '@/lib/finance/cycles';
 
 type ActionResponse = {
   error?: string;
@@ -61,6 +61,10 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
       if (!pm) return { error: 'Medio de pago inválido' };
 
       if (pm.type === 'credit' && pm.default_closing_day && pm.default_payment_day) {
+        // OJO: NO usar r.dueDate aca abajo. Esta variable es solo la base de
+        // extrapolacion del fallback (mas abajo, cuando cicloNEsimo se agota para
+        // i>0) y siempre salio de los defaults de la tarjeta, nunca del vencimiento
+        // real del primer ciclo -- cambiar eso es una decision de producto aparte.
         firstInstallmentDateStr = calculateCreditPaymentDate(
           purchaseDateStr,
           pm.default_closing_day,
@@ -68,13 +72,9 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
         );
 
         // Hasta el ultimo resumen que el plan necesita, mas uno de margen.
-        ciclosDelPlan = await asegurarCiclos(
-          supabase,
-          pm,
-          subMonths(parseLocalDate(purchaseDateStr), 1),
-          addMonths(parseLocalDate(purchaseDateStr), installments_count + 1),
-        );
-        cicloInicial = cicloDeCompra(purchaseDateStr, ciclosDelPlan);
+        const r = await resolverCicloDeCompra(supabase, pm, purchaseDateStr, installments_count + 1);
+        ciclosDelPlan = r.ciclos;
+        cicloInicial = r.ciclo;
       } else {
         firstInstallmentDateStr = purchaseDateStr;
       }

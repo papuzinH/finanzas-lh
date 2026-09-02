@@ -36,7 +36,7 @@ import { EditInstallmentPlanDialog } from '@/components/installments/edit-plan-d
 import { ConfirmationModal } from '@/components/shared/confirmation-modal';
 import { deleteInstallmentPlan } from '@/app/dashboard/installments/actions';
 import { deleteSubscription } from '@/app/dashboard/subscriptions/actions';
-import { expectedChargeDate, isAutomaticPlan } from '@/lib/finance/recurring';
+import { etiquetaDeCobro, isAutomaticPlan } from '@/lib/finance/recurring';
 import { dateToLocalString } from '@/lib/utils/dates';
 import {
   markRecurringPlanPaid,
@@ -53,7 +53,9 @@ import { CreateSubscriptionDialog } from '@/components/subscriptions/create-subs
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { CreditCardCycleCard } from '@/components/compromisos/credit-card-cycle-card';
+import { RecordatorioDeclararCiclo } from '@/components/compromisos/recordatorio-declarar-ciclo';
 import { CompromisosSkeleton } from '@/components/ui/skeletons';
+import { ciclosQuePidenDeclaracion } from '@/lib/finance/cycles';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface PlanWithStatus extends InstallmentPlan {
@@ -237,7 +239,7 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const isMobile = useIsMobile();
   const router = useRouter();
-  const { fetchAllData, categories, paymentMethods, getPendingFixedExpenses } = useFinanceStore();
+  const { fetchAllData, categories, paymentMethods, creditCardCycles, getPendingFixedExpenses } = useFinanceStore();
 
   const category = categories.find(c => c.id === plan.category_id);
   // Pagada este mes = ya no figura entre los gastos fijos pendientes del store.
@@ -249,10 +251,7 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
   const method = paymentMethods.find((m) => m.id === plan.payment_method_id);
   const isAutomatic = isAutomaticPlan(plan, method);
   const chargeLabel = method && isAutomatic
-    ? (() => {
-        const parts = expectedChargeDate(plan, method, dateToLocalString(new Date()).slice(0, 7)).split('-');
-        return `${method.name} · vence ${Number(parts[2])}/${Number(parts[1])}`;
-      })()
+    ? etiquetaDeCobro(plan, method, dateToLocalString(new Date()).slice(0, 7), creditCardCycles)
     : null;
 
   const togglePaid = async () => {
@@ -438,6 +437,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     installmentPlans,
     recurringPlans,
     paymentMethods,
+    creditCardCycles,
     fetchAllData,
     isInitialized,
     getInstallmentStatus,
@@ -448,6 +448,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
   } = useFinanceStore();
 
   const creditCards = getPendingCreditCardByCard();
+  const recordatoriosDeCiclo = ciclosQuePidenDeclaracion(creditCardCycles, dateToLocalString(new Date()));
 
   useEffect(() => {
     if (!isInitialized) {
@@ -567,6 +568,18 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
                 <span className="font-display tnum text-[17px] text-text">{formatCurrency(totalDebtFuturo)}</span>
               </div>
             </div>
+
+            {/* Recordatorio de declarar fechas: uno por tarjeta, el resumen recien cerrado */}
+            {recordatoriosDeCiclo.length > 0 && (
+              <div className="flex flex-col gap-3">
+                {recordatoriosDeCiclo.map((c) => {
+                  const tarjeta = paymentMethods.find((m) => m.id === c.payment_method_id);
+                  return tarjeta ? (
+                    <RecordatorioDeclararCiclo key={c.id} ciclo={c} nombreTarjeta={tarjeta.name} />
+                  ) : null;
+                })}
+              </div>
+            )}
 
             {/* Ciclos de tarjeta — las cards hablan solas, sin header de sección */}
             {creditCards.length > 0 && (

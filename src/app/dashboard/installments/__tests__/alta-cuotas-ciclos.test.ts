@@ -27,9 +27,9 @@ const PURCHASE_DATE_STR = '2026-07-15'
 
 // Los tres ciclos desparejos de E14 (Mastercard Galicia, resumen del 1-sep-2026).
 const CICLOS: CreditCardCycle[] = [
-  { id: 'c0', user_id: UID, payment_method_id: MASTER, closing_date: '2026-07-30', due_date: '2026-08-07', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'c1', user_id: UID, payment_method_id: MASTER, closing_date: '2026-08-27', due_date: '2026-09-04', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'c2', user_id: UID, payment_method_id: MASTER, closing_date: '2026-10-01', due_date: '2026-10-09', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c0', user_id: UID, payment_method_id: MASTER, closing_date: '2026-07-30', due_date: '2026-08-07', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c1', user_id: UID, payment_method_id: MASTER, closing_date: '2026-08-27', due_date: '2026-09-04', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c2', user_id: UID, payment_method_id: MASTER, closing_date: '2026-10-01', due_date: '2026-10-09', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
 ]
 
 type AsegurarCiclos = (supabase: unknown, method: unknown, desde: Date, hasta: Date) => Promise<CreditCardCycle[]>

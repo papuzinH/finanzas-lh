@@ -24,8 +24,8 @@ const CYCLE_B = 'dddddddd-0000-4000-8000-000000000004'
 // calcular la fecha con `expectedChargeDate` (el fallback) en vez de leerla del
 // ciclo real habría dejado la suite entera en verde igual.
 const CICLOS_TARJETA: CreditCardCycle[] = [
-  { id: 'c-jul', user_id: UID, payment_method_id: CARD, closing_date: '2026-07-23', due_date: '2026-08-03', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'c-ago', user_id: UID, payment_method_id: CARD, closing_date: '2026-08-20', due_date: '2026-09-04', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-jul', user_id: UID, payment_method_id: CARD, closing_date: '2026-07-23', due_date: '2026-08-03', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-ago', user_id: UID, payment_method_id: CARD, closing_date: '2026-08-20', due_date: '2026-09-04', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
 ]
 
 type AsegurarCiclos = (supabase: unknown, method: unknown, desde: Date, hasta: Date) => Promise<CreditCardCycle[]>
@@ -44,7 +44,7 @@ function clienteFalso(config: {
   existingPayments?: Array<{ card_payment_for: string; cycle_id: string | null }>
   plans?: Array<Record<string, unknown>>
   methods?: Array<Record<string, unknown>>
-  existingTxs?: Array<{ recurring_plan_id: string; date: string }>
+  existingTxs?: Array<{ recurring_plan_id: string; date: string; cycle_id?: string | null }>
   firstIncomeDate?: string | null
 }) {
   const {
@@ -79,7 +79,7 @@ function clienteFalso(config: {
         )
         return { data: found.map((_, i) => ({ id: `existing-${i}` })) }
       }
-      if (tabla === 'transactions' && columns === 'recurring_plan_id, date') {
+      if (tabla === 'transactions' && columns === 'recurring_plan_id, date, cycle_id, purchase_date') {
         return { data: existingTxs }
       }
       if (tabla === 'transactions' && columns === 'date') {
@@ -343,7 +343,9 @@ describe('syncAutomaticRecurringCharges: las mensualidades se postean con cycle_
     estado.cliente = clienteFalso({
       plans: [plan],
       methods: [method],
-      existingTxs: [{ recurring_plan_id: 'plan-1', date: '2026-08-01' }], // julio ya cubierto
+      // Sin cycle_id (respaldo por mes): asi quedaron las mensualidades posteadas
+      // antes de que existiera esta columna. Julio ya cubierto.
+      existingTxs: [{ recurring_plan_id: 'plan-1', date: '2026-08-01', cycle_id: null }],
       firstIncomeDate: '2026-01-15',
     })
 

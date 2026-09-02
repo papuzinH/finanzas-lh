@@ -37,6 +37,7 @@ const cycle = (over: Partial<CreditCardCycle> = {}): CreditCardCycle => ({
   id: 'c1', user_id: '1', payment_method_id: '1',
   closing_date: '2026-07-19', due_date: '2026-08-01',
   source: 'generated', created_at: '2026-01-01T00:00:00Z',
+  reminder_dismissed_at: null,
   ...over,
 })
 

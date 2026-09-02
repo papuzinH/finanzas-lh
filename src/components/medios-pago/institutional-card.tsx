@@ -17,10 +17,15 @@ import { cn, formatCurrency, formatUsd } from '@/lib/utils';
 import { PaymentMethod, Transaction, RecurringPlan } from '@/types/database';
 import type { AccountBalance } from '@/lib/finance/pocket';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { PaymentMethodDetailModal } from './payment-method-detail-modal';
 import { EditPaymentMethodDialog } from './edit-payment-method-dialog';
 import { DeletePaymentMethodDialog } from './delete-payment-method-dialog';
 import { EditAnchorDialog } from '@/components/pocket/edit-anchor-dialog';
+import { EtiquetaProcedencia } from './ciclo-fechas-field';
+import { EditarCicloDialog } from './editar-ciclo-dialog';
+import { useFinanceStore } from '@/lib/store/financeStore';
+import { cicloVigente, ciclosDeMetodo } from '@/lib/finance/cycles';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,8 +64,17 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isAnchorOpen, setIsAnchorOpen] = useState(false);
+  const [editandoCiclo, setEditandoCiclo] = useState(false);
   const isCredit = data.type === 'credit';
   const { status, history, subscriptions } = data;
+
+  // El store entero, no sus getters sueltos: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  // `creditCardCycles` es un campo de estado, no un getter -- se puede leer directo.
+  const store = useFinanceStore();
+  const vigente = isCredit
+    ? cicloVigente(ciclosDeMetodo(data.id, store.creditCardCycles), new Date())
+    : undefined;
 
   // Crédito: se muestra ARS y USD por separado (sin conversión).
   const arsDue = status.arsExpenses;
@@ -217,6 +231,27 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
           )}
         </div>
 
+        {/* Procedencia del resumen vigente + corregir fechas: sólo si hay un resumen
+            materializado para esta tarjeta (asegurarCiclos lo genera al cargar). Sin eso
+            no hay nada que corregir todavía. */}
+        {vigente && (
+          <div className="flex items-center gap-2 mb-4">
+            <EtiquetaProcedencia source={vigente.source} />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="min-h-11 ml-auto"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditandoCiclo(true);
+              }}
+            >
+              Corregir fechas
+            </Button>
+          </div>
+        )}
+
         {/* Footer: Mensualidades y Movimientos */}
         <div className="space-y-4 pt-4 border-t-[1.5px] border-border">
           {/* Resumen Mensualidades */}
@@ -306,6 +341,21 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
 
       {!isCredit && (
         <EditAnchorDialog method={data} open={isAnchorOpen} onOpenChange={setIsAnchorOpen} />
+      )}
+
+      {vigente && (
+        // key por resumen: el dialogo esta montado siempre que haya un resumen vigente (no
+        // detras del estado de apertura) y su estado se inicializa desde props una sola vez,
+        // en el useState. Si el vigente cambia de identidad con la pagina montada --pasa el
+        // vencimiento, o el realineado lo mueve-- sin key seguiria mostrando y mandando las
+        // fechas del resumen viejo. Misma leccion que DeclararProximoCiclo en sus dos montajes.
+        <EditarCicloDialog
+          key={vigente.id}
+          open={editandoCiclo}
+          onOpenChange={setEditandoCiclo}
+          methodId={data.id}
+          ciclo={vigente}
+        />
       )}
     </>
   );

@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import {
   Dialog, DialogContent,
-  DialogHeader, DialogTitle,
+  DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -98,9 +98,9 @@ export function EditPaymentMethodDialog({
           <DialogTitle className="text-xl font-bold text-accent-deep">
             Editar Medio de Pago
           </DialogTitle>
-          <p className="text-sm text-muted mt-1">
+          <DialogDescription className="text-sm text-muted mt-1">
             Modificá los datos de {paymentMethod.name}.
-          </p>
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
