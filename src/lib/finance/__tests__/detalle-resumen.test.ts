@@ -74,7 +74,7 @@ describe('listarResumenesDeTarjeta', () => {
 
   it('el dia EXACTO del cierre ya no es proyectado: el resumen quedo fijado', () => {
     const r = listarResumenesDeTarjeta(visa, TRES, [], new Date('2026-09-24T12:00:00'))
-    expect(r.find((x) => x.id === 'sep')?.estado).not.toBe('proyectado')
+    expect(r.find((x) => x.id === 'sep')?.estado).toBe('pendiente')
   })
 
   it('conserva el source para que la UI marque declarado vs estimado', () => {
