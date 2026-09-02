@@ -9,6 +9,7 @@ import { addMonths } from 'date-fns'
 import { formatLocalDate, parseLocalDate } from '@/lib/utils/dates'
 import { computePortfolioStatus } from '@/lib/finance/portfolio'
 import { resolverCicloDeCompra } from '@/lib/ciclos/resolver'
+import { realinearFuturos } from '@/lib/ciclos/declarar'
 import { cicloNEsimo, type CreditCardCycle } from '@/lib/finance/cycles'
 import type {
   InvestmentAsset,
@@ -423,6 +424,38 @@ export async function handleSubscription(data: SubscriptionData, userId: string)
 }
 
 /**
+ * Re-fecha los resumenes futuros estimados de una tarjeta despues de cambiarle los
+ * dias de cierre/vencimiento desde el chat.
+ *
+ * Relee la fila entera porque `realinearFuturos` necesita el PaymentMethod completo
+ * (los selects de estos handlers traen un puñado de columnas) y porque asi se lee lo
+ * que quedo guardado, no lo que se creia estar guardando.
+ *
+ * Nunca lanza: el medio ya se actualizo, y un fallo del realineado deja los resumenes
+ * desalineados -- el estado que habia hasta esta rama -- pero no invalida el cambio.
+ * Mismo criterio tolerante que `updatePaymentMethod`: devolver error diria "no se
+ * guardo" y no seria cierto.
+ */
+async function realinearFuturosDeLaTarjeta(
+  supabase: SupabaseClient<Database>,
+  methodId: string,
+  userId: string,
+): Promise<void> {
+  try {
+    const { data: fila } = await supabase
+      .from('payment_methods')
+      .select('*')
+      .eq('id', methodId)
+      .eq('user_id', userId)
+      .maybeSingle()
+    // realinearFuturos ya descarta lo que no es credito y lo que no tiene los dos dias.
+    if (fila) await realinearFuturos(supabase, fila, formatLocalDate(new Date()))
+  } catch (e) {
+    console.error('Error re-fechando resumenes futuros:', e)
+  }
+}
+
+/**
  * Maneja la configuración de tarjeta de crédito
  */
 export async function handleCardConfig(data: CardConfigData, userId: string): Promise<ChatResponse> {
@@ -465,13 +498,20 @@ export async function handleCardConfig(data: CardConfigData, userId: string): Pr
 
     // NO se re-fechan transacciones existentes (E13): con la pertenencia a un
     // resumen persistida en `transactions.cycle_id`, cambiar el cierre/vencimiento
-    // de la tarjeta sólo afecta a los ciclos que se generen de acá en adelante
+    // de la tarjeta no mueve nada de lo que ya esta imputado
     // (default_closing_day/default_payment_day son el generador, no la verdad de
     // lo ya materializado — ver lib/finance/cycles.ts). El viejo re-fechado movía
     // cuotas y compras futuras cada vez que el usuario corregía estos días.
+    //
+    // Los resúmenes futuros que todavía son estimación SÍ toman los días nuevos: es
+    // la otra mitad del invariante, y la hace `updatePaymentMethod` cuando el cambio
+    // entra por la ficha de la tarjeta. La pantalla y el chat no pueden dejar la
+    // tarjeta diciendo una cosa y sus resúmenes otra.
+    await realinearFuturosDeLaTarjeta(supabase, method.id, userId)
+
     return {
       success: true,
-      message: `✅ Tarjeta ${method.name} actualizada:\n- Cierre: día ${data.closingDay}\n- Vencimiento: día ${data.paymentDay}\n\nLos movimientos que ya cargaste no se movieron de resumen: esto cambia los resúmenes que se generen de acá en adelante.`,
+      message: `✅ Tarjeta ${method.name} actualizada:\n- Cierre: día ${data.closingDay}\n- Vencimiento: día ${data.paymentDay}\n\nLos movimientos que ya cargaste no se movieron de resumen. Los resúmenes que todavía no cerraron sí toman las fechas nuevas.`,
     }
   } catch (error) {
     console.error('Unexpected error in handleCardConfig:', error)
@@ -673,6 +713,13 @@ export async function handleEdit(data: EditData, userId: string): Promise<ChatRe
 
         if (updateError) {
           return { success: false, message: 'Error al actualizar el medio de pago.' }
+        }
+
+        // Mismo re-fechado que updatePaymentMethod y handleCardConfig: cambiar los dias
+        // por chat tiene que mover los resumenes futuros estimados igual que cambiarlos
+        // por pantalla, o la ficha de la tarjeta y sus resumenes dicen fechas distintas.
+        if ('default_closing_day' in updates || 'default_payment_day' in updates) {
+          await realinearFuturosDeLaTarjeta(supabase, method.id, userId)
         }
 
         return {

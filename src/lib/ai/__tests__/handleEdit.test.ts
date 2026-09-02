@@ -6,6 +6,10 @@ vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(),
 }))
 
+// La escritura de los resumenes se mockea: aca se prueba que el handler la invoque
+// (mismo patron que medios-pago/__tests__/update-realinea-ciclos.test.ts).
+vi.mock('@/lib/ciclos/declarar', () => ({ realinearFuturos: vi.fn().mockResolvedValue(0) }))
+
 // ============================================================
 // Helpers de mock: mismo query builder encadenable que handleDelete.test.ts
 // (select/eq/ilike/limit/update → this, resuelto vía `then`).
@@ -23,6 +27,7 @@ interface MockChain {
   order: (...args: unknown[]) => MockChain
   limit: (...args: unknown[]) => MockChain
   update: (...args: unknown[]) => MockChain
+  maybeSingle: () => Promise<ChainResult>
   then: (resolve: (v: ChainResult) => unknown, reject?: (e: unknown) => unknown) => Promise<unknown>
 }
 
@@ -35,6 +40,10 @@ function createChain(result: ChainResult): MockChain {
       calls.push({ method, args })
       return chain
     }
+  }
+  chain.maybeSingle = () => {
+    calls.push({ method: 'maybeSingle', args: [] })
+    return Promise.resolve(result)
   }
   chain.then = (resolve, reject) => Promise.resolve(result).then(resolve, reject)
   chain.__calls = calls
@@ -58,7 +67,10 @@ function createSupabaseMock(chains: MockChain[], authUserId: string | null = 'au
   }
 }
 
+import { realinearFuturos } from '@/lib/ciclos/declarar'
+
 const mockedCreateClient = vi.mocked(createClient)
+const realinearMock = vi.mocked(realinearFuturos)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -148,5 +160,54 @@ describe('handleEdit - transaccion resuelve `changes.category` con el UUID de au
     expect(result).toEqual({ success: false, message: 'No se especificaron cambios válidos.' })
     // Sólo se llamó from() para buscar la transacción; nunca se llegó a categories.
     expect(supabase.from).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('handleEdit - medio_pago re-fecha los resumenes futuros estimados', () => {
+  /** La fila entera de la tarjeta: lo que `realinearFuturos` necesita para regenerar. */
+  const FILA_TARJETA = {
+    id: 'pm-1',
+    user_id: '7',
+    name: 'Visa',
+    type: 'credit',
+    default_closing_day: 24,
+    default_payment_day: 6,
+  }
+
+  it('cambiar el día de vencimiento por chat re-fecha, igual que cambiarlo por pantalla', async () => {
+    // Sin esto, la misma frase dicha al chat dejaba la tarjeta con los días nuevos y sus
+    // resúmenes con los viejos: la pantalla y el chat no pueden decir fechas distintas.
+    const methodsChain = createChain({ data: [{ id: 'pm-1', name: 'Visa', type: 'credit' }] })
+    const updateChain = createChain({ error: null })
+    const releerChain = createChain({ data: FILA_TARJETA, error: null })
+    const supabase = createSupabaseMock([methodsChain, updateChain, releerChain])
+    mockedCreateClient.mockResolvedValue(supabase as never)
+
+    const result = await handleEdit(
+      { entity: 'medio_pago', search: 'visa', changes: { payment_day: 6 } },
+      '7',
+    )
+
+    expect(result.success).toBe(true)
+    expect(realinearMock).toHaveBeenCalledTimes(1)
+    // La fila ENTERA, no el `{ id, name, type }` del lookup.
+    expect(realinearMock.mock.calls[0][1]).toEqual(FILA_TARJETA)
+    expect(hasCall(releerChain, 'eq', ['user_id', '7'])).toBe(true)
+  })
+
+  it('renombrar el medio no toca ningún resumen', async () => {
+    const methodsChain = createChain({ data: [{ id: 'pm-1', name: 'Visa', type: 'credit' }] })
+    const updateChain = createChain({ error: null })
+    const supabase = createSupabaseMock([methodsChain, updateChain])
+    mockedCreateClient.mockResolvedValue(supabase as never)
+
+    const result = await handleEdit(
+      { entity: 'medio_pago', search: 'visa', changes: { name: 'Visa Galicia' } },
+      '7',
+    )
+
+    expect(result.success).toBe(true)
+    expect(realinearMock).not.toHaveBeenCalled()
+    expect(supabase.from).toHaveBeenCalledTimes(2)
   })
 })
