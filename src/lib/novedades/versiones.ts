@@ -36,7 +36,7 @@ export const VERSIONES: Version[] = [
     // ⚠️ Si el release sale otro día, mover esta fecha: es la que decide quién
     // ve el popup. Un usuario dado de alta DESPUÉS de esta fecha no lo ve, y si
     // la fecha queda vieja, quien se registre en el medio se lo pierde.
-    fecha: '2026-09-01',
+    fecha: '2026-09-02',
     titulo: 'Las tarjetas ahora cuentan bien los dólares',
     items: [
       'Tu plata libre ya no ignora lo que compraste en dólares con la tarjeta.',
