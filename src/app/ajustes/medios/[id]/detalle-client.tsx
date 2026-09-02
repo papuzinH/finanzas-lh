@@ -10,6 +10,29 @@ import { SelectorDeResumen } from '@/components/medios-pago/selector-de-resumen'
 import { CabeceraDeResumen } from '@/components/medios-pago/cabecera-de-resumen';
 import { FilasDelResumen } from '@/components/medios-pago/filas-del-resumen';
 import { EditarCicloDialog } from '@/components/medios-pago/editar-ciclo-dialog';
+import { DetalleDeCuenta } from './detalle-cuenta';
+import type { PaymentMethod } from '@/types/database';
+
+/** Compartido por las dos ramas (crédito y cuenta/personal): volver + nombre + tipo. */
+function EncabezadoDetalle({ method }: { method: PaymentMethod }) {
+  return (
+    <div className="flex items-center gap-3">
+      <Link
+        href="/ajustes/medios"
+        aria-label="Volver a la billetera"
+        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-[1.5px] border-border text-muted"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </Link>
+      <div>
+        <h1 className="font-display text-xl text-text">{method.name}</h1>
+        <p className="text-xs uppercase tracking-widest text-muted">
+          {method.type === 'credit' ? 'Tarjeta de crédito' : 'Cuenta / Efectivo'}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function DetalleClient({ methodId }: { methodId: string }) {
   const router = useRouter();
@@ -45,6 +68,25 @@ export function DetalleClient({ methodId }: { methodId: string }) {
     );
   }
 
+  // Cuentas de debito/efectivo y medios personales no tienen resumenes: se van a su
+  // propia rama, portada tal cual del modal viejo (Task 7). Sin esto caian en el
+  // "sin resumenes" de mas abajo, que es un mensaje pensado para tarjetas.
+  if (method.type !== 'credit') {
+    const cuenta = store.getAvailableToSpend().accounts.find((a) => a.methodId === methodId) ?? null;
+    return (
+      <main className="mx-auto max-w-[720px] px-5 py-6 pb-28 grid gap-5">
+        <EncabezadoDetalle method={method} />
+        <DetalleDeCuenta
+          method={method}
+          cuenta={cuenta}
+          fixedCosts={store.getPaymentMethodStatus(methodId).fixedCosts}
+          transactions={store.transactions}
+          paymentMethods={store.paymentMethods}
+        />
+      </main>
+    );
+  }
+
   const detalle = store.getCardCycleDetail(methodId, searchParams.get('resumen') ?? undefined);
 
   // Navegar entre resumenes no debe llenar el historial: replace, no push.
@@ -61,21 +103,7 @@ export function DetalleClient({ methodId }: { methodId: string }) {
 
   return (
     <main className="mx-auto max-w-[720px] px-5 py-6 pb-28 grid gap-5">
-      <div className="flex items-center gap-3">
-        <Link
-          href="/ajustes/medios"
-          aria-label="Volver a la billetera"
-          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-[1.5px] border-border text-muted"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div>
-          <h1 className="font-display text-xl text-text">{method.name}</h1>
-          <p className="text-xs uppercase tracking-widest text-muted">
-            {method.type === 'credit' ? 'Tarjeta de crédito' : 'Cuenta / Efectivo'}
-          </p>
-        </div>
-      </div>
+      <EncabezadoDetalle method={method} />
 
       {detalle && detalle.actual ? (
         <>

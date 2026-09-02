@@ -19,7 +19,6 @@ import { join } from 'node:path';
 /** Avisos inline de una línea: no son el bloque grande, ver el encabezado. */
 const EXCEPCIONES = [
   'components/inversiones/portfolio-list.tsx',
-  'components/medios-pago/payment-method-detail-modal.tsx',
   // El componente mismo, que es quien tiene derecho a dibujar el borde punteado.
   'components/shared/empty-state.tsx',
 ];

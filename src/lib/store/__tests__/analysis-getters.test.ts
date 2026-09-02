@@ -468,32 +468,4 @@ describe('getPaymentMethodStatus (tarjeta de crédito)', () => {
     }
   });
 
-  it('el total cuadra con la suma de los movimientos del ciclo + mensualidad pendiente', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 6, 15));
-    try {
-      seedCard();
-      const st = useFinanceStore.getState();
-      const movs = st.getPaymentMethodTransactionsForCurrentMonth(CARD_ID);
-      // posteados en el ciclo: compra (1), Spotify (2), reintegro (3). El id 4 es otro ciclo.
-      expect(movs.map((m) => m.id).sort()).toEqual(['1', '2', '3']);
-      // Procedencia: los tres vencen el 31-jul, y los defaults de la tarjeta
-      // (closing 20 / payment 5) pondrían el vencimiento vigente en AGOSTO. Si la
-      // lista siguiera saliendo de `getCreditCycleDates` + mes de `t.date`, esto
-      // daría vacío. La membresía es la FK, la misma que usa el status.
-      expect(movs.every((m) => m.cycle_id === CYCLE_ID)).toBe(true);
-      const postedExpenses = movs
-        .filter((m) => m.type === 'expense')
-        .reduce((a, m) => a + Math.abs(Number(m.amount)), 0);
-      const income = movs
-        .filter((m) => m.type === 'income')
-        .reduce((a, m) => a + Number(m.amount), 0);
-      const pendingSub = 5900; // Netflix no posteada
-      expect(postedExpenses - income + pendingSub).toBe(
-        -st.getPaymentMethodStatus(CARD_ID).projectedTotal
-      );
-    } finally {
-      vi.useRealTimers();
-    }
-  });
 });

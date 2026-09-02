@@ -24,3 +24,27 @@ describe('ruta /ajustes/medios/[id]', () => {
     expect(src).not.toMatch(/const\s*\{[^}]*getCardCycleDetail[^}]*\}\s*=\s*useFinanceStore/);
   });
 });
+
+describe('el modal de detalle se retiro', () => {
+  it('el archivo ya no existe', () => {
+    expect(existsSync(resolve(raiz, 'src/components/medios-pago/payment-method-detail-modal.tsx'))).toBe(false);
+  });
+
+  it('nadie lo importa', () => {
+    const cards = ['institutional-card.tsx', 'personal-debt-card.tsx'];
+    for (const f of cards) {
+      const src = readFileSync(resolve(raiz, 'src/components/medios-pago', f), 'utf8');
+      expect(src).not.toContain('PaymentMethodDetailModal');
+    }
+  });
+
+  it('el guard de estados vacios no exceptua un archivo que ya no existe', () => {
+    const src = readFileSync(resolve(raiz, 'src/components/shared/__tests__/empty-state-adoption.test.ts'), 'utf8');
+    expect(src).not.toContain('payment-method-detail-modal');
+  });
+
+  it('el getter huerfano se retiro del store', () => {
+    const src = readFileSync(resolve(raiz, 'src/lib/store/financeStore.ts'), 'utf8');
+    expect(src).not.toContain('getPaymentMethodTransactionsForCurrentMonth');
+  });
+});

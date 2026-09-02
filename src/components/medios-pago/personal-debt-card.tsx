@@ -2,9 +2,9 @@
 
 import { User, ArrowRight, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { cn, formatCurrency, formatUsd } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import { cn, formatCurrency } from '@/lib/utils';
 import { PaymentCardProps } from './institutional-card';
-import { PaymentMethodDetailModal } from './payment-method-detail-modal';
 import { EditPaymentMethodDialog } from './edit-payment-method-dialog';
 import { DeletePaymentMethodDialog } from './delete-payment-method-dialog';
 import {
@@ -15,10 +15,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 export function PersonalDebtCard({ data }: PaymentCardProps) {
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const router = useRouter();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const { status, history } = data;
+  const { status } = data;
 
   const isDebt = status.currentConsumption < 0;
   const amount = Math.abs(status.currentConsumption);
@@ -26,7 +26,7 @@ export function PersonalDebtCard({ data }: PaymentCardProps) {
   return (
     <>
       <div
-        onClick={() => setIsDetailOpen(true)}
+        onClick={() => router.push(`/ajustes/medios/${data.id}`)}
         className="rounded-xl border-[1.5px] border-border bg-surface p-4 flex flex-col justify-between hover:border-border-strong transition-colors cursor-pointer active:scale-[0.98]"
       >
         <div>
@@ -72,42 +72,13 @@ export function PersonalDebtCard({ data }: PaymentCardProps) {
             </DropdownMenu>
           </div>
 
-          <div className="mb-4">
+          <div>
             <p className="text-xs text-muted mb-0.5">
               {isDebt ? 'Le debes' : 'A favor'}
             </p>
             <p className={cn("font-display tnum text-xl leading-none", isDebt ? "text-bad" : "text-good")}>
               {formatCurrency(amount)}
             </p>
-          </div>
-
-          {/* Movimientos del mes */}
-          <div className="space-y-2 mb-4 pt-3 border-t-[1.5px] border-border">
-            <p className="text-[9px] font-medium text-muted uppercase tracking-wider mb-1">Movimientos del mes</p>
-            {history.length > 0 ? (
-              history.map((t, i) => (
-                <div key={i} className="flex items-center justify-between text-[10px] group">
-                  <div className="flex items-center gap-1.5 overflow-hidden">
-                    <div className={cn(
-                      "h-1 w-1 rounded-full",
-                      t.type === 'income' ? "bg-good" : "bg-faint"
-                    )} />
-                    <span className="text-muted truncate max-w-[100px]">{t.description}</span>
-                  </div>
-                  <span className={cn(
-                    "tnum",
-                    t.type === 'income' ? "text-good" : "text-muted"
-                  )}>
-                    {t.type === 'income' ? '+' : '-'}
-                    {t.original_currency === 'USD' && t.original_amount
-                      ? formatUsd(Math.abs(Number(t.original_amount)))
-                      : formatCurrency(Math.abs(Number(t.amount)))}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-[9px] text-muted italic">Sin movimientos</p>
-            )}
           </div>
         </div>
 
@@ -120,12 +91,6 @@ export function PersonalDebtCard({ data }: PaymentCardProps) {
           </span>
         </div>
       </div>
-
-      <PaymentMethodDetailModal
-        isOpen={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
-        data={data}
-      />
 
       <EditPaymentMethodDialog
         open={isEditOpen}
