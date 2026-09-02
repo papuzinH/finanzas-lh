@@ -601,9 +601,10 @@ describe('SelectorDeResumen', () => {
     expect(html).toContain('Resumen siguiente');
   });
 
-  // React emite los atributos en el orden del JSX: aria-label viene ANTES de
-  // disabled, asi que hay que mirar hacia ADELANTE desde el label hasta cerrar
-  // la etiqueta. Mirar hacia atras da un falso rojo.
+  // Se busca `disabled=""`, el atributo tal como React lo emite -- NO la
+  // substring "disabled", que tambien aparece dentro de la clase de Tailwind
+  // `disabled:opacity-40` y daria verde siempre. React emite los atributos en
+  // el orden del JSX, asi que se mira hacia ADELANTE desde el aria-label.
   const atributosDelBoton = (html: string, label: string) => {
     const i = html.indexOf(`aria-label="${label}"`);
     return i === -1 ? '' : html.slice(i, html.indexOf('>', i));
@@ -611,20 +612,20 @@ describe('SelectorDeResumen', () => {
 
   it('en el primer resumen la flecha de anterior queda deshabilitada', () => {
     const html = renderToStaticMarkup(<SelectorDeResumen resumenes={R} actualId="jul" onSelect={() => {}} />);
-    expect(atributosDelBoton(html, 'Resumen anterior')).toContain('disabled');
-    expect(atributosDelBoton(html, 'Resumen siguiente')).not.toContain('disabled');
+    expect(atributosDelBoton(html, 'Resumen anterior')).toContain('disabled=""');
+    expect(atributosDelBoton(html, 'Resumen siguiente')).not.toContain('disabled=""');
   });
 
   it('en el ultimo resumen la flecha de siguiente queda deshabilitada', () => {
     const html = renderToStaticMarkup(<SelectorDeResumen resumenes={R} actualId="sep" onSelect={() => {}} />);
-    expect(atributosDelBoton(html, 'Resumen siguiente')).toContain('disabled');
-    expect(atributosDelBoton(html, 'Resumen anterior')).not.toContain('disabled');
+    expect(atributosDelBoton(html, 'Resumen siguiente')).toContain('disabled=""');
+    expect(atributosDelBoton(html, 'Resumen anterior')).not.toContain('disabled=""');
   });
 
   it('en un resumen del medio ninguna flecha esta deshabilitada', () => {
     const html = renderToStaticMarkup(<SelectorDeResumen resumenes={R} actualId="ago" onSelect={() => {}} />);
-    expect(atributosDelBoton(html, 'Resumen anterior')).not.toContain('disabled');
-    expect(atributosDelBoton(html, 'Resumen siguiente')).not.toContain('disabled');
+    expect(atributosDelBoton(html, 'Resumen anterior')).not.toContain('disabled=""');
+    expect(atributosDelBoton(html, 'Resumen siguiente')).not.toContain('disabled=""');
   });
 
   it('los controles cumplen el minimo de 44px', () => {
@@ -632,7 +633,28 @@ describe('SelectorDeResumen', () => {
     expect(html).toContain('min-h-[44px]');
   });
 
-  it('con dos resumenes que cierran el mismo mes, el pill desambigua con el dia', () => {
+  it('sin homonimo, el label es solo el mes: ni dia ni anio', () => {
+    // Sin este test, un regresivo que mostrara SIEMPRE la fecha completa pasaria
+    // todos los demas.
+    const html = renderToStaticMarkup(<SelectorDeResumen resumenes={R} actualId="ago" onSelect={() => {}} />);
+    expect(html).toContain('agosto');
+    expect(html).not.toContain('2026');
+  });
+
+  it('dos resumenes del mismo mes en anios distintos no muestran el mismo label', () => {
+    // credit_card_cycles se trae sin limite de fecha, y el dia de cierre por
+    // defecto no cambia: con mas de un anio de uso esto pasa solo.
+    const dosAnios: ResumenNavegable[] = [
+      { id: 'a26', closingDate: '2026-08-20', dueDate: '2026-09-01', source: 'generated', estado: 'pagado' },
+      { id: 'a27', closingDate: '2027-08-20', dueDate: '2027-09-01', source: 'generated', estado: 'proyectado' },
+    ];
+    const uno = renderToStaticMarkup(<SelectorDeResumen resumenes={dosAnios} actualId="a26" onSelect={() => {}} />);
+    const otro = renderToStaticMarkup(<SelectorDeResumen resumenes={dosAnios} actualId="a27" onSelect={() => {}} />);
+    expect(uno).toContain('2026');
+    expect(otro).toContain('2027');
+  });
+
+  it('con dos resumenes que cierran el mismo mes, el pill desambigua con la fecha completa', () => {
     const mismoMes: ResumenNavegable[] = [
       { id: 'a', closingDate: '2026-08-04', dueDate: '2026-08-15', source: 'generated', estado: 'pagado' },
       { id: 'b', closingDate: '2026-08-31', dueDate: '2026-09-10', source: 'generated', estado: 'pendiente' },
@@ -644,7 +666,7 @@ describe('SelectorDeResumen', () => {
   it('una tarjeta con un solo resumen no ofrece navegacion rota', () => {
     const uno = [R[1]];
     const html = renderToStaticMarkup(<SelectorDeResumen resumenes={uno} actualId="ago" onSelect={() => {}} />);
-    expect(html.match(/disabled/g)?.length).toBe(2);
+    expect(html.match(/disabled=""/g)?.length).toBe(2);
   });
 });
 ```
@@ -699,11 +721,15 @@ export function SelectorDeResumen({
   const actual = resumenes[i];
   if (!actual) return null;
 
-  // Si otro resumen cierra en el mismo mes calendario, el mes solo no alcanza.
+  // Si otro resumen comparte el NOMBRE del mes, el mes solo no alcanza. Se compara
+  // por nombre y no por mes+anio a proposito: "agosto 2026" y "agosto 2027" tambien
+  // se confunden en un pill, y credit_card_cycles se trae sin limite de fecha.
+  // Cuando hay homonimo se muestra la fecha COMPLETA del cierre, que desambigua
+  // siempre -- la unique (payment_method_id, closing_date) lo garantiza.
   const mes = mesDe(actual.closingDate);
   const hayHomonimo = resumenes.some((r) => r.id !== actual.id && mesDe(r.closingDate) === mes);
   const etiqueta = hayHomonimo
-    ? `${mes} ${format(parseLocalDate(actual.closingDate), 'd')}`
+    ? format(parseLocalDate(actual.closingDate), 'd MMM yyyy', { locale: es })
     : mes;
 
   return (
@@ -770,7 +796,7 @@ export function SelectorDeResumen({
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/components/medios-pago/__tests__/selector-de-resumen.test.tsx`
-Expected: PASS, 8 tests.
+Expected: PASS, 10 tests.
 
 - [ ] **Step 5: Full verification and commit**
 
