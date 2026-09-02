@@ -5,15 +5,18 @@
 import { createClient } from '@/utils/supabase/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
-import { addMonths } from 'date-fns'
+import { addMonths, subMonths } from 'date-fns'
 import { formatLocalDate, parseLocalDate, calculateCreditPaymentDate } from '@/lib/utils/dates'
 import { computePortfolioStatus } from '@/lib/finance/portfolio'
+import { asegurarCiclos } from '@/lib/ciclos/asegurar'
+import { cicloDeCompra, cicloNEsimo, type CreditCardCycle } from '@/lib/finance/cycles'
 import type {
   InvestmentAsset,
   InvestmentTransaction,
   MarketPrice,
   ExchangeRate,
   Saving,
+  PaymentMethod,
 } from '@/types/database'
 import type {
   TransactionData,
@@ -38,6 +41,8 @@ export interface ChatResponse {
 
 /**
  * Interfaz para representar un payment method resuelto con todos sus detalles.
+ * `raw` trae la fila completa de `payment_methods`: `asegurarCiclos` (Tasks 8/9)
+ * necesita la fila entera, no este resumen reducido.
  */
 interface ResolvedPaymentMethod {
   id: string
@@ -45,6 +50,7 @@ interface ResolvedPaymentMethod {
   type: 'credit' | 'debit' | 'cash'
   closingDay: number | null
   paymentDay: number | null
+  raw: PaymentMethod
 }
 
 /**
@@ -59,7 +65,7 @@ async function resolvePaymentMethod(
 ): Promise<ResolvedPaymentMethod | null> {
   let query = supabase
     .from('payment_methods')
-    .select('id, name, type, default_closing_day, default_payment_day')
+    .select('*')
     .eq('user_id', userId)
 
   if (paymentMethodName) {
@@ -80,19 +86,26 @@ async function resolvePaymentMethod(
     type: method.type,
     closingDay: method.default_closing_day,
     paymentDay: method.default_payment_day,
+    raw: method,
   }
 }
 
 /**
  * Calcula la fecha real de pago para una transacción en tarjeta de crédito.
  * Para débito/efectivo, retorna la misma fecha de compra.
- * Delega la lógica de cálculo a calculateCreditPaymentDate de dates.ts (función canónica compartida).
+ * Si se resolvió el ciclo de tarjeta al que pertenece la compra (Tasks 8/9: mismo
+ * camino que las server actions, asegurarCiclos + cicloDeCompra/cicloNEsimo), la
+ * fecha sale de `cycle.due_date` — nunca se recalcula por separado. Sin ciclo
+ * materializado, cae a calculateCreditPaymentDate de dates.ts (función canónica
+ * compartida) como fallback.
  */
 function calculateRealPaymentDate(
   purchaseDate: string,
-  paymentMethod: ResolvedPaymentMethod | null
+  paymentMethod: ResolvedPaymentMethod | null,
+  cycle?: CreditCardCycle
 ): string {
   if (!paymentMethod || paymentMethod.type !== 'credit') return purchaseDate
+  if (cycle) return cycle.due_date
   if (paymentMethod.closingDay === null || paymentMethod.paymentDay === null) return purchaseDate
   return calculateCreditPaymentDate(purchaseDate, paymentMethod.closingDay, paymentMethod.paymentDay)
 }
@@ -176,8 +189,28 @@ export async function handleTransaction(data: TransactionData, userId: string): 
       !data.paymentMethodName
     )
 
+    // Gasto con tarjeta de crédito y ciclo configurado: resolver a qué resumen
+    // pertenece la compra (mismo camino que createTransaction, Task 8) para que
+    // el chat nunca pueda cargarla en un resumen distinto al que le asignaría la
+    // pantalla. Los ciclos se materializan alrededor de la compra: uno hacia atrás
+    // y dos hacia adelante, igual que la server action.
+    let cycleId: string | null = null
+    let cycle: CreditCardCycle | undefined
+    if (
+      data.type === 'expense' &&
+      paymentMethod?.type === 'credit' &&
+      paymentMethod.closingDay !== null &&
+      paymentMethod.paymentDay !== null
+    ) {
+      const compra = parseLocalDate(data.date)
+      const ciclos = await asegurarCiclos(supabase, paymentMethod.raw, subMonths(compra, 1), addMonths(compra, 2))
+      cycle = cicloDeCompra(data.date, ciclos)
+      cycleId = cycle?.id ?? null
+    }
+
     // Calcular fecha real de pago (aplica lógica de tarjeta de crédito si corresponde)
-    const realPaymentDate = calculateRealPaymentDate(data.date, paymentMethod)
+    const realPaymentDate = calculateRealPaymentDate(data.date, paymentMethod, cycle)
+    const purchaseDate = data.type === 'expense' ? data.date : null
 
     // Validación defensiva: si el modelo eligió una categoría de un tipo
     // distinto al detectado (ej. categoría de gasto para un ingreso), se
@@ -213,6 +246,8 @@ export async function handleTransaction(data: TransactionData, userId: string): 
       type: data.type,
       category_id: categoryId,
       payment_method_id: paymentMethod?.id || null,
+      cycle_id: cycleId,
+      purchase_date: purchaseDate,
     })
 
     if (error) {
@@ -264,8 +299,29 @@ export async function handleInstallment(data: InstallmentData, userId: string): 
       !data.paymentMethodName
     )
 
+    // Tarjeta de crédito con ciclo configurado: materializar los resúmenes que el
+    // plan necesita (mismo camino que createInstallmentPlan, Task 9) y resolver a
+    // qué resumen pertenece la primera cuota. Margen: uno hacia atrás y
+    // installmentsCount + 1 hacia adelante, para llegar hasta la última cuota.
+    let ciclosDelPlan: CreditCardCycle[] = []
+    let cicloInicial: CreditCardCycle | undefined
+    if (
+      paymentMethod?.type === 'credit' &&
+      paymentMethod.closingDay !== null &&
+      paymentMethod.paymentDay !== null
+    ) {
+      const compra = parseLocalDate(data.date)
+      ciclosDelPlan = await asegurarCiclos(
+        supabase,
+        paymentMethod.raw,
+        subMonths(compra, 1),
+        addMonths(compra, data.installmentsCount + 1)
+      )
+      cicloInicial = cicloDeCompra(data.date, ciclosDelPlan)
+    }
+
     // Calcular fecha real de pago base (aplica lógica de tarjeta de crédito si corresponde)
-    const realPaymentDateBase = calculateRealPaymentDate(data.date, paymentMethod)
+    const realPaymentDateBase = calculateRealPaymentDate(data.date, paymentMethod, cicloInicial)
 
     // Un plan de cuotas es siempre un gasto, y `category_id` es NOT NULL.
     const categoryId = data.categoryId ?? (await getOrCreateCategoriaDescarte(supabase, userId, 'expense'))
@@ -297,15 +353,20 @@ export async function handleInstallment(data: InstallmentData, userId: string): 
     }
 
     // 2. Crear las transacciones asociadas (una por cuota)
-    // Las cuotas se generan a partir de la fecha de pago real calculada
+    // La cuota i va al i-ésimo RESUMEN (cicloNEsimo), no a compra + i meses: con
+    // ciclos desparejos, sumar meses da fechas que la tarjeta no tiene (Task 9).
+    // Sin ciclo (débito/efectivo, o tarjeta sin resumen materializado), cae al
+    // viejo addMonths sobre la fecha de pago base ya calculada.
     const baseDateForInstallments = parseLocalDate(realPaymentDateBase)
     const transactions = Array.from({ length: data.installmentsCount }, (_, i) => {
-      const installmentDate = addMonths(baseDateForInstallments, i)
+      const ciclo = cicloInicial ? cicloNEsimo(ciclosDelPlan, cicloInicial, i) : undefined
       return {
         user_id: userId,
         description: `${data.description} (${i + 1}/${data.installmentsCount})`,
         amount: data.amount,
-        date: formatLocalDate(installmentDate),
+        date: ciclo ? ciclo.due_date : formatLocalDate(addMonths(baseDateForInstallments, i)),
+        purchase_date: data.date,
+        cycle_id: ciclo?.id ?? null,
         type: 'expense' as const,
         category_id: categoryId,
         installment_plan_id: plan.id,
@@ -438,71 +499,15 @@ export async function handleCardConfig(data: CardConfigData, userId: string): Pr
       }
     }
 
-    // Actualizar transacciones futuras (>20 días desde hoy) al nuevo ciclo de la tarjeta
-    try {
-      const futureDate = new Date()
-      futureDate.setDate(futureDate.getDate() + 20)
-      const futureDateStr = formatLocalDate(futureDate)
-
-      // Obtener transacciones futuras de esta tarjeta, incluyendo installment_plan_id para distinguir cuotas
-      const { data: futureTxns, error: fetchError } = await supabase
-        .from('transactions')
-        .select('id, date, installment_plan_id, description')
-        .eq('payment_method_id', method.id)
-        .eq('user_id', userId)
-        .eq('type', 'expense')
-        .gt('date', futureDateStr)
-
-      if (fetchError) {
-        console.warn('Warning: could not fetch future transactions:', fetchError)
-      } else if (futureTxns && futureTxns.length > 0) {
-        // Separar cuotas de transacciones simples
-        const installmentTxns = futureTxns.filter(
-          (t): t is typeof t & { installment_plan_id: string } => t.installment_plan_id !== null
-        )
-        const simpleTxns = futureTxns.filter((t) => t.installment_plan_id === null)
-
-        // Para cuotas: recalcular desde purchase_date del plan usando la nueva configuración
-        if (installmentTxns.length > 0) {
-          const planIds = [...new Set(installmentTxns.map((t) => t.installment_plan_id))]
-          const { data: plans } = await supabase
-            .from('installment_plans')
-            .select('id, purchase_date, installments_count')
-            .in('id', planIds)
-            .eq('user_id', userId)
-
-          if (plans) {
-            for (const plan of plans) {
-              const firstDate = calculateCreditPaymentDate(plan.purchase_date, data.closingDay, data.paymentDay)
-              const planTxns = installmentTxns.filter((t) => t.installment_plan_id === plan.id)
-
-              for (const txn of planTxns) {
-                // Extraer el índice de cuota desde la descripción "(X/Y)"
-                const match = txn.description.match(/\((\d+)\/\d+\)$/)
-                const installmentIndex = match ? parseInt(match[1], 10) - 1 : 0
-                const newDate = formatLocalDate(addMonths(parseLocalDate(firstDate), installmentIndex))
-                await supabase.from('transactions').update({ date: newDate }).eq('id', txn.id)
-              }
-            }
-          }
-        }
-
-        // Para transacciones simples: ajustar solo el día de vencimiento dentro del mismo mes.
-        // No es posible recalcular exactamente sin conocer la fecha de compra original.
-        for (const txn of simpleTxns) {
-          const oldDate = parseLocalDate(txn.date)
-          oldDate.setDate(data.paymentDay)
-          await supabase.from('transactions').update({ date: formatLocalDate(oldDate) }).eq('id', txn.id)
-        }
-      }
-    } catch (updateError) {
-      console.warn('Warning: error updating future transactions:', updateError)
-      // No retornar error aquí, solo avisar
-    }
-
+    // NO se re-fechan transacciones existentes (E13): con la pertenencia a un
+    // resumen persistida en `transactions.cycle_id`, cambiar el cierre/vencimiento
+    // de la tarjeta sólo afecta a los ciclos que se generen de acá en adelante
+    // (default_closing_day/default_payment_day son el generador, no la verdad de
+    // lo ya materializado — ver lib/finance/cycles.ts). El viejo re-fechado movía
+    // cuotas y compras futuras cada vez que el usuario corregía estos días.
     return {
       success: true,
-      message: `✅ Tarjeta ${method.name} actualizada:\n- Cierre: día ${data.closingDay}\n- Vencimiento: día ${data.paymentDay}`,
+      message: `✅ Tarjeta ${method.name} actualizada:\n- Cierre: día ${data.closingDay}\n- Vencimiento: día ${data.paymentDay}\n\nLos movimientos que ya cargaste no se movieron de resumen: esto cambia los resúmenes que se generen de acá en adelante.`,
     }
   } catch (error) {
     console.error('Unexpected error in handleCardConfig:', error)
