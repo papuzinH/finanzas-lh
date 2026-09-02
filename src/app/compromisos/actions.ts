@@ -434,7 +434,9 @@ export async function syncAutomaticRecurringCharges(): Promise<ActionResponse & 
       supabase.from('payment_methods').select('*').eq('user_id', user.id),
       supabase
         .from('transactions')
-        .select('recurring_plan_id, date, cycle_id')
+        // purchase_date es el mes de consumo literal que escribe este mismo sync mas
+        // abajo: la unica clave de cobertura exacta (ver computeMissingAutomaticCharges).
+        .select('recurring_plan_id, date, cycle_id, purchase_date')
         .eq('user_id', user.id)
         .not('recurring_plan_id', 'is', null),
       supabase

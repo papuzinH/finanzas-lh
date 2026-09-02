@@ -79,7 +79,7 @@ function clienteFalso(config: {
         )
         return { data: found.map((_, i) => ({ id: `existing-${i}` })) }
       }
-      if (tabla === 'transactions' && columns === 'recurring_plan_id, date, cycle_id') {
+      if (tabla === 'transactions' && columns === 'recurring_plan_id, date, cycle_id, purchase_date') {
         return { data: existingTxs }
       }
       if (tabla === 'transactions' && columns === 'date') {
