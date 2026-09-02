@@ -5,11 +5,11 @@
 import { createClient } from '@/utils/supabase/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
-import { addMonths, subMonths } from 'date-fns'
-import { formatLocalDate, parseLocalDate, calculateCreditPaymentDate } from '@/lib/utils/dates'
+import { addMonths } from 'date-fns'
+import { formatLocalDate, parseLocalDate } from '@/lib/utils/dates'
 import { computePortfolioStatus } from '@/lib/finance/portfolio'
-import { asegurarCiclos } from '@/lib/ciclos/asegurar'
-import { cicloDeCompra, cicloNEsimo, type CreditCardCycle } from '@/lib/finance/cycles'
+import { resolverCicloDeCompra } from '@/lib/ciclos/resolver'
+import { cicloNEsimo, type CreditCardCycle } from '@/lib/finance/cycles'
 import type {
   InvestmentAsset,
   InvestmentTransaction,
@@ -41,7 +41,7 @@ export interface ChatResponse {
 
 /**
  * Interfaz para representar un payment method resuelto con todos sus detalles.
- * `raw` trae la fila completa de `payment_methods`: `asegurarCiclos` (Tasks 8/9)
+ * `raw` trae la fila completa de `payment_methods`: `resolverCicloDeCompra`
  * necesita la fila entera, no este resumen reducido.
  */
 interface ResolvedPaymentMethod {
@@ -88,26 +88,6 @@ async function resolvePaymentMethod(
     paymentDay: method.default_payment_day,
     raw: method,
   }
-}
-
-/**
- * Calcula la fecha real de pago para una transacción en tarjeta de crédito.
- * Para débito/efectivo, retorna la misma fecha de compra.
- * Si se resolvió el ciclo de tarjeta al que pertenece la compra (Tasks 8/9: mismo
- * camino que las server actions, asegurarCiclos + cicloDeCompra/cicloNEsimo), la
- * fecha sale de `cycle.due_date` — nunca se recalcula por separado. Sin ciclo
- * materializado, cae a calculateCreditPaymentDate de dates.ts (función canónica
- * compartida) como fallback.
- */
-function calculateRealPaymentDate(
-  purchaseDate: string,
-  paymentMethod: ResolvedPaymentMethod | null,
-  cycle?: CreditCardCycle
-): string {
-  if (!paymentMethod || paymentMethod.type !== 'credit') return purchaseDate
-  if (cycle) return cycle.due_date
-  if (paymentMethod.closingDay === null || paymentMethod.paymentDay === null) return purchaseDate
-  return calculateCreditPaymentDate(purchaseDate, paymentMethod.closingDay, paymentMethod.paymentDay)
 }
 
 /**
@@ -190,29 +170,20 @@ export async function handleTransaction(data: TransactionData, userId: string): 
     )
 
     // Movimiento con tarjeta de crédito y ciclo configurado: resolver a qué resumen
-    // pertenece (mismo camino que createTransaction, Task 8) para que el chat nunca
-    // pueda cargarlo en un resumen distinto al que le asignaría la pantalla. Los
-    // ciclos se materializan alrededor de la fecha: uno hacia atrás y dos hacia
-    // adelante, igual que la server action.
+    // pertenece (mismo camino que createTransaction) para que el chat nunca pueda
+    // cargarlo en un resumen distinto al que le asignaría la pantalla.
     //
     // Cualquier tipo, no sólo 'expense': un reintegro (income) en la tarjeta lo
     // descuenta `refundsInCycle` (balances.ts) por cycle_id, así que sin ciclo
     // dejaba de restar del resumen. `purchase_date` sí sigue siendo sólo de compras.
     let cycleId: string | null = null
-    let cycle: CreditCardCycle | undefined
-    if (
-      paymentMethod?.type === 'credit' &&
-      paymentMethod.closingDay !== null &&
-      paymentMethod.paymentDay !== null
-    ) {
-      const compra = parseLocalDate(data.date)
-      const ciclos = await asegurarCiclos(supabase, paymentMethod.raw, subMonths(compra, 1), addMonths(compra, 2))
-      cycle = cicloDeCompra(data.date, ciclos)
-      cycleId = cycle?.id ?? null
+    let realPaymentDate = data.date
+    if (paymentMethod) {
+      const { ciclo, dueDate } = await resolverCicloDeCompra(supabase, paymentMethod.raw, data.date, 2)
+      cycleId = ciclo?.id ?? null
+      realPaymentDate = dueDate
     }
 
-    // Calcular fecha real de pago (aplica lógica de tarjeta de crédito si corresponde)
-    const realPaymentDate = calculateRealPaymentDate(data.date, paymentMethod, cycle)
     const purchaseDate = data.type === 'expense' ? data.date : null
 
     // Validación defensiva: si el modelo eligió una categoría de un tipo
@@ -303,28 +274,18 @@ export async function handleInstallment(data: InstallmentData, userId: string): 
     )
 
     // Tarjeta de crédito con ciclo configurado: materializar los resúmenes que el
-    // plan necesita (mismo camino que createInstallmentPlan, Task 9) y resolver a
-    // qué resumen pertenece la primera cuota. Margen: uno hacia atrás y
-    // installmentsCount + 1 hacia adelante, para llegar hasta la última cuota.
+    // plan necesita (mismo camino que createInstallmentPlan) y resolver a qué
+    // resumen pertenece la primera cuota. Margen: installmentsCount + 1 hacia
+    // adelante, para llegar hasta la última cuota.
     let ciclosDelPlan: CreditCardCycle[] = []
     let cicloInicial: CreditCardCycle | undefined
-    if (
-      paymentMethod?.type === 'credit' &&
-      paymentMethod.closingDay !== null &&
-      paymentMethod.paymentDay !== null
-    ) {
-      const compra = parseLocalDate(data.date)
-      ciclosDelPlan = await asegurarCiclos(
-        supabase,
-        paymentMethod.raw,
-        subMonths(compra, 1),
-        addMonths(compra, data.installmentsCount + 1)
-      )
-      cicloInicial = cicloDeCompra(data.date, ciclosDelPlan)
+    let realPaymentDateBase = data.date
+    if (paymentMethod) {
+      const r = await resolverCicloDeCompra(supabase, paymentMethod.raw, data.date, data.installmentsCount + 1)
+      ciclosDelPlan = r.ciclos
+      cicloInicial = r.ciclo
+      realPaymentDateBase = r.dueDate
     }
-
-    // Calcular fecha real de pago base (aplica lógica de tarjeta de crédito si corresponde)
-    const realPaymentDateBase = calculateRealPaymentDate(data.date, paymentMethod, cicloInicial)
 
     // Un plan de cuotas es siempre un gasto, y `category_id` es NOT NULL.
     const categoryId = data.categoryId ?? (await getOrCreateCategoriaDescarte(supabase, userId, 'expense'))

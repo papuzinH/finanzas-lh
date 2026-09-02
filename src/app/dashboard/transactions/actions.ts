@@ -7,6 +7,7 @@ import { calculateCreditPaymentDate, parseLocalDate } from '@/lib/utils/dates';
 import { addMonths, subMonths } from 'date-fns';
 import { asegurarCiclos } from '@/lib/ciclos/asegurar';
 import { cicloDeCompra } from '@/lib/finance/cycles';
+import { resolverCicloDeCompra } from '@/lib/ciclos/resolver';
 
 type ActionResponse = {
   error?: string;
@@ -64,26 +65,10 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
       // (income) en la tarjeta lo descuenta `refundsInCycle` (balances.ts) por
       // cycle_id, así que sin ciclo dejaba de restar del resumen y el "a pagar"
       // quedaba inflado. `purchase_date` sí sigue siendo sólo de compras.
-      if (method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
-        // Se materializan los resúmenes alrededor de la compra: uno hacia atrás
-        // (una compra vieja puede caer en un ciclo que todavía no existe) y dos
-        // hacia adelante (margen para que cicloDeCompra encuentre destino).
-        const ciclos = await asegurarCiclos(
-          supabase,
-          method,
-          subMonths(parseLocalDate(purchaseDate), 1),
-          addMonths(parseLocalDate(purchaseDate), 2),
-        );
-        const ciclo = cicloDeCompra(purchaseDate, ciclos);
-        if (ciclo) {
-          cycleId = ciclo.id;
-          storedDate = ciclo.due_date;
-        } else {
-          // No debería pasar con el margen de arriba. Si pasa, la compra se guarda
-          // igual con la fecha estimada y sin ciclo: perder el movimiento sería peor
-          // que perder la imputación, y sin cycle_id cae al branch de "sin ciclo".
-          storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
-        }
+      if (method.type === 'credit') {
+        const { ciclo, dueDate } = await resolverCicloDeCompra(supabase, method, purchaseDate, 2);
+        cycleId = ciclo?.id ?? null;
+        storedDate = dueDate;
       }
     }
 
@@ -193,20 +178,10 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
 
       // Igual que en el alta: cualquier tipo, no sólo 'expense' (los reintegros
       // también se imputan al resumen).
-      if (method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
-        const ciclos = await asegurarCiclos(
-          supabase,
-          method,
-          subMonths(parseLocalDate(purchaseDate), 1),
-          addMonths(parseLocalDate(purchaseDate), 2),
-        );
-        const ciclo = cicloDeCompra(purchaseDate, ciclos);
-        if (ciclo) {
-          cycleId = ciclo.id;
-          storedDate = ciclo.due_date;
-        } else {
-          storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
-        }
+      if (method.type === 'credit') {
+        const { ciclo, dueDate } = await resolverCicloDeCompra(supabase, method, purchaseDate, 2);
+        cycleId = ciclo?.id ?? null;
+        storedDate = dueDate;
       }
     }
 
