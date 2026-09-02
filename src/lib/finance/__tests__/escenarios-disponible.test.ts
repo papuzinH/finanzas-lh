@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeAvailableToSpend, type AvailableInputs } from '../pocket';
 import { computePendingCreditCards, computePaymentMethodStatus } from '../balances';
-import { cicloDeCompra } from '../cycles';
+import { cicloDeCompra, cicloNEsimo } from '../cycles';
 import type { PaymentMethod, RecurringPlan, InternalTransfer } from '@/types/database';
 import type { ProcessedTransaction, CreditCardCycleSummary } from '../types';
 import type { CreditCardCycle } from '../cycles';
@@ -465,6 +465,30 @@ describe('E13 — declarar un cierre nuevo NO mueve ninguna transaccion de resum
       visa(), [compra, otra], [], NOW, [cicloJulio, cicloAgosto], cicloAgosto,
     );
     expect(r.projectedTotal).toBe(-50000);
+  });
+});
+
+describe('E14 — la cuota N cae en el N-esimo resumen, no a N meses de la primera', () => {
+  const ciclos: CreditCardCycle[] = [
+    { id: 'c0', user_id: 'u1', payment_method_id: 'master', closing_date: '2026-07-30', due_date: '2026-08-07', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+    { id: 'c1', user_id: 'u1', payment_method_id: 'master', closing_date: '2026-08-27', due_date: '2026-09-04', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+    { id: 'c2', user_id: 'u1', payment_method_id: 'master', closing_date: '2026-10-01', due_date: '2026-10-09', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+  ];
+
+  it('las tres cuotas toman las fechas REALES de los tres resumenes', () => {
+    // Fechas reales de la Mastercard Galicia (resumen del 1-sep-2026).
+    // addMonths(7-ago, 1) daria 7-sep y addMonths(7-ago, 2) daria 7-oct:
+    // ninguna de las dos es una fecha de vencimiento de esta tarjeta.
+    const compra = cicloDeCompra('2026-07-15', ciclos);
+    expect(compra?.id).toBe('c0');
+
+    const fechas = [0, 1, 2].map((n) => cicloNEsimo(ciclos, compra!, n)?.due_date);
+    expect(fechas).toEqual(['2026-08-07', '2026-09-04', '2026-10-09']);
+  });
+
+  it('si faltan resumenes materializados, la ultima cuota no se inventa una fecha', () => {
+    const compra = cicloDeCompra('2026-07-15', ciclos);
+    expect(cicloNEsimo(ciclos, compra!, 3)).toBeUndefined();
   });
 });
 

@@ -3,9 +3,11 @@
 import { createClient } from '@/utils/supabase/server';
 import { installmentPlanSchema, type InstallmentPlanSchema, createInstallmentPlanSchema, type CreateInstallmentPlanSchema } from '@/lib/schemas/installment-plan';
 import { revalidatePath } from 'next/cache';
-import { addMonths } from 'date-fns';
+import { addMonths, subMonths } from 'date-fns';
 import { calculateCreditPaymentDate, dateToLocalString, parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
 import { getOrCreateCategoriaDescarte } from '@/lib/categorias/descarte'
+import { asegurarCiclos } from '@/lib/ciclos/asegurar';
+import { cicloDeCompra, cicloNEsimo, type CreditCardCycle } from '@/lib/finance/cycles';
 
 type ActionResponse = {
   error?: string;
@@ -40,10 +42,12 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
     // - Crédito: aplica lógica de ciclo de tarjeta (fecha de vencimiento del ciclo correspondiente)
     // - Débito/efectivo: se usa la fecha de compra directamente
     let firstInstallmentDateStr: string;
+    let ciclosDelPlan: CreditCardCycle[] = [];
+    let cicloInicial: CreditCardCycle | undefined;
     if (finalPaymentMethodId) {
       const { data: pm } = await supabase
         .from('payment_methods')
-        .select('type, default_closing_day, default_payment_day')
+        .select('*')
         .eq('id', finalPaymentMethodId)
         .eq('user_id', user.id)
         .single();
@@ -58,6 +62,15 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
           pm.default_closing_day,
           pm.default_payment_day
         );
+
+        // Hasta el ultimo resumen que el plan necesita, mas uno de margen.
+        ciclosDelPlan = await asegurarCiclos(
+          supabase,
+          pm,
+          subMonths(parseLocalDate(purchaseDateStr), 1),
+          addMonths(parseLocalDate(purchaseDateStr), installments_count + 1),
+        );
+        cicloInicial = cicloDeCompra(purchaseDateStr, ciclosDelPlan);
       } else {
         firstInstallmentDateStr = purchaseDateStr;
       }
@@ -86,18 +99,25 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
     }
 
     // 2. Crear las transacciones asociadas (una por cuota)
-    // La primera cuota cae en firstInstallmentDateStr; las siguientes son +1 mes cada una.
+    // La cuota i va al i-esimo RESUMEN. Antes se sumaban meses a la primera, que
+    // con ciclos desparejos da fechas que la tarjeta no tiene (4-sep + 1 mes = 4-oct,
+    // cuando el resumen siguiente vence el 9-oct).
     const installmentAmount = total_amount / installments_count;
-    const transactions = Array.from({ length: installments_count }, (_, i) => ({
-      user_id: user.id,
-      description: `${description} (${i + 1}/${installments_count})`,
-      amount: installmentAmount,
-      date: formatLocalDate(addMonths(parseLocalDate(firstInstallmentDateStr), i)),
-      type: 'expense' as const,
-      category_id,
-      installment_plan_id: plan.id,
-      payment_method_id: finalPaymentMethodId,
-    }));
+    const transactions = Array.from({ length: installments_count }, (_, i) => {
+      const ciclo = cicloInicial ? cicloNEsimo(ciclosDelPlan, cicloInicial, i) : undefined;
+      return {
+        user_id: user.id,
+        description: `${description} (${i + 1}/${installments_count})`,
+        amount: installmentAmount,
+        date: ciclo ? ciclo.due_date : formatLocalDate(addMonths(parseLocalDate(firstInstallmentDateStr), i)),
+        purchase_date: purchaseDateStr,
+        cycle_id: ciclo?.id ?? null,
+        type: 'expense' as const,
+        category_id,
+        installment_plan_id: plan.id,
+        payment_method_id: finalPaymentMethodId,
+      };
+    });
 
     const { error: txError } = await supabase
       .from('transactions')
