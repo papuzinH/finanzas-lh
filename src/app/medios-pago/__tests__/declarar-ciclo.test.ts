@@ -56,8 +56,8 @@ const guardarDeclaracionMock = vi.hoisted(() =>
     closingDate: string,
     dueDate: string,
     hoy: string,
-    _cycleId?: string | null,
-  ) => ({ id: 'nuevo', closing_date: closingDate, due_date: dueDate, hoy })),
+    cycleId?: string | null,
+  ) => ({ id: 'nuevo', closing_date: closingDate, due_date: dueDate, hoy, cycleId })),
 )
 vi.mock('@/lib/ciclos/declarar', () => ({ guardarDeclaracion: guardarDeclaracionMock }))
 
