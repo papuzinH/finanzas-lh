@@ -3,6 +3,9 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createPaymentMethodSchema, type CreatePaymentMethodSchema } from '@/lib/schemas/payment-method'
+import { declararCicloSchema, type DeclararCicloSchema } from '@/lib/schemas/ciclo'
+import { guardarDeclaracion } from '@/lib/ciclos/declarar'
+import { dateToLocalString } from '@/lib/utils/dates'
 
 type ActionResponse = {
   error?: string
@@ -217,4 +220,41 @@ export async function reassignAndDeletePaymentMethod(
     console.error('Unexpected error:', error)
     return { error: 'Ocurrió un error inesperado' }
   }
+}
+
+export async function declararCiclo(input: DeclararCicloSchema): Promise<ActionResponse> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const parsed = declararCicloSchema.safeParse(input)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Datos invalidos' }
+
+  // Dueno del id que llega del cliente (auditoria M4): RLS impide mutar filas ajenas, pero no
+  // impide que una fila propia apunte a una tarjeta de otro.
+  const { data: method } = await supabase
+    .from('payment_methods')
+    .select('*')
+    .eq('id', parsed.data.paymentMethodId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!method) return { error: 'Medio de pago invalido' }
+  if (method.type !== 'credit') return { error: 'Solo las tarjetas de credito tienen resumenes' }
+
+  try {
+    await guardarDeclaracion(
+      supabase,
+      method,
+      parsed.data.closingDate,
+      parsed.data.dueDate,
+      dateToLocalString(new Date()),
+    )
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'No pude guardar el resumen' }
+  }
+
+  revalidatePath('/ajustes/medios')
+  revalidatePath('/compromisos')
+  revalidatePath('/')
+  return { success: true }
 }
