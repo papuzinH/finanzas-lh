@@ -1339,9 +1339,11 @@ export function DetalleClient({ methodId }: { methodId: string }) {
   const irA = (cycleId: string) =>
     router.replace(`/ajustes/medios/${methodId}?resumen=${cycleId}`, { scroll: false });
 
-  const cicloActual = detalle?.actual
-    ? store.creditCardCycles.find((c) => c.id === detalle.actual?.id)
-    : undefined;
+  // El id va a una const antes del closure: TypeScript no propaga el narrowing de
+  // `detalle.actual` adentro del callback de .find(), y con el member expression
+  // directo pide un `!`.
+  const actualId = detalle?.actual?.id;
+  const cicloActual = store.creditCardCycles.find((c) => c.id === actualId);
 
   return (
     <main className="mx-auto max-w-[720px] px-5 py-6 pb-28 grid gap-5">
