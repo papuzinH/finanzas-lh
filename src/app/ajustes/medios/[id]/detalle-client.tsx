@@ -19,9 +19,15 @@ export function DetalleClient({ methodId }: { methodId: string }) {
   const store = useFinanceStore();
   const [editandoFechas, setEditandoFechas] = useState(false);
 
+  // Acciones y campos de estado sí se desestructuran (CLAUDE.md); lo que no se toca
+  // suelto son los getters de cálculo. store.fetchAllData hace un `set` sincrónico
+  // antes de fijar isInitialized: con `[store]` como dep, ese set cambia la
+  // referencia del store, el efecto se re-dispara, isInitialized sigue en false y
+  // dispara otro fetchAllData -- una cascada de invocaciones concurrentes.
+  const { isInitialized, fetchAllData } = store;
   useEffect(() => {
-    if (!store.isInitialized) store.fetchAllData();
-  }, [store]);
+    if (!isInitialized) fetchAllData();
+  }, [isInitialized, fetchAllData]);
 
   if (store.isLoading && !store.isInitialized) {
     return <FullPageLoader text="Cargando movimientos..." />;
@@ -45,8 +51,12 @@ export function DetalleClient({ methodId }: { methodId: string }) {
   const irA = (cycleId: string) =>
     router.replace(`/ajustes/medios/${methodId}?resumen=${cycleId}`, { scroll: false });
 
-  const cicloActual = detalle?.actual
-    ? store.creditCardCycles.find((c) => c.id === detalle.actual!.id)
+  // Se guarda el id en una variable propia: el narrowing de `detalle.actual` no
+  // sobrevive dentro del callback de `.find` (TS no lo garantiza a través de un
+  // cierre), así que se necesitaba el `!` o, mejor, este paso intermedio.
+  const actualId = detalle?.actual?.id;
+  const cicloActual = actualId
+    ? store.creditCardCycles.find((c) => c.id === actualId)
     : undefined;
 
   return (
