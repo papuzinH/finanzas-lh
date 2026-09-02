@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { PaymentMethod, RecurringPlan, Transaction } from '@/types/database'
 import { parseLocalDate } from '@/lib/utils/dates'
+import type { CreditCardCycle } from '../cycles'
 import {
   computeMissingAutomaticCharges,
   expectedChargeDate,
+  expectedChargeDatePorCiclo,
   isAutomaticPlan,
 } from '../recurring'
 
@@ -135,6 +137,56 @@ describe('expectedChargeDate', () => {
 
   it('billing_day nulo se lee como día 1', () => {
     expect(expectedChargeDate(plan({ billing_day: null }), visa, '2026-08')).toBe('2026-09-01')
+  })
+})
+
+describe('expectedChargeDatePorCiclo', () => {
+  it('la mensualidad cae en el resumen que le corresponde, con la fecha real del ciclo', () => {
+    const ciclos: CreditCardCycle[] = [
+      { id: 'ago', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'sep', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-09-24', due_date: '2026-10-05', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+    ]
+    // Netflix se cobra el 25: cae DESPUES del cierre del 20, o sea en el resumen siguiente.
+    const p = plan({ billing_day: 25 })
+    const r = expectedChargeDatePorCiclo(p, '2026-08', ciclos)
+    expect(r).toEqual({ cycleId: 'sep', date: '2026-10-05' })
+  })
+
+  it('sin ningun ciclo que contenga el dia de cobro devuelve undefined', () => {
+    expect(expectedChargeDatePorCiclo(plan({ billing_day: 1 }), '2026-08', [])).toBeUndefined()
+  })
+})
+
+describe('computeMissingAutomaticCharges: cycleId (Task 10)', () => {
+  const methods = [visa, master, debito]
+  const hoy = parseLocalDate('2026-08-21')
+
+  it('cuando hay ciclos que cubren el mes, cada faltante trae el cycleId del resumen', () => {
+    const ciclos: CreditCardCycle[] = [
+      { id: 'c-jun', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-06-20', due_date: '2026-07-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'c-jul', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-07-20', due_date: '2026-08-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'c-ago', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-08-20', due_date: '2026-09-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+    ]
+    const faltantes = computeMissingAutomaticCharges(
+      [plan({ billing_day: 1, created_at: '2026-06-01T00:00:00Z' })],
+      methods,
+      [],
+      '2026-06',
+      hoy,
+      ciclos,
+    )
+    expect(faltantes.map((f) => f.cycleId)).toEqual(['c-jun', 'c-jul', 'c-ago'])
+  })
+
+  it('sin ciclos para la tarjeta, cae al fallback con cycleId null', () => {
+    const faltantes = computeMissingAutomaticCharges(
+      [plan({ billing_day: 1, created_at: '2026-08-01T00:00:00Z' })],
+      methods,
+      [],
+      '2026-08',
+      hoy,
+    )
+    expect(faltantes.map((f) => f.cycleId)).toEqual([null])
   })
 })
 

@@ -68,8 +68,7 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
       try {
         const res = await undoCreditCardPayment({
           cardMethodId: card.methodId,
-          year: card.nextPaymentDate.getFullYear(),
-          month: card.nextPaymentDate.getMonth(),
+          cycleId: card.cycleId,
         });
         if (res.error) {
           toast.error(res.error);
@@ -139,6 +138,7 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
         amountArs: card.total,
         date: format(card.nextPaymentDate, 'yyyy-MM-dd'),
         cardName: card.name,
+        cycleId: card.cycleId,
       });
       if (res.error) {
         toast.error(res.error);

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   ciclosDeMetodo, generarCiclos, cicloDeCompra, cicloVigente, cicloAnterior, cicloNEsimo,
+  cicloSaldadoEn,
   type CreditCardCycle,
 } from '../cycles'
 import type { PaymentMethod } from '@/types/database'
@@ -124,6 +125,23 @@ describe('generarCiclos', () => {
     const sinCiclo = visa({ default_closing_day: null })
     expect(generarCiclos(sinCiclo, new Date(2026, 6, 1), new Date(2026, 8, 1), [])).toEqual([])
     expect(generarCiclos(visa({ type: 'debit' }), new Date(2026, 6, 1), new Date(2026, 8, 1), [])).toEqual([])
+  })
+})
+
+describe('cicloSaldadoEn', () => {
+  // Cierres reales: 07-23 / 08-20 / 09-24 (TRES). El ruling del controller:
+  // "el ULTIMO ciclo (por closing_date) con closing_date <= fechaPago".
+  it('pago 2026-09-03: cerro ago (08-20) pero sep (09-24) todavia no -> salda ago', () => {
+    expect(cicloSaldadoEn(TRES, '2026-09-03')?.id).toBe('ago')
+  })
+
+  it('pago 2026-08-15: solo cerro jul (07-23) -> salda jul', () => {
+    expect(cicloSaldadoEn(TRES, '2026-08-15')?.id).toBe('jul')
+  })
+
+  it('sin ciclos, o pago anterior a todos los cierres: no hay resumen que saldar', () => {
+    expect(cicloSaldadoEn([], '2026-09-03')).toBeUndefined()
+    expect(cicloSaldadoEn(TRES, '2026-07-01')).toBeUndefined()
   })
 })
 

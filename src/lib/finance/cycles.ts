@@ -84,6 +84,27 @@ export function cicloNEsimo(
 }
 
 /**
+ * El resumen que un pago hecho en `fechaPago` salda: el ULTIMO ciclo (por
+ * closing_date) con cierre en o antes de esa fecha -- el mas recientemente
+ * cerrado a la fecha en que se pago.
+ *
+ * Lo usa el dialogo de "Registrar pago" (pagos sueltos que no vienen de un
+ * summary, el usuario elige tarjeta/medio/monto/fecha a mano): acierta en pago
+ * puntual, adelantado o con algunos dias de atraso; solo falla si el pago
+ * llega despues del cierre SIGUIENTE al que salda -- caso que la logica vieja
+ * por rango de mes tampoco resolvia. Elegir el resumen a mano queda para mas
+ * adelante.
+ *
+ * Precondicion: `ciclos` debe llegar ya filtrado por tarjeta y ordenado ascendente
+ * por `closing_date`, como lo produce `ciclosDeMetodo`. Quien llame es responsable
+ * del orden.
+ */
+export function cicloSaldadoEn(ciclos: CreditCardCycle[], fechaPago: string): CreditCardCycle | undefined {
+  const cerrados = ciclos.filter((c) => c.closing_date <= fechaPago)
+  return cerrados[cerrados.length - 1]
+}
+
+/**
  * Pare los ciclos que faltan entre `desde` y `hasta` (ambos inclusive, por mes)
  * a partir de los defaults de la tarjeta.
  *
