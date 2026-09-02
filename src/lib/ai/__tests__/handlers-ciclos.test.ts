@@ -181,6 +181,39 @@ describe('handleTransaction - persiste cycle_id/purchase_date del ciclo (Task 8,
     expect(methodArg).toMatchObject({ id: 'pm-1', default_closing_day: 27, default_payment_day: 4 })
   })
 
+  it('un reintegro (income) con tarjeta tambien se imputa al resumen, con purchase_date null', async () => {
+    // `refundsInCycle` (balances.ts) descuenta del resumen por cycle_id: un income
+    // sin ciclo deja de restar y el "a pagar" queda inflado. Hay uno real en produccion.
+    const methodChain = createChain({ data: VISA_ROW })
+    const categoryChain = createChain({ data: { type: 'income' } })
+    const insertChain = createChain({ error: null })
+
+    const supabase = createSupabaseMock([methodChain, categoryChain, insertChain])
+    mockedCreateClient.mockResolvedValue(supabase as never)
+
+    const result = await handleTransaction(
+      {
+        description: 'Reintegro Visa',
+        amount: 3000,
+        type: 'income',
+        categoryId: 'cat-2',
+        categoryName: 'Reintegros',
+        paymentMethodName: 'Visa',
+        date: '2026-08-05', // entre el cierre de jul (23) y el de ago (20) → cyc-aug
+        isReal: true,
+      },
+      'u1'
+    )
+
+    expect(result.success).toBe(true)
+
+    const payload = insertPayload(insertChain) as Record<string, unknown>
+    expect(payload.cycle_id).toBe('cyc-aug')
+    expect(payload.purchase_date).toBeNull()
+    expect(payload.date).toBe('2026-09-01') // due_date de cyc-aug
+    expect(payload.date).not.toBe(calculateCreditPaymentDate('2026-08-05', 27, 4))
+  })
+
   it('sin ciclo materializado en el rango, cae al fallback calculateCreditPaymentDate y no persiste cycle_id', async () => {
     mockedAsegurarCiclos.mockResolvedValue([]) // ningún ciclo cubre la compra
 

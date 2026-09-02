@@ -113,6 +113,21 @@ describe('createTransaction: camino credito', () => {
     expect(row.date).not.toBe(calculateCreditPaymentDate('2026-08-10', 27, 4))
   })
 
+  it('un reintegro (income) en la tarjeta tambien va al resumen, con purchase_date null', async () => {
+    // `refundsInCycle` (balances.ts) descuenta del resumen por cycle_id: un income
+    // sin ciclo deja de restar y el "a pagar" queda inflado. purchase_date es SOLO
+    // de compras, asi que en un ingreso va null.
+    estado.cliente = clienteFalso()
+
+    const r = await createTransaction({ ...base, type: 'income', date: '2026-08-10', payment_method_id: MASTER })
+
+    expect(r.error).toBeUndefined()
+    const row = filaEscrita('insert')
+    expect(row.cycle_id).toBe('c-ago')
+    expect(row.purchase_date).toBeNull()
+    expect(row.date).toBe('2026-09-07')
+  })
+
   it('(b) sin resumen materializado que la contenga, cae al fallback por defaults y cycle_id null', async () => {
     asegurarCiclosMock.mockResolvedValue([])
     estado.cliente = clienteFalso()
@@ -161,6 +176,20 @@ describe('updateTransaction: camino credito', () => {
     expect(row.purchase_date).toBe('2026-08-10')
     expect(row.date).toBe('2026-09-07')
     expect(row.date).not.toBe(calculateCreditPaymentDate('2026-08-10', 27, 4))
+  })
+
+  it('cambiar un reintegro de debito a tarjeta tambien lo imputa al resumen, con purchase_date null', async () => {
+    estado.cliente = clienteFalso(DEBITO)
+
+    const r = await updateTransaction('tx-1', {
+      ...base, type: 'income', date: '2026-08-10', payment_method_id: MASTER,
+    })
+
+    expect(r.error).toBeUndefined()
+    const row = filaEscrita('update')
+    expect(row.cycle_id).toBe('c-ago')
+    expect(row.purchase_date).toBeNull()
+    expect(row.date).toBe('2026-09-07')
   })
 
   it('(e) cambiar de tarjeta a debito deja cycle_id null y la fecha tal cual', async () => {

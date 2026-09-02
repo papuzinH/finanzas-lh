@@ -60,7 +60,11 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
 
       if (!method) return { error: 'Medio de pago inválido' };
 
-      if (type === 'expense' && method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
+      // El ciclo se resuelve para CUALQUIER tipo, no sólo 'expense': un reintegro
+      // (income) en la tarjeta lo descuenta `refundsInCycle` (balances.ts) por
+      // cycle_id, así que sin ciclo dejaba de restar del resumen y el "a pagar"
+      // quedaba inflado. `purchase_date` sí sigue siendo sólo de compras.
+      if (method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
         // Se materializan los resúmenes alrededor de la compra: uno hacia atrás
         // (una compra vieja puede caer en un ciclo que todavía no existe) y dos
         // hacia adelante (margen para que cicloDeCompra encuentre destino).
@@ -187,7 +191,9 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
 
       if (!method) return { error: 'Medio de pago inválido' };
 
-      if (type === 'expense' && method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
+      // Igual que en el alta: cualquier tipo, no sólo 'expense' (los reintegros
+      // también se imputan al resumen).
+      if (method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
         const ciclos = await asegurarCiclos(
           supabase,
           method,

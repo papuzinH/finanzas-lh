@@ -189,15 +189,18 @@ export async function handleTransaction(data: TransactionData, userId: string): 
       !data.paymentMethodName
     )
 
-    // Gasto con tarjeta de crédito y ciclo configurado: resolver a qué resumen
-    // pertenece la compra (mismo camino que createTransaction, Task 8) para que
-    // el chat nunca pueda cargarla en un resumen distinto al que le asignaría la
-    // pantalla. Los ciclos se materializan alrededor de la compra: uno hacia atrás
-    // y dos hacia adelante, igual que la server action.
+    // Movimiento con tarjeta de crédito y ciclo configurado: resolver a qué resumen
+    // pertenece (mismo camino que createTransaction, Task 8) para que el chat nunca
+    // pueda cargarlo en un resumen distinto al que le asignaría la pantalla. Los
+    // ciclos se materializan alrededor de la fecha: uno hacia atrás y dos hacia
+    // adelante, igual que la server action.
+    //
+    // Cualquier tipo, no sólo 'expense': un reintegro (income) en la tarjeta lo
+    // descuenta `refundsInCycle` (balances.ts) por cycle_id, así que sin ciclo
+    // dejaba de restar del resumen. `purchase_date` sí sigue siendo sólo de compras.
     let cycleId: string | null = null
     let cycle: CreditCardCycle | undefined
     if (
-      data.type === 'expense' &&
       paymentMethod?.type === 'credit' &&
       paymentMethod.closingDay !== null &&
       paymentMethod.paymentDay !== null
