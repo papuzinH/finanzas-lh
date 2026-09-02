@@ -4,7 +4,7 @@ const FECHA = /^\d{4}-\d{2}-\d{2}$/
 
 export const declararCicloSchema = z
   .object({
-    paymentMethodId: z.string().uuid(),
+    paymentMethodId: z.string().uuid('ID de medio de pago invalido'),
     // Strings `yyyy-MM-dd` a proposito: nunca Date. Un round trip por Date corre un dia
     // atras en runtimes con zona horaria negativa.
     closingDate: z.string().regex(FECHA, 'Fecha de cierre invalida'),

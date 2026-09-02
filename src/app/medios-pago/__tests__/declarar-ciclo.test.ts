@@ -11,8 +11,16 @@ const UID = '11111111-1111-4111-8111-111111111111'
 const PROPIO = 'aaaaaaaa-0000-4000-8000-000000000001'
 const AJENO = 'bbbbbbbb-9999-4999-8999-999999999999'
 
-/** RLS simulada: `payment_methods` sólo devuelve la fila si es del usuario. */
+/**
+ * RLS simulada: `payment_methods` sólo devuelve la fila si es del usuario.
+ *
+ * `llamadas` registra los filtros de cada `.select().maybeSingle()`: con AJENO ausente del
+ * mapa, la consulta da `null` la filtre o no por `user_id` -- así que el caso de "tarjeta
+ * ajena" no alcanza con mirar el resultado, hay que inspeccionar que el filtro se haya usado
+ * de verdad (mismo patrón que `reassign-dueno.test.ts`).
+ */
 function clienteFalso() {
+  const llamadas: Array<{ filtros: Record<string, unknown> }> = []
   const MEDIOS_DEL_USUARIO = new Map([[PROPIO, { id: PROPIO, user_id: UID, type: 'credit' }]])
 
   const builder = () => {
@@ -20,6 +28,7 @@ function clienteFalso() {
     const b: Record<string, unknown> = {}
     b.eq = (col: string, val: unknown) => { filtros[col] = val; return b }
     b.maybeSingle = async () => {
+      llamadas.push({ filtros })
       const id = filtros.id as string | undefined
       const visible = filtros.user_id === undefined || filtros.user_id === UID
       const fila = id && visible ? MEDIOS_DEL_USUARIO.get(id) : undefined
@@ -29,6 +38,7 @@ function clienteFalso() {
   }
 
   return {
+    llamadas,
     auth: { getUser: async () => ({ data: { user: { id: UID } }, error: null }) },
     from: () => ({ select: () => builder() }),
   }
@@ -64,6 +74,11 @@ describe('declararCiclo', () => {
 
     expect(r).toEqual({ error: 'Medio de pago invalido' })
     expect(guardarDeclaracionMock).not.toHaveBeenCalled()
+    // No alcanza con que el resultado de local sea null: hay que probar que la consulta
+    // realmente filtro por user_id (Fix 3, round 1) -- si no, este test pasaria igual con
+    // el .eq('user_id', ...) borrado del codigo.
+    const consulta = estado.cliente!.llamadas.find((l) => l.filtros.id === AJENO)
+    expect(consulta?.filtros.user_id).toBe(UID)
   })
 
   it('rechaza un vencimiento anterior al cierre', async () => {
