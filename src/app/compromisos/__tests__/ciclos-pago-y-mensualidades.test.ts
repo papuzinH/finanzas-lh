@@ -7,6 +7,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
 import type { CreditCardCycle } from '@/lib/finance/cycles'
+import { expectedChargeDate } from '@/lib/finance/recurring'
+import type { RecurringPlan, PaymentMethod } from '@/types/database'
 
 const UID = '11111111-1111-4111-8111-111111111111'
 const CARD = 'aaaaaaaa-0000-4000-8000-000000000001'
@@ -14,11 +16,15 @@ const FUNDING = 'bbbbbbbb-0000-4000-8000-000000000002'
 const CYCLE_A = 'cccccccc-0000-4000-8000-000000000003'
 const CYCLE_B = 'dddddddd-0000-4000-8000-000000000004'
 
-// Los ciclos que `asegurarCiclos` devuelve para syncAutomaticRecurringCharges,
-// desparejos a propósito (id 'c-jul'/'c-ago', no un mes calendario limpio).
+// Los ciclos que `asegurarCiclos` devuelve para syncAutomaticRecurringCharges.
+// Cierres/vencimientos desparejos A PROPOSITO: NINGUNO coincide con lo que dan
+// los defaults de `method` (cierra el 20, vence el 1 del mes siguiente — ver
+// más abajo). Con fechas iguales a los defaults, una regresión que volviera a
+// calcular la fecha con `expectedChargeDate` (el fallback) en vez de leerla del
+// ciclo real habría dejado la suite entera en verde igual.
 const CICLOS_TARJETA: CreditCardCycle[] = [
-  { id: 'c-jul', user_id: UID, payment_method_id: CARD, closing_date: '2026-07-20', due_date: '2026-08-01', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'c-ago', user_id: UID, payment_method_id: CARD, closing_date: '2026-08-20', due_date: '2026-09-01', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-jul', user_id: UID, payment_method_id: CARD, closing_date: '2026-07-23', due_date: '2026-08-03', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-ago', user_id: UID, payment_method_id: CARD, closing_date: '2026-08-20', due_date: '2026-09-04', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
 ]
 
 type AsegurarCiclos = (supabase: unknown, method: unknown, desde: Date, hasta: Date) => Promise<CreditCardCycle[]>
@@ -254,9 +260,16 @@ describe('syncAutomaticRecurringCharges: las mensualidades se postean con cycle_
     expect(asegurarCiclosMock).toHaveBeenCalledTimes(1) // una tarjeta, un asegurarCiclos
 
     const filas = estado.cliente!.insertedTransactions
-    expect(filas.map((f) => f.date)).toEqual(['2026-08-01', '2026-09-01'])
+    // Fechas de CICLOS_TARJETA (due_date de c-jul/c-ago), no las que darían los
+    // defaults de `method` (cierra 20, vence 1 → '2026-08-01'/'2026-09-01').
+    expect(filas.map((f) => f.date)).toEqual(['2026-08-03', '2026-09-04'])
     expect(filas.map((f) => f.cycle_id)).toEqual(['c-jul', 'c-ago'])
     expect(filas.map((f) => f.purchase_date)).toEqual(['2026-07-01', '2026-08-01'])
+
+    // Provenance explícita: si la fecha viniera del fallback por defaults en vez
+    // del ciclo real, coincidiría con esto — y no coincide.
+    expect(filas[0].date).not.toBe(expectedChargeDate(plan as unknown as RecurringPlan, method as unknown as PaymentMethod, '2026-07'))
+    expect(filas[1].date).not.toBe(expectedChargeDate(plan as unknown as RecurringPlan, method as unknown as PaymentMethod, '2026-08'))
   })
 
   it('no duplica un mes que ya tiene su transacción posteada', async () => {

@@ -161,11 +161,18 @@ describe('computeMissingAutomaticCharges: cycleId (Task 10)', () => {
   const methods = [visa, master, debito]
   const hoy = parseLocalDate('2026-08-21')
 
-  it('cuando hay ciclos que cubren el mes, cada faltante trae el cycleId del resumen', () => {
+  it('cuando hay ciclos que cubren el mes, cada faltante trae el cycleId Y la fecha real del resumen', () => {
+    // Cierres/vencimientos desparejos A PROPOSITO (ver el comentario de TRES en
+    // cycles.test.ts): NINGUNO coincide con el corrimiento que dan los defaults
+    // de `visa` (cierra 20, vence el 1 del mes siguiente). Si `computeMissingAutomaticCharges`
+    // se rompiera y volviera a usar `expectedChargeDate` (el fallback) en vez de
+    // `porCiclo.date`, las fechas de abajo NO coincidirían con estos ciclos y el
+    // test lo detectaría — con fechas iguales a los defaults, esta mutación
+    // hubiera quedado invisible.
     const ciclos: CreditCardCycle[] = [
-      { id: 'c-jun', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-06-20', due_date: '2026-07-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
-      { id: 'c-jul', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-07-20', due_date: '2026-08-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
-      { id: 'c-ago', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-08-20', due_date: '2026-09-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'c-jun', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-06-19', due_date: '2026-07-02', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'c-jul', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-07-23', due_date: '2026-08-03', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'c-ago', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-08-20', due_date: '2026-09-04', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
     ]
     const faltantes = computeMissingAutomaticCharges(
       [plan({ billing_day: 1, created_at: '2026-06-01T00:00:00Z' })],
@@ -176,6 +183,12 @@ describe('computeMissingAutomaticCharges: cycleId (Task 10)', () => {
       ciclos,
     )
     expect(faltantes.map((f) => f.cycleId)).toEqual(['c-jun', 'c-jul', 'c-ago'])
+    expect(faltantes.map((f) => f.date)).toEqual(['2026-07-02', '2026-08-03', '2026-09-04'])
+    // Provenance explícita: si esto viniera del fallback por defaults (cierra
+    // 20, vence el 1), darían '2026-07-01' / '2026-08-01' / '2026-09-01' — otra fecha.
+    expect(faltantes.map((f) => f.date)).not.toEqual(
+      faltantes.map((f) => expectedChargeDate(plan({ billing_day: 1 }), visa, f.month)),
+    )
   })
 
   it('sin ciclos para la tarjeta, cae al fallback con cycleId null', () => {
