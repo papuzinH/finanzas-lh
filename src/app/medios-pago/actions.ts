@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createPaymentMethodSchema, type CreatePaymentMethodSchema } from '@/lib/schemas/payment-method'
 import { declararCicloSchema, type DeclararCicloSchema } from '@/lib/schemas/ciclo'
-import { guardarDeclaracion } from '@/lib/ciclos/declarar'
+import { guardarDeclaracion, realinearFuturos } from '@/lib/ciclos/declarar'
 import { dateToLocalString } from '@/lib/utils/dates'
 
 type ActionResponse = {
@@ -67,6 +67,15 @@ export async function updatePaymentMethod(id: string, data: CreatePaymentMethodS
 
     const isDefault = validated.data.is_default ?? false
 
+    // Tarjeta como estaba guardada, para comparar los dias despues del update
+    // y decidir si hay que re-fechar los resumenes futuros.
+    const { data: previo } = await supabase
+      .from('payment_methods')
+      .select('type, default_closing_day, default_payment_day')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
     // Invariante: un solo predeterminado por usuario. Si este pasa a ser el
     // default, primero se resetean todos (incluido este) y luego se marca.
     if (isDefault) {
@@ -92,6 +101,30 @@ export async function updatePaymentMethod(id: string, data: CreatePaymentMethodS
     if (error) {
       console.error('Error updating payment method:', error)
       return { error: 'Error al actualizar el medio de pago' }
+    }
+
+    const diasCambiaron =
+      previo?.default_closing_day !== (validated.data.default_closing_day ?? null) ||
+      previo?.default_payment_day !== (validated.data.default_payment_day ?? null)
+
+    if (validated.data.type === 'credit' && diasCambiaron) {
+      // Los resumenes que todavia no cerraron toman los dias nuevos. Los que ya
+      // cerraron no: sus compras ya estan imputadas. Los declarados tampoco: son
+      // dato que el usuario leyo del resumen real. Si esto falla, la tarjeta ya
+      // se guardo: dejar los resumenes desalineados es el estado de hoy y se
+      // corrige en el proximo intento -- devolver error diria "no se guardo" y
+      // no seria cierto.
+      try {
+        const { data: method } = await supabase
+          .from('payment_methods')
+          .select('*')
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .maybeSingle()
+        if (method) await realinearFuturos(supabase, method, dateToLocalString(new Date()))
+      } catch (e) {
+        console.error('Error re-fechando resumenes futuros:', e)
+      }
     }
 
     revalidatePath('/ajustes/medios')
