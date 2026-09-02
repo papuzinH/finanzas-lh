@@ -4,6 +4,7 @@ import { parseLocalDate } from '@/lib/utils/dates'
 import type { CreditCardCycle } from '../cycles'
 import {
   computeMissingAutomaticCharges,
+  etiquetaDeCobro,
   expectedChargeDate,
   expectedChargeDatePorCiclo,
   isAutomaticPlan,
@@ -350,3 +351,20 @@ describe('computeMissingAutomaticCharges', () => {
     expect(faltantes.map((f) => f.planId)).toEqual(['p-b'])
   })
 })
+
+describe('etiquetaDeCobro', () => {
+  const plan = { id: 'p1', payment_method_id: 'pm', frequency: 'monthly', billing_day: 10, is_active: true } as unknown as RecurringPlan;
+  const metodo = { id: 'pm', type: 'credit', name: 'Visa', default_closing_day: 24, default_payment_day: 6 } as unknown as PaymentMethod;
+
+  it('usa el vencimiento del resumen cuando existe', () => {
+    // Resumen declarado de septiembre: cierra el 24, vence el 2 de octubre.
+    const ciclos = [
+      { id: 'sep', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-09-24', due_date: '2026-10-02', source: 'declared' as const, created_at: 'x', reminder_dismissed_at: null },
+    ];
+    expect(etiquetaDeCobro(plan, metodo, '2026-09', ciclos)).toBe('Visa · vence 2/10');
+  });
+
+  it('cae a los defaults de la tarjeta cuando no hay resumen', () => {
+    expect(etiquetaDeCobro(plan, metodo, '2026-09', [])).toBe('Visa · vence 6/10');
+  });
+});

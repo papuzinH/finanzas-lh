@@ -66,6 +66,25 @@ export function expectedChargeDatePorCiclo(
 }
 
 /**
+ * El texto "Visa - vence 2/10" de una mensualidad automatica.
+ *
+ * El resumen manda y los defaults son respaldo: mismo orden de precedencia que
+ * computeMissingAutomaticCharges. Antes salia siempre de los defaults, asi que con un resumen
+ * declarado la etiqueta y el movimiento posteado decian fechas distintas.
+ */
+export function etiquetaDeCobro(
+  plan: RecurringPlan,
+  method: PaymentMethod,
+  month: string,
+  ciclos: CreditCardCycle[],
+): string {
+  const porCiclo = expectedChargeDatePorCiclo(plan, month, ciclosDeMetodo(method.id, ciclos))
+  const fecha = porCiclo?.date ?? expectedChargeDate(plan, method, month)
+  const [, mes, dia] = fecha.split('-')
+  return `${method.name} · vence ${Number(dia)}/${Number(mes)}`
+}
+
+/**
  * Qué meses de consumo le faltan a cada plan automático.
  *
  * Cobertura: dos claves, evaluadas con OR (nunca either/or por si el `cycleId`
