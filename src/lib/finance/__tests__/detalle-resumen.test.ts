@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { listarResumenesDeTarjeta, filasDeResumen } from '../detalle-resumen'
+import { listarResumenesDeTarjeta, filasDeResumen, mensualidadesPorDebitar } from '../detalle-resumen'
 import type { CreditCardCycle } from '../cycles'
 import type { ProcessedTransaction } from '../types'
-import type { PaymentMethod } from '@/types/database'
+import type { PaymentMethod, RecurringPlan } from '@/types/database'
 
 // Ciclos REALES de la Visa Galicia (resumen del 1-sep-2026). Desparejos a proposito:
 // los tres cierres son los tres jueves y el dia calendario se corre hasta 4 dias.
@@ -98,7 +98,7 @@ describe('filasDeResumen', () => {
   it('la pertenencia sale de cycle_id, nunca del mes de t.date', () => {
     const dentro = tx({ id: 'a', cycle_id: 'ago', date: '2026-12-31' })
     const fuera = tx({ id: 'b', cycle_id: 'sep', date: '2026-09-01' })
-    const r = filasDeResumen('ago', [dentro, fuera])
+    const r = filasDeResumen('ago', [dentro, fuera], visa, [])
     expect(r.conFecha.map((t) => t.id)).toEqual(['a'])
   })
 
@@ -108,7 +108,7 @@ describe('filasDeResumen', () => {
       tx({ id: 'a', purchase_date: '2026-07-24' }),
       tx({ id: 'b', purchase_date: '2026-08-05' }),
     ]
-    expect(filasDeResumen('ago', filas).conFecha.map((t) => t.id)).toEqual(['a', 'b', 'c'])
+    expect(filasDeResumen('ago', filas, visa, []).conFecha.map((t) => t.id)).toEqual(['a', 'b', 'c'])
   })
 
   it('desempata por created_at para que el orden sea determinista', () => {
@@ -116,7 +116,7 @@ describe('filasDeResumen', () => {
       tx({ id: 'segunda', purchase_date: '2026-08-05', created_at: '2026-08-05T18:00:00Z' }),
       tx({ id: 'primera', purchase_date: '2026-08-05', created_at: '2026-08-05T09:00:00Z' }),
     ]
-    expect(filasDeResumen('ago', filas).conFecha.map((t) => t.id)).toEqual(['primera', 'segunda'])
+    expect(filasDeResumen('ago', filas, visa, []).conFecha.map((t) => t.id)).toEqual(['primera', 'segunda'])
   })
 
   it('las que no tienen fecha de compra van aparte, no mezcladas', () => {
@@ -124,7 +124,7 @@ describe('filasDeResumen', () => {
       tx({ id: 'vieja', purchase_date: null }),
       tx({ id: 'nueva', purchase_date: '2026-08-05' }),
     ]
-    const r = filasDeResumen('ago', filas)
+    const r = filasDeResumen('ago', filas, visa, [])
     expect(r.conFecha.map((t) => t.id)).toEqual(['nueva'])
     expect(r.sinFecha.map((t) => t.id)).toEqual(['vieja'])
   })
@@ -133,12 +133,49 @@ describe('filasDeResumen', () => {
     // card_payment_for sale del medio que financia, no es consumo de la tarjeta.
     const pago = tx({ id: 'pago', card_payment_for: 'visa', purchase_date: null })
     const compra = tx({ id: 'compra' })
-    const r = filasDeResumen('ago', [pago, compra])
+    const r = filasDeResumen('ago', [pago, compra], visa, [])
     expect(r.conFecha.map((t) => t.id)).toEqual(['compra'])
     expect(r.sinFecha).toEqual([])
   })
 
   it('un resumen sin movimientos devuelve los dos grupos vacios', () => {
-    expect(filasDeResumen('sep', [])).toEqual({ conFecha: [], sinFecha: [] })
+    expect(filasDeResumen('sep', [], visa, [])).toEqual({ conFecha: [], sinFecha: [], porDebitar: [] })
+  })
+})
+
+describe('mensualidadesPorDebitar', () => {
+  // La MISMA regla con la que computePaymentMethodStatus inyecta las mensualidades en
+  // el total del ciclo. Si se separan, la cabecera y las filas dicen numeros distintos.
+  const plan = (over: Partial<RecurringPlan>): RecurringPlan => ({
+    id: 'p1', user_id: 'u1', payment_method_id: 'visa', description: 'Netflix',
+    amount: 15000, category_id: 'cat1', created_at: '2026-08-01T00:00:00Z',
+    is_active: true, billing_day: 5, currency: 'ARS', exchange_rate: null,
+    frequency: 'monthly', original_amount: null, rate_pair: null,
+    ...over,
+  } as RecurringPlan)
+
+  it('un plan activo sin transaccion en el ciclo queda por debitar', () => {
+    expect(mensualidadesPorDebitar(visa, 'ago', [], [plan({})]).map((p) => p.id)).toEqual(['p1'])
+  })
+
+  it('un plan que YA tiene su transaccion en el ciclo no se duplica', () => {
+    const debitada = tx({ id: 'd', cycle_id: 'ago', recurring_plan_id: 'p1' })
+    expect(mensualidadesPorDebitar(visa, 'ago', [debitada], [plan({})])).toEqual([])
+  })
+
+  it('la transaccion de OTRO ciclo no lo saca de este', () => {
+    const enJulio = tx({ id: 'd', cycle_id: 'jul', recurring_plan_id: 'p1' })
+    expect(mensualidadesPorDebitar(visa, 'ago', [enJulio], [plan({})]).map((p) => p.id)).toEqual(['p1'])
+  })
+
+  it('ignora los planes inactivos y los de otro medio', () => {
+    const otros = [plan({ id: 'off', is_active: false }), plan({ id: 'ajeno', payment_method_id: 'master' })]
+    expect(mensualidadesPorDebitar(visa, 'ago', [], otros)).toEqual([])
+  })
+
+  it('filasDeResumen las devuelve junto con los movimientos', () => {
+    const r = filasDeResumen('ago', [tx({ id: 'compra' })], visa, [plan({})])
+    expect(r.conFecha.map((t) => t.id)).toEqual(['compra'])
+    expect(r.porDebitar.map((p) => p.id)).toEqual(['p1'])
   })
 })

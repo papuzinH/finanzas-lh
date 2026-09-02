@@ -10,7 +10,7 @@ import { formatLocalDate } from '@/lib/utils/dates'
 import { ciclosDeMetodo, type CreditCardCycle } from './cycles'
 import { hasCardPaymentInCycle } from './balances'
 import type { ProcessedTransaction } from './types'
-import type { PaymentMethod } from '@/types/database'
+import type { PaymentMethod, RecurringPlan } from '@/types/database'
 
 export type EstadoDeResumen = 'proyectado' | 'pendiente' | 'vencido' | 'pagado'
 
@@ -27,6 +27,12 @@ export type FilasDeResumen = {
   conFecha: ProcessedTransaction[]
   /** Anteriores a que la app guardara la fecha de compra. No se pueden intercalar. */
   sinFecha: ProcessedTransaction[]
+  /**
+   * Mensualidades que el TOTAL del resumen ya cuenta y que todavia no tienen
+   * transaccion propia en ese ciclo. No son movimientos: son lo que falta debitar.
+   * Sin ellas la cabecera decia $16.000 y las filas sumaban $1.000.
+   */
+  porDebitar: RecurringPlan[]
 }
 
 /**
@@ -65,9 +71,39 @@ export function listarResumenesDeTarjeta(
   }))
 }
 
+/**
+ * Las mensualidades que `computePaymentMethodStatus` INYECTA en el total de un ciclo:
+ * las activas del medio que no tienen transaccion propia en ese ciclo. La regla se
+ * copia tal cual de balances.ts (el bloque "Mensualidades adheridas al medio que
+ * todavia no tienen transaccion en el ciclo") -- si las dos se separan, la cabecera
+ * y las filas vuelven a decir numeros distintos.
+ *
+ * El fix va de este lado, el del consumidor nuevo: computePaymentMethodStatus alimenta
+ * el disponible del home y Compromisos para todos los usuarios, y tocarla moveria
+ * numeros de gente real.
+ */
+export function mensualidadesPorDebitar(
+  method: PaymentMethod,
+  cycleId: string,
+  transactions: ProcessedTransaction[],
+  recurringPlans: RecurringPlan[],
+): RecurringPlan[] {
+  const conFilaEnElCiclo = new Set<string>()
+  for (const t of transactions) {
+    if (t.payment_method_id !== method.id || t.type !== 'expense') continue
+    if (t.cycle_id !== cycleId) continue
+    if (t.recurring_plan_id) conFilaEnElCiclo.add(t.recurring_plan_id)
+  }
+  return recurringPlans.filter(
+    (p) => p.payment_method_id === method.id && p.is_active && !conFilaEnElCiclo.has(p.id),
+  )
+}
+
 export function filasDeResumen(
   cycleId: string,
   transactions: ProcessedTransaction[],
+  method: PaymentMethod,
+  recurringPlans: RecurringPlan[],
 ): FilasDeResumen {
   // El pago del resumen sale del medio que lo financia: no es consumo de la tarjeta
   // y no va en la lista que se cotea contra el papel.
@@ -82,5 +118,9 @@ export function filasDeResumen(
 
   const sinFecha = delCiclo.filter((t) => !t.purchase_date)
 
-  return { conFecha, sinFecha }
+  return {
+    conFecha,
+    sinFecha,
+    porDebitar: mensualidadesPorDebitar(method, cycleId, transactions, recurringPlans),
+  }
 }

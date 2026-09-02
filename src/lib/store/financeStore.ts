@@ -991,7 +991,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const now = new Date();
     const resumenes = listarResumenesDeTarjeta(method, creditCardCycles, transactions, now);
     if (resumenes.length === 0) {
-      return { resumenes, actual: null, deuda: 0, totalARS: 0, totalUSD: 0, filas: { conFecha: [], sinFecha: [] } };
+      return {
+        resumenes, actual: null, deuda: 0, totalARS: 0, totalUSD: 0,
+        filas: { conFecha: [], sinFecha: [], porDebitar: [] },
+      };
     }
 
     // Un cycleId ajeno o inexistente cae al vigente en vez de romper la pantalla;
@@ -1014,7 +1017,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       deuda: -status.projectedTotal,
       totalARS: status.arsExpenses,
       totalUSD: status.usdExpenses,
-      filas: filasDeResumen(elegido.id, transactions),
+      // `filas` incluye las mensualidades que el total ya cuenta y que todavia no
+      // tienen transaccion en el ciclo: el total de la cabecera tiene que ser
+      // explicable por lo que se ve abajo.
+      filas: filasDeResumen(elegido.id, transactions, method, recurringPlans),
     };
   },
 

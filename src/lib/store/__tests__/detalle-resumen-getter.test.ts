@@ -31,14 +31,35 @@ const compra = (over: Record<string, unknown>) => ({
   ...over,
 })
 
-function sembrar(transactions: unknown[]) {
+const plan = (over: Record<string, unknown> = {}) => ({
+  id: 'p1', user_id: 'u1', payment_method_id: 'visa', description: 'Netflix',
+  amount: 15000, category_id: 'cat1', created_at: '2026-08-01T00:00:00Z',
+  is_active: true, billing_day: 5, currency: 'ARS', exchange_rate: null,
+  frequency: 'monthly', original_amount: null, rate_pair: null,
+  ...over,
+})
+
+function sembrar(transactions: unknown[], recurringPlans: unknown[] = []) {
   useFinanceStore.setState({
     paymentMethods: [visa],
     creditCardCycles: [JULIO, AGOSTO, SEPTIEMBRE],
-    recurringPlans: [],
+    recurringPlans,
     transactions,
     isInitialized: true,
   } as never)
+}
+
+/**
+ * Lo que la pantalla DIBUJA, sumado: gastos con y sin fecha, menos los reintegros,
+ * mas las mensualidades que todavia no se debitaron. Tiene que dar el mismo numero
+ * que la cabecera.
+ */
+function sumaDeLoVisible(d: NonNullable<ReturnType<ReturnType<typeof useFinanceStore.getState>['getCardCycleDetail']>>) {
+  const movimientos = [...d.filas.conFecha, ...d.filas.sinFecha].reduce(
+    (acc, t) => acc + (t.type === 'income' ? -Number(t.amount) : Math.abs(Number(t.amount))),
+    0,
+  )
+  return movimientos + d.filas.porDebitar.reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0)
 }
 
 describe('getCardCycleDetail', () => {
@@ -78,7 +99,7 @@ describe('getCardCycleDetail', () => {
     const d = useFinanceStore.getState().getCardCycleDetail('visa', 'sep')
     expect(d?.actual?.id).toBe('sep')
     expect(d?.deuda).toBe(0)
-    expect(d?.filas).toEqual({ conFecha: [], sinFecha: [] })
+    expect(d?.filas).toEqual({ conFecha: [], sinFecha: [], porDebitar: [] })
   })
 
   it('las filas sin fecha de compra llegan separadas', () => {
@@ -90,6 +111,42 @@ describe('getCardCycleDetail', () => {
     const d = useFinanceStore.getState().getCardCycleDetail('visa', 'no-existe')
     expect(d?.actual).not.toBeNull()
     expect(d?.resumenes.map((r) => r.id)).toContain(d?.actual?.id)
+  })
+
+  // ── El invariante de la pantalla ────────────────────────────────────────────
+  // computePaymentMethodStatus suma al total del ciclo TODA mensualidad activa del
+  // medio sin transaccion propia ahi. Antes de este fix ese monto no tenia fila:
+  // un resumen con una compra de $1.000 y un plan de $15.000 decia $16.000 arriba y
+  // $1.000 abajo, y un resumen futuro mostraba un total con "Sin movimientos" debajo.
+  it('lo que se ve suma exactamente el total de la cabecera', () => {
+    sembrar(
+      [compra({ id: 'a', cycle_id: 'ago', amount: 1000 })],
+      [plan({ amount: 15000 })],
+    )
+    const d = useFinanceStore.getState().getCardCycleDetail('visa', 'ago')!
+    expect(d.deuda).toBe(16000)
+    expect(sumaDeLoVisible(d)).toBe(d.deuda)
+  })
+
+  it('un resumen sin movimientos pero con un plan activo trae la fila por debitar', () => {
+    sembrar([], [plan({ amount: 15000 })])
+    const d = useFinanceStore.getState().getCardCycleDetail('visa', 'sep')!
+    expect(d.deuda).toBe(15000)
+    expect(d.filas.conFecha).toEqual([])
+    expect(d.filas.sinFecha).toEqual([])
+    expect(d.filas.porDebitar.map((p) => p.id)).toEqual(['p1'])
+    expect(sumaDeLoVisible(d)).toBe(d.deuda)
+  })
+
+  it('con la mensualidad ya debitada la fila es el movimiento, no el plan', () => {
+    sembrar(
+      [compra({ id: 'net', cycle_id: 'ago', amount: 15000, recurring_plan_id: 'p1' })],
+      [plan({ amount: 15000 })],
+    )
+    const d = useFinanceStore.getState().getCardCycleDetail('visa', 'ago')!
+    expect(d.deuda).toBe(15000)
+    expect(d.filas.porDebitar).toEqual([])
+    expect(sumaDeLoVisible(d)).toBe(d.deuda)
   })
 
   it('un medio que no es de credito devuelve null', () => {
