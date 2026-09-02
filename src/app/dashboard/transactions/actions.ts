@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { transactionSchema, type TransactionSchema, createTransactionSchema, type CreateTransactionSchema } from '@/lib/schemas/transaction';
 import { revalidatePath } from 'next/cache';
-import { calculateCreditPaymentDate, dateToLocalString, parseLocalDate } from '@/lib/utils/dates';
+import { calculateCreditPaymentDate, parseLocalDate } from '@/lib/utils/dates';
 import { addMonths, subMonths } from 'date-fns';
 import { asegurarCiclos } from '@/lib/ciclos/asegurar';
 import { cicloDeCompra } from '@/lib/finance/cycles';
@@ -35,8 +35,15 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
 
     // Para gastos con tarjeta de crédito, calcular la fecha real de pago según el ciclo de la tarjeta.
     // Para débito/efectivo, se guarda la fecha de compra sin modificar.
-    let storedDate = dateToLocalString(new Date(date));
-    const purchaseDate = storedDate; // la fecha que eligió el usuario ES la de compra
+    //
+    // `date` ya viene como 'yyyy-MM-dd' (el schema lo valida con regex): se usa TAL CUAL.
+    // El round trip que había acá -`dateToLocalString(new Date(date))`- perdía un día en
+    // todo runtime con TZ negativa, porque `new Date('2026-07-15')` es medianoche UTC y
+    // en Argentina (UTC-3) cae el 14. Ese valor se persiste en `purchase_date` y decide
+    // `cicloDeCompra` (regla del borde, E16), así que la misma compra entraba en resúmenes
+    // distintos según viniera de la pantalla o del chat (que ya usa el string crudo).
+    let storedDate = date;
+    const purchaseDate = date; // la fecha que eligió el usuario ES la de compra
     let cycleId: string | null = null;
     const resolvedMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
@@ -147,8 +154,10 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
     // Por defecto la fecha se guarda tal cual. Solo si se ASIGNA un medio de
     // crédito distinto al que tenía, se recalcula el vencimiento tratando `date`
     // como fecha de compra (evita re-desplazar la fecha de un crédito ya cargado).
-    let storedDate = dateToLocalString(new Date(date));
-    const purchaseDate = storedDate; // fecha de compra SOLO si termina resolviendo un ciclo/medio nuevo
+    // `date` ya es 'yyyy-MM-dd' validado por el schema: sin round trip por `Date`
+    // (perdía un día en TZ negativa — ver el comentario de createTransaction).
+    let storedDate = date;
+    const purchaseDate = date; // fecha de compra SOLO si termina resolviendo un ciclo/medio nuevo
 
     const { data: current } = await supabase
       .from('transactions')

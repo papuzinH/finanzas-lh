@@ -8,19 +8,22 @@
  */
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { addMonths } from 'date-fns'
-import { dateToLocalString, parseLocalDate } from '@/lib/utils/dates'
+import { parseLocalDate } from '@/lib/utils/dates'
 import type { CreditCardCycle } from '@/lib/finance/cycles'
 
 const UID = '11111111-1111-4111-8111-111111111111'
 const MASTER = 'aaaaaaaa-0000-4000-8000-000000000001'
 
-// `createInstallmentPlan` recalcula purchaseDateStr con `dateToLocalString(new Date(...))`
-// (linea preexistente, fuera del alcance de Task 9): en un runtime con TZ negativo
-// (esta maquina corre America/Buenos_Aires, UTC-3) ese round-trip corre la fecha un dia
-// hacia atras. Se computa aca con el mismo helper para que el test sea honesto sobre
-// el valor real que la action calcula, en vez de asumir el literal de entrada.
+// La fecha que persiste la action tiene que ser EXACTAMENTE la que mandó el form.
+// Antes se computaba acá con `dateToLocalString(new Date(COMPRA_INPUT))` -el mismo
+// round-trip roto que tenía la action-, así que el test se movía junto con el bug:
+// en un runtime con TZ negativa (Argentina, UTC-3) `new Date('2026-07-15')` es
+// medianoche UTC = 14-jul local y la compra se guardaba un día antes. Con el literal,
+// correr esta suite bajo `TZ=America/Argentina/Buenos_Aires` es la prueba de que la
+// action ya no hace el round-trip. Ese `purchase_date` decide `cicloDeCompra` (E16),
+// así que un día de corrimiento cambia el resumen al que entra la compra.
 const COMPRA_INPUT = '2026-07-15'
-const PURCHASE_DATE_STR = dateToLocalString(new Date(COMPRA_INPUT))
+const PURCHASE_DATE_STR = '2026-07-15'
 
 // Los tres ciclos desparejos de E14 (Mastercard Galicia, resumen del 1-sep-2026).
 const CICLOS: CreditCardCycle[] = [

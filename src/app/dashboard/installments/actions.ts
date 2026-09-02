@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { installmentPlanSchema, type InstallmentPlanSchema, createInstallmentPlanSchema, type CreateInstallmentPlanSchema } from '@/lib/schemas/installment-plan';
 import { revalidatePath } from 'next/cache';
 import { addMonths, subMonths } from 'date-fns';
-import { calculateCreditPaymentDate, dateToLocalString, parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
+import { calculateCreditPaymentDate, parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
 import { getOrCreateCategoriaDescarte } from '@/lib/categorias/descarte'
 import { asegurarCiclos } from '@/lib/ciclos/asegurar';
 import { cicloDeCompra, cicloNEsimo, type CreditCardCycle } from '@/lib/finance/cycles';
@@ -35,8 +35,12 @@ export async function createInstallmentPlan(data: CreateInstallmentPlanSchema): 
     const { description, total_amount, installments_count, purchase_date, category_id, payment_method_id } = validatedFields.data;
     const finalPaymentMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
-    // Convertir la fecha de compra a string local (evita bug UTC de toISOString())
-    const purchaseDateStr = dateToLocalString(new Date(purchase_date));
+    // `purchase_date` ya llega como 'yyyy-MM-dd' (el schema lo valida con regex): se usa
+    // TAL CUAL. El round trip `dateToLocalString(new Date(purchase_date))` que había acá
+    // perdía un día en runtimes con TZ negativa (`new Date('2026-07-15')` = medianoche UTC
+    // = 14-jul en Argentina), y esta fecha decide `cicloDeCompra` (E16) además de quedar
+    // persistida en `purchase_date` de las cuotas.
+    const purchaseDateStr = purchase_date;
 
     // Calcular la fecha de la primera cuota:
     // - Crédito: aplica lógica de ciclo de tarjeta (fecha de vencimiento del ciclo correspondiente)
