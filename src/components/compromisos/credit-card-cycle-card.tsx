@@ -298,7 +298,7 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
           </span>
         </div>
         <span className={`ml-auto text-right whitespace-nowrap ${card.isPending ? 'text-bad' : 'text-text'}`}>
-          <span className="block font-display tnum text-[15px]">{monto.principal}</span>
+          <span data-testid="total-resumen" className="block font-display tnum text-[15px]">{monto.principal}</span>
           {monto.secundario && (
             <span className="block font-display tnum text-[12px] opacity-80">{monto.secundario}</span>
           )}

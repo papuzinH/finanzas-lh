@@ -61,11 +61,17 @@ export function CabeceraDeResumen({
 
       <div className="pr-3 pb-2">
         {alDia ? (
-          <p className="font-display tnum text-3xl leading-[var(--leading-display)] text-good shadow-bandera">
+          <p
+            data-testid="total-resumen"
+            className="font-display tnum text-3xl leading-[var(--leading-display)] text-good shadow-bandera"
+          >
             Al día
           </p>
         ) : (
-          <p className="font-display tnum text-3xl leading-[var(--leading-display)] text-text shadow-bandera">
+          <p
+            data-testid="total-resumen"
+            className="font-display tnum text-3xl leading-[var(--leading-display)] text-text shadow-bandera"
+          >
             {mainAmount}
           </p>
         )}

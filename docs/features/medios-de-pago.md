@@ -5,6 +5,14 @@ Gestión de los medios de pago del usuario (tarjetas de crédito, débito, efect
 
 ## Rutas / entry points
 - `/ajustes/medios` — `src/app/ajustes/medios/page.tsx` (`'use client'`, todo desde `useFinanceStore`). Incluye: banner de movimientos sin medio (con botón que llama `assignDefaultToUnassignedTransactions`), cards institucionales y personales, diálogo de alta y `RegisterCardPaymentDialog`.
+- **`/ajustes/medios/[id]` — el detalle de un medio es una PANTALLA, no un modal** (`src/app/ajustes/medios/[id]/page.tsx`, Server Component: `await params`, que en Next 16 llega como Promise; delega todo a `detalle-client.tsx`, `'use client'`). Bifurca por `method.type`:
+  - **Crédito**: un resumen por vez, elegido por `?resumen=<cycleId>` en la URL (navegar entre resúmenes hace `router.replace`, no `push` — no ensucia el historial). Sin el query param cae al ciclo **vigente** (`getCardCycleDetail` → `cicloVigente`). Compone `SelectorDeResumen` (navegación anterior/siguiente + picker de todos los resúmenes de la tarjeta) + `CabeceraDeResumen` (fechas, procedencia, estado, total, botón «Corregir fechas» → `EditarCicloDialog`) + `FilasDelResumen` (movimientos del resumen elegido).
+  - **Débito / efectivo / medio personal**: `DetalleDeCuenta` (`detalle-cuenta.tsx`), el contenido del viejo modal portado tal cual (Task 7 del plan `2026-09-02-detalle-por-resumen`) — saldo, costos fijos y movimientos del mes calendario. No se rediseñó: queda fuera de alcance de ese plan.
+  - **Estados de un resumen** (`EstadoDeResumen` en `src/lib/finance/detalle-resumen.ts`, derivados — no hay columna): `proyectado` (todavía no cerró), `pendiente` (cerró, no venció), `vencido` (venció sin pago), `pagado` (hay una transacción `card_payment_for` imputada a ese `cycle_id`). El orden de las guardas importa: un resumen pagado no es "vencido" aunque el vencimiento ya haya pasado.
+  - **El total de un resumen SIEMPRE sale de `computePaymentMethodStatus(method, transactions, recurringPlans, now, creditCardCycles, cicloObjetivo)`** — nunca se recalcula en el componente. `getCardCycleDetail(methodId, cycleId?)` (el getter del store) es un wrapper fino sobre eso; `src/lib/store/__tests__/detalle-resumen-getter.test.ts` tiene el test de paridad que exige que coincida con lo que muestra Compromisos para el mismo `cycleId`. En el gate de navegador (`scripts/verificar-detalle-resumen.mjs`) ambas pantallas comparten un `data-testid="total-resumen"` para leer el mismo número en las dos.
+  - **Filas ordenadas ascendente por `purchase_date`** (el orden en que el banco imprime el resumen), con las que no tienen fecha de compra en un bloque «Sin fecha de compra» aparte al final — pasa con reintegros (`income` en tarjeta: `purchase_date` es `null` por diseño) y con datos viejos de antes de que la app guardara esa fecha.
+  - ⚠️ **En crédito ya NO se muestran «Costos Fijos» ni «Mensualidades Activas»**: con el modelo de ciclos, las mensualidades de una tarjeta se postean solas como filas del resumen (`syncAutomaticRecurringCharges`), así que mostrarlas de nuevo invitaría a sumarlas dos veces. En débito/efectivo/personal sí se conservan (`DetalleDeCuenta` las sigue mostrando).
+  - **Se eliminó** `src/components/medios-pago/payment-method-detail-modal.tsx` y el getter `getPaymentMethodTransactionsForCurrentMonth` del store: la pantalla los reemplaza por completo.
 - **La ruta legacy `/medios-pago` fue eliminada** en la limpieza: en `src/app/medios-pago/` solo queda `actions.ts`, que sigue siendo el módulo canónico de server actions del CRUD (los diálogos importan de ahí).
 - El pago del ciclo vigente de una tarjeta se dispara desde Compromisos (`credit-card-cycle-card.tsx`); ver `docs/features/compromisos.md`.
 
@@ -17,17 +25,24 @@ Gestión de los medios de pago del usuario (tarjetas de crédito, débito, efect
 | `src/lib/schemas/payment-method.ts` | Zod: `createPaymentMethodSchema` (`type: 'credit'|'debit'|'cash'`, días de cierre/vencimiento, `is_personal`, `is_default`) |
 | `src/components/medios-pago/create-payment-method-dialog.tsx` | Alta (toggle "Predeterminado"; oculto para `is_personal`) |
 | `src/components/medios-pago/edit-payment-method-dialog.tsx` / `delete-payment-method-dialog.tsx` | Edición / borrado con reasignación |
-| `src/components/medios-pago/institutional-card.tsx` / `personal-debt-card.tsx` | Cards de cuenta institucional vs deuda personal. `institutional-card.tsx` abre `EditAnchorDialog` (`src/components/pocket/edit-anchor-dialog.tsx`, ver `docs/features/bolsillo.md`) para re-anclar el saldo o cambiar el bucket de una cuenta |
-| `src/components/medios-pago/payment-method-detail-modal.tsx` | Detalle con movimientos del mes |
+| `src/components/medios-pago/institutional-card.tsx` / `personal-debt-card.tsx` | Cards de la lista: cuenta institucional vs deuda personal. `institutional-card.tsx` abre `EditAnchorDialog` (`src/components/pocket/edit-anchor-dialog.tsx`, ver `docs/features/bolsillo.md`) para re-anclar el saldo o cambiar el bucket de una cuenta |
+| `src/app/ajustes/medios/[id]/page.tsx` / `detalle-client.tsx` | Pantalla de detalle de un medio (route dinámica); bifurca crédito vs cuenta/personal |
+| `src/app/ajustes/medios/[id]/detalle-cuenta.tsx` | `DetalleDeCuenta` — débito/efectivo/personal, portado del viejo modal (Task 7) |
+| `src/components/medios-pago/selector-de-resumen.tsx` | `SelectorDeResumen` — navega RESÚMENES de una tarjeta, no meses (picker con todos + anterior/siguiente) |
+| `src/components/medios-pago/cabecera-de-resumen.tsx` | `CabeceraDeResumen` — fechas, procedencia, estado, total (`data-testid="total-resumen"`), botón «Corregir fechas» |
+| `src/components/medios-pago/filas-del-resumen.tsx` | `FilasDelResumen` / `Fila` (exportado, reusado también por `DetalleDeCuenta` con `fechaDe="movimiento"`) |
+| `src/lib/finance/detalle-resumen.ts` | `listarResumenesDeTarjeta`, `filasDeResumen` — PURO, no calcula totales (eso es `computePaymentMethodStatus`) |
 | `src/components/medios-pago/register-card-payment-dialog.tsx` | Registrar pago de resumen de tarjeta (típicamente meses anteriores); monta `DeclararProximoCiclo` |
 | `src/components/medios-pago/ciclo-fechas-field.tsx` | `CicloFechasField` (par cierre/vencimiento) + `EtiquetaProcedencia` ("del resumen" / "estimado"), compartidos por la ficha y los diálogos de pago |
-| `src/components/medios-pago/editar-ciclo-dialog.tsx` | Diálogo «Corregir fechas» de la ficha (`institutional-card.tsx`) |
+| `src/components/medios-pago/editar-ciclo-dialog.tsx` | Diálogo «Corregir fechas», montado desde la ficha (`institutional-card.tsx`) y desde la pantalla de detalle (`detalle-client.tsx`) |
 | `src/components/medios-pago/declarar-proximo-ciclo.tsx` | Paso opcional «Lo tengo a mano, lo cargo» dentro de los diálogos de pago |
 | `src/lib/ciclos/declarar.ts` | `guardarDeclaracion` (escribe el `source: 'declared'`), `realinearFuturos` (re-fecha los `generated` futuros) |
 | `src/lib/finance/balances.ts` | `computePaymentMethodStatus`, `computePendingCreditCards`, `hasCardPaymentInCycle` |
 | `src/lib/finance/cycles.ts` | `cicloVigente` (el resumen vigente), `ciclosDeMetodo`, `cicloDeCompra`, `cicloSaldadoEn` |
 | `src/lib/finance/creditCycle.ts` | `getCreditCycleDates` (**fallback** para tarjetas sin ciclos materializados) |
-| `src/lib/store/financeStore.ts` | Getters: `getPaymentMethodStatus`, `getDefaultPaymentMethod`, `getUnassignedTransactionsCount`, `getPendingCreditCardByCard`, `isCreditCardCyclePaid` |
+| `src/lib/store/financeStore.ts` | Getters: `getPaymentMethodStatus`, `getCardCycleDetail`, `getDefaultPaymentMethod`, `getUnassignedTransactionsCount`, `getPendingCreditCardByCard`, `isCreditCardCyclePaid` |
+| `src/components/compromisos/credit-card-cycle-card.tsx` | Card de resumen en `/compromisos`; su total también lleva `data-testid="total-resumen"` para el gate de paridad |
+| `scripts/verificar-detalle-resumen.mjs` | Gate de navegador de la pantalla de detalle (los 8 asserts, ver `docs/features/medios-de-pago.md` → Tests) |
 
 ## Tablas DB
 | Tabla | Filtro de usuario |
@@ -41,7 +56,7 @@ Gotcha crítico: estas tablas usan el id interno de `public.users` (`users.id`),
 ## Flujos principales
 1. **Alta/edición**: validación Zod (para crédito, `default_closing_day !== default_payment_day`). Invariante de **un solo `is_default` por usuario**: si el nuevo/editado queda como default, la action primero resetea `is_default = false` en TODOS los medios del usuario y después marca este.
 2. **Estado por medio** (`getPaymentMethodStatus` → `computePaymentMethodStatus`):
-   - **Crédito con ciclo** = "a pagar en el vencimiento": suma los gastos imputados al resumen vigente por la FK (`t.cycle_id === ciclo.id`, no el mes de `t.date`) + mensualidades adheridas activas sin transacción en el ciclo (deduplicadas por `recurring_plan_id`) − reintegros del mismo ciclo. `getPaymentMethodTransactionsForCurrentMonth` usa la MISMA regla, así la lista de movimientos cuadra con este número. `projectedTotal` **negativo = se debe** a la tarjeta. Devuelve `arsExpenses`/`usdExpenses` por separado (el desglose NO convierte USD→ARS; la conversión solo alimenta el total).
+   - **Crédito con ciclo** = "a pagar en el vencimiento": suma los gastos imputados al resumen vigente por la FK (`t.cycle_id === ciclo.id`, no el mes de `t.date`) + mensualidades adheridas activas sin transacción en el ciclo (deduplicadas por `recurring_plan_id`) − reintegros del mismo ciclo. La pantalla de detalle (`/ajustes/medios/[id]`) llama a la misma función con el `cycleId` elegido (`cicloObjetivo`), así que la lista de movimientos y el total siempre cuadran con lo que muestra Compromisos para ese resumen. `projectedTotal` **negativo = se debe** a la tarjeta. Devuelve `arsExpenses`/`usdExpenses` por separado (el desglose NO convierte USD→ARS; la conversión solo alimenta el total).
    - **Débito/efectivo** (o crédito sin ciclo) = saldo histórico `ingresos − gastos` (cuotas contadas hasta fin del mes actual). Los pagos de tarjeta registrados en la cuenta la debitan como cualquier gasto. Este es el saldo "de siempre" que muestra el detalle de la cuenta; el que alimenta el disponible del home es otro cálculo (`computeAccountBalance`, ancla + movimientos desde el ancla — ver `docs/features/bolsillo.md`), no `computePaymentMethodStatus`.
 3. **Borrado**: `deletePaymentMethod` (directo) o `reassignAndDeletePaymentMethod(id, newMethodId | null)` que primero reapunta `transactions`, `recurring_plans` e `installment_plans` al nuevo medio (o `null`) y recién entonces borra.
 4. **Arreglo masivo** (`assignDefaultToUnassignedTransactions`): asigna el medio `is_default` a todas las transacciones con `payment_method_id = null`. Si el default es crédito con ciclo, imputa cada fila a su resumen (`cycle_id` + `date = due_date` del ciclo que la contiene, rama `isCredit`; sin resumen que la contenga cae al cálculo por defaults y `cycle_id: null`); si no, solo setea el medio. Banner en `/ajustes/medios` alimentado por `getUnassignedTransactionsCount()`.
@@ -62,6 +77,11 @@ Gotcha crítico: estas tablas usan el id interno de `public.users` (`users.id`),
 - `src/lib/finance/__tests__/balances.test.ts` — `computePaymentMethodStatus` (crédito vs débito), `computePendingCreditCards`, `hasCardPaymentInCycle`.
 - `src/lib/finance/__tests__/creditCycle.test.ts` — avance de ciclo y pertenencia por vencimiento.
 - `src/lib/finance/__tests__/pocket.test.ts`, `escenarios-disponible.test.ts` — saldo anclado por cuenta (`computeAccountBalance`) y su interacción con pagos de tarjeta.
+- `src/lib/finance/__tests__/detalle-resumen.test.ts` — `listarResumenesDeTarjeta` (estado derivado), `filasDeResumen` (orden ascendente por `purchase_date`, bloque sin fecha).
+- `src/lib/store/__tests__/detalle-resumen-getter.test.ts` — `getCardCycleDetail`, con el test de paridad contra lo que arma Compromisos para el mismo resumen.
+- `src/app/ajustes/medios/__tests__/ruta-detalle.test.ts`, `src/app/ajustes/medios/__tests__/detalle-cuenta.test.tsx` — la ruta dinámica y `DetalleDeCuenta`.
+- `src/components/medios-pago/__tests__/{selector-de-resumen,cabecera-de-resumen,filas-del-resumen}.test.tsx` — los tres componentes de la pantalla de crédito.
+- `scripts/verificar-detalle-resumen.mjs` — gate de navegador contra DEV (no unit test): navegación entre resúmenes, resumen no contiguo, bloque "Sin fecha de compra", resumen proyectado, paridad del total con `/compromisos`, ausencia de «Costos fijos»/«Mensualidades activas» en crédito, cuenta de débito y medio personal, controles ≥44px. Requiere `npm run seed:demo` + `node scripts/seed-escenarios-tarjeta.mjs` + build de producción sirviendo (`npm run build && npx next start -p 3100`) contra DEV.
 - Correr con `npm test`.
 
 ## Docs relacionados
