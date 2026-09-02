@@ -183,6 +183,34 @@ describe('payCreditCardCycle: imputa el pago al ciclo', () => {
     expect(estado.cliente!.insertedTransactions).toHaveLength(1)
     expect(estado.cliente!.insertedTransactions[0].cycle_id).toBe(CYCLE_B)
   })
+
+  it('con cycleId null (tarjeta sin ningun resumen materializado) inserta igual, sin guard por ciclo', async () => {
+    // Una tarjeta SIN default_closing_day/default_payment_day no genera ciclos a
+    // proposito, asi que `cicloSaldadoEn` nunca devuelve nada y el dialogo quedaba
+    // deshabilitado para siempre: esas tarjetas tampoco tienen chip en Compromisos,
+    // o sea que perdian la unica via de registrar un pago. Con cycleId null el pago
+    // es un registro manual sin resumen que saldar -como eran TODOS antes de esta
+    // rama-, asi que el guard anti-duplicado por ciclo no aplica.
+    estado.cliente = clienteFalso({
+      // Un pago previo sin ciclo NO puede bloquear este: si el guard corriera,
+      // esta fila lo haria devolver success sin insertar.
+      existingPayments: [{ card_payment_for: CARD, cycle_id: null }],
+    })
+
+    const r = await payCreditCardCycle({
+      cardMethodId: CARD,
+      fundingMethodId: FUNDING,
+      amountArs: 50000,
+      date: '2026-09-01',
+      cardName: 'Visa sin resumen',
+      cycleId: null,
+    })
+
+    expect(r.error).toBeUndefined()
+    expect(estado.cliente!.insertedTransactions).toHaveLength(1)
+    expect(estado.cliente!.insertedTransactions[0].cycle_id).toBeNull()
+    expect(estado.cliente!.insertedTransactions[0].card_payment_for).toBe(CARD)
+  })
 })
 
 describe('undoCreditCardPayment: borra por card_payment_for + cycle_id', () => {

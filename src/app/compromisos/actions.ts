@@ -148,6 +148,12 @@ export async function unmarkRecurringPlanPaid(planId: string): Promise<ActionRes
  * pero es neutra para el Disponible Real global y las analíticas de consumo
  * (las compras de la tarjeta ya están itemizadas). La fecha se setea en el
  * vencimiento del ciclo pagado, así el estado "pagada" se deriva de su existencia.
+ *
+ * `cycleId` puede ser null: una tarjeta SIN default_closing_day/default_payment_day
+ * no genera ciclos a propósito (`generarCiclos` devuelve []), así que no hay resumen
+ * que saldar. Ese pago se registra igual, con `cycle_id` null — como eran TODOS los
+ * pagos antes de esta rama. Sin eso, esas tarjetas (hay 2 en producción) se quedaban
+ * sin ninguna vía de registrar un pago: tampoco tienen chip en Compromisos.
  */
 export async function payCreditCardCycle(params: {
   cardMethodId: string;
@@ -155,7 +161,7 @@ export async function payCreditCardCycle(params: {
   amountArs: number;
   date: string; // yyyy-MM-dd (vencimiento / fecha del pago)
   cardName: string;
-  cycleId: string; // el resumen que este pago salda
+  cycleId: string | null; // el resumen que este pago salda; null = registro manual sin resumen
 }): Promise<ActionResponse> {
   try {
     const supabase = await createClient();
@@ -167,20 +173,23 @@ export async function payCreditCardCycle(params: {
     const { cardMethodId, fundingMethodId, amountArs, date, cardName, cycleId } = params;
     if (!fundingMethodId) return { error: 'Elegí con qué medio pagás' };
     if (!amountArs || amountArs <= 0) return { error: 'El monto del pago es inválido' };
-    if (!cycleId) return { error: 'No hay resumen cargado para esa fecha' };
 
     // Guard anti-duplicado: ya hay un pago imputado a ESTE resumen.
     // Antes se buscaba por rango de mes (rangoDelMes), que fue el parche del bug
     // de la Visa que vence el dia 1. Con el ciclo como entidad la pregunta no
     // depende de ninguna aritmetica de fechas.
-    const { data: existing } = await supabase
-      .from('transactions')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('card_payment_for', cardMethodId)
-      .eq('cycle_id', cycleId)
-      .limit(1);
-    if (existing && existing.length > 0) return { success: true };
+    // Sin ciclo no hay nada que deduplicar: son pagos sueltos que el usuario
+    // registra a mano y puede haber más de uno.
+    if (cycleId) {
+      const { data: existing } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('card_payment_for', cardMethodId)
+        .eq('cycle_id', cycleId)
+        .limit(1);
+      if (existing && existing.length > 0) return { success: true };
+    }
 
     // category_id es NOT NULL. Usamos una categoría "Pagos de tarjeta" (get-or-create).
     // Igual queda excluida de las analíticas de consumo por el marcador card_payment_for.
