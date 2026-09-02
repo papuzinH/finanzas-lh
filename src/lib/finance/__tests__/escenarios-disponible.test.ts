@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeAvailableToSpend, type AvailableInputs } from '../pocket';
 import { computePendingCreditCards, computePaymentMethodStatus } from '../balances';
-import { cicloDeCompra, cicloNEsimo } from '../cycles';
+import { cicloDeCompra, cicloNEsimo, recalcularFuturosGenerated } from '../cycles';
 import type { PaymentMethod, RecurringPlan, InternalTransfer } from '@/types/database';
 import type { ProcessedTransaction, CreditCardCycleSummary } from '../types';
 import type { CreditCardCycle } from '../cycles';
@@ -514,5 +514,39 @@ describe('E16 — la compra del dia del cierre entra en el ciclo que cierra', ()
     const visa = acct({ id: 'visa', name: 'Visa', type: 'credit', is_default: false, default_closing_day: 20, default_payment_day: 1, initial_balance_at: null });
     const r = computePaymentMethodStatus(visa, [tx], [], NOW, ciclos, ciclos[0]);
     expect(r.projectedTotal).toBe(-12345);
+  });
+});
+
+describe('E18 — cambiar la config de la tarjeta actualiza los resumenes futuros estimados, y solo esos', () => {
+  // El caso medido en DEV el 2026-09-02: el usuario creo la tarjeta con vencimiento el dia 6,
+  // el sync materializo cuatro resumenes, despues la edita al dia 2 -- y sus cuotas siguieron
+  // venciendo el 6 durante cuatro meses. La tarjeta decia una cosa y sus resumenes otra.
+  const metodo = {
+    id: 'pm', type: 'credit', default_closing_day: 24, default_payment_day: 2,
+  } as unknown as PaymentMethod;
+
+  const ciclos: CreditCardCycle[] = [
+    { id: 'ago', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-08-24', due_date: '2026-09-06', source: 'generated', created_at: 'x' },
+    { id: 'sep', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-09-24', due_date: '2026-10-06', source: 'generated', created_at: 'x' },
+    { id: 'oct', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-10-24', due_date: '2026-11-06', source: 'generated', created_at: 'x' },
+  ];
+
+  it('los resumenes que todavia no cerraron toman el vencimiento nuevo', () => {
+    const cambios = recalcularFuturosGenerated(metodo, ciclos, '2026-09-02');
+    expect(cambios.map((c) => c.id)).toEqual(['sep', 'oct']);
+    expect(cambios.map((c) => c.due_date)).toEqual(['2026-10-02', '2026-11-02']);
+  });
+
+  it('el resumen que ya cerro NO se toca: sus compras ya estan imputadas', () => {
+    const cambios = recalcularFuturosGenerated(metodo, ciclos, '2026-09-02');
+    expect(cambios.find((c) => c.id === 'ago')).toBeUndefined();
+  });
+
+  it('un resumen declarado por el usuario sobrevive al cambio de config', () => {
+    const conDeclarado = ciclos.map((c) =>
+      c.id === 'oct' ? { ...c, closing_date: '2026-10-22', due_date: '2026-10-30', source: 'declared' as const } : c,
+    );
+    const cambios = recalcularFuturosGenerated(metodo, conDeclarado, '2026-09-02');
+    expect(cambios.map((c) => c.id)).toEqual(['sep']);
   });
 });
