@@ -165,6 +165,9 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
       if (fechasDeclaradas && proximo) {
         const d = await declararCiclo({
           paymentMethodId: card.methodId,
+          // El resumen exacto que mostro el paso: sin el id, la escritura lo resuelve por
+          // mes calendario y con cierres cerca del borde de mes apunta al de al lado.
+          cycleId: proximo.id,
           closingDate: fechasDeclaradas.closingDate,
           dueDate: fechasDeclaradas.dueDate,
         });

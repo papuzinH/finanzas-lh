@@ -282,6 +282,7 @@ export async function declararCiclo(input: DeclararCicloSchema): Promise<ActionR
         parsed.data.closingDate,
         parsed.data.dueDate,
         dateToLocalString(new Date()),
+        parsed.data.cycleId,
       )
     } catch (e) {
       return { error: e instanceof Error ? e.message : 'No pude guardar el resumen' }

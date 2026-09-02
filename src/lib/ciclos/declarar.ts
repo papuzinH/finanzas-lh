@@ -45,8 +45,20 @@ async function aplicarRealineado(
 /**
  * Escribe lo que el usuario leyo del resumen.
  *
- * Corrige el resumen del MISMO MES si ya existe (declarar es corregir una estimacion, no crear
- * un resumen paralelo) y lo marca `declared`, para que ninguna regeneracion posterior lo pise.
+ * Corrige un resumen que ya existe (declarar es corregir una estimacion, no crear un resumen
+ * paralelo) y lo marca `declared`, para que ninguna regeneracion posterior lo pise.
+ *
+ * Cual resumen se corrige: el de `cycleId` si viene, y solo si no viene se resuelve por MES
+ * CALENDARIO del cierre. Los puntos de entrada conocen el resumen exacto que el usuario esta
+ * declarando, asi que lo mandan y no hace falta adivinarlo -- con cierres cerca del borde de
+ * mes (dia 1, 2, 30, 31) adivinar erraba: un estimado que cierra el 1-oct cuyo cierre real fue
+ * el 29-sep se resolvia al resumen de SEPTIEMBRE, que es otro y ademas ya cerro, y el de
+ * octubre quedaba intacto con su recordatorio todavia en pantalla despues de un guardado que
+ * dijo que salio bien. La resolucion por mes queda para quien no tenga el id a mano.
+ *
+ * El id llega del cliente pero no necesita validacion aparte: `leerCiclos` ya filtra por
+ * `payment_method_id` y la action ya verifico que ese medio es del usuario, asi que un id ajeno
+ * simplemente no aparece en la lista y se cae al camino por mes.
  *
  * NO toca ninguna transaccion: el invariante central del spec. Lo que estaba imputado a ese
  * resumen sigue imputado, con la fecha nueva.
@@ -57,16 +69,18 @@ export async function guardarDeclaracion(
   closingDate: string,
   dueDate: string,
   hoy: string,
+  cycleId?: string | null,
 ): Promise<CreditCardCycle> {
   const ciclos = await leerCiclos(supabase, method.id);
-  const delMes = cicloDelMesDe(ciclos, closingDate);
+  const objetivo =
+    (cycleId ? ciclos.find((c) => c.id === cycleId) : undefined) ?? cicloDelMesDe(ciclos, closingDate);
 
   let guardado: CreditCardCycle;
-  if (delMes) {
+  if (objetivo) {
     const { data, error } = await supabase
       .from('credit_card_cycles')
       .update({ closing_date: closingDate, due_date: dueDate, source: 'declared' })
-      .eq('id', delMes.id)
+      .eq('id', objetivo.id)
       .select('*')
       .single();
     if (error) throw new Error('No pude guardar el resumen: ' + error.message);

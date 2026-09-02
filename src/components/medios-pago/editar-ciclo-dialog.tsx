@@ -19,7 +19,7 @@ import type { CreditCardCycle } from '@/lib/finance/cycles';
 
 /**
  * Corregir a mano el cierre/vencimiento del resumen vigente de una tarjeta, copiados del
- * papel del banco. `declararCiclo` (Task 3) actualiza el resumen del mismo mes calendario
+ * papel del banco. `declararCiclo` (Task 3) actualiza el resumen cuyo id se le manda
  * -- nunca crea uno nuevo ni reasigna movimientos ya cargados.
  */
 export function EditarCicloDialog({
@@ -44,7 +44,8 @@ export function EditarCicloDialog({
   });
 
   async function guardar() {
-    const input = { paymentMethodId: methodId, ...fechas };
+    // El id del resumen, no solo el de la tarjeta: es este resumen el que se corrige.
+    const input = { paymentMethodId: methodId, cycleId: ciclo.id, ...fechas };
     const parsed = declararCicloSchema.safeParse(input);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? 'Datos inválidos');

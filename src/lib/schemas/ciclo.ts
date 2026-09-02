@@ -5,6 +5,10 @@ const FECHA = /^\d{4}-\d{2}-\d{2}$/
 export const declararCicloSchema = z
   .object({
     paymentMethodId: z.string().uuid('ID de medio de pago invalido'),
+    // El resumen exacto que se esta declarando. Opcional: sin el, la escritura lo resuelve
+    // por mes calendario del cierre, que con cierres cerca del borde de mes apunta al
+    // resumen de al lado. Los puntos de entrada de la app lo conocen y lo mandan.
+    cycleId: z.string().uuid('ID de resumen invalido').optional(),
     // Strings `yyyy-MM-dd` a proposito: nunca Date. Un round trip por Date corre un dia
     // atras en runtimes con zona horaria negativa.
     closingDate: z.string().regex(FECHA, 'Fecha de cierre invalida'),

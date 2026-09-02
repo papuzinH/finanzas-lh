@@ -127,6 +127,9 @@ export function RegisterCardPaymentDialog() {
       if (fechasDeclaradas && cicloSiguienteAPagar) {
         const d = await declararCiclo({
           paymentMethodId: card.id,
+          // El resumen exacto que mostro el paso: sin el id, la escritura lo resuelve por
+          // mes calendario y con cierres cerca del borde de mes apunta al de al lado.
+          cycleId: cicloSiguienteAPagar.id,
           closingDate: fechasDeclaradas.closingDate,
           dueDate: fechasDeclaradas.dueDate,
         });

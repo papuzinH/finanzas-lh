@@ -52,7 +52,8 @@ export function RecordatorioDeclararCiclo({
   }
 
   async function guardar() {
-    const input = { paymentMethodId: ciclo.payment_method_id, ...fechas };
+    // El id del resumen, no solo el de la tarjeta: es este resumen el que se corrige.
+    const input = { paymentMethodId: ciclo.payment_method_id, cycleId: ciclo.id, ...fechas };
     const parsed = declararCicloSchema.safeParse(input);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? 'Datos inválidos');

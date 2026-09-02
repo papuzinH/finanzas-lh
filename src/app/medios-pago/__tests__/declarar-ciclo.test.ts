@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const UID = '11111111-1111-4111-8111-111111111111'
 const PROPIO = 'aaaaaaaa-0000-4000-8000-000000000001'
 const AJENO = 'bbbbbbbb-9999-4999-8999-999999999999'
+const CICLO = 'cccccccc-0000-4000-8000-000000000001'
 
 /**
  * RLS simulada: `payment_methods` sólo devuelve la fila si es del usuario.
@@ -55,6 +56,7 @@ const guardarDeclaracionMock = vi.hoisted(() =>
     closingDate: string,
     dueDate: string,
     hoy: string,
+    _cycleId?: string | null,
   ) => ({ id: 'nuevo', closing_date: closingDate, due_date: dueDate, hoy })),
 )
 vi.mock('@/lib/ciclos/declarar', () => ({ guardarDeclaracion: guardarDeclaracionMock }))
@@ -97,5 +99,28 @@ describe('declararCiclo', () => {
     // Sin round trip por Date: los strings yyyy-MM-dd llegan intactos.
     expect(closingDate).toBe('2026-09-24')
     expect(dueDate).toBe('2026-10-02')
+  })
+
+  it('pasa el id del resumen a guardarDeclaracion cuando el cliente lo manda', async () => {
+    // Sin el id, la escritura resuelve el resumen por mes calendario del cierre y con
+    // cierres cerca del borde de mes (1, 2, 30, 31) apunta al resumen de al lado.
+    const r = await declararCiclo({ ...base, cycleId: CICLO })
+
+    expect(r).toEqual({ success: true })
+    expect(guardarDeclaracionMock.mock.calls[0][5]).toBe(CICLO)
+  })
+
+  it('sigue andando sin id de resumen: es opcional', async () => {
+    const r = await declararCiclo(base)
+
+    expect(r).toEqual({ success: true })
+    expect(guardarDeclaracionMock.mock.calls[0][5]).toBeUndefined()
+  })
+
+  it('rechaza un id de resumen que no es un uuid', async () => {
+    const r = await declararCiclo({ ...base, cycleId: 'no-es-uuid' })
+
+    expect(r).toEqual({ error: 'ID de resumen invalido' })
+    expect(guardarDeclaracionMock).not.toHaveBeenCalled()
   })
 })
