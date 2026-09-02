@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -82,6 +82,16 @@ export function RegisterCardPaymentDialog() {
   const cicloSiguienteAPagar = cicloAPagar
     ? cicloNEsimo(ciclosDeLaTarjeta, cicloAPagar, 1)
     : undefined;
+
+  // Tarjeta Y fecha recalculan cual es "el resumen siguiente" (L74-84). Si cualquiera
+  // de los dos ejes lo cambia mientras el usuario ya habia declarado fechas para el
+  // resumen anterior, esa declaracion queda apuntando a un resumen que la UI ya no
+  // muestra ni deja corregir -- se invalida ante cualquier cambio de identidad del
+  // resumen siguiente, sin depender de que cada input que lo afecte se acuerde de
+  // resetear a mano.
+  useEffect(() => {
+    setFechasDeclaradas(null);
+  }, [cicloSiguienteAPagar?.id]);
 
   async function onSubmit() {
     const card = creditCards.find((m) => String(m.id) === cardId);
@@ -165,10 +175,7 @@ export function RegisterCardPaymentDialog() {
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
               Tarjeta
             </span>
-            <Select
-              value={cardId}
-              onValueChange={(v) => { setCardId(v); setFechasDeclaradas(null); }}
-            >
+            <Select value={cardId} onValueChange={setCardId}>
               <SelectTrigger className="w-full min-h-11 mt-1">
                 <SelectValue placeholder="Elegí la tarjeta" />
               </SelectTrigger>
