@@ -44,7 +44,7 @@ function clienteFalso(config: {
   existingPayments?: Array<{ card_payment_for: string; cycle_id: string | null }>
   plans?: Array<Record<string, unknown>>
   methods?: Array<Record<string, unknown>>
-  existingTxs?: Array<{ recurring_plan_id: string; date: string }>
+  existingTxs?: Array<{ recurring_plan_id: string; date: string; cycle_id?: string | null }>
   firstIncomeDate?: string | null
 }) {
   const {
@@ -79,7 +79,7 @@ function clienteFalso(config: {
         )
         return { data: found.map((_, i) => ({ id: `existing-${i}` })) }
       }
-      if (tabla === 'transactions' && columns === 'recurring_plan_id, date') {
+      if (tabla === 'transactions' && columns === 'recurring_plan_id, date, cycle_id') {
         return { data: existingTxs }
       }
       if (tabla === 'transactions' && columns === 'date') {
@@ -343,7 +343,9 @@ describe('syncAutomaticRecurringCharges: las mensualidades se postean con cycle_
     estado.cliente = clienteFalso({
       plans: [plan],
       methods: [method],
-      existingTxs: [{ recurring_plan_id: 'plan-1', date: '2026-08-01' }], // julio ya cubierto
+      // Sin cycle_id (respaldo por mes): asi quedaron las mensualidades posteadas
+      // antes de que existiera esta columna. Julio ya cubierto.
+      existingTxs: [{ recurring_plan_id: 'plan-1', date: '2026-08-01', cycle_id: null }],
       firstIncomeDate: '2026-01-15',
     })
 

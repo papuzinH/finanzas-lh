@@ -68,12 +68,34 @@ export function expectedChargeDatePorCiclo(
 /**
  * Qué meses de consumo le faltan a cada plan automático.
  *
- * Cobertura: un mes M está cubierto si el plan ya tiene una transacción en el
- * MISMO MES de `expectedChargeDate(M)`. Como cada mes de consumo cae en un
- * resumen distinto, el mes de consumo se reconstruye sin necesidad de guardarlo
- * en la transacción. La regla mira el mes y no la fecha exacta a propósito: si
- * el usuario editó la fecha a mano, la transacción sigue contando como
- * cobertura y no se duplica.
+ * Cobertura: dos claves, evaluadas con OR (nunca either/or por si el `cycleId`
+ * de la predicción salió truthy).
+ *
+ * 1. Por `cycle_id`: `transactions.cycle_id` es la única verdad de pertenencia
+ *    a un resumen (ver CLAUDE.md), así que si la transacción ya tiene el MISMO
+ *    `cycle_id` que predice `expectedChargeDatePorCiclo(M)`, está cubierta.
+ *    Mirar el mes de `date` en vez del `cycle_id` se rompe con resúmenes
+ *    declarados: declarar un ciclo ACTUALIZA la fila existente (mismo id,
+ *    nueva fecha), y una transacción ya posteada contra la estimación vieja se
+ *    queda con su `date` sin tocar (E13) — si esa fecha vieja cae en otro mes
+ *    calendario que el vencimiento declarado, el mes deja de coincidir y la
+ *    mensualidad se postea de nuevo. Por `cycle_id` el resumen sigue siendo
+ *    el mismo.
+ * 2. Por MES, para las transacciones sin `cycle_id`: las posteadas antes de
+ *    que existieran los resúmenes y las de tarjetas sin ciclo materializado.
+ *    Se compara el mes de `date` contra el mes de la fecha prevista, igual que
+ *    antes de esta función distinguir por `cycle_id` — la regla mira el mes y
+ *    no la fecha exacta a propósito: si el usuario editó la fecha a mano, la
+ *    transacción sigue contando como cobertura y no se duplica.
+ *
+ * El OR importa: los ciclos de una tarjeta se materializan retroactivamente
+ * (`asegurarCiclos` cubre meses pasados), así que una transacción vieja SIN
+ * `cycle_id` puede convivir con un ciclo YA materializado para ese mismo mes —
+ * la predicción de HOY para ese mes trae un `cycleId` truthy aunque la
+ * transacción posteada en su momento no lo tenga. Si la cobertura sólo mirara
+ * `cubiertosPorCiclo` cuando `cycleId` es truthy, esa transacción vieja
+ * quedaría invisible y se duplicaría — exactamente el caso que este cambio
+ * tiene que evitar (54 planes recurrentes en producción posteados así).
  *
  * @param floorMonth 'yyyy-MM' del primer ingreso del usuario. Backfillear
  *   gastos en meses sin ingresos registrados hunde el saldo sin contrapartida.
@@ -85,7 +107,7 @@ export function expectedChargeDatePorCiclo(
 export function computeMissingAutomaticCharges(
   plans: RecurringPlan[],
   methods: PaymentMethod[],
-  transactions: Pick<Transaction, 'recurring_plan_id' | 'date'>[],
+  transactions: Pick<Transaction, 'recurring_plan_id' | 'date' | 'cycle_id'>[],
   floorMonth: string,
   now: Date = new Date(),
   ciclos: CreditCardCycle[] = [],
@@ -102,10 +124,12 @@ export function computeMissingAutomaticCharges(
 
     const ciclosDelMetodo = ciclosDeMetodo(method.id, ciclos)
     const planMonth = String(plan.created_at).slice(0, 7)
-    const coveredMonths = new Set(
-      transactions
-        .filter((t) => t.recurring_plan_id === plan.id)
-        .map((t) => String(t.date).slice(0, 7)),
+    const transaccionesDelPlan = transactions.filter((t) => t.recurring_plan_id === plan.id)
+    const cubiertosPorCiclo = new Set(
+      transaccionesDelPlan.filter((t) => t.cycle_id).map((t) => t.cycle_id as string),
+    )
+    const cubiertosPorMes = new Set(
+      transaccionesDelPlan.filter((t) => !t.cycle_id).map((t) => String(t.date).slice(0, 7)),
     )
 
     let cursor = planMonth > floorMonth ? planMonth : floorMonth
@@ -118,7 +142,14 @@ export function computeMissingAutomaticCharges(
       const porCiclo = expectedChargeDatePorCiclo(plan, cursor, ciclosDelMetodo)
       const date = porCiclo?.date ?? expectedChargeDate(plan, method, cursor)
       const cycleId = porCiclo?.cycleId ?? null
-      if (!coveredMonths.has(date.slice(0, 7))) {
+      // OR, no either/or: un ciclo puede materializarse DESPUES de que la
+      // mensualidad ya se posteo sin cycle_id (el caso de produccion — ver el
+      // comentario de la función). Ahí `cycleId` sale truthy (el ciclo ya
+      // existe) pero la transacción vieja sigue con `cycle_id` nulo, así que
+      // sólo aparece en `cubiertosPorMes`. Mirar nada más el bucket que indica
+      // `cycleId` la hubiera dejado afuera y duplicado el cargo.
+      const yaEsta = (cycleId != null && cubiertosPorCiclo.has(cycleId)) || cubiertosPorMes.has(date.slice(0, 7))
+      if (!yaEsta) {
         missing.push({ planId: plan.id, month: cursor, date, cycleId })
       }
       cursor = format(addMonths(parseLocalDate(`${cursor}-01`), 1), 'yyyy-MM')

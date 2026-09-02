@@ -434,7 +434,7 @@ export async function syncAutomaticRecurringCharges(): Promise<ActionResponse & 
       supabase.from('payment_methods').select('*').eq('user_id', user.id),
       supabase
         .from('transactions')
-        .select('recurring_plan_id, date')
+        .select('recurring_plan_id, date, cycle_id')
         .eq('user_id', user.id)
         .not('recurring_plan_id', 'is', null),
       supabase

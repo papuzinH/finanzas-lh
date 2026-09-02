@@ -203,6 +203,52 @@ describe('computeMissingAutomaticCharges: cycleId (Task 10)', () => {
   })
 })
 
+describe('computeMissingAutomaticCharges: cobertura por resumen, no por mes (Task 8)', () => {
+  // Tarjeta y plan compartidos por los dos tests: id 'pm' para calzar con el
+  // payment_method_id de los ciclos armados a mano.
+  const TARJETA = { ...visa, id: 'pm', default_closing_day: 27, default_payment_day: 28 } as PaymentMethod
+  const PLAN = plan({ id: 'p1', payment_method_id: 'pm', billing_day: 1 })
+
+  it('no duplica una mensualidad cuando el resumen cruza de mes', () => {
+    // El resumen 'sep' se posteo primero como estimado (cierra antes del 24, sin cruzar de
+    // mes) y la transaccion quedo fechada el 25-sep, dentro de septiembre. Declarar el resumen
+    // real ACTUALIZA esa misma fila (mismo id 'sep'): ahora cierra el 24-sep y vence el 2-oct,
+    // cruzando de mes. La transaccion ya posteada no se toca (E13): su `date` se queda en
+    // 25-sep aunque el resumen que la contiene ahora vence en octubre.
+    const ciclos: CreditCardCycle[] = [
+      { id: 'sep', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-09-24', due_date: '2026-10-02', source: 'declared', created_at: 'x', reminder_dismissed_at: null },
+    ]
+    const posteada = [{ recurring_plan_id: 'p1', date: '2026-09-25', cycle_id: 'sep' }]
+    const faltantes = computeMissingAutomaticCharges([PLAN], [TARJETA], posteada, '2026-09', new Date('2026-09-30T12:00:00'), ciclos)
+    // Con la regla vieja (mes de `date`) el mes recalculado (octubre, por el vencimiento nuevo)
+    // no coincide con el mes de la transaccion ya posteada (septiembre) y se veia descubierto:
+    // se posteaba de nuevo. Por `cycle_id` sigue siendo el mismo resumen ('sep'): cubierto.
+    expect(faltantes).toEqual([])
+  })
+
+  it('sigue cubriendo por mes cuando la transaccion no tiene resumen', () => {
+    const posteada = [{ recurring_plan_id: 'p1', date: '2026-09-28', cycle_id: null }]
+    const faltantes = computeMissingAutomaticCharges([PLAN], [TARJETA], posteada, '2026-09', new Date('2026-09-30T12:00:00'), [])
+    expect(faltantes).toEqual([])
+  })
+
+  it('el respaldo por mes sigue aplicando aunque HOY exista un ciclo para ese mes (transaccion previa a los resumenes)', () => {
+    // Julio se posteo SIN cycle_id (de antes de que existiera la columna). Los
+    // ciclos se materializan retroactivamente (asegurarCiclos cubre meses
+    // pasados), asi que HOY ya existe un resumen de julio -- la prediccion
+    // fresca trae un cycleId truthy aunque la transaccion vieja no lo tenga.
+    // Si la cobertura mirara SOLO cubiertosPorCiclo cuando cycleId sale
+    // truthy (either/or en vez de OR), esta transaccion quedaria invisible y
+    // julio se volveria a postear: el caso de los 54 planes recurrentes reales.
+    const ciclos: CreditCardCycle[] = [
+      { id: 'jul', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-07-23', due_date: '2026-08-03', source: 'declared', created_at: 'x', reminder_dismissed_at: null },
+    ]
+    const posteada = [{ recurring_plan_id: 'p1', date: '2026-08-01', cycle_id: null }]
+    const faltantes = computeMissingAutomaticCharges([PLAN], [TARJETA], posteada, '2026-07', new Date('2026-07-25T12:00:00'), ciclos)
+    expect(faltantes).toEqual([])
+  })
+})
+
 describe('computeMissingAutomaticCharges', () => {
   const methods = [visa, master, debito]
   const hoy = parseLocalDate('2026-08-21')
