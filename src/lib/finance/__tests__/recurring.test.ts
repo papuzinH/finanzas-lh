@@ -233,6 +233,29 @@ describe('computeMissingAutomaticCharges: cobertura por resumen, no por mes (Tas
     expect(faltantes).toEqual([])
   })
 
+  it('no duplica cuando declarar un resumen mueve el dia de cobro a OTRO resumen', () => {
+    // El caso Galicia del brief: cierre estimado 20, vencimiento 28, mensualidad con
+    // billing_day 22 -- un dia de cobro DENTRO de la ventana que la declaracion corrige.
+    //
+    // Antes de declarar, cicloDeCompra('2026-09-22') caia en el resumen de OCTUBRE (el de
+    // septiembre ya habia cerrado el 20): la mensualidad se posteo con cycle_id 'oct' y
+    // fecha 28-oct. Despues el usuario declara que septiembre cerro el 24 y vence el 2-oct,
+    // asi que la MISMA prediccion ahora cae en 'sep'. El resumen cambia de identidad, pero
+    // la transaccion ya posteada no se toca (E13).
+    //
+    // Si la cobertura particionara las transacciones (las que tienen resumen solo por
+    // cycle_id, las que no solo por mes), esta fila aportaria unicamente la clave 'oct' y
+    // el consumo de septiembre se veria descubierto: segundo cargo real por el mismo mes.
+    const ciclos: CreditCardCycle[] = [
+      { id: 'sep', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-09-24', due_date: '2026-10-02', source: 'declared', created_at: 'x', reminder_dismissed_at: null },
+      { id: 'oct', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-10-20', due_date: '2026-10-28', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
+    ]
+    const PLAN_22 = plan({ id: 'p1', payment_method_id: 'pm', billing_day: 22 })
+    const posteada = [{ recurring_plan_id: 'p1', date: '2026-10-28', cycle_id: 'oct' }]
+    const faltantes = computeMissingAutomaticCharges([PLAN_22], [TARJETA], posteada, '2026-09', new Date('2026-09-30T12:00:00'), ciclos)
+    expect(faltantes).toEqual([])
+  })
+
   it('el respaldo por mes sigue aplicando aunque HOY exista un ciclo para ese mes (transaccion previa a los resumenes)', () => {
     // Julio se posteo SIN cycle_id (de antes de que existiera la columna). Los
     // ciclos se materializan retroactivamente (asegurarCiclos cubre meses
