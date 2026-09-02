@@ -121,7 +121,15 @@ export function DetalleClient({ methodId }: { methodId: string }) {
           />
           <FilasDelResumen filas={detalle.filas} />
           {cicloActual && (
+            // key por resumen, igual que en institutional-card.tsx: EditarCicloDialog
+            // inicializa `fechas` UNA sola vez, en su useState. Navegar entre resumenes
+            // es router.replace sobre el mismo segmento, asi que React no remonta nada:
+            // sin key, el dialogo seguiria mostrando las fechas del primer resumen que
+            // se vio mientras guardar() manda el ciclo.id de las props NUEVAS -- se
+            // guardaba el vencimiento de septiembre sobre el resumen de agosto, marcado
+            // `declared`, y ningun realineado lo repara despues.
             <EditarCicloDialog
+              key={cicloActual.id}
               open={editandoFechas}
               onOpenChange={setEditandoFechas}
               methodId={methodId}

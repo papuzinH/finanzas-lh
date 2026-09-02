@@ -23,6 +23,32 @@ describe('ruta /ajustes/medios/[id]', () => {
     const src = readFileSync(resolve(raiz, 'src/app/ajustes/medios/[id]/detalle-client.tsx'), 'utf8');
     expect(src).not.toMatch(/const\s*\{[^}]*getCardCycleDetail[^}]*\}\s*=\s*useFinanceStore/);
   });
+
+  it('EditarCicloDialog se monta con key por resumen', () => {
+    // Su estado se inicializa una sola vez, en el useState. Navegar entre resumenes es
+    // router.replace sobre el mismo segmento: React re-renderiza pero NO remonta, asi
+    // que sin key el dialogo guarda las fechas del primer resumen visto sobre el id del
+    // resumen actual. Mismo guard que en institutional-card.tsx.
+    const src = readFileSync(resolve(raiz, 'src/app/ajustes/medios/[id]/detalle-client.tsx'), 'utf8');
+    expect(src).toMatch(/<EditarCicloDialog\s+key=\{cicloActual\.id\}/);
+  });
+});
+
+describe('EditarCicloDialog: todos sus montajes llevan key', () => {
+  // El bug no es de un archivo: es de este componente. Cualquier montaje nuevo sin key
+  // repite la falla, asi que el guard barre los dos que existen.
+  const montajes = [
+    'src/app/ajustes/medios/[id]/detalle-client.tsx',
+    'src/components/medios-pago/institutional-card.tsx',
+  ];
+
+  it.each(montajes)('%s', (archivo) => {
+    const src = readFileSync(resolve(raiz, archivo), 'utf8');
+    // Cada apertura de la etiqueta (no el import ni el cierre) tiene que traer key=.
+    const aperturas = src.match(/<EditarCicloDialog[\s\n][^>]*/g) ?? [];
+    expect(aperturas.length).toBeGreaterThan(0);
+    for (const a of aperturas) expect(a).toMatch(/\skey=\{/);
+  });
 });
 
 describe('el modal de detalle se retiro', () => {
