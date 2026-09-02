@@ -1,9 +1,10 @@
 import { addMonths, format, getDaysInMonth, startOfDay } from 'date-fns'
 import type { PaymentMethod, RecurringPlan, Transaction } from '@/types/database'
 import { calculateCreditPaymentDate, parseLocalDate } from '@/lib/utils/dates'
+import { cicloDeCompra, ciclosDeMetodo, type CreditCardCycle } from '@/lib/finance/cycles'
 
 /** Un mes de consumo que todavía no tiene su transacción. */
-export type MissingCharge = { planId: string; month: string; date: string }
+export type MissingCharge = { planId: string; month: string; date: string; cycleId: string | null }
 
 /**
  * Un plan se postea solo si las tres cosas son ciertas: va en tarjeta de
@@ -19,7 +20,7 @@ export function isAutomaticPlan(plan: RecurringPlan, method: PaymentMethod | und
 }
 
 /** Día de cobro del plan en ese mes, clampeado al último día que el mes tiene. */
-function chargeDayOf(plan: RecurringPlan, month: string): number {
+export function chargeDayOf(plan: RecurringPlan, month: string): number {
   const firstOfMonth = parseLocalDate(`${month}-01`)
   return Math.min(plan.billing_day ?? 1, getDaysInMonth(firstOfMonth))
 }
@@ -28,6 +29,10 @@ function chargeDayOf(plan: RecurringPlan, month: string): number {
  * Fecha de la transacción para el consumo de `month` ('yyyy-MM'): el día de
  * cobro pasado por la MISMA función que usan cuotas y compras variables, así
  * que la mensualidad cae en el resumen que le corresponde.
+ *
+ * Se conserva para las tarjetas sin ciclo materializado y como FALLBACK de
+ * `expectedChargeDatePorCiclo`: deriva la fecha de los defaults de la tarjeta
+ * en vez de leerla de un resumen real.
  */
 export function expectedChargeDate(
   plan: RecurringPlan,
@@ -43,6 +48,24 @@ export function expectedChargeDate(
 }
 
 /**
+ * En que resumen cae el consumo de `month` y con que fecha, segun los ciclos
+ * materializados. Reemplaza a expectedChargeDate, que derivaba la fecha de los
+ * defaults de la tarjeta con calculateCreditPaymentDate.
+ *
+ * Devuelve undefined si no hay ciclo que contenga ese dia de cobro: el llamador
+ * genera los que falten (asegurarCiclos) antes de reintentar.
+ */
+export function expectedChargeDatePorCiclo(
+  plan: RecurringPlan,
+  month: string,
+  ciclos: CreditCardCycle[],
+): { cycleId: string; date: string } | undefined {
+  const day = String(chargeDayOf(plan, month)).padStart(2, '0')
+  const ciclo = cicloDeCompra(`${month}-${day}`, ciclos)
+  return ciclo ? { cycleId: ciclo.id, date: ciclo.due_date } : undefined
+}
+
+/**
  * Qué meses de consumo le faltan a cada plan automático.
  *
  * Cobertura: un mes M está cubierto si el plan ya tiene una transacción en el
@@ -54,6 +77,10 @@ export function expectedChargeDate(
  *
  * @param floorMonth 'yyyy-MM' del primer ingreso del usuario. Backfillear
  *   gastos en meses sin ingresos registrados hunde el saldo sin contrapartida.
+ * @param ciclos Ciclos materializados de TODAS las tarjetas (sin filtrar), ya
+ *   asegurados por el llamador (asegurarCiclos). Se filtran por tarjeta acá
+ *   adentro con `ciclosDeMetodo`. Sin ciclos para una tarjeta (o sin ciclo que
+ *   contenga el día de cobro), cae a `expectedChargeDate` — el fallback.
  */
 export function computeMissingAutomaticCharges(
   plans: RecurringPlan[],
@@ -61,6 +88,7 @@ export function computeMissingAutomaticCharges(
   transactions: Pick<Transaction, 'recurring_plan_id' | 'date'>[],
   floorMonth: string,
   now: Date = new Date(),
+  ciclos: CreditCardCycle[] = [],
 ): MissingCharge[] {
   const methodsById = new Map(methods.map((m) => [m.id, m]))
   const today = startOfDay(now)
@@ -72,6 +100,7 @@ export function computeMissingAutomaticCharges(
     const method = plan.payment_method_id ? methodsById.get(plan.payment_method_id) : undefined
     if (!method || !isAutomaticPlan(plan, method)) continue
 
+    const ciclosDelMetodo = ciclosDeMetodo(method.id, ciclos)
     const planMonth = String(plan.created_at).slice(0, 7)
     const coveredMonths = new Set(
       transactions
@@ -86,9 +115,11 @@ export function computeMissingAutomaticCharges(
       // afirma un débito que la tarjeta no hizo.
       if (startOfDay(parseLocalDate(`${cursor}-${chargeDay}`)) > today) break
 
-      const date = expectedChargeDate(plan, method, cursor)
+      const porCiclo = expectedChargeDatePorCiclo(plan, cursor, ciclosDelMetodo)
+      const date = porCiclo?.date ?? expectedChargeDate(plan, method, cursor)
+      const cycleId = porCiclo?.cycleId ?? null
       if (!coveredMonths.has(date.slice(0, 7))) {
-        missing.push({ planId: plan.id, month: cursor, date })
+        missing.push({ planId: plan.id, month: cursor, date, cycleId })
       }
       cursor = format(addMonths(parseLocalDate(`${cursor}-01`), 1), 'yyyy-MM')
     }

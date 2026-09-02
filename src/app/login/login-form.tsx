@@ -1,9 +1,17 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { signInWithGoogle } from './actions'
+import { signInWithGoogle, signInWithEmailPassword } from './actions'
 import { useFormStatus } from 'react-dom'
 import { Loader2 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+
+const MENSAJES_ERROR: Record<string, string> = {
+  auth_callback_failed: 'No se pudo conectar. Probá de nuevo.',
+  email_login_disabled: 'El login por email está apagado en producción.',
+  invalid_credentials: 'Mail o contraseña incorrectos.',
+}
 
 function GoogleButton() {
   const { pending } = useFormStatus()
@@ -25,7 +33,16 @@ function GoogleButton() {
   )
 }
 
-export function LoginForm() {
+function EmailSubmitButton() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" variant="soft" disabled={pending} className="h-11 w-full">
+      {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Entrar con email'}
+    </Button>
+  )
+}
+
+export function LoginForm({ conEmail = false }: { conEmail?: boolean }) {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
 
@@ -36,14 +53,40 @@ export function LoginForm() {
           role="alert"
           className="w-full rounded-xl border-[1.5px] border-bad/40 bg-bad/10 px-3.5 py-2.5 text-center text-[12.5px] font-semibold text-bad"
         >
-          {error === 'auth_callback_failed'
-            ? 'No se pudo conectar. Probá de nuevo.'
-            : error}
+          {MENSAJES_ERROR[error] ?? error}
         </p>
       )}
       <form action={async () => { await signInWithGoogle() }} className="w-full">
         <GoogleButton />
       </form>
+      {conEmail && (
+        <div className="grid w-full gap-1.5">
+          <div className="flex items-center gap-2 py-0.5 text-[11px] text-faint">
+            <span className="h-px flex-1 bg-border" aria-hidden />
+            o, en desarrollo
+            <span className="h-px flex-1 bg-border" aria-hidden />
+          </div>
+          <form action={signInWithEmailPassword} className="grid gap-1.5">
+            <Input
+              type="email"
+              name="email"
+              autoComplete="username"
+              placeholder="mail"
+              required
+              className="h-11"
+            />
+            <Input
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              placeholder="contraseña"
+              required
+              className="h-11"
+            />
+            <EmailSubmitButton />
+          </form>
+        </div>
+      )}
       <p className="text-center text-[11px] text-faint">
         Solo usamos tu cuenta para entrar. Tus datos quedan tuyos.
       </p>

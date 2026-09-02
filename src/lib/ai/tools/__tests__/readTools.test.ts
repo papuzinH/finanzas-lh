@@ -5,6 +5,7 @@ import { loadFinanceData } from '@/lib/ai/tools/dataLoader'
 import type { AgentContext } from '@/lib/ai/tools/types'
 import type { FinanceData } from '@/lib/ai/tools/dataLoader'
 import type { ProcessedTransaction } from '@/lib/finance/types'
+import type { CreditCardCycle } from '@/lib/finance/cycles'
 import type { PaymentMethod, RecurringPlan } from '@/types/database'
 
 vi.mock('@/lib/ai/tools/dataLoader', () => ({
@@ -109,7 +110,19 @@ const txSuper = tx({
   realPaymentDate: '2026-07-06',
 })
 
-// Compra en Visa cuyo vencimiento (t.date) cae en el ciclo vigente (nextPaymentDate 2026-07-10).
+// Ciclo vigente de la Visa (cierra 20, vence 10) visto desde el "hoy" del dataset
+// (2026-07-08): cerró el 2026-06-20, vence el 2026-07-10.
+const cicloVisaJulio: CreditCardCycle = {
+  id: 'visa-jul',
+  user_id: '1',
+  payment_method_id: '1',
+  closing_date: '2026-06-20',
+  due_date: '2026-07-10',
+  source: 'generated',
+  created_at: '2026-01-01T00:00:00Z',
+}
+
+// Compra en Visa imputada (cycle_id) al ciclo vigente.
 const txVisaCompra = tx({
   id: '3',
   description: 'Compra',
@@ -119,6 +132,7 @@ const txVisaCompra = tx({
   payment_method_id: '1',
   periodDate: '2026-07-10',
   realPaymentDate: '2026-07-10',
+  cycle_id: cicloVisaJulio.id,
 })
 
 const financeData: FinanceData = {
@@ -128,6 +142,7 @@ const financeData: FinanceData = {
   internalTransfers: [],
   categories: [],
   installmentPlans: [],
+  creditCardCycles: [cicloVisaJulio],
   incomeRhythm: 'monthly',
   inflacion: [],
 }

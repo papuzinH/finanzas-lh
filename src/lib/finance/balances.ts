@@ -1,7 +1,8 @@
 // src/lib/finance/balances.ts
-import { isAfter, isBefore, isSameMonth, startOfDay, endOfMonth, subMonths } from 'date-fns'
+import { isAfter, isBefore, isSameMonth, startOfDay, endOfMonth } from 'date-fns'
 import { parseLocalDate } from '@/lib/utils/dates'
-import { getCreditCycleDates, isExpenseInCurrentMonthScope, sameMonthYear } from '@/lib/finance/creditCycle'
+import { isExpenseInCurrentMonthScope } from '@/lib/finance/creditCycle'
+import { ciclosDeMetodo, cicloVigente, cicloAnterior, type CreditCardCycle } from '@/lib/finance/cycles'
 import type { PaymentMethod, RecurringPlan, InternalTransfer } from '@/types/database'
 import type { ProcessedTransaction, CreditCardCycleSummary } from './types'
 
@@ -39,14 +40,18 @@ export function computePaymentMethodStatus(
   transactions: ProcessedTransaction[],
   recurringPlans: RecurringPlan[],
   now: Date,
+  cycles: CreditCardCycle[],
+  cicloObjetivo?: CreditCardCycle,
 ): PaymentMethodStatus {
   if (!method)
     return { currentConsumption: 0, fixedCosts: 0, projectedTotal: 0, usdExpenses: 0, arsExpenses: 0 }
 
-  // Fechas de cierre/vencimiento del ciclo vigente (solo crédito con ciclo).
-  const cycleDates = getCreditCycleDates(method, now)
-  const nextClosingDate = cycleDates?.nextClosingDate
-  const nextPaymentDate = cycleDates?.nextPaymentDate
+  // El resumen sobre el que se calcula: el vigente, o el que pida el llamador
+  // (computePendingCreditCards pasa el anterior para el caso vencido).
+  const ciclos = ciclosDeMetodo(method.id, cycles)
+  const ciclo = cicloObjetivo ?? cicloVigente(ciclos, now)
+  const nextClosingDate = ciclo ? parseLocalDate(ciclo.closing_date) : undefined
+  const nextPaymentDate = ciclo ? parseLocalDate(ciclo.due_date) : undefined
 
   // Mensualidades activas del medio (para el bloque "servicios adheridos").
   const fixedCosts = recurringPlans
@@ -56,12 +61,12 @@ export function computePaymentMethodStatus(
   // ===================================================================
   // CRÉDITO CON CICLO → "A pagar en el vencimiento"
   // = gastos que vencen en nextPaymentDate (cuotas + compras + mensualidades) − reintegros.
-  // Regla ÚNICA de pertenencia al ciclo: t.date (que en crédito ya es la fecha de
-  // vencimiento calculada) cae en el mismo mes/año que nextPaymentDate. Aplica igual
-  // a compras normales, cuotas e ingresos, de modo que el número coincide con la
-  // lista de movimientos del medio.
+  // Regla ÚNICA de pertenencia al ciclo: t.cycle_id === ciclo.id. Antes era
+  // sameMonthYear(t.date, nextPaymentDate) -- aritmética de mes que no podía
+  // representar dos resúmenes vencidos en el mismo mes calendario y se movía
+  // sola cada vez que el usuario corregía el día de vencimiento de la tarjeta.
   // ===================================================================
-  if (nextPaymentDate) {
+  if (ciclo && nextPaymentDate) {
     const recurringPlanIdsInCycle = new Set<string>()
     let expensesInCycleArs = 0 // total en ARS (USD convertido) → alimenta projectedTotal
     let usdExpenses = 0 // desglose: importe original USD
@@ -69,7 +74,7 @@ export function computePaymentMethodStatus(
 
     for (const t of transactions) {
       if (t.payment_method_id !== method.id || t.type !== 'expense') continue
-      if (!sameMonthYear(parseLocalDate(t.date), nextPaymentDate)) continue
+      if (t.cycle_id !== ciclo.id) continue
       if (t.recurring_plan_id) recurringPlanIdsInCycle.add(t.recurring_plan_id)
       expensesInCycleArs += Math.abs(Number(t.amount))
       if (t.original_currency === 'USD' && t.original_amount) {
@@ -98,7 +103,7 @@ export function computePaymentMethodStatus(
         (t) =>
           t.payment_method_id === method.id &&
           t.type === 'income' &&
-          sameMonthYear(parseLocalDate(t.date), nextPaymentDate),
+          t.cycle_id === ciclo.id,
       )
       .reduce((acc, t) => acc + Number(t.amount), 0)
 
@@ -154,19 +159,20 @@ export function computePaymentMethodStatus(
   }
 }
 
-/** true si existe un pago (card_payment_for) en el mes del vencimiento del ciclo vigente. */
+/**
+ * true si existe un pago (card_payment_for) imputado a ESTE resumen.
+ *
+ * Antes se buscaba por mes del vencimiento, y de ahi salia toda una clase de bug
+ * de bordes de mes --el parche de rangoDelMes del 1-sep-2026-- porque una fecha
+ * del dia 1 leida como Date cae en el mes anterior en zona negativa. Con el ciclo
+ * como entidad la pregunta es directa: el pago apunta a este resumen o no.
+ */
 export function hasCardPaymentInCycle(
   transactions: ProcessedTransaction[],
   method: PaymentMethod,
-  now: Date,
+  ciclo: CreditCardCycle,
 ): boolean {
-  const cycle = getCreditCycleDates(method, now)
-  if (!cycle) return false
-  return transactions.some(
-    (t) =>
-      t.card_payment_for === method.id &&
-      sameMonthYear(parseLocalDate(t.date), cycle.nextPaymentDate),
-  )
+  return transactions.some((t) => t.card_payment_for === method.id && t.cycle_id === ciclo.id)
 }
 
 /**
@@ -189,22 +195,29 @@ function pisoDeVencidos(paymentMethods: PaymentMethod[]): Date | null {
 }
 
 /**
- * Arma el resumen de UN ciclo, el que corresponda a `referencia`.
+ * Arma el resumen de UN ciclo ya resuelto.
  *
- * `referencia` es la fecha desde la que se mira: con `now` sale el ciclo vigente,
- * y con el vencimiento anterior sale ese ciclo. Reusar la misma función para los
- * dos casos es lo que evita una segunda definición de "qué le debo a la tarjeta":
- * la regla de pertenencia al ciclo vive sólo en computePaymentMethodStatus.
+ * Recibe el ciclo explícito -- no una fecha desde la que derivarlo. Antes esta
+ * función tomaba una `referencia: Date` y volvía a buscar "el ciclo vigente visto
+ * desde ahí" con `cicloVigente`; para el caso "vencido", el llamador armaba esa
+ * fecha aproximada restando un mes (`subMonths`), y si ningún ciclo materializado
+ * vencía justo ahí, la búsqueda por `>=` no daba `undefined`: caía para ADELANTE y
+ * devolvía el MISMO ciclo vigente, duplicado con `isOverdue: true` (Finding 1 de
+ * la revisión 2026-09-01 -- ver el test "Finding 1" en balances.test.ts). Con el
+ * ciclo como parámetro explícito, "cuál es el ciclo anterior" se resuelve una sola
+ * vez en el llamador (`computePendingCreditCards`, con `cicloAnterior`) y nunca se
+ * re-deriva acá con aritmética que puede no encontrar ningún ciclo real.
  */
 function resumenDelCiclo(
   method: PaymentMethod,
   transactions: ProcessedTransaction[],
   recurringPlans: RecurringPlan[],
-  referencia: Date,
+  cycles: CreditCardCycle[],
+  ciclo: CreditCardCycle,
   now: Date,
   isOverdue: boolean,
 ): CreditCardCycleSummary | null {
-  const status = computePaymentMethodStatus(method, transactions, recurringPlans, referencia)
+  const status = computePaymentMethodStatus(method, transactions, recurringPlans, now, cycles, ciclo)
   const { projectedTotal, nextPaymentDate, nextClosingDate, usdExpenses, arsExpenses } = status
 
   // projectedTotal = income - expenses (negative when user owes money to the card)
@@ -218,19 +231,20 @@ function resumenDelCiclo(
     : false
 
   // El estado "pagada" se deriva de la existencia de una transacción de pago
-  // (card_payment_for) cuya fecha cae en el mes del vencimiento del ciclo.
-  const isPaidManually = hasCardPaymentInCycle(transactions, method, referencia)
+  // (card_payment_for) imputada a este resumen (t.cycle_id === ciclo.id).
+  const isPaidManually = hasCardPaymentInCycle(transactions, method, ciclo)
   if (isOverdue && isPaidManually) return null
 
   // Pendiente mientras no se pagó y el vencimiento no pasó. Comparación por
   // día (no por timestamp) para que el día EXACTO del vencimiento siga contando
-  // como pendiente, coherente con getCreditCycleDates. Un resumen vencido e impago
-  // sigue pendiente por definición: es justo lo que todavía debés.
+  // como pendiente. Un resumen vencido e impago sigue pendiente por definición:
+  // es justo lo que todavía debés.
   const isPending = isOverdue
     ? true
     : !isPaidManually && !isAfter(startOfDay(now), startOfDay(nextPaymentDate))
 
   return {
+    cycleId: ciclo.id,
     methodId: method.id,
     name: method.name,
     total: Math.abs(projectedTotal),
@@ -248,37 +262,53 @@ function resumenDelCiclo(
  * Resumen de ciclo pendiente por cada tarjeta de crédito: el vigente y, si quedó
  * impago, el que ya venció.
  *
- * Lo segundo existe porque `getCreditCycleDates` avanza al siguiente resumen al día
- * siguiente del vencimiento: el viejo desaparecía, el compromiso se liberaba solo y
- * la plata nunca salía de ninguna cuenta, así que el disponible subía por el monto
- * del resumen todos los meses y en silencio (E11 en escenarios-disponible.test.ts).
- * Retenerlo hasta que haya un pago registrado es la lectura conservadora: si el
- * usuario lo pagó y lo marca, el compromiso se libera y el saldo baja a la vez.
+ * Lo segundo existe porque el ciclo vigente avanza al día siguiente del vencimiento:
+ * el viejo desaparecía, el compromiso se liberaba solo y la plata nunca salía de
+ * ninguna cuenta, así que el disponible subía por el monto del resumen todos los
+ * meses y en silencio (E11 en escenarios-disponible.test.ts). Retenerlo hasta que
+ * haya un pago registrado es la lectura conservadora: si el usuario lo pagó y lo
+ * marca, el compromiso se libera y el saldo baja a la vez.
  *
- * Sólo se mira UN ciclo hacia atrás. Con dos meses seguidos sin marcar, el más viejo
- * se pierde: alcanza para que el número deje de inflarse mes a mes, y el aviso ya
- * venía apareciendo desde el primero.
+ * "El anterior" es `cicloAnterior` -- una consulta sobre `cycles`, no una resta de
+ * un mes sobre el vencimiento vigente. Restar un mes podía apuntar a una fecha que
+ * ningún ciclo real tenía (E11) o, peor, caer sobre el vencimiento del ciclo VIGENTE
+ * mismo y duplicarlo como "vencido" (Finding 1, 2026-09-01) cuando el default de la
+ * tarjeta quedó desalineado de las fechas realmente declaradas/materializadas.
+ *
+ * Tarjeta configurada pero sin ningún ciclo materializado: `cicloVigente` devuelve
+ * `undefined` y la tarjeta no aparece en la lista -- no se le inventa un ciclo.
+ *
+ * Sólo se mira UN ciclo hacia atrás: es una DECISIÓN, no una limitación del modelo
+ * (la entidad podría mirar cualquier cantidad), y cambiarla mueve el disponible de
+ * usuarios reales, así que queda fuera de este plan. Con dos meses seguidos sin
+ * marcar, el más viejo se pierde: alcanza para que el número deje de inflarse mes a
+ * mes, y el aviso ya venía apareciendo desde el primero.
  */
 export function computePendingCreditCards(
   paymentMethods: PaymentMethod[],
   transactions: ProcessedTransaction[],
   recurringPlans: RecurringPlan[],
+  cycles: CreditCardCycle[],
   now: Date,
 ): CreditCardCycleSummary[] {
   const creditCards = paymentMethods.filter((m) => m.type === 'credit')
   const piso = pisoDeVencidos(paymentMethods)
 
   return creditCards.reduce<CreditCardCycleSummary[]>((acc, method) => {
-    const vigente = resumenDelCiclo(method, transactions, recurringPlans, now, now, false)
-    if (vigente) acc.push(vigente)
+    const ciclos = ciclosDeMetodo(method.id, cycles)
+    const vigente = cicloVigente(ciclos, now)
+    if (!vigente) return acc
 
-    const cicloVigente = getCreditCycleDates(method, now)
-    if (piso && cicloVigente) {
-      const vencimientoAnterior = subMonths(cicloVigente.nextPaymentDate, 1)
-      if (isAfter(startOfDay(vencimientoAnterior), piso)) {
-        const vencido = resumenDelCiclo(method, transactions, recurringPlans, vencimientoAnterior, now, true)
-        if (vencido) acc.push(vencido)
-      }
+    const resumenVigente = resumenDelCiclo(method, transactions, recurringPlans, cycles, vigente, now, false)
+    if (resumenVigente) acc.push(resumenVigente)
+
+    // El PISO no cambia: sólo se retiene lo que venció DESPUÉS del último saldo
+    // declarado del bolsillo. Un resumen anterior al ancla ya está adentro de ese
+    // saldo y retenerlo lo restaría dos veces -- el agujero de -$850.613 del 21-ago.
+    const anterior = cicloAnterior(ciclos, vigente)
+    if (piso && anterior && isAfter(startOfDay(parseLocalDate(anterior.due_date)), piso)) {
+      const vencido = resumenDelCiclo(method, transactions, recurringPlans, cycles, anterior, now, true)
+      if (vencido) acc.push(vencido)
     }
     return acc
   }, [])

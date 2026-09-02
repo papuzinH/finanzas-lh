@@ -3,8 +3,11 @@ import Image from 'next/image'
 import { LoginForm } from './login-form'
 import { Loader } from '@/components/shared/loader'
 import { InstallApp } from '@/components/shared/install-app'
+import { permiteLoginPorEmail } from '@/lib/entorno'
 
 export default function LoginPage() {
+  const conEmail = permiteLoginPorEmail()
+
   return (
     <div className="paper-grain relative flex min-h-screen flex-col overflow-hidden bg-bg px-6">
       {/* Cinta con la frase. Su frente es abierto y toma el color del fondo,
@@ -40,7 +43,7 @@ export default function LoginPage() {
           con él (ver docs/features/pwa-plataforma.md). */}
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center pb-[13rem]">
         <Suspense fallback={<Loader size="lg" centered text="Cargando..." />}>
-          <LoginForm />
+          <LoginForm conEmail={conEmail} />
         </Suspense>
         <p className="mt-3 text-center text-[12.5px] leading-[1.45] text-faint">
           Al entrar aceptás la{' '}

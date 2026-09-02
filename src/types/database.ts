@@ -159,6 +159,51 @@ export interface Database {
           },
         ]
       }
+      credit_card_cycles: {
+        Row: {
+          closing_date: string
+          created_at: string
+          due_date: string
+          id: string
+          payment_method_id: string
+          source: 'generated' | 'declared'
+          user_id: string
+        }
+        Insert: {
+          closing_date: string
+          created_at?: string
+          due_date: string
+          id?: string
+          payment_method_id: string
+          source?: 'generated' | 'declared'
+          user_id: string
+        }
+        Update: {
+          closing_date?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          payment_method_id?: string
+          source?: 'generated' | 'declared'
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'credit_card_cycles_payment_method_id_fkey'
+            columns: ['payment_method_id']
+            isOneToOne: false
+            referencedRelation: 'payment_methods'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'credit_card_cycles_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       exchange_rates: {
         Row: {
           id: string
@@ -719,6 +764,7 @@ export interface Database {
           category_id: string
           confirmation_status: string
           created_at: string
+          cycle_id: string | null
           date: string
           description: string
           exchange_rate: number | null
@@ -728,6 +774,7 @@ export interface Database {
           original_amount: number | null
           original_currency: string
           payment_method_id: string | null
+          purchase_date: string | null
           rate_pair: string | null
           recurring_plan_id: string | null
           source: string
@@ -740,6 +787,7 @@ export interface Database {
           category_id: string
           confirmation_status?: string
           created_at?: string
+          cycle_id?: string | null
           date: string
           description: string
           exchange_rate?: number | null
@@ -749,6 +797,7 @@ export interface Database {
           original_amount?: number | null
           original_currency?: string
           payment_method_id?: string | null
+          purchase_date?: string | null
           rate_pair?: string | null
           recurring_plan_id?: string | null
           source?: string
@@ -761,6 +810,7 @@ export interface Database {
           category_id?: string
           confirmation_status?: string
           created_at?: string
+          cycle_id?: string | null
           date?: string
           description?: string
           exchange_rate?: number | null
@@ -770,6 +820,7 @@ export interface Database {
           original_amount?: number | null
           original_currency?: string
           payment_method_id?: string | null
+          purchase_date?: string | null
           rate_pair?: string | null
           recurring_plan_id?: string | null
           source?: string
@@ -789,6 +840,13 @@ export interface Database {
             columns: ['category_id']
             isOneToOne: false
             referencedRelation: 'categories'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transactions_cycle_id_fkey'
+            columns: ['cycle_id']
+            isOneToOne: false
+            referencedRelation: 'credit_card_cycles'
             referencedColumns: ['id']
           },
           {

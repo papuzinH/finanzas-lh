@@ -21,7 +21,8 @@ Gestión de los medios de pago del usuario (tarjetas de crédito, débito, efect
 | `src/components/medios-pago/payment-method-detail-modal.tsx` | Detalle con movimientos del mes |
 | `src/components/medios-pago/register-card-payment-dialog.tsx` | Registrar pago de resumen de tarjeta (típicamente meses anteriores) |
 | `src/lib/finance/balances.ts` | `computePaymentMethodStatus`, `computePendingCreditCards`, `hasCardPaymentInCycle` |
-| `src/lib/finance/creditCycle.ts` | `getCreditCycleDates` (ciclo vigente) |
+| `src/lib/finance/cycles.ts` | `cicloVigente` (el resumen vigente), `ciclosDeMetodo`, `cicloDeCompra`, `cicloSaldadoEn` |
+| `src/lib/finance/creditCycle.ts` | `getCreditCycleDates` (**fallback** para tarjetas sin ciclos materializados) |
 | `src/lib/store/financeStore.ts` | Getters: `getPaymentMethodStatus`, `getDefaultPaymentMethod`, `getUnassignedTransactionsCount`, `getPendingCreditCardByCard`, `isCreditCardCyclePaid` |
 
 ## Tablas DB
@@ -36,7 +37,7 @@ Gotcha crítico: estas tablas usan el id interno de `public.users` (`users.id`),
 ## Flujos principales
 1. **Alta/edición**: validación Zod (para crédito, `default_closing_day !== default_payment_day`). Invariante de **un solo `is_default` por usuario**: si el nuevo/editado queda como default, la action primero resetea `is_default = false` en TODOS los medios del usuario y después marca este.
 2. **Estado por medio** (`getPaymentMethodStatus` → `computePaymentMethodStatus`):
-   - **Crédito con ciclo** = "a pagar en el vencimiento": suma gastos cuya `t.date` (ya es fecha de vencimiento calculada) cae en el mes/año de `nextPaymentDate` + mensualidades adheridas activas sin transacción en el ciclo (deduplicadas por `recurring_plan_id`) − reintegros del ciclo. `projectedTotal` **negativo = se debe** a la tarjeta. Devuelve `arsExpenses`/`usdExpenses` por separado (el desglose NO convierte USD→ARS; la conversión solo alimenta el total).
+   - **Crédito con ciclo** = "a pagar en el vencimiento": suma los gastos imputados al resumen vigente por la FK (`t.cycle_id === ciclo.id`, no el mes de `t.date`) + mensualidades adheridas activas sin transacción en el ciclo (deduplicadas por `recurring_plan_id`) − reintegros del mismo ciclo. `getPaymentMethodTransactionsForCurrentMonth` usa la MISMA regla, así la lista de movimientos cuadra con este número. `projectedTotal` **negativo = se debe** a la tarjeta. Devuelve `arsExpenses`/`usdExpenses` por separado (el desglose NO convierte USD→ARS; la conversión solo alimenta el total).
    - **Débito/efectivo** (o crédito sin ciclo) = saldo histórico `ingresos − gastos` (cuotas contadas hasta fin del mes actual). Los pagos de tarjeta registrados en la cuenta la debitan como cualquier gasto. Este es el saldo "de siempre" que muestra el detalle de la cuenta; el que alimenta el disponible del home es otro cálculo (`computeAccountBalance`, ancla + movimientos desde el ancla — ver `docs/features/bolsillo.md`), no `computePaymentMethodStatus`.
 3. **Borrado**: `deletePaymentMethod` (directo) o `reassignAndDeletePaymentMethod(id, newMethodId | null)` que primero reapunta `transactions`, `recurring_plans` e `installment_plans` al nuevo medio (o `null`) y recién entonces borra.
 4. **Arreglo masivo** (`assignDefaultToUnassignedTransactions`): asigna el medio `is_default` a todas las transacciones con `payment_method_id = null`. Si el default es crédito con ciclo, recalcula la fecha de cada transacción con la lógica de ciclo (rama `isCredit`); si no, solo setea el medio. Banner en `/ajustes/medios` alimentado por `getUnassignedTransactionsCount()`.

@@ -23,17 +23,35 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { payCreditCardCycle } from '@/app/compromisos/actions';
+import { ciclosDeMetodo, cicloSaldadoEn } from '@/lib/finance/cycles';
 
 /**
  * Registra un pago de resumen de tarjeta (típicamente de meses anteriores) como
  * una salida real del medio elegido. Baja el saldo de ese medio y es neutro para
  * el Disponible Real global. Reversible: el pago queda como movimiento borrable.
+ *
+ * Este diálogo NO recibe un summary: el usuario elige tarjeta, medio, monto y
+ * fecha a mano, así que el ciclo que el pago salda se resuelve con
+ * `cicloSaldadoEn` (el último resumen cerrado a la fecha del pago). Elegir el
+ * resumen a mano queda para más adelante.
+ *
+ * Dos situaciones distintas, que antes se trataban igual y bloqueaban el botón:
+ * - La tarjeta NO tiene ningún resumen materializado (no tiene día de cierre ni de
+ *   vencimiento cargados, así que `generarCiclos` no genera nada a propósito): el
+ *   pago se registra igual, con `cycleId: null`, como eran todos antes de esta
+ *   rama. Si no, esas tarjetas quedaban sin ninguna vía de registrar un pago —
+ *   tampoco tienen chip en Compromisos.
+ * - La tarjeta SÍ tiene resúmenes pero ninguno cerró a esa fecha: ahí sí no hay
+ *   qué saldar y el envío queda deshabilitado.
  */
 export function RegisterCardPaymentDialog() {
   const [open, setOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const router = useRouter();
-  const { paymentMethods, getDefaultPaymentMethod, fetchAllData } = useFinanceStore();
+  // El store entero, no sus getters sueltos: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  const store = useFinanceStore();
+  const { paymentMethods, getDefaultPaymentMethod, fetchAllData } = store;
 
   const creditCards = paymentMethods.filter((m) => m.type === 'credit');
   const [cardId, setCardId] = useState<string>('');
@@ -49,6 +67,13 @@ export function RegisterCardPaymentDialog() {
     (m) => m.type !== 'credit' && !m.is_personal && String(m.id) !== cardId
   );
 
+  const ciclosDeLaTarjeta = ciclosDeMetodo(cardId, store.creditCardCycles);
+  const cicloAPagar = date ? cicloSaldadoEn(ciclosDeLaTarjeta, date) : undefined;
+  // La tarjeta no tiene resúmenes cargados en absoluto: el pago va sin ciclo.
+  const sinCiclosCargados = Boolean(cardId) && ciclosDeLaTarjeta.length === 0;
+  // Tiene resúmenes, pero ninguno cerrado a esa fecha: no hay qué saldar.
+  const sinResumen = Boolean(cardId) && Boolean(date) && !cicloAPagar && !sinCiclosCargados;
+
   async function onSubmit() {
     const card = creditCards.find((m) => String(m.id) === cardId);
     const funding = fundingMethods.find((m) => String(m.id) === fundingId);
@@ -58,6 +83,7 @@ export function RegisterCardPaymentDialog() {
     if (!funding) return toast.error('Elegí con qué medio pagaste');
     if (!amountArs || amountArs <= 0) return toast.error('Ingresá un monto válido');
     if (!date) return toast.error('Elegí la fecha del pago');
+    if (!cicloAPagar && !sinCiclosCargados) return toast.error('Sin resumen cargado para esa fecha');
 
     setIsPending(true);
     try {
@@ -67,6 +93,7 @@ export function RegisterCardPaymentDialog() {
         amountArs,
         date,
         cardName: card.name,
+        cycleId: cicloAPagar?.id ?? null,
       });
       if (res.error) {
         toast.error(res.error);
@@ -171,6 +198,9 @@ export function RegisterCardPaymentDialog() {
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
+            {sinResumen && (
+              <p className="text-sm text-muted mt-1">Sin resumen cargado para esa fecha</p>
+            )}
           </div>
         </div>
 
@@ -178,7 +208,7 @@ export function RegisterCardPaymentDialog() {
           <Button
             type="button"
             onClick={onSubmit}
-            disabled={isPending}
+            disabled={isPending || sinResumen}
             variant="accent"
             size="lg"
             className="w-full"

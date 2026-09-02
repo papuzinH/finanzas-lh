@@ -73,7 +73,7 @@ describe('avisoDeVencidos', () => {
   // eso tambien es la explicacion de por que su disponible esta mas bajo: el
   // resumen sigue descontado hasta que lo marque (computePendingCreditCards).
   const vencido = (over = {}) => ({
-    methodId: 'c1', name: 'Visa Galicia', total: 324078, totalARS: 324078, totalUSD: 0,
+    cycleId: 'cy1', methodId: 'c1', name: 'Visa Galicia', total: 324078, totalARS: 324078, totalUSD: 0,
     nextPaymentDate: new Date(2026, 8, 1), isCycleClosed: true, isPending: true,
     isPaidManually: false, isOverdue: true, ...over,
   });

@@ -10,6 +10,7 @@ import type {
   InstallmentPlan,
   ExchangeRate,
 } from '@/types/database'
+import type { CreditCardCycle } from '@/lib/finance/cycles'
 
 const USER_ID = '42'
 const AUTH_USER_ID = 'auth-uuid-123'
@@ -79,7 +80,8 @@ const tx = {
   description: 'Compra',
   category_id: 'c1',
   amount: 5000,
-  date: '2026-07-08', // paymentDay(10) < closingDay(20) y day(8) <= 10+2 → retrocede un mes
+  date: '2026-07-08',
+  cycle_id: 'cyc1', // pertenece al resumen `cycle` (cierre 2026-06-20): periodDate sale de ahí, no de adivinar por el día
   type: 'expense',
   installment_plan_id: null,
   recurring_plan_id: null,
@@ -143,6 +145,16 @@ const installment = {
   payment_method_id: '1',
 } as InstallmentPlan
 
+const cycle = {
+  id: 'cyc1',
+  user_id: USER_ID,
+  payment_method_id: '1',
+  closing_date: '2026-06-20',
+  due_date: '2026-06-30',
+  source: 'generated',
+  created_at: '2026-06-20',
+} as CreditCardCycle
+
 function ctxWithTables(tables: Record<string, unknown[]>): AgentContext {
   return {
     supabase: makeSupabase(tables),
@@ -161,6 +173,7 @@ const allTables = {
   installment_plans: [installment],
   exchange_rates: [] as ExchangeRate[],
   users: [{ income_rhythm: 'monthly' }],
+  credit_card_cycles: [cycle],
 }
 
 describe('loadFinanceData', () => {
@@ -176,7 +189,7 @@ describe('loadFinanceData', () => {
     const result = await loadFinanceData(ctx)
 
     expect(result.transactions).toHaveLength(1)
-    expect(result.transactions[0].periodDate).toBe('2026-06-08')
+    expect(result.transactions[0].periodDate).toBe('2026-06-20') // cierre del ciclo `cyc1`, no un cómputo por día
     expect(result.transactions[0].realPaymentDate).toBe('2026-07-08')
   })
 
@@ -196,9 +209,10 @@ describe('loadFinanceData', () => {
     expect(result.internalTransfers).toEqual([transfer])
     expect(result.categories).toEqual([category])
     expect(result.installmentPlans).toEqual([installment])
+    expect(result.creditCardCycles).toEqual([cycle])
   })
 
-  it('filtra transactions/payment_methods/recurring_plans/installment_plans por el user_id numérico', async () => {
+  it('filtra transactions/payment_methods/recurring_plans/installment_plans/credit_card_cycles por el user_id numérico', async () => {
     const tables = makeSupabase(allTables)
     const ctx: AgentContext = {
       supabase: tables,
@@ -213,10 +227,20 @@ describe('loadFinanceData', () => {
     // reconstruyendo la secuencia de llamadas por tabla.
     const fromCalls = (tables.from as unknown as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0])
     expect(fromCalls).toEqual(
-      expect.arrayContaining(['transactions', 'payment_methods', 'recurring_plans', 'installment_plans'])
+      expect.arrayContaining([
+        'transactions',
+        'payment_methods',
+        'recurring_plans',
+        'installment_plans',
+        'credit_card_cycles',
+      ])
     )
     fromCalls.forEach((table, i) => {
-      if (['transactions', 'payment_methods', 'recurring_plans', 'installment_plans'].includes(table)) {
+      if (
+        ['transactions', 'payment_methods', 'recurring_plans', 'installment_plans', 'credit_card_cycles'].includes(
+          table
+        )
+      ) {
         const builder = calls[i].value
         expect(builder.eq).toHaveBeenCalledWith('user_id', USER_ID)
       }
@@ -298,6 +322,7 @@ describe('loadFinanceData - propaga errores de PostgREST (no los traga con `?? [
     'installment_plans',
     'exchange_rates',
     'users',
+    'credit_card_cycles',
   ])('también lanza si %s trae .error', async (table) => {
     const supabase = makeSupabaseWithError(allTables, table, 'boom')
     const ctx: AgentContext = { supabase, userId: USER_ID, authUserId: AUTH_USER_ID, today: '2026-07-08' }
@@ -329,7 +354,7 @@ describe('loadFinanceData - memoiza el snapshot en ctx._financeCache (cache de p
     const [a, b] = await Promise.all([loadFinanceData(ctx), loadFinanceData(ctx)])
 
     expect(a).toBe(b) // mismo objeto: ambas llamadas resolvieron la MISMA promesa cacheada
-    expect(fromSpy).toHaveBeenCalledTimes(8) // 8 tablas × 1 sola ronda, no 16
+    expect(fromSpy).toHaveBeenCalledTimes(9) // 9 tablas × 1 sola ronda, no 18
   })
 
   it('llamadas secuenciales con el mismo ctx también reutilizan el cache', async () => {
@@ -339,7 +364,7 @@ describe('loadFinanceData - memoiza el snapshot en ctx._financeCache (cache de p
     await loadFinanceData(ctx)
     await loadFinanceData(ctx)
 
-    expect(fromSpy).toHaveBeenCalledTimes(8)
+    expect(fromSpy).toHaveBeenCalledTimes(9)
   })
 
   it('un ctx nuevo (o con el cache invalidado) dispara una ronda de queries propia', async () => {
@@ -349,14 +374,14 @@ describe('loadFinanceData - memoiza el snapshot en ctx._financeCache (cache de p
     await loadFinanceData(ctx1)
     await loadFinanceData(ctx2)
 
-    expect(ctx1.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(8)
-    expect(ctx2.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(8)
+    expect(ctx1.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(9)
+    expect(ctx2.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(9)
 
     // Invalidar el cache (como hace runAgent tras una write mutada) fuerza una segunda
     // ronda sobre el MISMO ctx.
     ctx1._financeCache = undefined
     await loadFinanceData(ctx1)
-    expect(ctx1.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(16)
+    expect(ctx1.supabase.from as unknown as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(18)
   })
 
   it('una promesa RECHAZADA no queda cacheada: la siguiente llamada del mismo ctx reintenta y puede resolver', async () => {
@@ -384,7 +409,7 @@ describe('loadFinanceData - memoiza el snapshot en ctx._financeCache (cache de p
     failFirstRound = false
     const result = await loadFinanceData(ctx)
     expect(result.paymentMethods).toEqual([visa])
-    expect(from).toHaveBeenCalledTimes(16) // 8 de la ronda fallida + 8 del reintento
+    expect(from).toHaveBeenCalledTimes(18) // 9 de la ronda fallida + 9 del reintento
   })
 })
 

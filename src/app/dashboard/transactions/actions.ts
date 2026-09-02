@@ -3,7 +3,10 @@
 import { createClient } from '@/utils/supabase/server';
 import { transactionSchema, type TransactionSchema, createTransactionSchema, type CreateTransactionSchema } from '@/lib/schemas/transaction';
 import { revalidatePath } from 'next/cache';
-import { calculateCreditPaymentDate, dateToLocalString } from '@/lib/utils/dates';
+import { calculateCreditPaymentDate, parseLocalDate } from '@/lib/utils/dates';
+import { addMonths, subMonths } from 'date-fns';
+import { asegurarCiclos } from '@/lib/ciclos/asegurar';
+import { cicloDeCompra } from '@/lib/finance/cycles';
 
 type ActionResponse = {
   error?: string;
@@ -32,7 +35,16 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
 
     // Para gastos con tarjeta de crédito, calcular la fecha real de pago según el ciclo de la tarjeta.
     // Para débito/efectivo, se guarda la fecha de compra sin modificar.
-    let storedDate = dateToLocalString(new Date(date));
+    //
+    // `date` ya viene como 'yyyy-MM-dd' (el schema lo valida con regex): se usa TAL CUAL.
+    // El round trip que había acá -`dateToLocalString(new Date(date))`- perdía un día en
+    // todo runtime con TZ negativa, porque `new Date('2026-07-15')` es medianoche UTC y
+    // en Argentina (UTC-3) cae el 14. Ese valor se persiste en `purchase_date` y decide
+    // `cicloDeCompra` (regla del borde, E16), así que la misma compra entraba en resúmenes
+    // distintos según viniera de la pantalla o del chat (que ya usa el string crudo).
+    let storedDate = date;
+    const purchaseDate = date; // la fecha que eligió el usuario ES la de compra
+    let cycleId: string | null = null;
     const resolvedMethodId = payment_method_id && payment_method_id !== 'none' ? payment_method_id : null;
 
     // El medio tiene que ser del usuario (M4): RLS no impide que la transacción
@@ -41,15 +53,37 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
     if (resolvedMethodId) {
       const { data: method } = await supabase
         .from('payment_methods')
-        .select('type, default_closing_day, default_payment_day')
+        .select('*')
         .eq('id', resolvedMethodId)
         .eq('user_id', user.id)
         .single();
 
       if (!method) return { error: 'Medio de pago inválido' };
 
-      if (type === 'expense' && method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
-        storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
+      // El ciclo se resuelve para CUALQUIER tipo, no sólo 'expense': un reintegro
+      // (income) en la tarjeta lo descuenta `refundsInCycle` (balances.ts) por
+      // cycle_id, así que sin ciclo dejaba de restar del resumen y el "a pagar"
+      // quedaba inflado. `purchase_date` sí sigue siendo sólo de compras.
+      if (method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
+        // Se materializan los resúmenes alrededor de la compra: uno hacia atrás
+        // (una compra vieja puede caer en un ciclo que todavía no existe) y dos
+        // hacia adelante (margen para que cicloDeCompra encuentre destino).
+        const ciclos = await asegurarCiclos(
+          supabase,
+          method,
+          subMonths(parseLocalDate(purchaseDate), 1),
+          addMonths(parseLocalDate(purchaseDate), 2),
+        );
+        const ciclo = cicloDeCompra(purchaseDate, ciclos);
+        if (ciclo) {
+          cycleId = ciclo.id;
+          storedDate = ciclo.due_date;
+        } else {
+          // No debería pasar con el margen de arriba. Si pasa, la compra se guarda
+          // igual con la fecha estimada y sin ciclo: perder el movimiento sería peor
+          // que perder la imputación, y sin cycle_id cae al branch de "sin ciclo".
+          storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
+        }
       }
     }
 
@@ -75,6 +109,8 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
         original_amount: amount,
         rate_pair: isUsd ? rate_pair : null,
         exchange_rate: rate,
+        cycle_id: cycleId,
+        purchase_date: type === 'expense' ? purchaseDate : null,
       });
 
     if (error) {
@@ -122,7 +158,10 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
     // Por defecto la fecha se guarda tal cual. Solo si se ASIGNA un medio de
     // crédito distinto al que tenía, se recalcula el vencimiento tratando `date`
     // como fecha de compra (evita re-desplazar la fecha de un crédito ya cargado).
-    let storedDate = dateToLocalString(new Date(date));
+    // `date` ya es 'yyyy-MM-dd' validado por el schema: sin round trip por `Date`
+    // (perdía un día en TZ negativa — ver el comentario de createTransaction).
+    let storedDate = date;
+    const purchaseDate = date; // fecha de compra SOLO si termina resolviendo un ciclo/medio nuevo
 
     const { data: current } = await supabase
       .from('transactions')
@@ -133,20 +172,41 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
 
     const methodChanged = (current?.payment_method_id ?? null) !== resolvedMethodId;
 
+    // cycle_id/purchase_date sólo se tocan cuando el medio cambió (E13: editar
+    // descripción o monto nunca mueve la compra de resumen). Si el medio no
+    // cambió, `date` en un crédito es el VENCIMIENTO que ya tenía la fila -no
+    // una fecha de compra nueva-, así que reescribir purchase_date con eso la
+    // corrompería: se omiten ambas keys del update y quedan como estaban.
+    let cycleId: string | null = null;
+
     // Si cambia a un medio nuevo, tiene que ser del usuario (M4). Se valida
     // aunque no sea 'expense': el payment_method_id se guarda igual.
     if (methodChanged && resolvedMethodId) {
       const { data: method } = await supabase
         .from('payment_methods')
-        .select('type, default_closing_day, default_payment_day')
+        .select('*')
         .eq('id', resolvedMethodId)
         .eq('user_id', user.id)
         .single();
 
       if (!method) return { error: 'Medio de pago inválido' };
 
-      if (type === 'expense' && method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
-        storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
+      // Igual que en el alta: cualquier tipo, no sólo 'expense' (los reintegros
+      // también se imputan al resumen).
+      if (method.type === 'credit' && method.default_closing_day && method.default_payment_day) {
+        const ciclos = await asegurarCiclos(
+          supabase,
+          method,
+          subMonths(parseLocalDate(purchaseDate), 1),
+          addMonths(parseLocalDate(purchaseDate), 2),
+        );
+        const ciclo = cicloDeCompra(purchaseDate, ciclos);
+        if (ciclo) {
+          cycleId = ciclo.id;
+          storedDate = ciclo.due_date;
+        } else {
+          storedDate = calculateCreditPaymentDate(storedDate, method.default_closing_day, method.default_payment_day);
+        }
       }
     }
 
@@ -163,6 +223,7 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
         original_amount: amount,
         rate_pair: isUsd ? rate_pair : null,
         exchange_rate: rate,
+        ...(methodChanged ? { cycle_id: cycleId, purchase_date: type === 'expense' ? purchaseDate : null } : {}),
       })
       .eq('id', id)
       .eq('user_id', user.id);
@@ -183,7 +244,14 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
 /**
  * Asigna el medio de pago predeterminado del usuario a TODAS sus transacciones
  * que hoy no tienen medio (payment_method_id null). Si el default es una tarjeta
- * de crédito, recalcula la fecha de vencimiento de cada gasto.
+ * de crédito con ciclo configurado, además imputa cada gasto a su resumen.
+ *
+ * Antes sólo re-fechaba con `calculateCreditPaymentDate` y dejaba `cycle_id` NULL:
+ * desde esta rama la pertenencia al resumen sale de la FK, así que esas filas
+ * quedaban huérfanas para siempre — no aparecían en ningún resumen ni sumaban al
+ * "a pagar en el vencimiento", justo las transacciones que este botón viene a
+ * ordenar. Se toma `r.date` como fecha de compra (es lo que el usuario cargó: la
+ * fila nunca tuvo medio, así que nadie la desplazó a un vencimiento).
  */
 export async function assignDefaultToUnassignedTransactions(): Promise<ActionResponse & { updated?: number }> {
   try {
@@ -193,9 +261,11 @@ export async function assignDefaultToUnassignedTransactions(): Promise<ActionRes
     } = await supabase.auth.getUser();
     if (!user) return { error: 'No autorizado' };
 
+    // select('*'): `asegurarCiclos` necesita el medio completo (user_id incluido)
+    // para generar los resúmenes que falten.
     const { data: def } = await supabase
       .from('payment_methods')
-      .select('id, type, default_closing_day, default_payment_day')
+      .select('*')
       .eq('user_id', user.id)
       .eq('is_default', true)
       .single();
@@ -223,15 +293,37 @@ export async function assignDefaultToUnassignedTransactions(): Promise<ActionRes
         return { error: 'Error al asignar el medio' };
       }
     } else {
-      // Crédito: recalcular el vencimiento por fila (los gastos usan la fecha de compra).
+      // Un solo `asegurarCiclos` para TODAS las filas: cubre desde un mes antes de
+      // la más vieja hasta dos meses después de la más nueva (mismo margen que el
+      // alta). Es idempotente y barato — inserta sólo los meses que falten.
+      const fechas = rows.map((r) => r.date).sort();
+      const ciclos = await asegurarCiclos(
+        supabase,
+        def,
+        subMonths(parseLocalDate(fechas[0]), 1),
+        addMonths(parseLocalDate(fechas[fechas.length - 1]), 2),
+      );
+
       for (const r of rows) {
-        const newDate =
-          r.type === 'expense'
-            ? calculateCreditPaymentDate(r.date, def.default_closing_day!, def.default_payment_day!)
-            : r.date;
+        const ciclo = cicloDeCompra(r.date, ciclos);
+        const fila: {
+          payment_method_id: string;
+          date: string;
+          cycle_id: string | null;
+          purchase_date?: string | null;
+        } = ciclo
+          ? { payment_method_id: def.id, date: ciclo.due_date, cycle_id: ciclo.id }
+          : {
+              // Sin resumen que la contenga: la fecha estimada de siempre y sin ciclo.
+              payment_method_id: def.id,
+              date: calculateCreditPaymentDate(r.date, def.default_closing_day!, def.default_payment_day!),
+              cycle_id: null,
+            };
+        if (r.type === 'expense') fila.purchase_date = r.date;
+
         const { error } = await supabase
           .from('transactions')
-          .update({ payment_method_id: def.id, date: newDate })
+          .update(fila)
           .eq('id', r.id)
           .eq('user_id', user.id);
         if (error) {

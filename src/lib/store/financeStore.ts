@@ -40,6 +40,7 @@ import {
   sameMonthYear,
 } from '@/lib/finance/creditCycle';
 import type { ProcessedTransaction, CreditCardCycleSummary as CreditCardCycleSummaryType, DolarBlue } from '@/lib/finance/types';
+import { ciclosDeMetodo, cicloVigente, type CreditCardCycle } from '@/lib/finance/cycles';
 import { resolveRate, prepareTransactions, prepareRecurringPlans } from '@/lib/finance/prepare';
 import { computePendingFixedExpenses } from '@/lib/finance/pending';
 import {
@@ -81,6 +82,7 @@ interface FinanceState {
   categories: Category[];
   savings: Saving[];
   internalTransfers: InternalTransfer[];
+  creditCardCycles: CreditCardCycle[];
   /** Ritmo de cobro declarado por el usuario. Define qué compromisos descuenta el disponible. */
   incomeRhythm: IncomeRhythm;
   savingsGoals: SavingsGoal[];
@@ -438,6 +440,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   marketPrices: [],
   savings: [],
   internalTransfers: [],
+  creditCardCycles: [],
   incomeRhythm: 'monthly',
   savingsGoals: [],
   savingsGoalContributions: [],
@@ -492,6 +495,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         { data: userData, error: userError },
         { data: savingsData, error: savError },
         { data: internalTransfersData, error: internalTransfersError },
+        { data: creditCardCyclesData, error: creditCardCyclesError },
         { data: savingsGoalsData, error: goalsError },
         { data: contributionsData, error: contribError },
         { data: budgetsData, error: budgetsError },
@@ -543,6 +547,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           .select('*')
           .eq('user_id', authUser.id)
           .order('period_date', { ascending: false }),
+        supabase
+          .from('credit_card_cycles')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .order('closing_date', { ascending: true }),
         supabase
           .from('savings_goals')
           .select('*')
@@ -612,6 +621,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       if (savError) throw savError;
       if (userError && userError.code !== 'PGRST116') throw userError; // PGRST116 is "no rows returned"
       if (internalTransfersError) console.warn('Internal transfers fetch error (may be missing migration):', internalTransfersError.message);
+      if (creditCardCyclesError) console.warn('Credit card cycles fetch error (may be missing migration):', creditCardCyclesError.message);
       // Goals errors are non-blocking (tables may not exist yet in DEV)
       if (goalsError) console.warn('Goals fetch error (may be missing migration):', goalsError.message);
       if (contribError) console.warn('Contributions fetch error:', contribError.message);
@@ -625,7 +635,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
       // PROCESAMIENTO INTELIGENTE DEL FRONTEND
       // Creamos 'periodDate' para agrupar visualmente en el mes del resumen
-      const processedTransactions = prepareTransactions(rawTransactions, methods, (exchangeRatesData as ExchangeRate[]) || [], dolarBlue);
+      const processedTransactions = prepareTransactions(rawTransactions, methods, (exchangeRatesData as ExchangeRate[]) || [], dolarBlue, (creditCardCyclesData as CreditCardCycle[]) ?? []);
       const recomputedRecurring = prepareRecurringPlans(((recurring as RecurringPlan[]) || []), (exchangeRatesData as ExchangeRate[]) || [], dolarBlue);
 
       set({
@@ -640,6 +650,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         categories: (categories as Category[]) || [],
         savings: (savingsData as Saving[]) || [],
         internalTransfers: (internalTransfersData as InternalTransfer[]) || [],
+        creditCardCycles: (creditCardCyclesData as CreditCardCycle[]) ?? [],
         savingsGoals: (savingsGoalsData as SavingsGoal[]) || [],
         savingsGoalContributions: (contributionsData as SavingsGoalContribution[]) || [],
         categoryBudgets: (budgetsData as CategoryBudget[]) || [],
@@ -948,19 +959,21 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   isCreditCardCyclePaid: (methodId: string) => {
-    const { transactions, paymentMethods } = get();
+    const { transactions, paymentMethods, creditCardCycles } = get();
     const method = paymentMethods.find((m) => m.id === methodId);
-    return method ? hasCardPaymentInCycle(transactions, method, new Date()) : false;
+    if (!method) return false;
+    const ciclo = cicloVigente(ciclosDeMetodo(method.id, creditCardCycles), new Date());
+    return ciclo ? hasCardPaymentInCycle(transactions, method, ciclo) : false;
   },
 
   getPaymentMethodStatus: (methodId: string) => {
-    const { transactions, recurringPlans, paymentMethods } = get();
-    return computePaymentMethodStatus(paymentMethods.find((m) => m.id === methodId), transactions, recurringPlans, new Date());
+    const { transactions, recurringPlans, paymentMethods, creditCardCycles } = get();
+    return computePaymentMethodStatus(paymentMethods.find((m) => m.id === methodId), transactions, recurringPlans, new Date(), creditCardCycles);
   },
 
   getPendingCreditCardByCard: () => {
-    const { paymentMethods, transactions, recurringPlans } = get();
-    return computePendingCreditCards(paymentMethods, transactions, recurringPlans, new Date());
+    const { paymentMethods, transactions, recurringPlans, creditCardCycles } = get();
+    return computePendingCreditCards(paymentMethods, transactions, recurringPlans, creditCardCycles, new Date());
   },
 
   /**
@@ -1125,17 +1138,31 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getPaymentMethodTransactionsForCurrentMonth: (methodId) => {
-    const { transactions, paymentMethods } = get();
+    const { transactions, paymentMethods, creditCardCycles } = get();
     const now = new Date();
     const method = paymentMethods.find((m) => m.id === methodId);
+    // MISMA regla de pertenencia que computePaymentMethodStatus: el resumen vigente
+    // sale de `credit_card_cycles` y la membresía es la FK. /ajustes/medios muestra
+    // esta lista y ese total lado a lado, así que derivar el ciclo de los defaults
+    // acá (getCreditCycleDates) los desacoplaba en cuanto las fechas declaradas del
+    // resumen no coincidían con los defaults de la tarjeta: el número decía una cosa
+    // y el detalle que lo explica, otra.
+    const vigente = cicloVigente(ciclosDeMetodo(methodId, creditCardCycles), now);
     const nextPaymentDate = method ? getCreditCycleDates(method, now)?.nextPaymentDate : undefined;
 
     return transactions.filter(t => {
       if (t.payment_method_id !== methodId) return false;
 
-      // Crédito con ciclo: gastos e ingresos pertenecen al ciclo si su fecha de
-      // vencimiento (t.date) cae en el mes de nextPaymentDate. Así la lista cuadra
-      // exactamente con el número "A pagar en el vencimiento".
+      // Crédito con resumen materializado: gastos e ingresos pertenecen al ciclo
+      // vigente sii apuntan a él. Así la lista cuadra exactamente con el número
+      // "A pagar en el vencimiento".
+      if (vigente) {
+        return t.cycle_id === vigente.id;
+      }
+
+      // Tarjeta configurada pero SIN ciclos materializados: fallback a la regla
+      // vieja (mes del vencimiento estimado). Se va con el Plan 2, junto con
+      // calculateCreditPaymentDate.
       if (nextPaymentDate) {
         return sameMonthYear(parseLocalDate(t.date), nextPaymentDate);
       }

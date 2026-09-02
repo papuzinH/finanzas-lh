@@ -1,10 +1,13 @@
 'use server';
 
 import { z } from 'zod';
+import { addMonths, subMonths } from 'date-fns';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { dateToLocalString, parseLocalDate, rangoDelMes } from '@/lib/utils/dates';
-import { computeMissingAutomaticCharges } from '@/lib/finance/recurring';
+import { dateToLocalString, parseLocalDate } from '@/lib/utils/dates';
+import { chargeDayOf, computeMissingAutomaticCharges, isAutomaticPlan } from '@/lib/finance/recurring';
+import { asegurarCiclos } from '@/lib/ciclos/asegurar';
+import type { CreditCardCycle } from '@/lib/finance/cycles';
 import type { TablesInsert } from '@/types/database'
 
 type ActionResponse = {
@@ -145,6 +148,12 @@ export async function unmarkRecurringPlanPaid(planId: string): Promise<ActionRes
  * pero es neutra para el Disponible Real global y las analíticas de consumo
  * (las compras de la tarjeta ya están itemizadas). La fecha se setea en el
  * vencimiento del ciclo pagado, así el estado "pagada" se deriva de su existencia.
+ *
+ * `cycleId` puede ser null: una tarjeta SIN default_closing_day/default_payment_day
+ * no genera ciclos a propósito (`generarCiclos` devuelve []), así que no hay resumen
+ * que saldar. Ese pago se registra igual, con `cycle_id` null — como eran TODOS los
+ * pagos antes de esta rama. Sin eso, esas tarjetas (hay 2 en producción) se quedaban
+ * sin ninguna vía de registrar un pago: tampoco tienen chip en Compromisos.
  */
 export async function payCreditCardCycle(params: {
   cardMethodId: string;
@@ -152,6 +161,7 @@ export async function payCreditCardCycle(params: {
   amountArs: number;
   date: string; // yyyy-MM-dd (vencimiento / fecha del pago)
   cardName: string;
+  cycleId: string | null; // el resumen que este pago salda; null = registro manual sin resumen
 }): Promise<ActionResponse> {
   try {
     const supabase = await createClient();
@@ -160,25 +170,26 @@ export async function payCreditCardCycle(params: {
     } = await supabase.auth.getUser();
     if (!user) return { error: 'No autorizado' };
 
-    const { cardMethodId, fundingMethodId, amountArs, date, cardName } = params;
+    const { cardMethodId, fundingMethodId, amountArs, date, cardName, cycleId } = params;
     if (!fundingMethodId) return { error: 'Elegí con qué medio pagás' };
     if (!amountArs || amountArs <= 0) return { error: 'El monto del pago es inválido' };
 
-    // Guard anti-duplicado: ya hay un pago de esta tarjeta en ese mes.
-    // El rango sale del string y no de `new Date(date)`: ese constructor lee un
-    // 'yyyy-MM-dd' como medianoche UTC, y en zona negativa una fecha del día 1
-    // (la Visa que vence el 1) caía en el mes anterior — el guard miraba el mes
-    // equivocado en las dos direcciones. Ver rangoDelMes en lib/utils/dates.ts.
-    const { start: monthStart, end: monthEnd } = rangoDelMes(date);
-    const { data: existing } = await supabase
-      .from('transactions')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('card_payment_for', cardMethodId)
-      .gte('date', monthStart)
-      .lte('date', monthEnd)
-      .limit(1);
-    if (existing && existing.length > 0) return { success: true };
+    // Guard anti-duplicado: ya hay un pago imputado a ESTE resumen.
+    // Antes se buscaba por rango de mes (rangoDelMes), que fue el parche del bug
+    // de la Visa que vence el dia 1. Con el ciclo como entidad la pregunta no
+    // depende de ninguna aritmetica de fechas.
+    // Sin ciclo no hay nada que deduplicar: son pagos sueltos que el usuario
+    // registra a mano y puede haber más de uno.
+    if (cycleId) {
+      const { data: existing } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('card_payment_for', cardMethodId)
+        .eq('cycle_id', cycleId)
+        .limit(1);
+      if (existing && existing.length > 0) return { success: true };
+    }
 
     // category_id es NOT NULL. Usamos una categoría "Pagos de tarjeta" (get-or-create).
     // Igual queda excluida de las analíticas de consumo por el marcador card_payment_for.
@@ -214,6 +225,7 @@ export async function payCreditCardCycle(params: {
       category_id: categoryId,
       payment_method_id: fundingMethodId,
       card_payment_for: cardMethodId,
+      cycle_id: cycleId,
       original_currency: 'ARS',
       original_amount: Math.abs(Number(amountArs)),
       rate_pair: null,
@@ -235,12 +247,11 @@ export async function payCreditCardCycle(params: {
 
 /**
  * Deshace el pago de un ciclo de tarjeta: borra la transacción de pago
- * (`card_payment_for`) cuya fecha cae en el mes del vencimiento indicado.
+ * (`card_payment_for`) imputada a ese resumen (`cycle_id`).
  */
 export async function undoCreditCardPayment(params: {
   cardMethodId: string;
-  year: number;
-  month: number; // 0-indexed
+  cycleId: string;
 }): Promise<ActionResponse> {
   try {
     const supabase = await createClient();
@@ -249,17 +260,14 @@ export async function undoCreditCardPayment(params: {
     } = await supabase.auth.getUser();
     if (!user) return { error: 'No autorizado' };
 
-    const { cardMethodId, year, month } = params;
-    const monthStart = dateToLocalString(new Date(year, month, 1));
-    const monthEnd = dateToLocalString(new Date(year, month + 1, 0));
+    const { cardMethodId, cycleId } = params;
 
     const { error } = await supabase
       .from('transactions')
       .delete()
       .eq('user_id', user.id)
       .eq('card_payment_for', cardMethodId)
-      .gte('date', monthStart)
-      .lte('date', monthEnd);
+      .eq('cycle_id', cycleId);
     if (error) {
       console.error('Error deshaciendo pago de tarjeta:', error);
       return { error: 'No se pudo deshacer el pago' };
@@ -446,27 +454,66 @@ export async function syncAutomaticRecurringCharges(): Promise<ActionResponse & 
       ? String(firstIncomeTx[0].date).slice(0, 7)
       : dateToLocalString(new Date()).slice(0, 7);
 
+    // Ciclos de TODA tarjeta de crédito configurada (día de cierre y de
+    // vencimiento cargados), un asegurarCiclos por tarjeta.
+    //
+    // No sólo las que tienen planes automáticos: este sync corre una vez por carga
+    // y es el único lugar que materializa resúmenes "de fondo". Una tarjeta
+    // configurada sin compras nuevas ni planes se quedaba sin ciclo vigente,
+    // `computePendingCreditCards` la dejaba caer (`if (!vigente) return acc`), su
+    // deuda dejaba de comprometerse y el disponible subía en silencio: la vuelta de
+    // E11. Las tarjetas que ya existían están cubiertas hasta 2027-09 por el
+    // backfill; las creadas después del deploy, no.
+    //
+    // Idempotente y barato: un select por tarjeta, e inserta sólo lo que falta.
+    // La ventana va de hoy − 1 mes a hoy + 2 meses, y se estira hacia atrás hasta
+    // el mes del plan automático más viejo de esa tarjeta cuando lo hay (el
+    // historial de mensualidades puede empezar mucho antes).
+    // `plans` ya salió de la DB filtrado por is_active = true (query de arriba).
+    const planesActivos = plans ?? [];
+    const hoy = new Date();
+
+    let ciclos: CreditCardCycle[] = [];
+    for (const method of methods ?? []) {
+      if (method.type !== 'credit' || !method.default_closing_day || !method.default_payment_day) continue;
+      const mesesDeSusPlanes = planesActivos
+        .filter((p) => p.payment_method_id === method.id && isAutomaticPlan(p, method))
+        .map((p) => String(p.created_at).slice(0, 7))
+        .sort();
+      const desdePorDefecto = subMonths(hoy, 1);
+      const desde = mesesDeSusPlanes[0]
+        ? new Date(Math.min(parseLocalDate(`${mesesDeSusPlanes[0]}-01`).getTime(), desdePorDefecto.getTime()))
+        : desdePorDefecto;
+      const ciclosDeLaTarjeta = await asegurarCiclos(supabase, method, desde, addMonths(hoy, 2));
+      ciclos = ciclos.concat(ciclosDeLaTarjeta);
+    }
+
     const missing = computeMissingAutomaticCharges(
       plans ?? [],
       methods ?? [],
       existingTxs ?? [],
       floorMonth,
+      new Date(),
+      ciclos,
     );
     if (missing.length === 0) {
       return { success: true, created: 0 };
     }
 
     const plansById = new Map((plans ?? []).map((p) => [p.id, p]));
-    const rows = missing.flatMap(({ planId, date }) => {
+    const rows = missing.flatMap(({ planId, month, date, cycleId }) => {
       const plan = plansById.get(planId);
       if (!plan) return [];
       const isUsd = plan.currency === 'USD';
+      const purchaseDay = String(chargeDayOf(plan, month)).padStart(2, '0');
       return [
         {
           user_id: user.id,
           description: plan.description,
           amount: Math.abs(Number(plan.amount)),
           date,
+          purchase_date: `${month}-${purchaseDay}`,
+          cycle_id: cycleId,
           type: 'expense' as const,
           category_id: plan.category_id,
           payment_method_id: plan.payment_method_id,
