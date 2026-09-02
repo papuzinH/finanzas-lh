@@ -79,9 +79,16 @@ where t.installment_plan_id = ip.id
 --    el mismo mes. Si cruzara de mes, la fila NO se toca -- esa es la diferencia
 --    entre unificar como se muestra una fecha y mover plata de un resumen a otro.
 --    Medido antes de escribir esta migracion: hoy 0 filas cruzarian.
+--    Excluye los PAGOS (card_payment_for is null): en un pago t.date es el dia
+--    real en que el usuario pago (payCreditCardCycle lo toma de su input), no
+--    un vencimiento -- reescribirlo corre la fecha real de un movimiento de
+--    plata y desalinea el saldo del medio financiador. El pago conserva el
+--    cycle_id que le puso el paso 3, asi que hasCardPaymentInCycle lo sigue
+--    encontrando igual.
 update public.transactions t
 set date = c.due_date
 from public.credit_card_cycles c
 where t.cycle_id = c.id
+  and t.card_payment_for is null
   and t.date <> c.due_date
   and date_trunc('month', t.date) = date_trunc('month', c.due_date);
