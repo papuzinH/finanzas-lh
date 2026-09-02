@@ -214,6 +214,12 @@ export function cicloDelMesDe(
  * Nunca toca un `declared` (es dato que el usuario leyo del resumen) ni un resumen que ya cerro
  * (sus compras estan imputadas, y re-fecharlo moveria plata de un resumen a otro).
  *
+ * El corte es `closing_date > hoy` ESTRICTO: el resumen que cierra HOY queda fuera del
+ * recalculo, porque re-fecharlo moveria las compras del dia (`cicloDeCompra` usa `>=`: el
+ * ciclo corre hasta las 23:59 de su fecha de cierre, E16). Complementa exactamente a
+ * `ciclosQuePidenDeclaracion`, que usa `<= hoy`: el que cierra hoy ya se puede declarar y por
+ * eso mismo ya no se re-fecha solo. No cambiar el `>` por `>=` creyendo que es un off-by-one.
+ *
  * Devuelve solo los que efectivamente cambian, para no escribir de mas.
  */
 export function recalcularFuturosGenerated(
