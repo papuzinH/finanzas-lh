@@ -15,6 +15,14 @@
  *   5. El recordatorio del resumen ya cerrado, con "Ahora no" persistido en
  *      la base (no localStorage).
  *
+ * El código de salida lo deciden SÓLO estos cinco flujos. Los checks de HOME/
+ * COMPROMISOS/CONSOLA son de los Escenarios A/B preexistentes (de un plan
+ * anterior, no de esta task): siguen corriendo y reportando su resultado bien
+ * visible, pero un fallo ahí no tumba el gate. La razón: si el script sale
+ * rojo siempre por ruido ajeno, un rojo constante entrena a ignorarlo, y el
+ * día que se rompa de verdad uno de los cinco flujos nadie lo va a notar. El
+ * resumen final imprime los dos grupos por separado.
+ *
  * Uso: VERIFY_BASE_URL=http://localhost:3001 node scripts/verificar-escenarios-tarjeta.mjs
  */
 import { createClient } from '@supabase/supabase-js';
@@ -67,8 +75,19 @@ await ctx.addCookies(cookies.map((c) => ({ ...c, url: BASE })));
 await ctx.addInitScript(() => { try { localStorage.setItem('chanchito-tema', 'dia'); } catch {} });
 const page = await ctx.newPage();
 
-const errores = [];
-const ok = (cond, msg) => { console.log(`${cond ? '  OK  ' : '  MAL '} ${msg}`); if (!cond) errores.push(msg); };
+// Dos baldes: "ruido" son los checks de los Escenarios A/B preexistentes
+// (HOME/COMPROMISOS/CONSOLA, de un plan anterior); "flujos" son los cinco
+// flujos de declarar resúmenes de esta task. Sólo "flujos" decide el código
+// de salida -- ver el comentario de cabecera. `bucketActual` se cambia una
+// vez al entrar a la sección de los cinco flujos y otra vez al volver a
+// CONSOLA (que audita algo del plan anterior, no de esta task).
+const erroresRuido = [];
+const erroresFlujos = [];
+let bucketActual = 'ruido';
+const ok = (cond, msg) => {
+  console.log(`${cond ? '  OK  ' : '  MAL '} ${msg}`);
+  if (!cond) (bucketActual === 'flujos' ? erroresFlujos : erroresRuido).push(msg);
+};
 
 // Consola entera, desde el arranque: los warnings de accesibilidad de Radix (p.ej.
 // "Missing Description") son dev-only y este gate corre contra un build de
@@ -124,8 +143,10 @@ await page.screenshot({ path: join(OUT, 'compromisos.png'), fullPage: true });
 
 // ══════════════════════════════════════════════════════════════════════════
 // Los cinco flujos de "declarar el resumen" (Task 10), contra la Visa Galicia
-// irregular sembrada por seed-escenarios-tarjeta.mjs (Escenario C).
+// irregular sembrada por seed-escenarios-tarjeta.mjs (Escenario C). De acá en
+// adelante (y hasta CONSOLA) los `ok()` que fallen SÍ tumban el gate.
 // ══════════════════════════════════════════════════════════════════════════
+bucketActual = 'flujos';
 
 // Misma aritmética de fechas que el seed: mesesDelta relativo a HOY, mismo
 // mediodía local para esquivar sorpresas de TZ al serializar.
@@ -329,6 +350,9 @@ ok(cicloJunDespues?.reminder_dismissed_at != null, 'reminder_dismissed_at quedó
 await page.screenshot({ path: join(OUT, 'declarar-ciclos.png'), fullPage: true });
 
 // ---- consola del navegador (React degradado por CSP + accesibilidad)
+// El check de eval() es del Escenario A/B preexistente (CSP, plan anterior):
+// vuelve al balde de "ruido" para que un fallo acá no tumbe los cinco flujos.
+bucketActual = 'ruido';
 console.log('\n--- CONSOLA ---');
 const errConsola = consolaEntera.filter((m) => m.type === 'error').map((m) => m.text);
 ok(!errConsola.some((e) => /eval/i.test(e)), 'sin el error de eval() de React en desarrollo');
@@ -341,5 +365,29 @@ if (errConsola.length) console.log('  otros errores:', errConsola.slice(0, 3));
 
 await browser.close();
 console.log(`\ncapturas en ${OUT}`);
-if (errores.length) { console.error(`\n${errores.length} verificación(es) fallaron.`); process.exit(1); }
-console.log('todas las verificaciones pasaron.');
+
+// Resumen final en dos grupos bien separados: cuál es la señal (los cinco
+// flujos de esta task, deciden el código de salida) y cuál es ruido de fondo
+// (Escenarios A/B de un plan anterior, se reporta pero no tumba el gate).
+console.log('\n' + '='.repeat(70));
+console.log('RESUMEN');
+console.log('='.repeat(70));
+console.log(
+  `Los cinco flujos de declarar resúmenes (deciden el código de salida): ` +
+  (erroresFlujos.length === 0 ? 'TODOS EN VERDE' : `${erroresFlujos.length} MAL`),
+);
+for (const e of erroresFlujos) console.log('  · MAL', e);
+console.log(
+  `Escenarios A/B preexistentes + consola (ruido de fondo, NO deciden el código de salida): ` +
+  (erroresRuido.length === 0 ? 'todos en verde' : `${erroresRuido.length} mal`),
+);
+for (const e of erroresRuido) console.log('  · mal', e);
+
+if (erroresFlujos.length) {
+  console.error(`\n${erroresFlujos.length} de los cinco flujos de declarar resúmenes fallaron.`);
+  process.exit(1);
+}
+console.log('\nLos cinco flujos de declarar resúmenes: todo en verde.');
+if (erroresRuido.length) {
+  console.log(`(${erroresRuido.length} check(s) preexistente(s), ajenos a esta task, siguen en rojo -- ver arriba.)`);
+}
