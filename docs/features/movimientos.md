@@ -41,14 +41,14 @@ Columnas especiales de `transactions` (ver `src/types/database.ts`):
 
 ## Flujos principales
 
-1. **Crear**: form (Zod) → si `currency === 'USD'`, el cliente resuelve `exchange_rate = getExchangeRate(rate_pair)` en el submit → `createTransaction`: valida, y si el medio es crédito con ciclo, **la fecha guardada (`date`) pasa a ser el vencimiento** vía `calculateCreditPaymentDate(fechaCompra, closing, payment)`; persiste `amount` en ARS + metadatos originales → toast + `fetchAllData()` (el refresco real es del store, no de `revalidatePath`).
+1. **Crear**: form (Zod) → si `currency === 'USD'`, el cliente resuelve `exchange_rate = getExchangeRate(rate_pair)` en el submit → `createTransaction`: valida, y si el medio es crédito con ciclo, **la fecha guardada (`date`) pasa a ser el vencimiento** del resumen que contiene la compra (`asegurarCiclos` + `cicloDeCompra`), y se persisten `cycle_id` y `purchase_date` (esta última sólo en `expense`); sin resumen que la contenga, fallback a `calculateCreditPaymentDate(fechaCompra, closing, payment)` con `cycle_id` null; persiste `amount` en ARS + metadatos originales → toast + `fetchAllData()` (el refresco real es del store, no de `revalidatePath`).
 2. **Leer**: `fetchAllData()` trae filas crudas → `prepareTransactions()` agrega `periodDate` (mes visual: si `paymentDay < closingDay` y el día de la fecha ≤ `paymentDay + 2`, retrocede un mes) y `realPaymentDate`, y re-convierte USD→ARS con la cotización actual (`resolveRate`: par en `exchange_rates` → dólar blue → snapshot `exchange_rate` → 1). Por eso una tx USD "flota" con la cotización del día en pantalla aunque `amount` en DB quede congelado.
 3. **Editar**: `updateTransaction` recalcula la fecha de vencimiento **solo si cambió el medio de pago** a un crédito (evita re-desplazar una fecha ya desplazada). USD se reconvierte con la cotización vigente.
 4. **Borrar**: swipe/menú → toast con "Deshacer" 4s → recién ahí `deleteTransaction` (delete duro por id + user).
 
 ## Invariantes y gotchas
 
-- `t.date` de un gasto de **crédito** ya ES la fecha de vencimiento calculada, no la de compra. La pertenencia a un ciclo se decide comparando el mes/año de `t.date` contra `nextPaymentDate` (`sameMonthYear`).
+- `t.date` de un gasto de **crédito** ya ES la fecha de vencimiento del resumen, no la de compra: esa vive en `purchase_date`. La pertenencia a un resumen la decide la FK `transactions.cycle_id`, no el mes de `t.date`.
 - Agrupación mensual SIEMPRE por `periodDate || date`; comparaciones de fecha SIEMPRE con `parseLocalDate()` (evita bugs UTC).
 - El "Neto" del mes en /movimientos suma las **mensualidades pendientes** (`getPendingFixedExpenses`, anclado al mes real de hoy — solo se muestra si estás viendo el mes actual, sin búsqueda ni filtros activos) porque esos compromisos aún no tienen transacción.
 - "Proyección Futura" = transacciones reales con fecha futura dentro del mes (típicamente vencimientos de crédito y cuotas), no proyecciones inventadas.

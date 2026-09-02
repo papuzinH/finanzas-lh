@@ -29,7 +29,8 @@
 | `src/lib/finance/balances.ts` | `computeGlobalBalance` (el cálculo viejo, ver más abajo), `computePaymentMethodStatus`, `computePendingCreditCards`, `hasCardPaymentInCycle` |
 | `src/lib/finance/pending.ts` | `computePendingFixedExpenses` (mensualidades activas sin transacción este mes) |
 | `src/lib/finance/analysis.ts` | `computeExpensesByCategory`, `computeMonthlyBalance` |
-| `src/lib/finance/creditCycle.ts` | `getCreditCycleDates`, `isExpenseInCurrentMonthScope`, `sameMonthYear` |
+| `src/lib/finance/cycles.ts` | `cicloVigente`, `cicloAnterior`, `cicloDeCompra` (el resumen como entidad) |
+| `src/lib/finance/creditCycle.ts` | `getCreditCycleDates` (**fallback** sin ciclos), `isExpenseInCurrentMonthScope`, `sameMonthYear` |
 
 ## Tablas DB (vía `fetchAllData`, no directo desde componentes)
 
@@ -57,7 +58,7 @@ Gotcha crítico del repo: confundir el id interno con el UUID de auth produce qu
 - El ciclo de tarjeta vigente **avanza recién cuando el vencimiento ya pasó** (comparación por día): el día exacto del vencimiento el resumen sigue pendiente. `isCycleClosed` (cierre ya pasado) explica por qué una tarjeta muestra un período anterior y otra el vigente.
 - `getMonthlyTrend` **proyecta** mensualidades activas en meses donde no hay transacción registrada (solo si el plan existía ese mes: `created_at <= endOfMonth`), para no mostrar meses "baratos" falsos.
 - Fechas: **siempre** `parseLocalDate()` (`lib/utils/dates.ts`); comparar por `periodDate || date` para agrupación mensual.
-- El viejo flag `paidCycles`/`markCreditCardCyclePaid` (localStorage) **ya no existe**: el estado "pagada" se deriva de la existencia de una transacción con `card_payment_for` en el mes del vencimiento (`isCreditCardCyclePaid`/`hasCardPaymentInCycle`). `quick-add.tsx` (dashboard) fue eliminado por huérfano; las rutas legacy `/cuotas`, `/mensualidades`, `/categorias`, `/medios-pago`, `/perfil` ya no tienen página (solo sobreviven sus `actions.ts`).
+- El viejo flag `paidCycles`/`markCreditCardCyclePaid` (localStorage) **ya no existe**: el estado "pagada" se deriva de la existencia de una transacción con `card_payment_for` imputada a ese resumen por `cycle_id` (`isCreditCardCyclePaid`/`hasCardPaymentInCycle`). `quick-add.tsx` (dashboard) fue eliminado por huérfano; las rutas legacy `/cuotas`, `/mensualidades`, `/categorias`, `/medios-pago`, `/perfil` ya no tienen página (solo sobreviven sus `actions.ts`).
 - Cambios de lógica financiera van en `lib/finance/`, nunca en el cuerpo de un getter ni en componentes (misma fuente que usa el chatbot server-side).
 
 ## Tests
