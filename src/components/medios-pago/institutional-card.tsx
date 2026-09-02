@@ -11,6 +11,7 @@ import {
   Scale,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn, formatCurrency, formatUsd } from '@/lib/utils';
@@ -60,6 +61,7 @@ function movementAmount(t: Transaction): string {
 }
 
 export function InstitutionalCard({ data }: PaymentCardProps) {
+  const router = useRouter();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -100,7 +102,7 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
   return (
     <>
       <Card
-        onClick={() => setIsDetailOpen(true)}
+        onClick={() => router.push(`/ajustes/medios/${data.id}`)}
         className="p-5 relative overflow-hidden transition-colors cursor-pointer active:scale-[0.98] hover:border-accent/40"
       >
         {/* Header */}
