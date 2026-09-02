@@ -53,24 +53,30 @@ export function FilaPorDebitar({ plan }: { plan: RecurringPlan }) {
  *   `DetalleDeCuenta` para débito/efectivo y medios personales. Ahí `purchase_date` es
  *   `null` en TODO ingreso por diseño (el sueldo, transferencias: el caso frecuente,
  *   no el raro), así que quedaba "Sin fecha" en cada uno.
+ * - `'ninguna'`: sin fecha, a propósito -- los reintegros de un resumen de tarjeta. No
+ *   tienen `purchase_date` (null en todo `income`) y su `t.date` es el VENCIMIENTO que
+ *   les puso `createTransaction`, no el día del reintegro: cualquiera de las dos sería
+ *   una fecha inventada.
  */
-export function Fila({ t, fechaDe = 'compra' }: { t: ProcessedTransaction; fechaDe?: 'compra' | 'movimiento' }) {
+export function Fila({ t, fechaDe = 'compra' }: { t: ProcessedTransaction; fechaDe?: 'compra' | 'movimiento' | 'ninguna' }) {
   const fecha =
-    fechaDe === 'movimiento'
-      ? format(parseLocalDate(t.date), 'd MMM', { locale: es })
-      : t.purchase_date
-        ? format(parseLocalDate(t.purchase_date), 'd MMM', { locale: es })
-        : 'Sin fecha';
+    fechaDe === 'ninguna'
+      ? null
+      : fechaDe === 'movimiento'
+        ? format(parseLocalDate(t.date), 'd MMM', { locale: es })
+        : t.purchase_date
+          ? format(parseLocalDate(t.purchase_date), 'd MMM', { locale: es })
+          : 'Sin fecha';
+
+  const meta = [fecha, t.installment_plan_id && 'Cuota', t.recurring_plan_id && 'Mensualidad']
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border-[1.5px] border-border bg-surface-2 p-3">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-text">{t.description}</p>
-        <p className="text-[10px] text-muted">
-          {fecha}
-          {t.installment_plan_id && ' · Cuota'}
-          {t.recurring_plan_id && ' · Mensualidad'}
-        </p>
+        {meta && <p className="text-[10px] text-muted">{meta}</p>}
       </div>
       <p className={cn('shrink-0 tnum text-sm font-bold', t.type === 'income' ? 'text-good' : 'text-text')}>
         {t.type === 'income' ? '+' : '-'}{monto(t)}
@@ -81,7 +87,10 @@ export function Fila({ t, fechaDe = 'compra' }: { t: ProcessedTransaction; fecha
 
 export function FilasDelResumen({ filas }: { filas: FilasDeResumen }) {
   const vacio =
-    filas.conFecha.length === 0 && filas.sinFecha.length === 0 && filas.porDebitar.length === 0;
+    filas.conFecha.length === 0 &&
+    filas.sinFecha.length === 0 &&
+    filas.reintegros.length === 0 &&
+    filas.porDebitar.length === 0;
 
   if (vacio) {
     return (
@@ -109,6 +118,19 @@ export function FilasDelResumen({ filas }: { filas: FilasDeResumen }) {
             </p>
           </div>
           {filas.sinFecha.map((t) => <Fila key={t.id} t={t} />)}
+        </div>
+      )}
+
+      {filas.reintegros.length > 0 && (
+        <div className="grid gap-2 border-t-[1.5px] border-border pt-4">
+          <div>
+            <h3 className="text-sm font-semibold text-text">Reintegros y devoluciones</h3>
+            <p className="text-xs text-muted">
+              Restan del total de este resumen. No van con las compras: la app no guarda
+              fecha de compra para un ingreso.
+            </p>
+          </div>
+          {filas.reintegros.map((t) => <Fila key={t.id} t={t} fechaDe="ninguna" />)}
         </div>
       )}
 

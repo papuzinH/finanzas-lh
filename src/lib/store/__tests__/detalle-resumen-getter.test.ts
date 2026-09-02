@@ -55,11 +55,13 @@ function sembrar(transactions: unknown[], recurringPlans: unknown[] = []) {
  * que la cabecera.
  */
 function sumaDeLoVisible(d: NonNullable<ReturnType<ReturnType<typeof useFinanceStore.getState>['getCardCycleDetail']>>) {
-  const movimientos = [...d.filas.conFecha, ...d.filas.sinFecha].reduce(
-    (acc, t) => acc + (t.type === 'income' ? -Number(t.amount) : Math.abs(Number(t.amount))),
+  const gastos = [...d.filas.conFecha, ...d.filas.sinFecha].reduce(
+    (acc, t) => acc + Math.abs(Number(t.amount)),
     0,
   )
-  return movimientos + d.filas.porDebitar.reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0)
+  const reintegros = d.filas.reintegros.reduce((acc, t) => acc + Number(t.amount), 0)
+  const pendientes = d.filas.porDebitar.reduce((acc, p) => acc + Math.abs(Number(p.amount)), 0)
+  return gastos - reintegros + pendientes
 }
 
 describe('getCardCycleDetail', () => {
@@ -99,7 +101,7 @@ describe('getCardCycleDetail', () => {
     const d = useFinanceStore.getState().getCardCycleDetail('visa', 'sep')
     expect(d?.actual?.id).toBe('sep')
     expect(d?.deuda).toBe(0)
-    expect(d?.filas).toEqual({ conFecha: [], sinFecha: [], porDebitar: [] })
+    expect(d?.filas).toEqual({ conFecha: [], sinFecha: [], reintegros: [], porDebitar: [] })
   })
 
   it('las filas sin fecha de compra llegan separadas', () => {
@@ -146,6 +148,20 @@ describe('getCardCycleDetail', () => {
     const d = useFinanceStore.getState().getCardCycleDetail('visa', 'ago')!
     expect(d.deuda).toBe(15000)
     expect(d.filas.porDebitar).toEqual([])
+    expect(sumaDeLoVisible(d)).toBe(d.deuda)
+  })
+
+  it('un reintegro va aparte y resta del total, sin fingir una fecha de compra', () => {
+    // purchase_date es null en todo income POR DISEÑO y t.date en credito es el
+    // VENCIMIENTO: no hay fecha propia con la que entrar en el orden de compra.
+    sembrar([
+      compra({ id: 'a', cycle_id: 'ago', amount: 20000 }),
+      compra({ id: 'r', cycle_id: 'ago', amount: 5000, type: 'income', purchase_date: null, description: 'Reintegro' }),
+    ])
+    const d = useFinanceStore.getState().getCardCycleDetail('visa', 'ago')!
+    expect(d.filas.reintegros.map((t) => t.id)).toEqual(['r'])
+    expect(d.filas.sinFecha).toEqual([])
+    expect(d.deuda).toBe(15000)
     expect(sumaDeLoVisible(d)).toBe(d.deuda)
   })
 

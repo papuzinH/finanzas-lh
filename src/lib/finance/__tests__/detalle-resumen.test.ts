@@ -129,6 +129,26 @@ describe('filasDeResumen', () => {
     expect(r.sinFecha.map((t) => t.id)).toEqual(['vieja'])
   })
 
+  it('un ingreso va a reintegros, no al bloque de "sin fecha de compra"', () => {
+    // purchase_date es null en TODO income por diseño: meterlo en sinFecha lo ponia
+    // bajo un encabezado que dice "se cargaron antes de que la app guardara cuando
+    // compraste" -- falso, y ademas lo sacaba del orden cronologico.
+    const reintegro = tx({ id: 'r', type: 'income', purchase_date: null })
+    const vieja = tx({ id: 'vieja', purchase_date: null })
+    const r = filasDeResumen('ago', [reintegro, vieja], visa, [])
+    expect(r.reintegros.map((t) => t.id)).toEqual(['r'])
+    expect(r.sinFecha.map((t) => t.id)).toEqual(['vieja'])
+    expect(r.conFecha).toEqual([])
+  })
+
+  it('los reintegros salen ordenados por created_at, que es lo unico determinista', () => {
+    const filas = [
+      tx({ id: 'b', type: 'income', purchase_date: null, created_at: '2026-08-20T10:00:00Z' }),
+      tx({ id: 'a', type: 'income', purchase_date: null, created_at: '2026-08-05T10:00:00Z' }),
+    ]
+    expect(filasDeResumen('ago', filas, visa, []).reintegros.map((t) => t.id)).toEqual(['a', 'b'])
+  })
+
   it('el pago del resumen no es una fila del resumen', () => {
     // card_payment_for sale del medio que financia, no es consumo de la tarjeta.
     const pago = tx({ id: 'pago', card_payment_for: 'visa', purchase_date: null })
@@ -139,7 +159,7 @@ describe('filasDeResumen', () => {
   })
 
   it('un resumen sin movimientos devuelve los dos grupos vacios', () => {
-    expect(filasDeResumen('sep', [], visa, [])).toEqual({ conFecha: [], sinFecha: [], porDebitar: [] })
+    expect(filasDeResumen('sep', [], visa, [])).toEqual({ conFecha: [], sinFecha: [], reintegros: [], porDebitar: [] })
   })
 })
 

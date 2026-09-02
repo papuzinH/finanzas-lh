@@ -25,8 +25,18 @@ export type ResumenNavegable = {
 export type FilasDeResumen = {
   /** Ordenadas ascendente por purchase_date: el orden en que el banco imprime el resumen. */
   conFecha: ProcessedTransaction[]
-  /** Anteriores a que la app guardara la fecha de compra. No se pueden intercalar. */
+  /**
+   * GASTOS anteriores a que la app guardara la fecha de compra. No se pueden intercalar.
+   * Los ingresos NO caen acá: su `purchase_date` es null POR DISEÑO, no por dato viejo.
+   */
   sinFecha: ProcessedTransaction[]
+  /**
+   * Ingresos imputados al resumen (reintegros, devoluciones). Van aparte: `purchase_date`
+   * es null en todo `income` por diseño y `t.date` en crédito es el VENCIMIENTO (lo
+   * reescribe createTransaction para cualquier tipo), así que no tienen fecha propia con
+   * la que entrar en el orden de compra contra el que se cotea el papel.
+   */
+  reintegros: ProcessedTransaction[]
   /**
    * Mensualidades que el TOTAL del resumen ya cuenta y que todavia no tienen
    * transaccion propia en ese ciclo. No son movimientos: son lo que falta debitar.
@@ -109,18 +119,27 @@ export function filasDeResumen(
   // y no va en la lista que se cotea contra el papel.
   const delCiclo = transactions.filter((t) => t.cycle_id === cycleId && !t.card_payment_for)
 
-  const conFecha = delCiclo
+  // Los ingresos salen del reparto por fecha de compra ANTES de mirar purchase_date:
+  // ahi es null por diseño, no porque el dato sea viejo. Iban a `sinFecha`, bajo un
+  // encabezado que decia "se cargaron antes de que la app guardara cuando compraste".
+  const gastos = delCiclo.filter((t) => t.type !== 'income')
+  const reintegros = delCiclo
+    .filter((t) => t.type === 'income')
+    .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))
+
+  const conFecha = gastos
     .filter((t) => Boolean(t.purchase_date))
     .sort((a, b) => {
       const porFecha = (a.purchase_date ?? '').localeCompare(b.purchase_date ?? '')
       return porFecha !== 0 ? porFecha : (a.created_at ?? '').localeCompare(b.created_at ?? '')
     })
 
-  const sinFecha = delCiclo.filter((t) => !t.purchase_date)
+  const sinFecha = gastos.filter((t) => !t.purchase_date)
 
   return {
     conFecha,
     sinFecha,
+    reintegros,
     porDebitar: mensualidadesPorDebitar(method, cycleId, transactions, recurringPlans),
   }
 }

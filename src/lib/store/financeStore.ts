@@ -993,7 +993,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     if (resumenes.length === 0) {
       return {
         resumenes, actual: null, deuda: 0, totalARS: 0, totalUSD: 0,
-        filas: { conFecha: [], sinFecha: [], porDebitar: [] },
+        filas: { conFecha: [], sinFecha: [], reintegros: [], porDebitar: [] },
       };
     }
 
