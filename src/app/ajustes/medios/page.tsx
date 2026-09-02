@@ -22,7 +22,6 @@ export default function AjustesMediosPage() {
     isInitialized,
     isLoading,
     getPaymentMethodStatus,
-    getPaymentMethodTransactionsForCurrentMonth,
     getDefaultPaymentMethod,
     getUnassignedTransactionsCount,
     getAvailableToSpend,
@@ -58,18 +57,17 @@ export default function AjustesMediosPage() {
     const cuentas = getAvailableToSpend().accounts;
     const methodsWithData = paymentMethods.map(pm => {
       const status = getPaymentMethodStatus(pm.id);
-      const history = getPaymentMethodTransactionsForCurrentMonth(pm.id);
       const subscriptions = recurringPlans.filter(
         p => p.payment_method_id === pm.id && p.is_active
       );
       const cuenta = cuentas.find((a) => a.methodId === pm.id) ?? null;
-      return { ...pm, status, history, subscriptions, cuenta };
+      return { ...pm, status, subscriptions, cuenta };
     });
     return {
       institutionalMethods: methodsWithData.filter(m => !m.is_personal),
       personalMethods: methodsWithData.filter(m => m.is_personal),
     };
-  }, [paymentMethods, transactions, recurringPlans, getPaymentMethodStatus, getPaymentMethodTransactionsForCurrentMonth, getAvailableToSpend]);
+  }, [paymentMethods, transactions, recurringPlans, getPaymentMethodStatus, getAvailableToSpend]);
 
   if (isLoading && !isInitialized) {
     return <FullPageLoader text="Cargando billetera..." />;
