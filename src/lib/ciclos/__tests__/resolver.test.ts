@@ -11,9 +11,9 @@ const asegurarMock = asegurarCiclos as unknown as Mock;
 // Ciclos DESPAREJOS a proposito: cierres 23-jul / 20-ago / 24-sep.
 // Un fixture mensual perfecto no probaria nada (ver Global Constraints).
 const CICLOS: CreditCardCycle[] = [
-  { id: 'c-jul', user_id: 'u1', payment_method_id: 'pm1', closing_date: '2026-07-23', due_date: '2026-07-31', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'c-ago', user_id: 'u1', payment_method_id: 'pm1', closing_date: '2026-08-20', due_date: '2026-08-28', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'c-sep', user_id: 'u1', payment_method_id: 'pm1', closing_date: '2026-09-24', due_date: '2026-10-02', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-jul', user_id: 'u1', payment_method_id: 'pm1', closing_date: '2026-07-23', due_date: '2026-07-31', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-ago', user_id: 'u1', payment_method_id: 'pm1', closing_date: '2026-08-20', due_date: '2026-08-28', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-sep', user_id: 'u1', payment_method_id: 'pm1', closing_date: '2026-09-24', due_date: '2026-10-02', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
 ];
 
 const TARJETA = {

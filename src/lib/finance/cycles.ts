@@ -149,11 +149,38 @@ export function generarCiclos(
         closing_date: formatLocalDate(cierre),
         due_date: formatLocalDate(vencimiento),
         source: 'generated',
+        reminder_dismissed_at: null,
       })
     }
     cursor = addMonths(cursor, 1)
   }
   return nuevos
+}
+
+/**
+ * Que resumenes le estan pidiendo al usuario que cargue sus fechas reales.
+ *
+ * Solo despues del cierre: la Ley 25.065 art. 23 obliga al banco a imprimir el cierre y el
+ * vencimiento siguientes en cada resumen, asi que el dato existe recien cuando el resumen se
+ * emite. Pedirlo antes seria pedir algo que el usuario no puede tener.
+ *
+ * UNO POR TARJETA, el ultimo cerrado. Pedir tres resumenes viejos de una es una pared de avisos
+ * y el dato de los anteriores ya no esta a mano; pero pedir uno solo en total dejaria a las
+ * demas tarjetas sin pedir nunca.
+ *
+ * Se saltea los que el usuario ya declaro y los que pospuso.
+ */
+export function ciclosQuePidenDeclaracion(
+  ciclos: CreditCardCycle[],
+  hoy: string,
+): CreditCardCycle[] {
+  const candidatos = ciclos
+    .filter((c) => c.source === 'generated' && c.closing_date <= hoy && !c.reminder_dismissed_at)
+    .sort((a, b) => a.closing_date.localeCompare(b.closing_date));
+
+  const ultimoPorTarjeta = new Map<string, CreditCardCycle>();
+  for (const c of candidatos) ultimoPorTarjeta.set(c.payment_method_id, c); // el orden asc deja el ultimo
+  return [...ultimoPorTarjeta.values()];
 }
 
 export type CambioDeCiclo = { id: string; closing_date: string; due_date: string };

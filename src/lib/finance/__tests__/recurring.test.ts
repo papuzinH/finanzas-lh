@@ -143,8 +143,8 @@ describe('expectedChargeDate', () => {
 describe('expectedChargeDatePorCiclo', () => {
   it('la mensualidad cae en el resumen que le corresponde, con la fecha real del ciclo', () => {
     const ciclos: CreditCardCycle[] = [
-      { id: 'ago', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-      { id: 'sep', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-09-24', due_date: '2026-10-05', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'ago', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'declared', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
+      { id: 'sep', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-09-24', due_date: '2026-10-05', source: 'declared', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
     ]
     // Netflix se cobra el 25: cae DESPUES del cierre del 20, o sea en el resumen siguiente.
     const p = plan({ billing_day: 25 })
@@ -170,9 +170,9 @@ describe('computeMissingAutomaticCharges: cycleId (Task 10)', () => {
     // test lo detectaría — con fechas iguales a los defaults, esta mutación
     // hubiera quedado invisible.
     const ciclos: CreditCardCycle[] = [
-      { id: 'c-jun', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-06-19', due_date: '2026-07-02', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
-      { id: 'c-jul', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-07-23', due_date: '2026-08-03', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
-      { id: 'c-ago', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-08-20', due_date: '2026-09-04', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'c-jun', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-06-19', due_date: '2026-07-02', source: 'generated', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
+      { id: 'c-jul', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-07-23', due_date: '2026-08-03', source: 'generated', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
+      { id: 'c-ago', user_id: 'u1', payment_method_id: visa.id, closing_date: '2026-08-20', due_date: '2026-09-04', source: 'generated', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
     ]
     const faltantes = computeMissingAutomaticCharges(
       [plan({ billing_day: 1, created_at: '2026-06-01T00:00:00Z' })],

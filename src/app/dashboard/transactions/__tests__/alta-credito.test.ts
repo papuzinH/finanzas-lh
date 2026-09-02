@@ -18,9 +18,9 @@ const DEBITO = 'bbbbbbbb-0000-4000-8000-000000000002'
 // (cierra 27, vence 4) ni a un corrimiento exacto de un mes del anterior. Sin eso,
 // "vino del ciclo" y "lo recalculo con los defaults" darian el mismo numero.
 const CICLOS: CreditCardCycle[] = [
-  { id: 'c-jul', user_id: UID, payment_method_id: MASTER, closing_date: '2026-07-23', due_date: '2026-08-03', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'c-ago', user_id: UID, payment_method_id: MASTER, closing_date: '2026-08-20', due_date: '2026-09-07', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'c-sep', user_id: UID, payment_method_id: MASTER, closing_date: '2026-09-24', due_date: '2026-10-06', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-jul', user_id: UID, payment_method_id: MASTER, closing_date: '2026-07-23', due_date: '2026-08-03', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-ago', user_id: UID, payment_method_id: MASTER, closing_date: '2026-08-20', due_date: '2026-09-07', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-sep', user_id: UID, payment_method_id: MASTER, closing_date: '2026-09-24', due_date: '2026-10-06', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
 ]
 
 type AsegurarCiclos = (supabase: unknown, method: unknown, desde: Date, hasta: Date) => Promise<CreditCardCycle[]>

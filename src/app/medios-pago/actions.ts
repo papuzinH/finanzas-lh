@@ -296,3 +296,24 @@ export async function declararCiclo(input: DeclararCicloSchema): Promise<ActionR
     return { error: 'Ocurrió un error inesperado' }
   }
 }
+
+export async function posponerRecordatorioDeCiclo(cycleId: string): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { error } = await supabase
+      .from('credit_card_cycles')
+      .update({ reminder_dismissed_at: new Date().toISOString() })
+      .eq('id', cycleId)
+      .eq('user_id', user.id)
+    if (error) return { error: 'No pude guardar' }
+
+    revalidatePath('/compromisos')
+    return { success: true }
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    return { error: 'Ocurrió un error inesperado' }
+  }
+}

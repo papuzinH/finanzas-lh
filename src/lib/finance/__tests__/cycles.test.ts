@@ -14,6 +14,7 @@ const ciclo = (over: Partial<CreditCardCycle>): CreditCardCycle => ({
   id: 'c1', user_id: 'u1', payment_method_id: 'visa',
   closing_date: '2026-07-23', due_date: '2026-08-03',
   source: 'generated', created_at: '2026-01-01T00:00:00Z',
+  reminder_dismissed_at: null,
   ...over,
 })
 
@@ -155,8 +156,8 @@ describe('ciclosDeMetodo', () => {
 
 describe('cicloDelMesDe', () => {
   const ciclos: CreditCardCycle[] = [
-    { id: 'a', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-08-20', due_date: '2026-08-28', source: 'generated', created_at: 'x' },
-    { id: 'b', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-09-20', due_date: '2026-09-28', source: 'generated', created_at: 'x' },
+    { id: 'a', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-08-20', due_date: '2026-08-28', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
+    { id: 'b', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-09-20', due_date: '2026-09-28', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
   ];
 
   it('encuentra el resumen del mismo mes calendario aunque el dia no coincida', () => {
@@ -175,11 +176,11 @@ describe('recalcularFuturosGenerated', () => {
 
   const ciclos: CreditCardCycle[] = [
     // pasado, estimado: NO se toca
-    { id: 'viejo', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-07-20', due_date: '2026-07-28', source: 'generated', created_at: 'x' },
+    { id: 'viejo', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-07-20', due_date: '2026-07-28', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
     // futuro, declarado por el usuario: NO se toca
-    { id: 'dicho', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-10-22', due_date: '2026-10-30', source: 'declared', created_at: 'x' },
+    { id: 'dicho', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-10-22', due_date: '2026-10-30', source: 'declared', created_at: 'x', reminder_dismissed_at: null },
     // futuro, estimado: SI se recalcula
-    { id: 'futuro', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-11-20', due_date: '2026-11-28', source: 'generated', created_at: 'x' },
+    { id: 'futuro', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-11-20', due_date: '2026-11-28', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
   ];
 
   it('recalcula solo los estimados futuros', () => {
@@ -190,7 +191,7 @@ describe('recalcularFuturosGenerated', () => {
 
   it('no devuelve cambios cuando las fechas ya coinciden con los defaults', () => {
     const yaAlineado: CreditCardCycle[] = [
-      { id: 'ok', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-11-24', due_date: '2026-12-02', source: 'generated', created_at: 'x' },
+      { id: 'ok', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-11-24', due_date: '2026-12-02', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
     ];
     expect(recalcularFuturosGenerated(metodo, yaAlineado, '2026-09-02')).toEqual([]);
   });

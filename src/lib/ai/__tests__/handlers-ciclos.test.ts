@@ -88,6 +88,7 @@ const CICLOS_FIXTURE: CreditCardCycle[] = [
     due_date: '2026-08-03',
     source: 'declared',
     created_at: '2026-01-01T00:00:00Z',
+    reminder_dismissed_at: null,
   },
   {
     id: 'cyc-aug',
@@ -97,6 +98,7 @@ const CICLOS_FIXTURE: CreditCardCycle[] = [
     due_date: '2026-09-01',
     source: 'declared',
     created_at: '2026-01-01T00:00:00Z',
+    reminder_dismissed_at: null,
   },
   {
     id: 'cyc-sep',
@@ -106,6 +108,7 @@ const CICLOS_FIXTURE: CreditCardCycle[] = [
     due_date: '2026-10-05',
     source: 'declared',
     created_at: '2026-01-01T00:00:00Z',
+    reminder_dismissed_at: null,
   },
   {
     id: 'cyc-oct',
@@ -115,6 +118,7 @@ const CICLOS_FIXTURE: CreditCardCycle[] = [
     due_date: '2026-11-10',
     source: 'declared',
     created_at: '2026-01-01T00:00:00Z',
+    reminder_dismissed_at: null,
   },
 ]
 

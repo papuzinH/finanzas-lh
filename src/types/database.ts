@@ -166,6 +166,7 @@ export interface Database {
           due_date: string
           id: string
           payment_method_id: string
+          reminder_dismissed_at: string | null
           source: 'generated' | 'declared'
           user_id: string
         }
@@ -175,6 +176,7 @@ export interface Database {
           due_date: string
           id?: string
           payment_method_id: string
+          reminder_dismissed_at?: string | null
           source?: 'generated' | 'declared'
           user_id: string
         }
@@ -184,6 +186,7 @@ export interface Database {
           due_date?: string
           id?: string
           payment_method_id?: string
+          reminder_dismissed_at?: string | null
           source?: 'generated' | 'declared'
           user_id?: string
         }

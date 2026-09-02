@@ -53,7 +53,9 @@ import { CreateSubscriptionDialog } from '@/components/subscriptions/create-subs
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { CreditCardCycleCard } from '@/components/compromisos/credit-card-cycle-card';
+import { RecordatorioDeclararCiclo } from '@/components/compromisos/recordatorio-declarar-ciclo';
 import { CompromisosSkeleton } from '@/components/ui/skeletons';
+import { ciclosQuePidenDeclaracion } from '@/lib/finance/cycles';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface PlanWithStatus extends InstallmentPlan {
@@ -438,6 +440,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     installmentPlans,
     recurringPlans,
     paymentMethods,
+    creditCardCycles,
     fetchAllData,
     isInitialized,
     getInstallmentStatus,
@@ -448,6 +451,7 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
   } = useFinanceStore();
 
   const creditCards = getPendingCreditCardByCard();
+  const recordatoriosDeCiclo = ciclosQuePidenDeclaracion(creditCardCycles, dateToLocalString(new Date()));
 
   useEffect(() => {
     if (!isInitialized) {
@@ -567,6 +571,18 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
                 <span className="font-display tnum text-[17px] text-text">{formatCurrency(totalDebtFuturo)}</span>
               </div>
             </div>
+
+            {/* Recordatorio de declarar fechas: uno por tarjeta, el resumen recien cerrado */}
+            {recordatoriosDeCiclo.length > 0 && (
+              <div className="flex flex-col gap-3">
+                {recordatoriosDeCiclo.map((c) => {
+                  const tarjeta = paymentMethods.find((m) => m.id === c.payment_method_id);
+                  return tarjeta ? (
+                    <RecordatorioDeclararCiclo key={c.id} ciclo={c} nombreTarjeta={tarjeta.name} />
+                  ) : null;
+                })}
+              </div>
+            )}
 
             {/* Ciclos de tarjeta — las cards hablan solas, sin header de sección */}
             {creditCards.length > 0 && (

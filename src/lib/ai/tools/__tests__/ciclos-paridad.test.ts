@@ -8,9 +8,9 @@ import type { PaymentMethod, Transaction } from '@/types/database'
 // Un fixture mensual perfecto no distinguiria el modelo nuevo del viejo, que es
 // como se escondieron los dos ultimos bugs grandes del repo.
 const CICLOS: CreditCardCycle[] = [
-  { id: 'jul', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-07-23', due_date: '2026-08-03', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'ago', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'sep', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-09-24', due_date: '2026-10-05', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'jul', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-07-23', due_date: '2026-08-03', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
+  { id: 'ago', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
+  { id: 'sep', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-09-24', due_date: '2026-10-05', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
 ]
 
 const VISA = { id: 'visa', user_id: 'u1', name: 'Visa', type: 'credit', default_closing_day: 20, default_payment_day: 1, bucket: 'pocket', initial_balance: 0, initial_balance_at: '2026-07-01', is_personal: false, is_default: false, created_at: '2026-01-01' } as PaymentMethod

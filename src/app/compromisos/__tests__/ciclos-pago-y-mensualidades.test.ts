@@ -24,8 +24,8 @@ const CYCLE_B = 'dddddddd-0000-4000-8000-000000000004'
 // calcular la fecha con `expectedChargeDate` (el fallback) en vez de leerla del
 // ciclo real habría dejado la suite entera en verde igual.
 const CICLOS_TARJETA: CreditCardCycle[] = [
-  { id: 'c-jul', user_id: UID, payment_method_id: CARD, closing_date: '2026-07-23', due_date: '2026-08-03', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'c-ago', user_id: UID, payment_method_id: CARD, closing_date: '2026-08-20', due_date: '2026-09-04', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-jul', user_id: UID, payment_method_id: CARD, closing_date: '2026-07-23', due_date: '2026-08-03', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
+  { id: 'c-ago', user_id: UID, payment_method_id: CARD, closing_date: '2026-08-20', due_date: '2026-09-04', source: 'declared', reminder_dismissed_at: null, created_at: '2026-01-01T00:00:00Z' },
 ]
 
 type AsegurarCiclos = (supabase: unknown, method: unknown, desde: Date, hasta: Date) => Promise<CreditCardCycle[]>

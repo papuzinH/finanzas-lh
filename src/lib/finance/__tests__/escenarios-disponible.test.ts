@@ -362,8 +362,8 @@ describe('E12 — el resumen vencido sin pago sigue descontado', () => {
   // (3-ago, impago) y el vigente visto desde HOY (cierra 20-ago, vence 1-sep) --
   // computePendingCreditCards necesita los dos para derivar cuál es "el anterior".
   const cycles: CreditCardCycle[] = [
-    { id: 'jul', user_id: 'u1', payment_method_id: 'cred', closing_date: '2026-07-23', due_date: '2026-08-03', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
-    { id: 'ago', user_id: 'u1', payment_method_id: 'cred', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+    { id: 'jul', user_id: 'u1', payment_method_id: 'cred', closing_date: '2026-07-23', due_date: '2026-08-03', source: 'generated', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
+    { id: 'ago', user_id: 'u1', payment_method_id: 'cred', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'generated', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
   ];
 
   const consumo = {
@@ -425,6 +425,7 @@ describe('E13 — declarar un cierre nuevo NO mueve ninguna transaccion de resum
     id: 'ago', user_id: 'u1', payment_method_id: 'visa',
     closing_date: '2026-08-20', due_date: '2026-09-01',
     source: 'generated', created_at: '2026-01-01T00:00:00Z',
+    reminder_dismissed_at: null,
   };
 
   const compra = {
@@ -470,9 +471,9 @@ describe('E13 — declarar un cierre nuevo NO mueve ninguna transaccion de resum
 
 describe('E14 — la cuota N cae en el N-esimo resumen, no a N meses de la primera', () => {
   const ciclos: CreditCardCycle[] = [
-    { id: 'c0', user_id: 'u1', payment_method_id: 'master', closing_date: '2026-07-30', due_date: '2026-08-07', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-    { id: 'c1', user_id: 'u1', payment_method_id: 'master', closing_date: '2026-08-27', due_date: '2026-09-04', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
-    { id: 'c2', user_id: 'u1', payment_method_id: 'master', closing_date: '2026-10-01', due_date: '2026-10-09', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+    { id: 'c0', user_id: 'u1', payment_method_id: 'master', closing_date: '2026-07-30', due_date: '2026-08-07', source: 'declared', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
+    { id: 'c1', user_id: 'u1', payment_method_id: 'master', closing_date: '2026-08-27', due_date: '2026-09-04', source: 'declared', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
+    { id: 'c2', user_id: 'u1', payment_method_id: 'master', closing_date: '2026-10-01', due_date: '2026-10-09', source: 'declared', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
   ];
 
   it('las tres cuotas toman las fechas REALES de los tres resumenes', () => {
@@ -498,8 +499,8 @@ describe('E16 — la compra del dia del cierre entra en el ciclo que cierra', ()
     // Cubierto tambien en cycles.test.ts; aca se verifica de punta a punta que
     // esa asignacion es la que termina sumando al total del resumen.
     const ciclos: CreditCardCycle[] = [
-      { id: 'ago', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
-      { id: 'sep', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-09-24', due_date: '2026-10-05', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'ago', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'generated', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
+      { id: 'sep', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-09-24', due_date: '2026-10-05', source: 'generated', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
     ];
     const elDiaDelCierre = cicloDeCompra('2026-08-20', ciclos);
     expect(elDiaDelCierre?.id).toBe('ago');
@@ -526,9 +527,9 @@ describe('E18 — cambiar la config de la tarjeta actualiza los resumenes futuro
   } as unknown as PaymentMethod;
 
   const ciclos: CreditCardCycle[] = [
-    { id: 'ago', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-08-24', due_date: '2026-09-06', source: 'generated', created_at: 'x' },
-    { id: 'sep', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-09-24', due_date: '2026-10-06', source: 'generated', created_at: 'x' },
-    { id: 'oct', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-10-24', due_date: '2026-11-06', source: 'generated', created_at: 'x' },
+    { id: 'ago', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-08-24', due_date: '2026-09-06', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
+    { id: 'sep', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-09-24', due_date: '2026-10-06', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
+    { id: 'oct', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-10-24', due_date: '2026-11-06', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
   ];
 
   it('los resumenes que todavia no cerraron toman el vencimiento nuevo', () => {
