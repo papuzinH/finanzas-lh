@@ -1292,7 +1292,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { FullPageLoader } from '@/components/shared/full-page-loader';
+import { FullPageLoader } from '@/components/shared/loader';
 import { SelectorDeResumen } from '@/components/medios-pago/selector-de-resumen';
 import { CabeceraDeResumen } from '@/components/medios-pago/cabecera-de-resumen';
 import { FilasDelResumen } from '@/components/medios-pago/filas-del-resumen';
@@ -1306,11 +1306,18 @@ export function DetalleClient({ methodId }: { methodId: string }) {
   const store = useFinanceStore();
   const [editandoFechas, setEditandoFechas] = useState(false);
 
+  // Las deps son los DOS valores estables, nunca el store entero: `set()` hace un
+  // spread del estado y devuelve un objeto top-level nuevo, y fetchAllData hace
+  // set({isLoading:true}) ANTES de fijar isInitialized -- con [store] el efecto se
+  // re-dispara, isInitialized sigue false, y se encadenan llamadas concurrentes de
+  // ~17 queries cada una. La regla que prohibe desestructurar aplica a los GETTERS
+  // de calculo, no a los campos de estado ni a las acciones.
+  const { isInitialized, fetchAllData } = store;
   useEffect(() => {
-    if (!store.isInitialized) store.fetchAllData();
-  }, [store]);
+    if (!isInitialized) fetchAllData();
+  }, [isInitialized, fetchAllData]);
 
-  if (store.isLoading && !store.isInitialized) {
+  if (store.isLoading && !isInitialized) {
     return <FullPageLoader text="Cargando movimientos..." />;
   }
 
@@ -1333,7 +1340,7 @@ export function DetalleClient({ methodId }: { methodId: string }) {
     router.replace(`/ajustes/medios/${methodId}?resumen=${cycleId}`, { scroll: false });
 
   const cicloActual = detalle?.actual
-    ? store.creditCardCycles.find((c) => c.id === detalle.actual!.id)
+    ? store.creditCardCycles.find((c) => c.id === detalle.actual?.id)
     : undefined;
 
   return (
