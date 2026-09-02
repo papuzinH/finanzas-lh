@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { origenCanonico } from '@/lib/security/dominio-canonico';
+import { permiteLoginPorEmail } from '@/lib/entorno';
+import { loginEmailSchema } from '@/lib/schemas/login-email';
 
 export async function signInWithGoogle() {
   const supabase = await createClient();
@@ -37,4 +39,38 @@ export async function signInWithGoogle() {
   if (data.url) {
     redirect(data.url);
   }
+}
+
+/**
+ * Login por email/contraseña, SOLO fuera de producción (previews y local
+ * contra DEV, que no tiene Google configurado — ver `lib/entorno.ts`).
+ *
+ * La UI ya condiciona el render con `permiteLoginPorEmail()`, pero el server
+ * decide de nuevo acá: es defensa en profundidad, no confianza en que el
+ * cliente mandó el formulario correcto. En producción el provider de email
+ * está apagado en Supabase, así que esto ni siquiera hace falta para que
+ * nadie entre — pero la UI tampoco debe mostrarse ahí.
+ */
+export async function signInWithEmailPassword(formData: FormData) {
+  if (!permiteLoginPorEmail()) {
+    redirect('/login?error=email_login_disabled');
+  }
+
+  const parsed = loginEmailSchema.safeParse({
+    email: formData.get('email'),
+    password: formData.get('password'),
+  });
+
+  if (!parsed.success) {
+    redirect('/login?error=invalid_credentials');
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+
+  if (error) {
+    redirect('/login?error=invalid_credentials');
+  }
+
+  redirect('/');
 }
