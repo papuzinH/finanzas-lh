@@ -16,8 +16,37 @@ export const ETIQUETA_ESTADO: Record<EstadoDeResumen, string> = {
   pagado: 'Pagado',
 };
 
-const mesDe = (d: string) => format(parseLocalDate(d), 'MMMM', { locale: es });
 const mesCorto = (d: string) => format(parseLocalDate(d), 'd MMM', { locale: es });
+
+/**
+ * La etiqueta del pill: lo MINIMO que alcanza para no confundir dos resúmenes.
+ *
+ * Se compara mes **y** año, no el nombre del mes solo. Con el nombre solo, una cuenta
+ * real -- el backfill materializa ~26 resúmenes, de 2025-08 a 2027-09 -- tiene cada
+ * nombre repetido dos o tres veces, así que el "hay homónimo" daba SIEMPRE true y el
+ * pill mostraba siempre la fecha completa ("20 ago 2026"), incluso en la tarjeta con
+ * un resumen por mes para la que se diseñó.
+ *
+ * Tres niveles, porque los dos choques son distintos:
+ * - otro resumen cierra el MISMO mes y año (declarar produce exactamente eso, y la
+ *   unique es (payment_method_id, closing_date)) -> hace falta el día: "20 ago 2026".
+ * - sólo se repite el nombre del mes, en otro año -> alcanza el año: "agosto 2026".
+ *   Bajar esto a "agosto" a secas volvería a hacer ambiguo el pill de una cuenta con
+ *   más de un año de historia, que es la cuenta normal después del backfill.
+ * - nada se repite -> el mes solo: "agosto".
+ */
+export function etiquetaDeResumen(actual: ResumenNavegable, resumenes: ResumenNavegable[]): string {
+  const fecha = parseLocalDate(actual.closingDate);
+  const otros = resumenes.filter((r) => r.id !== actual.id).map((r) => parseLocalDate(r.closingDate));
+
+  const chocaMesYAno = otros.some(
+    (d) => d.getMonth() === fecha.getMonth() && d.getFullYear() === fecha.getFullYear(),
+  );
+  if (chocaMesYAno) return format(fecha, 'd MMM yyyy', { locale: es });
+
+  const chocaSoloElNombre = otros.some((d) => d.getMonth() === fecha.getMonth());
+  return format(fecha, chocaSoloElNombre ? 'MMMM yyyy' : 'MMMM', { locale: es });
+}
 
 /**
  * Navegacion entre RESUMENES, no entre meses: dos resumenes pueden vencer en el mismo
@@ -38,14 +67,7 @@ export function SelectorDeResumen({
   const actual = resumenes[i];
   if (!actual) return null;
 
-  // Si otro resumen cierra en el mismo mes calendario (independientemente del año),
-  // el mes solo no alcanza. La unique (payment_method_id, closing_date) garantiza
-  // que dos resúmenes nunca comparten fecha exacta, así que la fecha completa desambigua.
-  const mes = mesDe(actual.closingDate);
-  const hayHomonimo = resumenes.some((r) => r.id !== actual.id && mesDe(r.closingDate) === mes);
-  const etiqueta = hayHomonimo
-    ? format(parseLocalDate(actual.closingDate), 'd MMM yyyy', { locale: es })
-    : mes;
+  const etiqueta = etiquetaDeResumen(actual, resumenes);
 
   return (
     <div className="flex items-center justify-between gap-2">
