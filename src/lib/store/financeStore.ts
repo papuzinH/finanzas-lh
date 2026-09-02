@@ -57,6 +57,22 @@ import type { PortfolioStatus, PortfolioDisplayCurrency } from '@/lib/finance/po
 import { daysSinceLastRegistration } from '@/lib/finance/reconcile';
 import { computeHistorico } from '@/lib/finance/historico';
 import type { Historico, Vara } from '@/lib/finance/historico';
+import {
+  listarResumenesDeTarjeta,
+  filasDeResumen,
+  type ResumenNavegable,
+  type FilasDeResumen,
+} from '@/lib/finance/detalle-resumen';
+
+export type DetalleDeResumen = {
+  resumenes: ResumenNavegable[];
+  actual: ResumenNavegable | null;
+  /** Positiva cuando debes. <= 0 = al dia o saldo a favor. */
+  deuda: number;
+  totalARS: number;
+  totalUSD: number;
+  filas: FilasDeResumen;
+};
 
 export type { ProcessedTransaction } from '@/lib/finance/types';
 export { resolveRate } from '@/lib/finance/prepare';
@@ -187,6 +203,7 @@ interface FinanceState {
     usdExpenses: number;
     arsExpenses: number;
   };
+  getCardCycleDetail: (methodId: string, cycleId?: string) => DetalleDeResumen | null;
   getDefaultPaymentMethod: () => PaymentMethod | undefined;
   getUnassignedTransactionsCount: () => number;
   isCreditCardCyclePaid: (methodId: string) => boolean;
@@ -969,6 +986,41 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   getPaymentMethodStatus: (methodId: string) => {
     const { transactions, recurringPlans, paymentMethods, creditCardCycles } = get();
     return computePaymentMethodStatus(paymentMethods.find((m) => m.id === methodId), transactions, recurringPlans, new Date(), creditCardCycles);
+  },
+
+  getCardCycleDetail: (methodId, cycleId) => {
+    const { transactions, paymentMethods, recurringPlans, creditCardCycles } = get();
+    const method = paymentMethods.find((m) => m.id === methodId);
+    if (!method || method.type !== 'credit') return null;
+
+    const now = new Date();
+    const resumenes = listarResumenesDeTarjeta(method, creditCardCycles, transactions, now);
+    if (resumenes.length === 0) {
+      return { resumenes, actual: null, deuda: 0, totalARS: 0, totalUSD: 0, filas: { conFecha: [], sinFecha: [] } };
+    }
+
+    // Un cycleId ajeno o inexistente cae al vigente en vez de romper la pantalla;
+    // sin vigente (todos vencidos), al ultimo de la lista.
+    const ciclos = ciclosDeMetodo(methodId, creditCardCycles);
+    const vigente = cicloVigente(ciclos, now);
+    const elegido =
+      resumenes.find((r) => r.id === cycleId) ??
+      resumenes.find((r) => r.id === vigente?.id) ??
+      resumenes[resumenes.length - 1];
+
+    // El total NO se calcula aca: sale de la misma funcion que alimenta Compromisos.
+    const ciclo = ciclos.find((c) => c.id === elegido.id)!;
+    const status = computePaymentMethodStatus(method, transactions, recurringPlans, now, creditCardCycles, ciclo);
+
+    return {
+      resumenes,
+      actual: elegido,
+      // projectedTotal es ingresos - gastos: negativo cuando debes.
+      deuda: -status.projectedTotal,
+      totalARS: status.arsExpenses,
+      totalUSD: status.usdExpenses,
+      filas: filasDeResumen(elegido.id, transactions),
+    };
   },
 
   getPendingCreditCardByCard: () => {
