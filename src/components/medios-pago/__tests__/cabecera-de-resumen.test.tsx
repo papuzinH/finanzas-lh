@@ -80,6 +80,10 @@ describe('CabeceraDeResumen', () => {
     expect(html).toContain('u$s 100');
     expect(html.match(/u\$s/g)?.length).toBe(1);
     expect(html.match(/shadow-bandera/g)?.length).toBe(1);
+    // Sin esto el test solo verifica PRESENCIA, no posicion: la version que caia a
+    // formatCurrency(totalARS) como cifra principal ponia "$ 0,00" arriba y el "u$s
+    // 100" abajo, y pasaba igual. El \s es por el espacio duro de Intl es-AR.
+    expect(html).not.toMatch(/\$\s*0,00/);
   });
 
   it('no muestra monto secundario en USD cuando esta al dia', () => {
