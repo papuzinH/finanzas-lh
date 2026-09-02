@@ -344,7 +344,13 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
       )}
 
       {vigente && (
+        // key por resumen: el dialogo esta montado siempre que haya un resumen vigente (no
+        // detras del estado de apertura) y su estado se inicializa desde props una sola vez,
+        // en el useState. Si el vigente cambia de identidad con la pagina montada --pasa el
+        // vencimiento, o el realineado lo mueve-- sin key seguiria mostrando y mandando las
+        // fechas del resumen viejo. Misma leccion que DeclararProximoCiclo en sus dos montajes.
         <EditarCicloDialog
+          key={vigente.id}
           open={editandoCiclo}
           onOpenChange={setEditandoCiclo}
           methodId={data.id}
