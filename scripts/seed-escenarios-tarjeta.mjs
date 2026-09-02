@@ -113,25 +113,9 @@ const TASA_FALLBACK = 1529.2;
 const { error: eDel } = await db.from('transactions').delete().eq('user_id', UID).like('description', `%${MARCA}`);
 if (eDel) { console.error('limpiando escenarios previos:', eDel.message); process.exit(1); }
 
-const filas = SUSCRIPCIONES.map((s) => ({
-  id: randomUUID(),
-  user_id: UID,
-  description: s.desc,
-  // amount se RECALCULA en runtime desde original_amount (prepare.ts): esto es
-  // sólo el valor persistido, la pantalla muestra la conversión del día.
-  amount: s.usd * TASA_FALLBACK,
-  type: 'expense',
-  date: s.date,
-  category_id: cat(s.cat),
-  payment_method_id: tarjeta.id,
-  original_currency: 'USD',
-  original_amount: s.usd,
-  rate_pair: null,
-  exchange_rate: TASA_FALLBACK,
-}));
-
-const { error } = await db.from('transactions').insert(filas);
-if (error) { console.error('insert:', error.message); process.exit(1); }
+// El insert de estas dos filas va MAS ABAJO, despues de materializar los ciclos:
+// necesitan su cycle_id, que es la unica verdad de pertenencia a un resumen. Sin el
+// no entran en ningun total y el balde de ruido del gate queda rojo para siempre.
 
 // ---- Escenario C: los ciclos irregulares reales de la Visa Galicia (Task 10)
 // (los días de la tarjeta ya se resetearon a 20/28 más arriba, antes de que el
@@ -188,6 +172,43 @@ const cicloSep = await upsertCiclo({ closing: mes(0, 20), due: mes(0, 28), sourc
 // Octubre (+1): resumen estimado futuro, para el realineado (Flujo 2) y el
 // "próximo resumen" del paso opcional al pagar (Flujos 3 y 4).
 const cicloOct = await upsertCiclo({ closing: mes(1, 20), due: mes(1, 28), source: 'generated' });
+
+// ---- Escenarios A y B: las suscripciones en dólares, ya con su resumen
+// El resumen de cada una sale de su fecha, que en crédito ES el vencimiento: se
+// aparea contra el due_date de los ciclos recién sembrados. Se falla ruidosamente
+// si alguna no encuentra el suyo -- una transacción de crédito sin cycle_id no
+// cuenta en la deuda de la tarjeta ni en el disponible, y el escenario mentiría.
+const cicloPorVencimiento = new Map(
+  [cicloJun, cicloJul, cicloAgo, cicloSep, cicloOct].map((c) => [c.due_date, c.id]),
+);
+
+const filas = SUSCRIPCIONES.map((s) => {
+  const cycle_id = cicloPorVencimiento.get(s.date);
+  if (!cycle_id) {
+    console.error(`Sin resumen para "${s.desc}" (vence ${s.date}): revisá las fechas del escenario C.`);
+    process.exit(1);
+  }
+  return {
+    id: randomUUID(),
+    user_id: UID,
+    description: s.desc,
+    // amount se RECALCULA en runtime desde original_amount (prepare.ts): esto es
+    // sólo el valor persistido, la pantalla muestra la conversión del día.
+    amount: s.usd * TASA_FALLBACK,
+    type: 'expense',
+    date: s.date,
+    category_id: cat(s.cat),
+    payment_method_id: tarjeta.id,
+    cycle_id,
+    original_currency: 'USD',
+    original_amount: s.usd,
+    rate_pair: null,
+    exchange_rate: TASA_FALLBACK,
+  };
+});
+
+const { error } = await db.from('transactions').insert(filas);
+if (error) { console.error('insert:', error.message); process.exit(1); }
 
 // Una transacción real imputada al ciclo de septiembre: para que el Flujo 1
 // del gate ("ninguna transacción cambió de cycle_id") cuente algo de verdad
