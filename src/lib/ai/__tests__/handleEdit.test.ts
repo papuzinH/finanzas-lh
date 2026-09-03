@@ -123,6 +123,62 @@ describe('handleEdit - transaccion sigue usando el userId numérico (no se toca 
   })
 })
 
+describe('handleEdit - cambiar el tipo a gasto suelta el income_period', () => {
+  /**
+   * El CHECK `income_period_solo_ingresos` rechaza una fila con income_period y
+   * type='expense'. Sin este fix, "eso no era un ingreso, era un gasto" sobre un
+   * cobro de fin de mes ya imputado volvia con 23514 y el chat sólo decia "Error
+   * al actualizar la transacción": un camino que funcionaba antes de esta feature.
+   */
+  function updatePayload(chain: MockChain): Record<string, unknown> {
+    return chain.__calls.find((c) => c.method === 'update')?.args[0] as Record<string, unknown>
+  }
+
+  it('income → expense manda income_period: null en el mismo UPDATE', async () => {
+    const txChain = createChain({
+      data: [{ id: 't1', description: 'Sueldo', amount: 1850000, type: 'income', date: '2026-08-29', category_id: null, payment_method_id: null }],
+    })
+    const updateChain = createChain({ error: null })
+    mockedCreateClient.mockResolvedValue(createSupabaseMock([txChain, updateChain]) as never)
+
+    const result = await handleEdit(
+      { entity: 'transaccion', search: 'Sueldo', changes: { type: 'expense' } },
+      '7',
+    )
+
+    expect(result.success).toBe(true)
+    expect(updatePayload(updateChain)).toEqual({ type: 'expense', income_period: null })
+  })
+
+  it('expense → income no toca income_period (lo declara el usuario, no el chat)', async () => {
+    const txChain = createChain({
+      data: [{ id: 't1', description: 'Transferencia', amount: 5000, type: 'expense', date: '2026-08-29', category_id: null, payment_method_id: null }],
+    })
+    const updateChain = createChain({ error: null })
+    mockedCreateClient.mockResolvedValue(createSupabaseMock([txChain, updateChain]) as never)
+
+    const result = await handleEdit(
+      { entity: 'transaccion', search: 'Transferencia', changes: { type: 'income' } },
+      '7',
+    )
+
+    expect(result.success).toBe(true)
+    expect(updatePayload(updateChain)).toEqual({ type: 'income' })
+  })
+
+  it('un cambio que no toca el tipo tampoco toca income_period', async () => {
+    const txChain = createChain({
+      data: [{ id: 't1', description: 'Sueldo', amount: 1850000, type: 'income', date: '2026-08-29', category_id: null, payment_method_id: null }],
+    })
+    const updateChain = createChain({ error: null })
+    mockedCreateClient.mockResolvedValue(createSupabaseMock([txChain, updateChain]) as never)
+
+    await handleEdit({ entity: 'transaccion', search: 'Sueldo', changes: { amount: 1900000 } }, '7')
+
+    expect(updatePayload(updateChain)).toEqual({ amount: 1900000 })
+  })
+})
+
 describe('handleEdit - transaccion resuelve `changes.category` con el UUID de auth (bug fix)', () => {
   it('busca la categoría con .or(user_id.eq.<uuid>,is_system.eq.true), no con el userId numérico', async () => {
     const authUuid = 'auth-uuid-99'

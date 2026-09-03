@@ -634,7 +634,14 @@ export async function handleEdit(data: EditData, userId: string): Promise<ChatRe
 
         if (data.changes.description) updates.description = data.changes.description
         if (data.changes.amount) updates.amount = Number(data.changes.amount)
-        if (data.changes.type) updates.type = data.changes.type
+        if (data.changes.type) {
+          updates.type = data.changes.type
+          // El CHECK income_period_solo_ingresos rechaza la fila si queda un income_period
+          // colgado de un gasto. Misma regla que updateTransaction: el cobro del 29 que ya
+          // venía imputado y ahora "no era un ingreso" tiene que soltar su mes, o Postgres
+          // devuelve 23514 y el chat sólo dice "Error al actualizar la transacción".
+          if (data.changes.type === 'expense') updates.income_period = null
+        }
 
         // Resolver categoría por nombre si se proporcionó.
         // Bug fix: categories.user_id es el UUID de auth (no el id numérico interno
