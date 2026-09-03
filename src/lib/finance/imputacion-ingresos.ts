@@ -72,3 +72,28 @@ export function resolverImputacion(
   const candidatos = mesesCandidatos(fecha).map((o) => o.valor)
   return elegido && candidatos.includes(elegido) ? elegido : mesPorDefecto(fecha, prefiereMesSiguiente)
 }
+
+/**
+ * El mes que corresponde persistir en un formulario de movimiento: `null` cuando la
+ * pregunta no aplica.
+ *
+ * UNA sola condicion para mostrar el selector y para guardar. Cuando eran dos, el
+ * submit miraba solo `type === 'income'` y el selector ademas `!medioEsCredito`: un
+ * reintegro en tarjeta fechado el 29 se guardaba con el mes que arrastraba la
+ * preferencia SIN que el control hubiera aparecido nunca en pantalla. Y no es
+ * inocuo: el ciclo le gana a `income_period` en prepare.ts, pero una tarjeta sin
+ * `default_closing_day`/`default_payment_day` no tiene ciclo que gane (caso
+ * soportado a proposito, ver lib/ciclos/resolver.ts), asi que ahi manda
+ * `income_period` y el cobro se muda de mes solo -- justo lo que esta feature
+ * existe para no hacer.
+ */
+export function imputacionAlGuardar(args: {
+  esIngreso: boolean
+  medioEsCredito: boolean
+  fecha: string
+  elegido: string | null | undefined
+  prefiereMesSiguiente: boolean | null
+}): string | null {
+  if (!args.esIngreso || args.medioEsCredito) return null
+  return resolverImputacion(args.fecha, args.elegido, args.prefiereMesSiguiente)
+}

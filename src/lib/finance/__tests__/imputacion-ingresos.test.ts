@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { necesitaDeclararMes, mesesCandidatos, mesPorDefecto, resolverImputacion } from '../imputacion-ingresos'
+import {
+  necesitaDeclararMes,
+  mesesCandidatos,
+  mesPorDefecto,
+  resolverImputacion,
+  imputacionAlGuardar,
+} from '../imputacion-ingresos'
 
 describe('necesitaDeclararMes', () => {
   // La ventana sale de los datos de produccion (2026-09-03): los 8 cobros de fin de
@@ -81,5 +87,41 @@ describe('resolverImputacion', () => {
   it('sin elegido: usa el default segun la preferencia', () => {
     expect(resolverImputacion('2026-08-29', null, true)).toBe('2026-09-01')
     expect(resolverImputacion('2026-08-29', undefined, false)).toBe('2026-08-01')
+  })
+})
+
+describe('imputacionAlGuardar', () => {
+  const base = {
+    esIngreso: true,
+    medioEsCredito: false,
+    fecha: '2026-08-29',
+    elegido: null as string | null,
+    prefiereMesSiguiente: true,
+  }
+
+  it('un gasto nunca lleva mes, aunque caiga en el borde', () => {
+    expect(imputacionAlGuardar({ ...base, esIngreso: false })).toBeNull()
+  })
+
+  it('un ingreso del borde que NO va a tarjeta se imputa con el default de la preferencia', () => {
+    expect(imputacionAlGuardar(base)).toBe('2026-09-01')
+    expect(imputacionAlGuardar({ ...base, prefiereMesSiguiente: null })).toBe('2026-08-01')
+  })
+
+  it('un ingreso en tarjeta NO se imputa, ni siquiera con la preferencia en mes siguiente', () => {
+    // El selector no se muestra para credito: guardar un mes ahi seria mover el
+    // cobro de mes sin que nada haya aparecido en pantalla. Y una tarjeta sin dias
+    // por defecto no tiene ciclo que le gane a income_period en prepare.ts, asi que
+    // el mes mandaria de verdad.
+    expect(imputacionAlGuardar({ ...base, medioEsCredito: true })).toBeNull()
+    expect(imputacionAlGuardar({ ...base, medioEsCredito: true, elegido: '2026-09-01' })).toBeNull()
+  })
+
+  it('fuera del borde no hay mes que guardar', () => {
+    expect(imputacionAlGuardar({ ...base, fecha: '2026-08-15' })).toBeNull()
+  })
+
+  it('respeta lo elegido cuando sigue siendo candidato de la fecha', () => {
+    expect(imputacionAlGuardar({ ...base, elegido: '2026-08-01' })).toBe('2026-08-01')
   })
 })
