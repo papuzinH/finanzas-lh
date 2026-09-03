@@ -42,7 +42,7 @@ Gestión de los medios de pago del usuario (tarjetas de crédito, débito, efect
 | `src/components/medios-pago/register-card-payment-dialog.tsx` | Registrar pago de resumen de tarjeta (típicamente meses anteriores); monta `DeclararProximoCiclo` |
 | `src/components/medios-pago/ciclo-fechas-field.tsx` | `CicloFechasField` (par cierre/vencimiento) + `EtiquetaProcedencia` ("del resumen" / "estimado"), compartidos por la ficha y los diálogos de pago |
 | `src/components/medios-pago/editar-ciclo-dialog.tsx` | Diálogo «Corregir fechas», montado desde la ficha (`institutional-card.tsx`), la pantalla de detalle (`detalle-client.tsx`) y la card del ciclo en `/compromisos` (`credit-card-cycle-card.tsx`) |
-| `src/components/medios-pago/declarar-proximo-ciclo.tsx` | Paso opcional «Lo tengo a mano, lo cargo» dentro de los diálogos de pago |
+| `src/components/medios-pago/declarar-proximo-ciclo.tsx` | Paso opcional «Lo tengo a mano, lo cargo» dentro de los diálogos de pago, rotulado «EL RESUMEN QUE VIENE · \<mes\>» (`mesDelResumen`) para que no se confunda con el resumen que se está pagando |
 | `src/lib/ciclos/declarar.ts` | `guardarDeclaracion` (escribe el `source: 'declared'`), `realinearFuturos` (re-fecha los `generated` futuros) |
 | `src/lib/finance/balances.ts` | `computePaymentMethodStatus`, `computePendingCreditCards`, `hasCardPaymentInCycle` |
 | `src/lib/finance/cycles.ts` | `cicloVigente` (el resumen vigente), `ciclosDeMetodo`, `cicloDeCompra`, `cicloSaldadoEn` |

@@ -10,6 +10,17 @@ import { CicloFechasField, type FechasDeCiclo } from './ciclo-fechas-field';
 const corto = (d: string) => format(parseLocalDate(d), 'd MMM', { locale: es });
 
 /**
+ * El mes que le da nombre a un resumen: el de su CIERRE. Un resumen que cierra el 27 de
+ * septiembre es "el de septiembre", aunque venza en octubre.
+ *
+ * `parseLocalDate` y no `new Date(string)`: aquel interpreta el string como medianoche UTC y
+ * en zona horaria negativa corre un dia atras, asi que un cierre el 1-oct diria "septiembre".
+ */
+export function mesDelResumen(closingDate: string): string {
+  return format(parseLocalDate(closingDate), 'MMMM', { locale: es });
+}
+
+/**
  * El paso OPCIONAL de cargar las fechas del proximo resumen mientras se marca un pago.
  *
  * Arranca cerrado a proposito: el usuario marca los pagos de memoria y sin el resumen a mano, y
@@ -39,11 +50,23 @@ export function DeclararProximoCiclo({
   const [abierto, setAbierto] = useState(false);
   const [fechas, setFechas] = useState<FechasDeCiclo>(estimado);
 
+  // Cual resumen se esta declarando, dicho con todas las letras. El paso vive dentro del
+  // dialogo de pago, que arriba dice el monto y el vencimiento del resumen QUE SE PAGA: sin
+  // este encabezado, un "Estimado: cierra 27 sep" abajo se lee como una correccion de ESE
+  // resumen y no del siguiente. Va con el mismo estilo de rotulo que "¿Con que medio pagas?"
+  // para que se lea como otra seccion del dialogo, no como una nota al pie de la anterior.
+  const rotulo = (
+    <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
+      El resumen que viene · {mesDelResumen(estimado.closingDate)}
+    </p>
+  );
+
   if (!abierto) {
     return (
       <div className="flex flex-col gap-1.5">
+        {rotulo}
         <p className="text-xs text-muted">
-          Estimado: cierra {corto(estimado.closingDate)} · vence {corto(estimado.dueDate)}
+          Lo estimamos: cierra {corto(estimado.closingDate)} · vence {corto(estimado.dueDate)}
         </p>
         <Button
           type="button"
@@ -62,7 +85,10 @@ export function DeclararProximoCiclo({
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs text-muted">Copialas del resumen del banco.</p>
+      {rotulo}
+      <p className="text-xs text-muted">
+        El que estás pagando trae impreso cuándo cierra el que viene. Copialo de ahí.
+      </p>
       <CicloFechasField
         value={fechas}
         onChange={(v) => {
