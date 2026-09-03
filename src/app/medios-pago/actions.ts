@@ -462,7 +462,10 @@ export async function moverTransaccionAlResumenVecino(
       cycle_id: r.cycleId,
       date: r.date,
     }))
-    const { error } = await supabase.from('transactions').upsert(filas)
+    // `onConflict: 'id'` explícito: es el default de PostgREST (la PK) y el gate lo
+    // verificó contra Postgres real, pero los otros upserts del repo lo pasan y una
+    // escritura que reemplaza filas enteras no debería depender de un default implícito.
+    const { error } = await supabase.from('transactions').upsert(filas, { onConflict: 'id' })
     if (error) {
       console.error('Error moviendo transacciones de resumen:', error)
       return { error: 'No se pudo mover el movimiento de resumen.' }
