@@ -35,6 +35,7 @@ import { parseLocalDate } from '@/lib/utils/dates';
 import { formatCurrency, formatUsd } from '@/lib/utils';
 import { syncAutomaticRecurringCharges } from '@/app/compromisos/actions';
 import { isExpenseInCurrentMonthScope } from '@/lib/finance/creditCycle';
+import { necesitaDeclararMes } from '@/lib/finance/imputacion-ingresos';
 import type { ProcessedTransaction, CreditCardCycleSummary as CreditCardCycleSummaryType, DolarBlue } from '@/lib/finance/types';
 import { ciclosDeMetodo, cicloVigente, type CreditCardCycle } from '@/lib/finance/cycles';
 import { resolveRate, prepareTransactions, prepareRecurringPlans } from '@/lib/finance/prepare';
@@ -206,6 +207,11 @@ interface FinanceState {
   getCardCycleDetail: (methodId: string, cycleId?: string) => DetalleDeResumen | null;
   getDefaultPaymentMethod: () => PaymentMethod | undefined;
   getUnassignedTransactionsCount: () => number;
+  /**
+   * Ingresos en el borde del mes que quedaron cargados antes de que existiera la
+   * imputacion (sin income_period). Repaso, no migracion: nadie los mueve solo.
+   */
+  getCobrosSinImputar: () => Transaction[];
   isCreditCardCyclePaid: (methodId: string) => boolean;
   getPendingCreditCardByCard: () => CreditCardCycleSummary[];
 
@@ -974,6 +980,17 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
   getUnassignedTransactionsCount: () => {
     return get().transactions.filter((t) => t.payment_method_id == null).length;
+  },
+
+  getCobrosSinImputar: () => {
+    const { transactions } = get();
+    return transactions.filter(
+      (t) =>
+        t.type === 'income' &&
+        !t.is_balance_adjustment &&
+        !t.income_period &&
+        necesitaDeclararMes(t.date),
+    );
   },
 
   isCreditCardCyclePaid: (methodId: string) => {

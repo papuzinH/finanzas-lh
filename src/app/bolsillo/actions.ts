@@ -133,6 +133,52 @@ export async function saveIncomePeriodPreference(valor: boolean): Promise<Action
   }
 }
 
+/**
+ * Imputa en lote los cobros que el usuario repasó. "Dejalos como están" también
+ * llega acá, con el mes de la propia fecha: persistir esa decisión es lo que hace
+ * que el banner desaparezca para siempre sin inventar un estado de "descartado"
+ * aparte, que además no viajaría entre dispositivos.
+ */
+export async function imputarCobros(
+  items: { id: string; income_period: string }[],
+): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const parsed = z
+      .array(z.object({
+        id: z.string().uuid(),
+        income_period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }))
+      .max(100)
+      .safeParse(items)
+    if (!parsed.success) return { error: 'Datos inválidos' }
+
+    for (const item of parsed.data) {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ income_period: item.income_period })
+        .eq('id', item.id)
+        .eq('user_id', user.id)   // RLS es el backstop, no la única capa
+        .eq('type', 'income')     // el CHECK lo prohíbe igual, pero se dice acá también
+
+      if (error) {
+        console.error('Error imputando un cobro:', error)
+        return { error: 'No se pudieron guardar todos los cobros' }
+      }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/movimientos')
+    return { success: true }
+  } catch (err) {
+    console.error('Unexpected error in imputarCobros:', err)
+    return { error: 'Ocurrió un error inesperado' }
+  }
+}
+
 /** Cierra la puesta a punto. También la marca el usuario que la saltea. */
 export async function completePocketSetup(): Promise<ActionResponse> {
   try {
