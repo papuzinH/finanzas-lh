@@ -31,11 +31,10 @@ import {
   parse,
   endOfMonth,
 } from 'date-fns';
-import { parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
+import { parseLocalDate } from '@/lib/utils/dates';
 import { formatCurrency, formatUsd } from '@/lib/utils';
 import { syncAutomaticRecurringCharges } from '@/app/compromisos/actions';
 import { isExpenseInCurrentMonthScope } from '@/lib/finance/creditCycle';
-import { necesitaDeclararMes, MESES_DE_REPASO } from '@/lib/finance/imputacion-ingresos';
 import type { ProcessedTransaction, CreditCardCycleSummary as CreditCardCycleSummaryType, DolarBlue } from '@/lib/finance/types';
 import { ciclosDeMetodo, cicloVigente, type CreditCardCycle } from '@/lib/finance/cycles';
 import { resolveRate, prepareTransactions, prepareRecurringPlans } from '@/lib/finance/prepare';
@@ -207,11 +206,6 @@ interface FinanceState {
   getCardCycleDetail: (methodId: string, cycleId?: string) => DetalleDeResumen | null;
   getDefaultPaymentMethod: () => PaymentMethod | undefined;
   getUnassignedTransactionsCount: () => number;
-  /**
-   * Ingresos en el borde del mes que quedaron cargados antes de que existiera la
-   * imputacion (sin income_period). Repaso, no migracion: nadie los mueve solo.
-   */
-  getCobrosSinImputar: () => Transaction[];
   isCreditCardCyclePaid: (methodId: string) => boolean;
   getPendingCreditCardByCard: () => CreditCardCycleSummary[];
 
@@ -982,32 +976,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     return get().transactions.filter((t) => t.payment_method_id == null).length;
   },
 
-  getCobrosSinImputar: () => {
-    const { transactions, paymentMethods } = get();
-    const tarjetas = new Set(paymentMethods.filter((m) => m.type === 'credit').map((m) => m.id));
-    // Piso: mas atras de MESES_DE_REPASO no se repasa nada. Ver la constante --
-    // sin piso, un historial largo choca contra el `.max(100)` de imputarCobros y
-    // el banner queda para siempre, con los dos botones devolviendo "Datos
-    // invalidos". Fechas comparadas como strings yyyy-MM-dd, nunca como Date.
-    const piso = formatLocalDate(subMonths(new Date(), MESES_DE_REPASO));
-    return transactions.filter(
-      (t) =>
-        t.type === 'income' &&
-        t.date >= piso &&
-        !t.is_balance_adjustment &&
-        !t.income_period &&
-        // Un reintegro de tarjeta NO entra al repaso. Dos razones, cada una alcanza:
-        // no se pregunta por ellos (el ciclo le gana a income_period en prepare.ts),
-        // y para un movimiento de crédito `t.date` es el VENCIMIENTO que escribió el
-        // server, no el día en que entró la plata -- el test del borde y los meses
-        // candidatos saldrían de la fecha equivocada, así que cualquier tarjeta que
-        // venza a fin de mes metía TODOS sus reintegros en el banner, con los meses
-        // del vencimiento como opciones.
-        !t.cycle_id &&
-        !(t.payment_method_id && tarjetas.has(t.payment_method_id)) &&
-        necesitaDeclararMes(t.date),
-    );
-  },
 
   isCreditCardCyclePaid: (methodId: string) => {
     const { transactions, paymentMethods, creditCardCycles } = get();

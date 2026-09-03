@@ -21,7 +21,7 @@
 | `src/components/shared/transaction-item.tsx` | Fila reutilizable: swipe derecha=editar / izquierda=borrar (mobile, con "peek" de descubribilidad), menú kebab en desktop, **undo de borrado con ventana de 4s** (el `deleteTransaction` real se difiere) |
 | `src/components/shared/swipeable-row.tsx` | El gesto en sí (fondos, umbral de 80px, haptics, peek y guard del click sintético). Se extrajo de `TransactionItem` para compartirlo con las cards de /compromisos |
 | `src/components/transactions/mes-del-cobro-field.tsx` | Selector «A qué mes cuenta» (dos chips con el NOMBRE del mes). Se dibuja solo si la fecha cae en el borde del mes; la condición completa (ingreso + medio que no es tarjeta) la decide `imputacionAlGuardar` en el diálogo |
-| `src/lib/finance/imputacion-ingresos.ts` | Puro: `necesitaDeclararMes` (últimos `DIAS_DE_BORDE` = 7 días), `mesesCandidatos`, `mesPorDefecto`, `resolverImputacion` e `imputacionAlGuardar`. `MESES_DE_REPASO` (24) es el piso del banner de repaso |
+| `src/lib/finance/imputacion-ingresos.ts` | Puro: `necesitaDeclararMes` (últimos `DIAS_DE_BORDE` = 7 días), `mesesCandidatos`, `mesPorDefecto`, `resolverImputacion` e `imputacionAlGuardar` |
 | `src/lib/schemas/transaction.ts` | Zod: `transactionSchema` / `createTransactionSchema` (idénticos hoy). `payment_method_id` es string u opcional (`'none'` → null); `currency`/`rate_pair`/`exchange_rate` para USD |
 | `src/lib/finance/prepare.ts` | `prepareTransactions` (calcula `periodDate` + convierte USD→ARS con `resolveRate`) y `prepareRecurringPlans`. Mismo pipeline en cliente (store) y servidor (chat) |
 | `src/lib/utils/dates.ts` | `parseLocalDate`, `calculateCreditPaymentDate`, `dateToLocalString`, `todayString` |
@@ -58,7 +58,7 @@ Un cobro del 29 de agosto puede ser agosto trabajado o septiembre por adelantado
 - Mostrar y guardar son **la misma condición**, `imputacionAlGuardar`: el submit la recomputa desde `data.payment_method_id` (lo que efectivamente se manda), no desde el `watch`. Cuando eran dos condiciones separadas, un reintegro en tarjeta se guardaba con mes sin que el control se hubiera visto nunca — y en una tarjeta sin días por defecto (sin ciclo que gane) eso movía el cobro de mes de verdad.
 - Se **deriva de la fecha final, no se retiene**: un mes elegido que deja de estar entre los candidatos de la fecha actual se descarta y cae al default.
 - El chat pregunta con el patrón de dos pasos sin estado (`create_transaction` devuelve el pedido al modelo si falta `mes_del_cobro`), y descarta un mes alucinado con la misma función pura.
-- Los cobros cargados **antes** de que esto existiera se repasan a mano desde el banner del home (`getCobrosSinImputar` → `imputarCobros`), nunca por backfill automático.
+- Los cobros cargados **antes** de que esto existiera se corrigen **editando el movimiento**: el selector aparece ahí igual que en el alta. No hay backfill automático ni aviso en el inicio — hubo un banner de repaso en el home y se retiró (decisión de producto, 2026-09-03): el lugar para arreglar un movimiento es el movimiento.
 
 Spec: `docs/superpowers/specs/2026-09-03-ingresos-mes-vencido-design.md`.
 
@@ -81,7 +81,7 @@ Spec: `docs/superpowers/specs/2026-09-03-ingresos-mes-vencido-design.md`.
 
 ## Docs relacionados
 
-- `docs/superpowers/specs/2026-09-03-ingresos-mes-vencido-design.md` — a qué mes cuenta un cobro (`income_period`, la preferencia y el repaso)
+- `docs/superpowers/specs/2026-09-03-ingresos-mes-vencido-design.md` — a qué mes cuenta un cobro (`income_period` y la preferencia)
 - `docs/superpowers/specs/2026-05-30-movimientos-en-dolares-design.md` — diseño del soporte USD (original_currency/original_amount/rate_pair)
 - `docs/movimientos-ux-a11y-plan.md` — plan UX/a11y de la pantalla (swipe, filtros bottom-sheet, focus)
 - `docs/superpowers/specs/2026-07-02-cards-cuotas-ritmo-claridad-design.md` — tratamiento de cuotas en cards

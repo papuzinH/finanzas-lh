@@ -44,7 +44,6 @@ export const VERSIONES: Version[] = [
       'Ya podés borrar una mensualidad aunque tenga movimientos registrados.',
       'Cuando cargues un cobro de los últimos días del mes, elegís para qué mes cuenta esa plata.',
       'Si tu sueldo cuenta siempre para el mes que arranca, dejalo dicho una vez en Ajustes.',
-      'Y desde el inicio repasás los cobros de fin de mes que ya tenías cargados.',
     ],
   },
   {

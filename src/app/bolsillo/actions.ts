@@ -134,51 +134,6 @@ export async function saveIncomePeriodPreference(valor: boolean): Promise<Action
   }
 }
 
-/**
- * Imputa en lote los cobros que el usuario repasó. "Dejalos como están" también
- * llega acá, con el mes de la propia fecha: persistir esa decisión es lo que hace
- * que el banner desaparezca para siempre sin inventar un estado de "descartado"
- * aparte, que además no viajaría entre dispositivos.
- */
-export async function imputarCobros(
-  items: { id: string; income_period: string }[],
-): Promise<ActionResponse> {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'No autorizado' }
-
-    const parsed = z
-      .array(z.object({
-        id: z.string().uuid(),
-        income_period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      }))
-      .max(100)
-      .safeParse(items)
-    if (!parsed.success) return { error: 'Datos inválidos' }
-
-    for (const item of parsed.data) {
-      const { error } = await supabase
-        .from('transactions')
-        .update({ income_period: item.income_period })
-        .eq('id', item.id)
-        .eq('user_id', user.id)   // RLS es el backstop, no la única capa
-        .eq('type', 'income')     // el CHECK lo prohíbe igual, pero se dice acá también
-
-      if (error) {
-        console.error('Error imputando un cobro:', error)
-        return { error: 'No se pudieron guardar todos los cobros' }
-      }
-    }
-
-    revalidatePath('/')
-    revalidatePath('/movimientos')
-    return { success: true }
-  } catch (err) {
-    console.error('Unexpected error in imputarCobros:', err)
-    return { error: 'Ocurrió un error inesperado' }
-  }
-}
 
 /** Cierra la puesta a punto. También la marca el usuario que la saltea. */
 export async function completePocketSetup(): Promise<ActionResponse> {
@@ -333,11 +288,10 @@ export async function reconcileAccount(input: ReconcileInput): Promise<ActionRes
         category_id: categoryId,
         payment_method_id,
         // Un movimiento de conciliación pertenece al mes en que se detectó: no es
-        // ambiguo, y por eso se declara acá en vez de dejarlo NULL. Sin esto,
-        // conciliar un día 28 con plata de más hacía aparecer al instante el banner
-        // de "cobros sin imputar" preguntando a qué mes cuenta una diferencia de $500.
-        // `mesesCandidatos(...)[0]` es el mes de la propia fecha, el mismo idioma que
-        // usa "Dejalos como están" en el banner.
+        // ambiguo, y por eso se declara acá en vez de dejarlo NULL. `mesesCandidatos
+        // (...)[0]` es el mes de la propia fecha, así que el valor coincide con el
+        // que tendría sin declarar — se escribe igual para que un ingreso que la app
+        // generó sola no quede como si el usuario no hubiera contestado.
         income_period: type === 'income' ? mesesCandidatos(date)[0].valor : null,
         is_balance_adjustment: esAjuste,
         original_currency: 'ARS',

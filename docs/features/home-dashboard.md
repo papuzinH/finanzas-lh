@@ -19,7 +19,6 @@
 | `src/components/dashboard/*` (sección "Presupuestos y metas") | El **título de sección vive en `page.tsx` y se oculta** si no hay ningún presupuesto activo ni meta activa (`getBudgetsOverview() === null` y `getSavingsGoalsOverview().activeCount === 0`); con uno solo de los dos, el grid pasa a una columna |
 | `src/components/dashboard/savings-goals-rings-card.tsx` | Anillos de progreso de `getSavingsGoalsOverview()` (máx. 4 metas). Retorna `null` sin metas activas |
 | `src/components/dashboard/incomplete-credit-cards-banner.tsx` | Aviso de tarjetas de crédito sin `closing_day`/`payment_day` |
-| `src/components/dashboard/cobros-sin-imputar-banner.tsx` (+ `fila-de-cobro.tsx`) | Repaso de los cobros de fin de mes cargados antes de que existiera `income_period` (`getCobrosSinImputar` → `imputarCobros`). **No hay backfill automático**; «Dejalos como están» escribe el mes de la propia fecha, así la decisión queda persistida y el banner no vuelve. `FilaDeCobro` es puro (props, sin store) para poder testear la preselección |
 | `src/components/dashboard/analysis/analysis-section.tsx` | Tabs `este mes / tendencia / categorías` + toggle ARS/USD (`displayCurrency`; los montos salen de `store.formatDisplay()`, que convierte y formatea junto) |
 | `analysis/tab-este-mes.tsx` | "¿Llegás a fin de mes?" (`getMonthlySpendingPace`: gasto acumulado + proyección lineal vs ingreso) + `InstallmentsRealCostCard` (`getInstallmentsRealCost`: cuotas futuras deflactadas por IPC) |
 | `analysis/tab-tendencia.tsx` | `TrendChart` (`getMonthlyTrend(6)`) + hint ajustado por inflación (`getRealAdjustedTrend`) + tasa de ahorro (`getSavingsRateSeries`: `net/income`, tono good ≥15% / warn ≥0 / bad) + bloque **«Qué se movió»** (`QueSeMovio`, `getHistorico(vara)`): categorías que cambiaron de nivel vs. gasto de una vez, en pesos de hoy (o "pesos corrientes" si `deflactado` da `false`), con toggle de vara y modal `DetalleCategoria` |
@@ -67,7 +66,6 @@ Gotcha crítico del repo: confundir el id interno con el UUID de auth produce qu
 
 - `src/lib/finance/__tests__/`: `pocket.test.ts`, `escenarios-disponible.test.ts` (el disponible del bolsillo), `balances.test.ts`, `pending.test.ts`, `analysis.test.ts`, `creditCycle.test.ts`, `prepare.test.ts` (funciones puras, directo).
 - `src/lib/store/__tests__/`: `analysis-getters.test.ts`, `insights.test.ts`, `home-overview-getters.test.ts`, `goalsGetters.test.ts`, `ingresos-imputados.test.ts` — siembran con `useFinanceStore.setState` + `vi.useFakeTimers`.
-- `src/components/dashboard/__tests__/cobros-sin-imputar-banner.test.tsx` — `getCobrosSinImputar` (borde, reintegros de tarjeta, piso de 24 meses) y el banner con `renderToStaticMarkup`. Ojo con qué se puede montar ahí: sin hidratación, los CAMPOS del store quedan congelados en el estado inicial y sólo los getters leen fresco (ver el bloque del store en `CLAUDE.md`).
 - Correr con `npm test`. (`dates.test.ts` tiene fallas preexistentes ajenas.)
 
 ## Docs relacionados
