@@ -377,10 +377,17 @@ export async function moverTransaccionAlResumenVecino(
 
     // Los ciclos y las transacciones de ESA tarjeta: planDeMovimiento los necesita
     // para correr el plan de cuotas y para resolver el resumen vecino.
-    const [{ data: ciclosRaw }, { data: txsRaw }] = await Promise.all([
+    // Los errores NO se descartan: sin ciclos, `planDeMovimiento` no encuentra el resumen
+    // actual y devuelve «Este movimiento no está imputado a ningún resumen» -- un mensaje
+    // falso, sobre un movimiento que sí lo está, ante una caída de red (m5).
+    const [{ data: ciclosRaw, error: eCiclos }, { data: txsRaw, error: eTxs }] = await Promise.all([
       supabase.from('credit_card_cycles').select('*').eq('payment_method_id', method.id),
       supabase.from('transactions').select('*').eq('user_id', user.id).eq('payment_method_id', method.id),
     ])
+    if (eCiclos || eTxs) {
+      console.error('Error leyendo resúmenes/movimientos para mover:', eCiclos ?? eTxs)
+      return { error: 'No pude leer los resúmenes de la tarjeta.' }
+    }
     const ciclos = ciclosDeMetodo(method.id, (ciclosRaw ?? []) as CreditCardCycle[])
     const txs = (txsRaw ?? []) as Transaction[]
 
@@ -408,10 +415,14 @@ export async function moverTransaccionAlResumenVecino(
       } catch (e) {
         return { error: e instanceof Error ? e.message : 'No pude asegurar los resúmenes de la tarjeta' }
       }
-      const { data: masCiclos } = await supabase
+      const { data: masCiclos, error: eMasCiclos } = await supabase
         .from('credit_card_cycles')
         .select('*')
         .eq('payment_method_id', method.id)
+      if (eMasCiclos) {
+        console.error('Error releyendo los resúmenes tras materializarlos:', eMasCiclos)
+        return { error: 'No pude leer los resúmenes de la tarjeta.' }
+      }
       plan = planDeMovimiento(t, txs, ciclosDeMetodo(method.id, (masCiclos ?? []) as CreditCardCycle[]), direccion)
     }
 

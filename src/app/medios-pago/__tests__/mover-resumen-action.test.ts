@@ -101,6 +101,8 @@ function clienteFalso(opts: {
    * la fila entre la lectura del plan y la escritura.
    */
   desaparecenAlReleer?: string[]
+  /** Las queries de LISTA (ciclos + transacciones de la tarjeta) devuelven error. */
+  fallaLecturaDeListas?: boolean
 }) {
   const upserts: Array<{ tabla: string; rows: Filtros[] }> = []
   const llamadas: Array<{ tabla: string; op: string; filtros: Filtros }> = []
@@ -145,6 +147,10 @@ function clienteFalso(opts: {
       // las vio, que es exactamente la ventana que este doble simula.
       if (esRelectura && opts.desaparecenAlReleer) {
         rows = rows.filter((r) => !opts.desaparecenAlReleer!.includes(r.id as string))
+      }
+      if (opts.fallaLecturaDeListas) {
+        resolve({ data: null, error: { message: 'conexión caída' } })
+        return
       }
       resolve({ data: rows, error: null })
     }
@@ -408,6 +414,23 @@ describe('moverTransaccionAlResumenVecino', () => {
     // lista cargada antes.
     const relectura = estado.cliente!.llamadas.find((l) => l.op === 'select-in')
     expect(relectura?.filtros.user_id).toBe(UID)
+  })
+
+  it('si la lectura de resúmenes falla, lo dice: no miente con "no está imputado a ningún resumen"', async () => {
+    // m5: las dos queries de lista descartaban el `error`. Sin ciclos, planDeMovimiento no
+    // encuentra el resumen actual y devolvía ese mensaje -- falso, sobre un movimiento que
+    // SÍ está imputado, ante una caída de red.
+    estado.cliente = clienteFalso({
+      transacciones: [tx({})],
+      ciclos: CUATRO_CICLOS,
+      metodo: metodoCredito,
+      fallaLecturaDeListas: true,
+    })
+
+    const r = await moverTransaccionAlResumenVecino(TX, 'anterior')
+
+    expect(r.error).toBe('No pude leer los resúmenes de la tarjeta.')
+    expect(estado.cliente!.upserts).toHaveLength(0)
   })
 
   it('si el upsert falla, la action devuelve error y no queda ninguna escritura parcial', async () => {
