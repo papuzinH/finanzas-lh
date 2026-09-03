@@ -305,6 +305,50 @@ describe('moverTransaccionAlResumenVecino', () => {
     expect(filas.map((f) => f.date)).toEqual(['2026-10-05', '2026-11-02'])
   })
 
+  it('con dos cuotas en la misma fecha, cuantas filas se mueven lo decide planDeMovimiento', async () => {
+    // C1 (fix wave final): la action recontaba las filas a mover con `x.date >= t.date`,
+    // una SEGUNDA definicion que divergia de la del plan en cuanto dos cuotas compartian
+    // `date` -- el estado que producia el camino 'anterior' de esta misma feature. Con
+    // c2 y c3 las dos en 'ago', mover c3 'siguiente' mueve UNA fila; la cuenta vieja
+    // esperaba DOS y la action moria con "No pude mover todas las cuotas del plan",
+    // un mensaje falso y cero escrituras.
+    const c1 = tx({ id: 'c1', cycle_id: 'jul', date: '2026-08-03', installment_plan_id: 'p1', description: 'Tele (1/3)' })
+    const c2 = tx({ id: 'c2', cycle_id: 'ago', date: '2026-09-01', installment_plan_id: 'p1', description: 'Tele (2/3)' })
+    const c3 = tx({ id: 'c3', cycle_id: 'ago', date: '2026-09-01', installment_plan_id: 'p1', description: 'Tele (3/3)' })
+    estado.cliente = clienteFalso({
+      transacciones: [c1, c2, c3],
+      ciclos: CUATRO_CICLOS,
+      metodo: metodoCredito,
+    })
+
+    const r = await moverTransaccionAlResumenVecino('c3', 'siguiente')
+
+    expect(r.success).toBe(true)
+    expect(estado.cliente!.upserts).toHaveLength(1)
+    const filas = estado.cliente!.upserts[0].rows
+    // SOLO c3. c2 comparte fecha con ella pero es una cuota ANTERIOR: no se toca.
+    expect(filas.map((f) => f.id)).toEqual(['c3'])
+    expect(filas[0].cycle_id).toBe('sep')
+  })
+
+  it('rechaza mover una cuota al resumen que ya tiene la cuota previa del plan', async () => {
+    // C1: sin este guard, mover la cuota 2 al anterior la dejaba encima de la 1 -- las
+    // dos con el mismo `due_date`, que es de donde salian los empates de `date`.
+    const c1 = tx({ id: 'c1', cycle_id: 'jul', date: '2026-08-03', installment_plan_id: 'p1', description: 'Tele (1/3)' })
+    const c2 = tx({ id: 'c2', cycle_id: 'ago', date: '2026-09-01', installment_plan_id: 'p1', description: 'Tele (2/3)' })
+    const c3 = tx({ id: 'c3', cycle_id: 'sep', date: '2026-10-05', installment_plan_id: 'p1', description: 'Tele (3/3)' })
+    estado.cliente = clienteFalso({
+      transacciones: [c1, c2, c3],
+      ciclos: CUATRO_CICLOS,
+      metodo: metodoCredito,
+    })
+
+    const r = await moverTransaccionAlResumenVecino('c2', 'anterior')
+
+    expect(r.error).toContain('cuota 1')
+    expect(estado.cliente!.upserts).toHaveLength(0)
+  })
+
   it('si el plan de cuotas no se puede mover entero, NO mueve ninguna', async () => {
     // Tarjeta SIN default_closing_day/default_payment_day: asegurarCiclos no puede
     // generar nada. Con solo 3 resumenes materializados (jul/ago/sep), mover la cuota

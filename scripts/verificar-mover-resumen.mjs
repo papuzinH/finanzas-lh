@@ -9,8 +9,9 @@
  * descripción marcada "[gate-mover]"), lo que ese escenario no trae:
  *   - una COMPRA SUELTA en el resumen vigente (septiembre), para el ida y vuelta de los
  *     asserts 1/2/6;
- *   - un PLAN DE 3 CUOTAS (jul/ago/sep) para el asserts 3 (mover una cuota corre las
- *     posteriores, no las anteriores) y 8 (el upsert actualiza, no inserta);
+ *   - un PLAN DE 3 CUOTAS (jul/ago/sep) para los asserts 3 (mover una cuota corre las
+ *     posteriores, no las anteriores), 8 (el upsert actualiza, no inserta), 9 (mover una
+ *     cuota hacia ATRÁS) y 10 (el destino que ya tiene la cuota previa se rechaza);
  *   - una MENSUALIDAD POSTEADA (recurring_plan_id de la Netflix del demo) y un REINTEGRO,
  *     los dos en julio, para el assert 4 (no ofrecen "Mover a otro resumen");
  *   - una compra suelta en el resumen más VIEJO (junio) y otra en el más NUEVO que
@@ -422,6 +423,57 @@ await irAResumen(cJul.id);
 alturas.push(await alturaMin44(filaRow(cuotaDesc(1, 3)).getByRole('button', { name: 'Más opciones' })));
 
 check('7. los controles del menú y del diálogo de mover miden >=44px de alto', alturas.every(Boolean), `alturas: ${alturas.join(', ')}`);
+
+// ═══════════════════════════════════════════════════════════════════════
+// 9. Mover una cuota hacia ATRÁS. Hasta la fix wave el gate sólo movía cuotas
+// hacia adelante (assert 3) y el "de vuelta" del assert 6 era sobre una compra
+// suelta -- justo la dirección donde vivía C1. Tras el assert 3 el plan quedó en
+// sep/oct (la (1/3) sigue en julio), así que mover la (1/3) al anterior corre el
+// plan entero a jun/jul/ago: la cuota más vieja SÍ puede ir para atrás, porque el
+// resumen destino no tiene ninguna cuota de este plan.
+// ═══════════════════════════════════════════════════════════════════════
+await irAResumen(cJul.id);
+await moverFila(cuotaDesc(1, 3), 'anterior');
+
+const dondeQuedo = async (desc) => {
+  const { data, error } = await admin
+    .from('transactions').select('cycle_id').eq('user_id', UID).eq('description', desc).single();
+  if (error) { console.error(`releyendo ${desc}:`, error.message); process.exit(1); }
+  return data.cycle_id;
+};
+
+const [q1Atras, q2Atras, q3Atras] = await Promise.all([
+  dondeQuedo(cuotaDesc(1, 3)), dondeQuedo(cuotaDesc(2, 3)), dondeQuedo(cuotaDesc(3, 3)),
+]);
+
+check('9. mover la cuota más vieja hacia ATRÁS corre el plan entero un resumen para atrás',
+  q1Atras === cJun.id && q2Atras === cJul.id && q3Atras === cAgo.id,
+  `(1/3)=${q1Atras === cJun.id ? 'jun' : q1Atras}, (2/3)=${q2Atras === cJul.id ? 'jul' : q2Atras}, (3/3)=${q3Atras === cAgo.id ? 'ago' : q3Atras}`);
+
+// ═══════════════════════════════════════════════════════════════════════
+// 10. C1: mover una cuota al resumen que YA tiene la cuota previa del plan se
+// rechaza. Dos cuotas del mismo plan en un mismo resumen es el estado que hacía
+// divergir las dos cuentas de "qué filas se mueven" -- y del que salía, según el
+// orden del heap, o un error falso o el arrastre de una cuota nunca tocada.
+// El diálogo NO se cierra (la action devolvió error) y en la base no cambió nada.
+// ═══════════════════════════════════════════════════════════════════════
+await irAResumen(cJul.id);
+let dialogoSigueAbierto = false;
+{
+  const dialogo = await abrirDialogoDeMover(cuotaDesc(2, 3));
+  await dialogo.getByRole('button', { name: /vence/i }).first().click(); // el "anterior"
+  await page.waitForTimeout(1200);
+  dialogoSigueAbierto = await dialogo.isVisible();
+  await page.keyboard.press('Escape');
+}
+
+const [q1Tras, q2Tras, q3Tras] = await Promise.all([
+  dondeQuedo(cuotaDesc(1, 3)), dondeQuedo(cuotaDesc(2, 3)), dondeQuedo(cuotaDesc(3, 3)),
+]);
+
+check('10. mover una cuota al resumen que ya tiene la cuota previa se rechaza y no escribe nada',
+  dialogoSigueAbierto && q1Tras === q1Atras && q2Tras === q2Atras && q3Tras === q3Atras,
+  `diálogo abierto=${dialogoSigueAbierto}, cycle_ids sin cambios=${q1Tras === q1Atras && q2Tras === q2Atras && q3Tras === q3Atras}`);
 
 await browser.close();
 

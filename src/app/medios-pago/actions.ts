@@ -388,14 +388,16 @@ export async function moverTransaccionAlResumenVecino(
     let plan = planDeMovimiento(t, txs, ciclos, direccion)
     if (plan.motivoDeRechazo) return { error: plan.motivoDeRechazo }
 
-    // Cuántas filas HAY que mover: la tocada, más las cuotas posteriores del mismo plan.
-    const aMover = t.installment_plan_id
-      ? txs.filter((x) => x.installment_plan_id === t.installment_plan_id && x.date >= t.date).length
-      : 1
+    // Cuántas filas HAY que mover lo decide `planDeMovimiento` y NADIE MÁS. Esta cuenta
+    // vivía acá duplicada como `x.date >= t.date`, y coincidía con la del plan sólo
+    // mientras las `date` del plan fueran únicas -- que es justo lo que el camino
+    // 'anterior' de esta feature rompía (dos cuotas en el mismo resumen comparten el
+    // `due_date`). Ver `esperadas` en lib/finance/mover-resumen.ts (fix wave final, C1).
+    const esperadas = plan.esperadas
 
     // Si el plan se estira más allá de los resúmenes materializados, se crean los que
     // falten y se pide el plan UNA sola vez más. Nunca en loop.
-    if (plan.reasignaciones.length < aMover) {
+    if (plan.reasignaciones.length < esperadas) {
       const ultima = txs
         .filter((x) => x.installment_plan_id === t.installment_plan_id)
         .reduce((max, x) => (x.date > max ? x.date : max), t.date)
@@ -415,7 +417,7 @@ export async function moverTransaccionAlResumenVecino(
 
     // Todo o nada: un plan de cuotas movido a medias deja dos cuotas en el mismo
     // resumen, que es peor que no mover.
-    if (plan.reasignaciones.length < aMover) {
+    if (plan.reasignaciones.length < esperadas) {
       return { error: 'No pude mover todas las cuotas del plan, así que no moví ninguna.' }
     }
 

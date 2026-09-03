@@ -91,8 +91,55 @@ describe('planDeMovimiento — cuotas (E15)', () => {
   })
 
   it('mover la ultima cuota mueve solo esa', () => {
+    const r = planDeMovimiento(c3, PLAN, CUATRO, 'siguiente')
+    expect(r.reasignaciones).toEqual([{ transactionId: 'c3', cycleId: 'oct', date: '2026-11-02' }])
+    expect(r.esperadas).toBe(1)
+  })
+
+  // C1: el camino 'anterior' era la unica forma de dejar dos cuotas del mismo plan en un
+  // mismo resumen -- un estado que en el papel del banco no existe, y del que salian
+  // empates de `date` que hacian divergir las dos cuentas de "que filas se mueven".
+  it('mover una cuota al resumen que ya tiene la cuota previa del plan se rechaza, y nombra cual', () => {
     const r = planDeMovimiento(c3, PLAN, CUATRO, 'anterior')
-    expect(r.reasignaciones).toEqual([{ transactionId: 'c3', cycleId: 'ago', date: '2026-09-01' }])
+    expect(r.reasignaciones).toEqual([])
+    expect(r.esperadas).toBe(0)
+    expect(r.motivoDeRechazo).toContain('cuota 2')
+  })
+
+  it('mover la cuota mas vieja hacia atras sigue funcionando y arrastra el resto', () => {
+    // El caso legitimo que el guard NO cierra: el resumen anterior a la cuota 1 no tiene
+    // ninguna cuota de este plan, asi que corre el plan entero un resumen para atras.
+    const CINCO = [ciclo({ id: 'jun', closing_date: '2026-06-22', due_date: '2026-07-02' }), ...CUATRO]
+    const r = planDeMovimiento(c1, PLAN, CINCO, 'anterior')
+    expect(r.reasignaciones.map((x) => x.transactionId)).toEqual(['c1', 'c2', 'c3'])
+    expect(r.reasignaciones.map((x) => x.cycleId)).toEqual(['jun', 'jul', 'ago'])
+    expect(r.esperadas).toBe(3)
+  })
+
+  it('`esperadas` cuenta la tocada mas las posteriores, aunque no todas tengan destino', () => {
+    // Con solo tres ciclos la cuota 3 se queda sin resumen: el plan emite 1 reasignacion
+    // pero sigue declarando 2 esperadas, y de ahi sale el todo-o-nada de la action.
+    const TRES = [JUL, AGO, SEP]
+    const r = planDeMovimiento(c2, PLAN, TRES, 'siguiente')
+    expect(r.esperadas).toBe(2)
+    expect(r.reasignaciones).toHaveLength(1)
+  })
+
+  it('con dos cuotas en la misma fecha, el desempate lo da el numero de cuota, no el orden de la query', () => {
+    // Estado colisionado (el que producia el 'anterior' antes del guard): q2 y q3
+    // comparten `date`. Las filas llegan en el orden en que Postgres las devolvio --
+    // esa query no tiene ORDER BY --, asi que aca vienen al reves a proposito.
+    const q1 = tx({ id: 'q1', cycle_id: 'jul', date: '2026-08-03', installment_plan_id: 'p3', description: 'X (1/3)' })
+    const q2 = tx({ id: 'q2', cycle_id: 'ago', date: '2026-09-01', installment_plan_id: 'p3', description: 'X (2/3)' })
+    const q3 = tx({ id: 'q3', cycle_id: 'ago', date: '2026-09-01', installment_plan_id: 'p3', description: 'X (3/3)' })
+
+    const r = planDeMovimiento(q3, [q3, q2, q1], CUATRO, 'siguiente')
+
+    // Sin desempate, `q3` quedaba ANTES que `q2` (el sort es estable y ese fue el orden
+    // de entrada) y mover q3 arrastraba a q2: una cuota que el usuario no toco, en un
+    // resumen ya cerrado, dos resumenes hacia adelante.
+    expect(r.reasignaciones).toEqual([{ transactionId: 'q3', cycleId: 'sep', date: '2026-10-05' }])
+    expect(r.esperadas).toBe(1)
   })
 
   it('las cuotas se ordenan por date, no por el numero de la descripcion', () => {
