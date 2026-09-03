@@ -26,6 +26,35 @@ export type CuotasQueMueve = { desde: number; hasta: number };
 type Vecino = { direccion: DireccionDeMovimiento; resumen: ResumenNavegable };
 
 /**
+ * Cómo se nombra un resumen: por su CIERRE primero y su vencimiento después. Para decidir
+ * a qué resumen pertenece una compra se compara contra el cierre, no contra el vencimiento
+ * -- y el cierre es el dato que el usuario tiene impreso en el papel del banco. El tiempo
+ * verbal sale de `estado`, no de `new Date()`: `'proyectado'` es exactamente "todavía no
+ * cerró" (ver `estadoDeResumen` en lib/finance/detalle-resumen.ts), así que el texto no
+ * depende del reloj y se puede testear.
+ */
+const etiquetaDeResumen = (r: ResumenNavegable) =>
+  `El que ${r.estado === 'proyectado' ? 'cierra' : 'cerró'} el ${corto(r.closingDate)} · vence ${corto(r.dueDate)}`;
+
+/**
+ * Qué le pasa a este consumo si lo mandás a ESE resumen. No es decoración: el disponible
+ * sólo retiene el resumen vigente y el inmediato anterior impago (`computePendingCreditCards`),
+ * así que mover un consumo a un resumen pagado o a uno que ya salió de esa ventana lo saca
+ * de lo que la app te dice que debés -- y el disponible sube sin que hayas pagado nada.
+ * El modelo no cambia en esta rama (excede su alcance); lo que sí se hace es DECIRLO, y
+ * por opción: con un vecino pagado y otro no, un aviso suelto arriba mentía sobre los dos.
+ */
+function avisoDelDestino(r: ResumenNavegable): string | undefined {
+  if (r.estado === 'pagado') {
+    return 'Ese resumen ya lo pagaste: este consumo no va a volver a contarse en lo que debés.';
+  }
+  if (r.estado === 'vencido') {
+    return 'Ese resumen ya venció sin pagar. La app sólo sigue reclamando el último impago: si hay otro más nuevo sin pagar, este consumo deja de contarse en lo que debés.';
+  }
+  return undefined;
+}
+
+/**
  * A qué resumen cae la ÚLTIMA cuota que arrastra el plan si se mueve hacia `destino`.
  *
  * `cicloActual` es el ciclo de la transacción TOCADA (no el de la última cuota): la
@@ -84,8 +113,6 @@ export function ContenidoMoverAlResumen({
     ...(siguiente ? [{ direccion: 'siguiente' as const, resumen: siguiente }] : []),
   ];
 
-  const algunoPagado = vecinos.some((v) => v.resumen.estado === 'pagado');
-
   // De dónde sale la última cuota HOY, para poder decir "de marzo a abril" y no sólo
   // "a abril". undefined si no hay `ciclos`/`cicloActualId` (compra suelta, o un
   // llamador -- como los tests de este archivo -- que no los pasa): en ese caso el
@@ -102,12 +129,6 @@ export function ContenidoMoverAlResumen({
         </p>
       )}
 
-      {algunoPagado && (
-        <p className="text-xs text-warn">
-          El resumen que elijas ya está pagado. Podés mover el consumo igual.
-        </p>
-      )}
-
       <div className="grid gap-2">
         {vecinos.length === 0 && (
           <p className="text-xs text-muted">No hay otro resumen disponible para mover este movimiento.</p>
@@ -115,6 +136,7 @@ export function ContenidoMoverAlResumen({
         {vecinos.map(({ direccion, resumen }) => {
           const cicloDestino = ciclos.find((c) => c.id === resumen.id);
           const cicloDestinoUltima = ultimaCuotaCaeEn(ciclos, cicloDestino, cuotasQueMueve);
+          const aviso = avisoDelDestino(resumen);
           return (
             <div key={direccion} className="grid gap-1">
               <Button
@@ -124,13 +146,14 @@ export function ContenidoMoverAlResumen({
                 onClick={() => onElegir(direccion)}
                 className="min-h-[44px] w-full justify-start border-[1.5px] border-border bg-surface text-left font-normal"
               >
-                Vence {corto(resumen.dueDate)}
+                {etiquetaDeResumen(resumen)}
               </Button>
               {cicloOrigenUltima && cicloDestinoUltima && (
                 <p className="px-1 text-[11px] text-muted">
                   La última pasa de {mes(cicloOrigenUltima.due_date)} a {mes(cicloDestinoUltima.due_date)}.
                 </p>
               )}
+              {aviso && <p className="px-1 text-[11px] text-warn">{aviso}</p>}
             </div>
           );
         })}

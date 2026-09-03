@@ -44,6 +44,22 @@ describe('ContenidoMoverAlResumen', () => {
     expect(html).not.toContain('anterior');
   });
 
+  // El spec pide "El que cerró el 23 jul · vence 3 ago", no sólo el vencimiento: a qué
+  // resumen pertenece una compra se decide contra el CIERRE, y es el dato que el usuario
+  // tiene impreso en el papel.
+  it('cada opción nombra el cierre y el vencimiento, con el tiempo verbal del estado', () => {
+    const html = renderToStaticMarkup(
+      <ContenidoMoverAlResumen
+        anterior={resumen({ id: 'ant', closingDate: '2026-07-23', dueDate: '2026-08-03', estado: 'pendiente' })}
+        siguiente={resumen({ id: 'sig', closingDate: '2026-09-24', dueDate: '2026-10-05', estado: 'proyectado' })}
+        onElegir={() => {}}
+      />,
+    );
+    // Ya cerró: pasado. Todavía no cerró ('proyectado'): presente.
+    expect(html).toContain('El que cerró el 23 jul · vence 3 ago');
+    expect(html).toContain('El que cierra el 24 sep · vence 5 oct');
+  });
+
   it('un vecino que no existe no se ofrece', () => {
     const html = renderToStaticMarkup(
       <ContenidoMoverAlResumen
@@ -86,16 +102,38 @@ describe('ContenidoMoverAlResumen', () => {
 
   // El que más fácil se escribe vacuo: si solo se verifica que el aviso APARECE, un
   // componente que lo muestre siempre pasa igual. Se cubren los dos sentidos.
-  it('advierte cuando el destino ya está pagado, y NO cuando no lo está', () => {
+  it('advierte qué implica un destino ya pagado, y NO cuando no lo está', () => {
     const htmlPagado = renderToStaticMarkup(
       <ContenidoMoverAlResumen siguiente={resumen({ estado: 'pagado' })} onElegir={() => {}} />,
     );
-    expect(htmlPagado).toContain('ya está pagado');
+    // Honesto sobre la consecuencia real: el consumo sale de lo que la app te reclama.
+    expect(htmlPagado).toContain('ya lo pagaste');
+    expect(htmlPagado).toContain('no va a volver a contarse en lo que debés');
 
     const htmlPendiente = renderToStaticMarkup(
       <ContenidoMoverAlResumen siguiente={resumen({ estado: 'pendiente' })} onElegir={() => {}} />,
     );
-    expect(htmlPendiente).not.toContain('ya está pagado');
+    expect(htmlPendiente).not.toContain('ya lo pagaste');
+  });
+
+  // m2: el aviso era un `some()` sobre los dos vecinos, dibujado suelto arriba -- con uno
+  // pagado y otro no, decía "el resumen que elijas ya está pagado" para las DOS opciones.
+  it('con un vecino pagado y otro no, el aviso va SOLO en el pagado', () => {
+    const html = renderToStaticMarkup(
+      <ContenidoMoverAlResumen
+        anterior={resumen({ id: 'ant', estado: 'pagado' })}
+        siguiente={resumen({ id: 'sig', estado: 'pendiente' })}
+        onElegir={() => {}}
+      />,
+    );
+    expect(html.split('ya lo pagaste')).toHaveLength(2); // una sola aparición
+  });
+
+  it('advierte que un destino vencido puede caerse de lo que la app reclama', () => {
+    const html = renderToStaticMarkup(
+      <ContenidoMoverAlResumen anterior={resumen({ id: 'ant', estado: 'vencido' })} onElegir={() => {}} />,
+    );
+    expect(html).toContain('último impago');
   });
 
   // Task 5, Step 1b: con los ciclos completos de la tarjeta y el cycle_id de la
