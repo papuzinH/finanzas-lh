@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { MoreVertical, Pencil, Trash2, ArrowLeftRight, Receipt } from 'lucide-react';
+import { MoreVertical, ArrowLeftRight, Receipt } from 'lucide-react';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ActionSheet, type ActionSheetAction } from '@/components/ui/action-sheet';
 import { MoverAlResumenDialog } from './mover-al-resumen-dialog';
@@ -45,11 +45,6 @@ export function FilaPorDebitar({ plan }: { plan: RecurringPlan }) {
   );
 }
 
-/** Mismo hint que usa TransactionItem (/movimientos) para una cuota. */
-const HINT_CUOTA = 'Esta transacción pertenece a un plan de cuotas.';
-/** Editar/eliminar todavía no están cableados desde acá (fuera de alcance de esta task). */
-const HINT_SIN_CABLEAR = 'Todavía no se puede editar desde acá.';
-
 /** "Notebook (3/6)" -> { desde: 3, hasta: 6 }. Mismo regex que usa TransactionItem. */
 function cuotasDeLaDescripcion(descripcion: string): { desde: number; hasta: number } | undefined {
   const m = descripcion.match(/\((\d+)\/(\d+)\)$/);
@@ -57,10 +52,17 @@ function cuotasDeLaDescripcion(descripcion: string): { desde: number; hasta: num
 }
 
 /**
- * Por qué "Mover a otro resumen" puede estar deshabilitado, mirando SOLO los campos de
- * la transacción -- la disponibilidad de un vecino la decide `Fila` (si no hay ninguno,
- * el menú entero no se monta). Mismos motivos que los guards de
+ * Por qué "Mover a otro resumen" no se puede ofrecer, mirando SOLO los campos de la
+ * transacción -- la disponibilidad de un vecino la decide `Fila` aparte (sin ninguno,
+ * el menú entero no se monta, mismo criterio). Mismos motivos que los guards de
  * `moverTransaccionAlResumenVecino` (src/app/medios-pago/actions.ts), en el mismo orden.
+ *
+ * Fix round 1: el spec sólo negoció dos salidas para Editar/Eliminar -- reuso real, o
+ * sacarlos del todo -- y "dejarlos deshabilitados para siempre" no era ninguna de las
+ * dos. Fila ya no los ofrece: el ActionSheet, cuando se monta, tiene UNA sola acción
+ * viva ("Mover a otro resumen"). Si esa acción tampoco se puede, no hay nada que
+ * ofrecer y el menú entero queda sin montar (ver `mostrarMenu` en `Fila`) -- un sheet
+ * que se abre para mostrar todo apagado no informa, frustra.
  */
 function motivoMoverDeshabilitado(t: ProcessedTransaction): string | undefined {
   if (t.recurring_plan_id) return 'Las mensualidades se manejan desde Compromisos.';
@@ -70,36 +72,21 @@ function motivoMoverDeshabilitado(t: ProcessedTransaction): string | undefined {
 }
 
 /**
- * Las acciones del menú de una fila. Separado de `Fila` para que sea testeable con
- * `renderToStaticMarkup`: el ActionSheet que las monta vive detrás de un Dialog cerrado
+ * La única acción del menú de una fila. Separada de `Fila` para que sea testeable con
+ * `renderToStaticMarkup`: el ActionSheet que la monta vive detrás de un Dialog cerrado
  * por default (mismo problema de Portal-en-SSR que `mover-al-resumen-dialog.tsx`
- * documenta), así que su HTML nunca las muestra en un render de servidor.
+ * documenta), así que su HTML nunca la muestra en un render de servidor.
+ *
+ * Sin parámetro `disabled`: `Fila` sólo llama a esto -- y sólo monta el ActionSheet --
+ * cuando `motivoMoverDeshabilitado` da `undefined` Y hay al menos un vecino. La acción
+ * que este menú ofrece está SIEMPRE viva.
  */
-export function accionesDeFila(t: ProcessedTransaction, onMover: () => void): ActionSheetAction[] {
-  const hintEditarEliminar = t.installment_plan_id ? HINT_CUOTA : HINT_SIN_CABLEAR;
-  const motivoMover = motivoMoverDeshabilitado(t);
-
+export function accionesDeFila(onMover: () => void): ActionSheetAction[] {
   return [
-    {
-      label: 'Editar',
-      icon: <Pencil className="h-5 w-5" />,
-      onClick: () => {},
-      disabled: true,
-      disabledHint: hintEditarEliminar,
-    },
-    {
-      label: 'Eliminar',
-      icon: <Trash2 className="h-5 w-5" />,
-      onClick: () => {},
-      disabled: true,
-      disabledHint: hintEditarEliminar,
-    },
     {
       label: 'Mover a otro resumen',
       icon: <ArrowLeftRight className="h-5 w-5" />,
       onClick: onMover,
-      disabled: Boolean(motivoMover),
-      disabledHint: motivoMover,
     },
   ];
 }
@@ -152,10 +139,14 @@ export function Fila({
     .filter(Boolean)
     .join(' · ');
 
-  // Sin ningún vecino no hay a dónde mover: el menú entero no se ofrece. Es justo lo
-  // que corresponde en el detalle de una cuenta de débito, que llama a `Fila` sin estas
-  // props.
-  const mostrarMenu = Boolean(anterior || siguiente);
+  // El menú tiene una sola acción posible ("Mover a otro resumen"): sin ningún vecino
+  // a dónde mover, o con un motivo que lo impide (mensualidad, reintegro, pago de
+  // tarjeta), esa acción no existe -- y sin ninguna acción viva no hay menú. Es justo
+  // lo que corresponde en el detalle de una cuenta de débito, que llama a `Fila` sin
+  // `anterior`/`siguiente`.
+  const hayVecino = Boolean(anterior || siguiente);
+  const motivoMover = motivoMoverDeshabilitado(t);
+  const mostrarMenu = hayVecino && !motivoMover;
 
   const montoTexto = (
     <p className={cn('tnum text-sm font-bold', t.type === 'income' ? 'text-good' : 'text-text')}>
@@ -193,7 +184,7 @@ export function Fila({
             open={sheetAbierto}
             onOpenChange={setSheetAbierto}
             title={t.description}
-            actions={accionesDeFila(t, () => setMoverAbierto(true))}
+            actions={accionesDeFila(() => setMoverAbierto(true))}
           />
           <MoverAlResumenDialog
             open={moverAbierto}

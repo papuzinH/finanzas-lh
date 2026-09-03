@@ -196,8 +196,10 @@ const resumen = (over: Partial<ResumenNavegable> = {}): ResumenNavegable => ({
 
 // El ActionSheet vive detrás de un Dialog que arranca cerrado: su HTML nunca aparece en
 // un render de servidor (ver el comentario de mover-al-resumen-dialog.tsx), así que el
-// botón que lo abre se testea via markup, pero las ACCIONES que ofrece se testean
-// llamando a `accionesDeFila` directo -- mismo dato que Fila le pasa al ActionSheet.
+// botón que lo abre se testea via markup de `Fila`. Fix round 1: Editar/Eliminar salieron
+// del todo del menú -- ya no hay nada "deshabilitado" que inspeccionar en `accionesDeFila`,
+// así que cuando la ÚNICA acción posible (mover) tampoco se puede, el assert correcto es
+// que el trigger del menú no aparece, no que aparezca con algo apagado adentro.
 describe('el menú de la fila', () => {
   it('una fila con vecinos ofrece el menú', () => {
     const html = renderToStaticMarkup(
@@ -217,33 +219,42 @@ describe('el menú de la fila', () => {
     expect(html).not.toContain('flex shrink-0 items-center gap-1');
   });
 
-  it('mover se ofrece en una cuota, editar y eliminar no', () => {
-    const acciones = accionesDeFila(tx({ installment_plan_id: 'p1' }), () => {});
-    const mover = acciones.find((a) => a.label === 'Mover a otro resumen')!;
-    const editar = acciones.find((a) => a.label === 'Editar')!;
-    const eliminar = acciones.find((a) => a.label === 'Eliminar')!;
+  it('una cuota (con vecino) ofrece el menú, y su única acción es "Mover a otro resumen"', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({ installment_plan_id: 'p1' })} siguiente={resumen({ id: 'sig' })} />,
+    );
+    expect(html).toContain('aria-label="Más opciones"');
 
-    expect(mover.disabled).toBeFalsy();
-    expect(editar.disabled).toBe(true);
-    expect(editar.disabledHint).toBe('Esta transacción pertenece a un plan de cuotas.');
-    expect(eliminar.disabled).toBe(true);
-    expect(eliminar.disabledHint).toBe('Esta transacción pertenece a un plan de cuotas.');
+    const acciones = accionesDeFila(() => {});
+    expect(acciones).toHaveLength(1);
+    expect(acciones[0].label).toBe('Mover a otro resumen');
+    expect(acciones[0].disabled).toBeFalsy();
+    // Ya no existen: el spec negoció reuso real o sacarlos, nunca dejarlos apagados.
+    expect(acciones.some((a) => a.label === 'Editar')).toBe(false);
+    expect(acciones.some((a) => a.label === 'Eliminar')).toBe(false);
   });
 
-  it('una mensualidad posteada no ofrece mover', () => {
-    const acciones = accionesDeFila(tx({ recurring_plan_id: 'r1' }), () => {});
-    const mover = acciones.find((a) => a.label === 'Mover a otro resumen')!;
-    expect(mover.disabled).toBe(true);
+  it('una mensualidad posteada no ofrece menú: la única acción posible (mover) está vetada', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({ recurring_plan_id: 'r1' })} anterior={resumen({ id: 'ant' })} siguiente={resumen({ id: 'sig' })} />,
+    );
+    expect(html).not.toContain('aria-label="Más opciones"');
   });
 
-  it('un reintegro no ofrece mover', () => {
-    const acciones = accionesDeFila(tx({ type: 'income' }), () => {});
-    const mover = acciones.find((a) => a.label === 'Mover a otro resumen')!;
-    expect(mover.disabled).toBe(true);
+  it('un reintegro no ofrece menú: la única acción posible (mover) está vetada', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({ type: 'income' })} anterior={resumen({ id: 'ant' })} siguiente={resumen({ id: 'sig' })} />,
+    );
+    expect(html).not.toContain('aria-label="Más opciones"');
   });
 
-  it('una compra suelta SÍ ofrece mover', () => {
-    const acciones = accionesDeFila(tx({}), () => {});
+  it('una compra suelta SÍ ofrece el menú, con mover habilitado', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({})} siguiente={resumen({ id: 'sig' })} />,
+    );
+    expect(html).toContain('aria-label="Más opciones"');
+
+    const acciones = accionesDeFila(() => {});
     const mover = acciones.find((a) => a.label === 'Mover a otro resumen')!;
     expect(mover.disabled).toBeFalsy();
   });

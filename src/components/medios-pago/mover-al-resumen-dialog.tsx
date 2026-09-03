@@ -14,7 +14,30 @@ import type { ProcessedTransaction } from '@/lib/finance/types';
 
 const corto = (d: string) => format(parseLocalDate(d), 'd MMM', { locale: es });
 
-/** Cuotas que arrastra el movimiento, sacadas de la descripción ("(3/6)") por el llamador. */
+/**
+ * Cuotas que arrastra el movimiento, sacadas de la descripción ("(3/6)") por el llamador.
+ *
+ * Fix round 1 (Minor, dejado abierto a propósito): el spec pide nombrar el destino real
+ * de la última cuota ("la última pasa de marzo a abril"), no sólo el conteo. No lo pude
+ * calcular con los datos que este componente recibe, y prefiero decirlo en vez de
+ * inventarlo:
+ *
+ * - La fecha ORIGINAL de la última cuota no es la de la transacción tocada -- es la del
+ *   ciclo N pasos adelante (`cicloNEsimo`, `lib/finance/cycles.ts`), donde N = hasta -
+ *   desde. `Fila` sólo tiene la fila tocada (`t: ProcessedTransaction`), no sus hermanas
+ *   de plan ni la lista completa de `credit_card_cycles` de la tarjeta.
+ * - La fecha NUEVA depende de la dirección elegida (`anterior` vs `siguiente`), así que
+ *   ni siquiera es un dato único: son dos, uno por botón. Este aviso se muestra una sola
+ *   vez arriba de los dos botones (por diseño del brief), así que mostrar la fecha exacta
+ *   exigiría además moverlo adentro de cada botón.
+ *
+ * Cerrar esto bien pide que `Fila` (o quien la llame) reciba también el `ciclos:
+ * CreditCardCycle[]` completo de la tarjeta -- lo mismo que ya usa
+ * `moverTransaccionAlResumenVecino` en el server para correr `planDeMovimiento` -- y
+ * pase el resultado ya resuelto (por dirección) hasta acá. Es más que un tweak de texto:
+ * cambia la firma de `Fila` otra vez. Quedó fuera de esta task; el texto de abajo se
+ * queda honesto ("se corren un resumen") en vez de fabricar un mes.
+ */
 export type CuotasQueMueve = { desde: number; hasta: number };
 
 type Vecino = { direccion: DireccionDeMovimiento; resumen: ResumenNavegable };
@@ -58,7 +81,8 @@ export function ContenidoMoverAlResumen({
       {cuotasQueMueve && (
         <p className="text-xs text-muted">
           Esta cuota arrastra el plan: vas a mover las cuotas {cuotasQueMueve.desde} a{' '}
-          {cuotasQueMueve.hasta}, que se corren un resumen.
+          {cuotasQueMueve.hasta}. Todas se corren un resumen completo, en la dirección que
+          elijas abajo.
         </p>
       )}
 
