@@ -97,6 +97,10 @@ interface FinanceState {
   creditCardCycles: CreditCardCycle[];
   /** Ritmo de cobro declarado por el usuario. Define qué compromisos descuenta el disponible. */
   incomeRhythm: IncomeRhythm;
+  /** Preferencia de imputación de cobros de fin de mes: null = sin contestar,
+   *  false = cuenta por su fecha, true = cuenta al mes siguiente. SOLO pre-elige
+   *  el selector — nunca reimputa nada por sí sola. */
+  incomeCountsNextMonth: boolean | null;
   savingsGoals: SavingsGoal[];
   savingsGoalContributions: SavingsGoalContribution[];
   categoryBudgets: CategoryBudget[];
@@ -454,6 +458,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   internalTransfers: [],
   creditCardCycles: [],
   incomeRhythm: 'monthly',
+  incomeCountsNextMonth: null,
   savingsGoals: [],
   savingsGoalContributions: [],
   categoryBudgets: [],
@@ -672,6 +677,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         user: (userData as User) || null,
         // Viaja en el select('*') de users que ya se hace arriba: sin query nueva.
         incomeRhythm: (userData as User)?.income_rhythm ?? 'monthly',
+        incomeCountsNextMonth: (userData as User)?.income_counts_next_month ?? null,
         authEmail: authUser.email ?? null,
         authAvatarUrl: (authUser.user_metadata?.avatar_url as string) ?? null,
         isInitialized: true,

@@ -37,7 +37,7 @@ const traverse = (traverseModule as unknown as { default?: typeof traverseModule
 const STATE_FIELDS = new Set([
   'transactions', 'installmentPlans', 'paymentMethods', 'recurringPlans', 'investments',
   'investmentAssets', 'investmentTransactions', 'categories', 'marketPrices', 'savings',
-  'internalTransfers', 'incomeRhythm', 'savingsGoals', 'savingsGoalContributions',
+  'internalTransfers', 'incomeRhythm', 'incomeCountsNextMonth', 'savingsGoals', 'savingsGoalContributions',
   'categoryBudgets', 'dolarBlue', 'displayCurrency', 'inflationSeries', 'exchangeRates',
   'user', 'authEmail', 'authAvatarUrl', 'isLoading', 'error', 'isInitialized',
 ]);

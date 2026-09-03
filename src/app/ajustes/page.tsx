@@ -10,7 +10,8 @@ import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { RhythmPicker } from '@/components/pocket/rhythm-picker'
 import { AdjustBalanceDialog } from '@/components/pocket/adjust-balance-dialog'
-import { saveIncomeRhythm } from '@/app/bolsillo/actions'
+import { Chip } from '@/components/ui/chip'
+import { saveIncomeRhythm, saveIncomePeriodPreference } from '@/app/bolsillo/actions'
 import type { IncomeRhythm } from '@/lib/finance/pocket'
 
 const sections = [
@@ -35,13 +36,24 @@ const sections = [
 ];
 
 export default function AjustesPage() {
-  const { incomeRhythm, fetchAllData } = useFinanceStore()
+  const { incomeRhythm, incomeCountsNextMonth, fetchAllData } = useFinanceStore()
   const [rhythm, setRhythm] = useState<IncomeRhythm>(incomeRhythm)
+  const [cuentaAlSiguiente, setCuentaAlSiguiente] = useState<boolean | null>(incomeCountsNextMonth)
   const [ajustando, setAjustando] = useState(false)
 
   const cambiarRitmo = async (r: IncomeRhythm) => {
     setRhythm(r)
     const res = await saveIncomeRhythm(r)
+    if (res.error) {
+      toast.error(res.error)
+      return
+    }
+    await fetchAllData()
+  }
+
+  const guardarPreferencia = async (valor: boolean) => {
+    setCuentaAlSiguiente(valor)
+    const res = await saveIncomePeriodPreference(valor)
     if (res.error) {
       toast.error(res.error)
       return
@@ -99,6 +111,26 @@ export default function AjustesPage() {
               </div>
             </div>
             <RhythmPicker value={rhythm} onChange={cambiarRitmo} />
+
+            {rhythm === 'monthly' && (
+              <div className="space-y-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
+                  Cobros de fin de mes
+                </span>
+                <div className="flex flex-wrap gap-2" role="group" aria-label="A que mes cuenta un cobro de fin de mes">
+                  <Chip active={cuentaAlSiguiente === false} onClick={() => guardarPreferencia(false)}>
+                    Al mes en que cobro
+                  </Chip>
+                  <Chip active={cuentaAlSiguiente === true} onClick={() => guardarPreferencia(true)}>
+                    Al mes que arranca
+                  </Chip>
+                </div>
+                <p className="font-sans text-xs text-muted">
+                  Si cobrás los últimos días del mes, esto decide qué opción viene marcada cuando cargás
+                  el sueldo. Siempre podés cambiarla en cada cobro.
+                </p>
+              </div>
+            )}
           </div>
 
           <button

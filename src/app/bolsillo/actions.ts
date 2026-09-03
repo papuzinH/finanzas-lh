@@ -104,6 +104,35 @@ export async function saveIncomeRhythm(rhythm: string): Promise<ActionResponse> 
   }
 }
 
+/**
+ * Preferencia de imputacion de cobros. SOLO pre-elige la opcion del selector:
+ * ningun cobro cambia de mes por esto (ver el spec, "La decision").
+ */
+export async function saveIncomePeriodPreference(valor: boolean): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { error } = await supabase
+      .from('users')
+      .update({ income_counts_next_month: valor })
+      .eq('id', user.id)
+
+    if (error) {
+      console.error('Error guardando la preferencia de imputacion:', error)
+      return { error: 'No se pudo guardar tu preferencia' }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/ajustes')
+    return { success: true }
+  } catch (err) {
+    console.error('Unexpected error in saveIncomePeriodPreference:', err)
+    return { error: 'Ocurrió un error inesperado' }
+  }
+}
+
 /** Cierra la puesta a punto. También la marca el usuario que la saltea. */
 export async function completePocketSetup(): Promise<ActionResponse> {
   try {
