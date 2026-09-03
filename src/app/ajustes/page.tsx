@@ -9,8 +9,8 @@ import { InstallApp } from '@/components/shared/install-app';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { RhythmPicker } from '@/components/pocket/rhythm-picker'
+import { PreferenciaCobroFinDeMes } from '@/components/pocket/preferencia-cobro-fin-de-mes'
 import { AdjustBalanceDialog } from '@/components/pocket/adjust-balance-dialog'
-import { Chip } from '@/components/ui/chip'
 import { saveIncomeRhythm, saveIncomePeriodPreference } from '@/app/bolsillo/actions'
 import type { IncomeRhythm } from '@/lib/finance/pocket'
 
@@ -113,23 +113,7 @@ export default function AjustesPage() {
             <RhythmPicker value={rhythm} onChange={cambiarRitmo} />
 
             {rhythm === 'monthly' && (
-              <div className="space-y-2">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
-                  Cobros de fin de mes
-                </span>
-                <div className="flex flex-wrap gap-2" role="group" aria-label="A que mes cuenta un cobro de fin de mes">
-                  <Chip active={cuentaAlSiguiente === false} onClick={() => guardarPreferencia(false)}>
-                    Al mes en que cobro
-                  </Chip>
-                  <Chip active={cuentaAlSiguiente === true} onClick={() => guardarPreferencia(true)}>
-                    Al mes que arranca
-                  </Chip>
-                </div>
-                <p className="font-sans text-xs text-muted">
-                  Si cobrás los últimos días del mes, esto decide qué opción viene marcada cuando cargás
-                  el sueldo. Siempre podés cambiarla en cada cobro.
-                </p>
-              </div>
+              <PreferenciaCobroFinDeMes value={cuentaAlSiguiente} onChange={guardarPreferencia} />
             )}
           </div>
 

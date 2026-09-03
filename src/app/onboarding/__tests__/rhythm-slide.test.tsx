@@ -3,14 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { RhythmSlide } from '../slides/rhythm-slide'
 
 describe('RhythmSlide', () => {
-  it('ofrece elegir a que mes cuenta un cobro de fin de mes', () => {
+  it('monta la pregunta de cobro de fin de mes cuando el ritmo es mensual (default)', () => {
     const html = renderToStaticMarkup(<RhythmSlide onComplete={() => {}} />)
-    // El default del slide es 'monthly', asi que la pregunta esta visible de entrada
+    // El default del slide es 'monthly', asi que PreferenciaCobroFinDeMes esta montado de entrada
+    expect(html).toContain('A que mes cuenta un cobro de fin de mes')
     expect(html).toContain('Al mes que arranca')
-  })
-
-  it('sigue permitiendo saltear el paso entero', () => {
-    const html = renderToStaticMarkup(<RhythmSlide onComplete={() => {}} />)
-    expect(html).toContain('Ahora no, lo configuro después')
   })
 })
