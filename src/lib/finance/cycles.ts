@@ -65,6 +65,16 @@ export function cicloAnterior(ciclos: CreditCardCycle[], ciclo: CreditCardCycle)
 }
 
 /**
+ * El resumen inmediatamente posterior a `ciclo` por fecha de cierre.
+ *
+ * Precondicion: `ciclos` debe llegar ya filtrado por tarjeta y ordenado ascendente por
+ * `closing_date`, como lo produce `ciclosDeMetodo`. Quien llame es responsable del orden.
+ */
+export function cicloSiguiente(ciclos: CreditCardCycle[], ciclo: CreditCardCycle): CreditCardCycle | undefined {
+  return ciclos.find((c) => c.closing_date > ciclo.closing_date)
+}
+
+/**
  * El ciclo que esta `n` resumenes despues de `desde` (n = 0 es `desde`).
  *
  * Las cuotas cuentan RESUMENES, no meses: con vencimientos reales de 4-sep y 9-oct,
