@@ -138,7 +138,8 @@ if (eCrear) { console.error('creando el usuario en DEV:', eCrear.message); proce
 // `chat_tier` lo protege el trigger `users_proteger_chat_tier` (auditoría M1) --
 // mandarlo hace que el UPDATE ENTERO falle, y con él los flags de onboarding, así
 // que el usuario copiado aterriza en el wizard aunque en producción ya lo tenga hecho.
-const { id: _id, created_at: _c, email: _e, auth_user_id: _a, chat_tier: _t, ...perfil } = filaUsuario;
+const NO_COPIAR = new Set(['id', 'created_at', 'email', 'auth_user_id', 'chat_tier']);
+const perfil = Object.fromEntries(Object.entries(filaUsuario).filter(([k]) => !NO_COPIAR.has(k)));
 const { error: ePerfil } = await dev.from('users').update(perfil).eq('id', UID);
 if (ePerfil) { console.error('copiando el perfil a DEV:', ePerfil.message); process.exit(1); }
 

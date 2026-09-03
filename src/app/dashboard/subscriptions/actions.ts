@@ -134,6 +134,25 @@ export async function deleteSubscription(id: string): Promise<ActionResponse> {
       return { error: 'No autorizado' };
     }
 
+    // Los movimientos ya posteados de esta mensualidad se DESVINCULAN antes de
+    // borrar el plan. `transactions.recurring_plan_id` tiene FK sin `ON DELETE`, asi
+    // que mientras exista uno apuntandole el DELETE se rechaza con 23503 -- y como el
+    // sync postea solas las mensualidades de tarjeta, cualquiera acumula movimientos
+    // y se volvia imborrable (medido: 18 de 18 en una cuenta real, 3 de 3 en el demo).
+    //
+    // No se borran: son gastos que ocurrieron de verdad y quedan en el historial como
+    // movimientos sueltos. Mismo criterio que el borrado de categorias.
+    const { error: eDesvincular } = await supabase
+      .from('transactions')
+      .update({ recurring_plan_id: null })
+      .eq('recurring_plan_id', id)
+      .eq('user_id', user.id);
+
+    if (eDesvincular) {
+      console.error('Error desvinculando los movimientos de la suscripción:', eDesvincular);
+      return { error: 'No pude desvincular los movimientos de esta mensualidad, así que no la borré.' };
+    }
+
     const { error } = await supabase
       .from('recurring_plans')
       .delete()
