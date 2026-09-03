@@ -95,6 +95,12 @@ function clienteFalso(opts: {
   ciclos: Filtros[]
   metodo: Filtros | null
   fallaUpsertTransacciones?: boolean
+  /**
+   * Ids que ya no existen para la RELECTURA previa al upsert (la única query que usa
+   * `.in()`): simula que otra pestaña -- o el chat, que tiene `delete_entity` -- borró
+   * la fila entre la lectura del plan y la escritura.
+   */
+  desaparecenAlReleer?: string[]
 }) {
   const upserts: Array<{ tabla: string; rows: Filtros[] }> = []
   const llamadas: Array<{ tabla: string; op: string; filtros: Filtros }> = []
@@ -102,9 +108,11 @@ function clienteFalso(opts: {
 
   const selectBuilder = (tabla: string) => {
     const filtros: Filtros = {}
+    const enFiltros: Record<string, unknown[]> = {}
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- doble de test, cadena flexible
     const b: any = {}
     b.eq = (col: string, val: unknown) => { filtros[col] = val; return b }
+    b.in = (col: string, vals: unknown[]) => { enFiltros[col] = vals; return b }
     b.order = () => b
 
     const resolverUno = () => {
@@ -127,10 +135,17 @@ function clienteFalso(opts: {
 
     // Sin .single()/.maybeSingle(): query de lista, resuelta al hacer `await` del builder.
     b.then = (resolve: (v: unknown) => void) => {
-      llamadas.push({ tabla, op: 'select-lista', filtros: { ...filtros } })
+      const esRelectura = Object.keys(enFiltros).length > 0
+      llamadas.push({ tabla, op: esRelectura ? 'select-in' : 'select-lista', filtros: { ...filtros } })
       let rows: Filtros[] = []
       if (tabla === 'transactions') rows = opts.transacciones.filter((t) => coincide(t, filtros))
       else if (tabla === 'credit_card_cycles') rows = ciclosDB.filter((c) => coincide(c, filtros))
+      for (const [col, vals] of Object.entries(enFiltros)) rows = rows.filter((r) => vals.includes(r[col]))
+      // Las filas "borradas" desaparecen sólo de la relectura: antes de ella el plan ya
+      // las vio, que es exactamente la ventana que este doble simula.
+      if (esRelectura && opts.desaparecenAlReleer) {
+        rows = rows.filter((r) => !opts.desaparecenAlReleer!.includes(r.id as string))
+      }
       resolve({ data: rows, error: null })
     }
     return b
@@ -368,6 +383,31 @@ describe('moverTransaccionAlResumenVecino', () => {
 
     expect(r.error).toBeTruthy()
     expect(estado.cliente!.upserts).toHaveLength(0)
+  })
+
+  it('si una fila del plan se borró entre la lectura y la escritura, no la resucita: no mueve nada', async () => {
+    // El payload del upsert lleva el `id`. Si la fila ya no existe, ON CONFLICT no
+    // encuentra conflicto y la RE-INSERTA con los valores viejos -- un `UPDATE ... WHERE
+    // id =` habría afectado 0 filas. La ventana no es angosta: en el camino de cuotas hay
+    // un round-trip completo a `asegurarCiclos` en el medio, y el chat tiene delete_entity.
+    const c1 = tx({ id: 'c1', cycle_id: 'jul', date: '2026-08-03', installment_plan_id: 'p1', description: 'Tele (1/3)' })
+    const c2 = tx({ id: 'c2', cycle_id: 'ago', date: '2026-09-01', installment_plan_id: 'p1', description: 'Tele (2/3)' })
+    const c3 = tx({ id: 'c3', cycle_id: 'sep', date: '2026-10-05', installment_plan_id: 'p1', description: 'Tele (3/3)' })
+    estado.cliente = clienteFalso({
+      transacciones: [c1, c2, c3],
+      ciclos: CUATRO_CICLOS,
+      metodo: metodoCredito,
+      desaparecenAlReleer: ['c3'],
+    })
+
+    const r = await moverTransaccionAlResumenVecino('c2', 'siguiente')
+
+    expect(r.error).toBeTruthy()
+    expect(estado.cliente!.upserts).toHaveLength(0)
+    // Y la relectura filtró por dueño: las filas que se escriben salen de ahí, no de la
+    // lista cargada antes.
+    const relectura = estado.cliente!.llamadas.find((l) => l.op === 'select-in')
+    expect(relectura?.filtros.user_id).toBe(UID)
   })
 
   it('si el upsert falla, la action devuelve error y no queda ninguna escritura parcial', async () => {

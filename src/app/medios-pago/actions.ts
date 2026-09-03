@@ -431,16 +431,37 @@ export async function moverTransaccionAlResumenVecino(
     // fila entera, y una parcial violaria los NOT NULL de columnas como amount/
     // description/category_id. `purchase_date` viaja en el payload, pero con el mismo
     // valor que ya tenia -- el invariante sigue siendo que mover no lo TOCA, no que la
-    // clave este ausente del payload. Todas las filas salen de `txs`, que ya esta
-    // filtrado por `user_id` (Guard 1 + la lectura de arriba), asi que no hace falta un
-    // `.eq('user_id', ...)` -- el upsert no acepta filtro WHERE de todos modos.
-    const filas = plan.reasignaciones.map((r) => {
-      const original = txs.find((x) => x.id === r.transactionId)
-      if (!original) {
-        throw new Error(`No encontré la transacción ${r.transactionId} entre las cargadas`)
-      }
-      return { ...original, cycle_id: r.cycleId, date: r.date }
-    })
+    // clave este ausente del payload.
+    //
+    // RELECTURA JUSTO ANTES DE ESCRIBIR: el payload lleva el `id`, asi que un upsert
+    // sobre una fila que dejo de existir entre la lectura y la escritura -- otra pestaña,
+    // o el chat, que tiene `delete_entity` -- no encuentra conflicto y la RE-INSERTA con
+    // los valores viejos. Un `UPDATE ... WHERE id =` habria afectado 0 filas. Y la
+    // ventana no es angosta: en el camino de cuotas hay un round-trip completo a
+    // `asegurarCiclos` en el medio. Si alguna de las filas que el plan quiere mover ya no
+    // esta, se rechaza entero -- mismo criterio de todo-o-nada que el resto de la action.
+    // La relectura filtra por `user_id`: las filas que se escriben salen de ella, no de
+    // `txs`, asi que el dueño se revalida en el mismo instante de la escritura.
+    const ids = plan.reasignaciones.map((r) => r.transactionId)
+    const { data: frescasRaw, error: eFrescas } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('id', ids)
+    if (eFrescas) {
+      console.error('Error releyendo las transacciones antes de moverlas:', eFrescas)
+      return { error: 'No pude leer los movimientos antes de moverlos.' }
+    }
+    const frescas = new Map((frescasRaw ?? []).map((x) => [x.id, x as Transaction]))
+    if (frescas.size !== ids.length) {
+      return { error: 'Alguno de los movimientos dejó de existir mientras lo movía, así que no moví ninguno.' }
+    }
+
+    const filas = plan.reasignaciones.map((r) => ({
+      ...frescas.get(r.transactionId)!,
+      cycle_id: r.cycleId,
+      date: r.date,
+    }))
     const { error } = await supabase.from('transactions').upsert(filas)
     if (error) {
       console.error('Error moviendo transacciones de resumen:', error)
