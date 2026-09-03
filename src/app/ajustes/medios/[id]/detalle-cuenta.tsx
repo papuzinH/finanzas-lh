@@ -40,9 +40,16 @@ export function DetalleDeCuenta({
   mostrarSaldo?: boolean;
 }) {
   const now = new Date();
-  // La MISMA regla que usaba getPaymentMethodTransactionsForCurrentMonth para
-  // no-credito, que esta task retira: gastos por el scope del mes, ingresos por
-  // mes calendario de t.date.
+  // Gastos por el scope del mes; ingresos por el mes calendario de `t.date`.
+  //
+  // OJO: esto YA NO es la regla general del repo. Desde `income_period` (2026-09-03)
+  // los ingresos del mes se cuentan por `periodDate || date` (getMonthlyIncome, el
+  // home, /movimientos, el chat): un cobro imputado cuenta en el mes que declaro el
+  // usuario. Aca se sigue por `t.date` A PROPOSITO -- esta es la lista de los
+  // movimientos que tocaron LA CUENTA, debajo de un "Saldo actual" que tambien va por
+  // `t.date` (computeAccountBalance mira cuando entro o salio la plata, no a que mes
+  // la imputo el usuario). Alinearla con getMonthlyIncome la desalinearia del numero
+  // que tiene arriba, que es peor. No lo "arregles".
   const delMes = transactions.filter((t) => {
     if (t.payment_method_id !== method.id) return false;
     if (t.type === 'income') return isSameMonth(parseLocalDate(t.date), now);

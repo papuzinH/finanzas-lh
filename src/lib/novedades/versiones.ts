@@ -42,6 +42,9 @@ export const VERSIONES: Version[] = [
       'El detalle de la tarjeta se abre resumen por resumen, con la fecha en que compraste cada cosa.',
       'Si el banco te puso una compra en otro resumen, la podés mover al que corresponde.',
       'Ya podés borrar una mensualidad aunque tenga movimientos registrados.',
+      'Cuando cargues un cobro de los últimos días del mes, elegís para qué mes cuenta esa plata.',
+      'Si tu sueldo cuenta siempre para el mes que arranca, dejalo dicho una vez en Ajustes.',
+      'Y desde el inicio repasás los cobros de fin de mes que ya tenías cargados.',
     ],
   },
   {
