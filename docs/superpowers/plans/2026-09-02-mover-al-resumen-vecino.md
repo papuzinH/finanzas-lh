@@ -670,6 +670,7 @@ Create `scripts/verificar-mover-resumen.mjs` con los siete asserts del spec:
 5. En el primer resumen no se ofrece «anterior»; en el último, no se ofrece «siguiente».
 6. Mover de vuelta deja todo como estaba.
 7. Los controles miden ≥44px (`getBoundingClientRect`).
+8. **El `upsert` ACTUALIZA y no inserta.** Contar las transacciones de la tarjeta antes y después de mover una cuota: **el número no cambia**. La atomicidad del upsert multi-fila se apoya en el comportamiento de PostgREST y en tres precedentes del repo, pero nunca se probó contra Postgres real desde este plan — y si insertara en vez de actualizar, duplicaría movimientos, que es el peor resultado posible de esta feature.
 
 - [ ] **Step 4: Run the gate against DEV**
 
