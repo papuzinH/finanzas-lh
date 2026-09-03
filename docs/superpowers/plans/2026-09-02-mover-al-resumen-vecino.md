@@ -323,6 +323,11 @@ export function planDeMovimiento(
     .sort((a, b) => a.date.localeCompare(b.date))
 
   const desde = delPlan.findIndex((t) => t.id === transaccion.id)
+  // slice(-1) NO devuelve vacio: devuelve la ULTIMA cuota. Sin este guard, una
+  // `todas` que no contenga la tocada moveria una cuota distinta, en silencio.
+  if (desde === -1) {
+    return { reasignaciones: [], motivoDeRechazo: 'No encontré este movimiento entre las cuotas del plan.' }
+  }
   const aMover = delPlan.slice(desde)
 
   const reasignaciones: Reasignacion[] = []
@@ -366,7 +371,8 @@ git commit -m "feat(mover): que se mueve y adonde, con las cuotas corriendo desd
 - Mirá `declararCiclo` en `src/app/medios-pago/actions.ts` como patrón de action de este dominio (validación, forma de la respuesta, `revalidatePath`).
 - El test se escribe con el cliente de Supabase **mockeado**, igual que `payment-method-dueno.test.ts`. Ese patrón ya está establecido en el repo: las server actions SÍ se testean así.
 - Los cuatro guards del spec, en orden: dueño → es crédito y tiene `cycle_id` → no es mensualidad/reintegro/pago → el vecino existe.
-- Si `planDeMovimiento` devuelve menos reasignaciones que cuotas a mover (se agotaron los ciclos), llamar a `asegurarCiclos` para materializar los que faltan y volver a pedir el plan **una sola vez**. Si sigue faltando, se aplica lo que hay.
+- Si `planDeMovimiento` devuelve menos reasignaciones que cuotas a mover (se agotaron los ciclos), llamar a `asegurarCiclos` para materializar los que faltan y volver a pedir el plan **una sola vez**.
+- ⚠️ **Si después de ese reintento el plan SIGUE incompleto, se rechaza entero: no se aplica ninguna reasignación.** Aplicar un plan parcial deja **dos cuotas en el mismo resumen** — mover `c2` de agosto a septiembre sin poder mover `c3`, que ya estaba en septiembre, produce un resumen con dos cuotas del mismo plan, que en el papel del banco no existe. Un estado peor que no haber movido nada. El caso llega a producción con una tarjeta sin `default_closing_day`/`default_payment_day`, donde `asegurarCiclos` no puede generar nada.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -407,6 +413,13 @@ describe('moverTransaccionAlResumenVecino', () => {
 
   it('mover una cuota emite un update por cada cuota desde la tocada', async () => {
     // 3 cuotas, se mueve la segunda -> 2 updates
+  })
+
+  it('si el plan de cuotas no se puede mover entero, NO mueve ninguna', async () => {
+    // Tarjeta sin default_closing_day: asegurarCiclos no puede generar, el plan
+    // queda incompleto -> { error } y CERO updates. Aplicarlo a medias dejaria
+    // dos cuotas en el mismo resumen.
+    // expect(updates).toHaveLength(0)
   })
 })
 ```
@@ -491,6 +504,12 @@ export async function moverTransaccionAlResumenVecino(
         .from('credit_card_cycles').select('*').eq('payment_method_id', t.payment_method_id)
       plan = planDeMovimiento(t, txs, ciclosDeMetodo(t.payment_method_id, masCiclos ?? []), direccion)
     }
+  }
+
+  // Todo o nada: un plan de cuotas movido a medias deja dos cuotas en el mismo
+  // resumen, que es peor que no mover.
+  if (plan.reasignaciones.length < aMover) {
+    return { error: 'No pude mover todas las cuotas del plan, así que no moví ninguna.' }
   }
 
   // Cada reasignacion, un update. SOLO cycle_id y date: purchase_date no se toca.
