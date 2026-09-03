@@ -11,16 +11,21 @@ import {
   Scale,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn, formatCurrency, formatUsd } from '@/lib/utils';
-import { PaymentMethod, Transaction, RecurringPlan } from '@/types/database';
+import { PaymentMethod, RecurringPlan } from '@/types/database';
 import type { AccountBalance } from '@/lib/finance/pocket';
 import { Card } from '@/components/ui/card';
-import { PaymentMethodDetailModal } from './payment-method-detail-modal';
+import { Button } from '@/components/ui/button';
 import { EditPaymentMethodDialog } from './edit-payment-method-dialog';
 import { DeletePaymentMethodDialog } from './delete-payment-method-dialog';
 import { EditAnchorDialog } from '@/components/pocket/edit-anchor-dialog';
+import { EtiquetaProcedencia } from './ciclo-fechas-field';
+import { EditarCicloDialog } from './editar-ciclo-dialog';
+import { useFinanceStore } from '@/lib/store/financeStore';
+import { cicloVigente, ciclosDeMetodo } from '@/lib/finance/cycles';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,28 +44,28 @@ export interface PaymentCardProps {
       nextClosingDate?: Date;
       nextPaymentDate?: Date;
     };
-    history: Transaction[];
     subscriptions: RecurringPlan[];
     /** Saldo del modelo de bolsillo. null para las tarjetas de crédito, que no tienen saldo propio. */
     cuenta: AccountBalance | null;
   };
 }
 
-/** Monto de un movimiento respetando su moneda original (USD no se convierte). */
-function movementAmount(t: Transaction): string {
-  if (t.original_currency === 'USD' && t.original_amount) {
-    return formatUsd(Math.abs(Number(t.original_amount)));
-  }
-  return formatCurrency(Math.abs(Number(t.amount)));
-}
-
 export function InstitutionalCard({ data }: PaymentCardProps) {
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const router = useRouter();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isAnchorOpen, setIsAnchorOpen] = useState(false);
+  const [editandoCiclo, setEditandoCiclo] = useState(false);
   const isCredit = data.type === 'credit';
-  const { status, history, subscriptions } = data;
+  const { status, subscriptions } = data;
+
+  // El store entero, no sus getters sueltos: son referencias estables y el
+  // React Compiler congelaría el resultado (ver store-freshness.test.ts).
+  // `creditCardCycles` es un campo de estado, no un getter -- se puede leer directo.
+  const store = useFinanceStore();
+  const vigente = isCredit
+    ? cicloVigente(ciclosDeMetodo(data.id, store.creditCardCycles), new Date())
+    : undefined;
 
   // Crédito: se muestra ARS y USD por separado (sin conversión).
   const arsDue = status.arsExpenses;
@@ -73,20 +78,12 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
   const saldo = cuenta ? cuenta.balance : status.projectedTotal;
   const balanceIsNegative = saldo < 0;
 
-  // Mensualidades del ciclo que todavía no se debitaron (para que el total cuadre).
-  const postedRecurringIds = new Set(
-    history.filter((t) => t.recurring_plan_id != null).map((t) => t.recurring_plan_id)
-  );
-  const pendingSubs = isCredit
-    ? subscriptions.filter((s) => !postedRecurringIds.has(s.id))
-    : [];
-
   const Icon = isCredit ? CreditCard : (data.type === 'cash' ? Banknote : Wallet);
 
   return (
     <>
       <Card
-        onClick={() => setIsDetailOpen(true)}
+        onClick={() => router.push(`/ajustes/medios/${data.id}`)}
         className="p-5 relative overflow-hidden transition-colors cursor-pointer active:scale-[0.98] hover:border-accent/40"
       >
         {/* Header */}
@@ -217,10 +214,31 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
           )}
         </div>
 
-        {/* Footer: Mensualidades y Movimientos */}
-        <div className="space-y-4 pt-4 border-t-[1.5px] border-border">
-          {/* Resumen Mensualidades */}
-          {subscriptions.length > 0 && (
+        {/* Procedencia del resumen vigente + corregir fechas: sólo si hay un resumen
+            materializado para esta tarjeta (asegurarCiclos lo genera al cargar). Sin eso
+            no hay nada que corregir todavía. */}
+        {vigente && (
+          <div className="flex items-center gap-2 mb-4">
+            <EtiquetaProcedencia source={vigente.source} />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="min-h-11 ml-auto"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditandoCiclo(true);
+              }}
+            >
+              Corregir fechas
+            </Button>
+          </div>
+        )}
+
+        {/* Footer: resumen de mensualidades. El detalle de movimientos vive en la
+            pantalla de detalle (un tap de acá) desde que el modal se retiro. */}
+        {subscriptions.length > 0 && (
+          <div className="pt-4 border-t-[1.5px] border-border">
             <div className="flex items-center justify-between text-xs bg-surface-2 p-2 rounded-lg border-[1.5px] border-border">
               <div className="flex items-center gap-2 text-muted">
                 <CalendarClock className="h-3.5 w-3.5" />
@@ -230,67 +248,9 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
                 {formatCurrency(status.fixedCosts)}
               </span>
             </div>
-          )}
-
-          {/* Movimientos del ciclo / mes */}
-          <div className="space-y-2">
-            <p className="text-[10px] font-medium text-muted uppercase tracking-wider mb-2">
-              {isCredit ? 'Movimientos del ciclo' : 'Movimientos del mes'}
-            </p>
-            {history.length > 0 || pendingSubs.length > 0 ? (
-              <>
-                {history.map((t, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs group">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <div
-                        className={cn(
-                          'h-1.5 w-1.5 rounded-full',
-                          t.type === 'income' ? 'bg-good' : 'bg-faint'
-                        )}
-                      />
-                      <span className="text-muted truncate max-w-[150px]">{t.description}</span>
-                    </div>
-                    <span
-                      className={cn(
-                        'tnum font-medium',
-                        t.type === 'income' ? 'text-good' : 'text-muted'
-                      )}
-                    >
-                      {t.type === 'income' ? '+' : '-'}
-                      {movementAmount(t)}
-                    </span>
-                  </div>
-                ))}
-                {/* Mensualidades del ciclo aún sin debitar (para que cuadre con "A pagar") */}
-                {pendingSubs.map((s) => (
-                  <div key={`sub-${s.id}`} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <div className="h-1.5 w-1.5 rounded-full bg-accent/40" />
-                      <span className="text-faint truncate max-w-[150px]">
-                        {s.description} · por debitar
-                      </span>
-                    </div>
-                    <span className="tnum font-medium text-faint">
-                      -
-                      {s.currency === 'USD' && s.original_amount
-                        ? formatUsd(Math.abs(Number(s.original_amount)))
-                        : formatCurrency(Math.abs(Number(s.amount)))}
-                    </span>
-                  </div>
-                ))}
-              </>
-            ) : (
-              <p className="text-[10px] text-muted italic pl-3">Sin movimientos este mes</p>
-            )}
           </div>
-        </div>
+        )}
       </Card>
-
-      <PaymentMethodDetailModal
-        isOpen={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
-        data={data}
-      />
 
       <EditPaymentMethodDialog
         open={isEditOpen}
@@ -306,6 +266,21 @@ export function InstitutionalCard({ data }: PaymentCardProps) {
 
       {!isCredit && (
         <EditAnchorDialog method={data} open={isAnchorOpen} onOpenChange={setIsAnchorOpen} />
+      )}
+
+      {vigente && (
+        // key por resumen: el dialogo esta montado siempre que haya un resumen vigente (no
+        // detras del estado de apertura) y su estado se inicializa desde props una sola vez,
+        // en el useState. Si el vigente cambia de identidad con la pagina montada --pasa el
+        // vencimiento, o el realineado lo mueve-- sin key seguiria mostrando y mandando las
+        // fechas del resumen viejo. Misma leccion que DeclararProximoCiclo en sus dos montajes.
+        <EditarCicloDialog
+          key={vigente.id}
+          open={editandoCiclo}
+          onOpenChange={setEditandoCiclo}
+          methodId={data.id}
+          ciclo={vigente}
+        />
       )}
     </>
   );

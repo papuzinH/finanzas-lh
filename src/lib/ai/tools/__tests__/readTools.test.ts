@@ -120,6 +120,7 @@ const cicloVisaJulio: CreditCardCycle = {
   due_date: '2026-07-10',
   source: 'generated',
   created_at: '2026-01-01T00:00:00Z',
+  reminder_dismissed_at: null,
 }
 
 // Compra en Visa imputada (cycle_id) al ciclo vigente.

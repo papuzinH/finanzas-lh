@@ -7,7 +7,7 @@ describe('prepareTransactions', () => {
   it('periodDate sale del cierre del ciclo, no de adivinar por el dia del mes', () => {
     const visa = { id: 'visa', type: 'credit', default_closing_day: 20, default_payment_day: 1 } as PaymentMethod
     const ciclos: CreditCardCycle[] = [
-      { id: 'ago', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'generated', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'ago', user_id: 'u1', payment_method_id: 'visa', closing_date: '2026-08-20', due_date: '2026-09-01', source: 'generated', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
     ]
     const raw = [{ id: 't1', date: '2026-09-01', cycle_id: 'ago', payment_method_id: 'visa', amount: 1000, type: 'expense', original_currency: 'ARS' }] as unknown as Transaction[]
 
@@ -21,7 +21,7 @@ describe('prepareTransactions', () => {
     // cuando pertenece al resumen que cerro el 1. El ciclo lo dice sin adivinar.
     const master = { id: 'm', type: 'credit', default_closing_day: 27, default_payment_day: 4 } as PaymentMethod
     const ciclos: CreditCardCycle[] = [
-      { id: 'oct', user_id: 'u1', payment_method_id: 'm', closing_date: '2026-10-01', due_date: '2026-10-09', source: 'declared', created_at: '2026-01-01T00:00:00Z' },
+      { id: 'oct', user_id: 'u1', payment_method_id: 'm', closing_date: '2026-10-01', due_date: '2026-10-09', source: 'declared', created_at: '2026-01-01T00:00:00Z', reminder_dismissed_at: null },
     ]
     const raw = [{ id: 't2', date: '2026-10-09', cycle_id: 'oct', payment_method_id: 'm', amount: 500, type: 'expense', original_currency: 'ARS' }] as unknown as Transaction[]
 

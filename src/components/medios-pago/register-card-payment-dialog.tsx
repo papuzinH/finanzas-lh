@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -23,7 +23,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFinanceStore } from '@/lib/store/financeStore';
 import { payCreditCardCycle } from '@/app/compromisos/actions';
-import { ciclosDeMetodo, cicloSaldadoEn } from '@/lib/finance/cycles';
+import { declararCiclo } from '@/app/medios-pago/actions';
+import { ciclosDeMetodo, cicloSaldadoEn, cicloNEsimo } from '@/lib/finance/cycles';
+import { DeclararProximoCiclo } from './declarar-proximo-ciclo';
+import type { FechasDeCiclo } from './ciclo-fechas-field';
 
 /**
  * Registra un pago de resumen de tarjeta (típicamente de meses anteriores) como
@@ -61,6 +64,7 @@ export function RegisterCardPaymentDialog() {
   });
   const [amount, setAmount] = useState<string>('');
   const [date, setDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
+  const [fechasDeclaradas, setFechasDeclaradas] = useState<FechasDeCiclo | null>(null);
 
   // El medio que financia no puede ser una tarjeta de crédito ni la tarjeta pagada.
   const fundingMethods = paymentMethods.filter(
@@ -73,6 +77,21 @@ export function RegisterCardPaymentDialog() {
   const sinCiclosCargados = Boolean(cardId) && ciclosDeLaTarjeta.length === 0;
   // Tiene resúmenes, pero ninguno cerrado a esa fecha: no hay qué saldar.
   const sinResumen = Boolean(cardId) && Boolean(date) && !cicloAPagar && !sinCiclosCargados;
+  // El resumen que sigue al que se está saldando: es donde se le ofrece al usuario
+  // declarar las fechas reales (paso opcional, ver DeclararProximoCiclo).
+  const cicloSiguienteAPagar = cicloAPagar
+    ? cicloNEsimo(ciclosDeLaTarjeta, cicloAPagar, 1)
+    : undefined;
+
+  // Tarjeta Y fecha recalculan cual es "el resumen siguiente" (L74-84). Si cualquiera
+  // de los dos ejes lo cambia mientras el usuario ya habia declarado fechas para el
+  // resumen anterior, esa declaracion queda apuntando a un resumen que la UI ya no
+  // muestra ni deja corregir -- se invalida ante cualquier cambio de identidad del
+  // resumen siguiente, sin depender de que cada input que lo afecte se acuerde de
+  // resetear a mano.
+  useEffect(() => {
+    setFechasDeclaradas(null);
+  }, [cicloSiguienteAPagar?.id]);
 
   async function onSubmit() {
     const card = creditCards.find((m) => String(m.id) === cardId);
@@ -97,14 +116,35 @@ export function RegisterCardPaymentDialog() {
       });
       if (res.error) {
         toast.error(res.error);
-      } else {
-        toast.success(`Pago de ${card.name} registrado en ${funding.name}`);
-        setOpen(false);
-        setAmount('');
-        setCardId('');
-        await fetchAllData();
-        router.refresh();
+        return;
       }
+
+      // El pago es lo que el usuario vino a hacer: va primero. Declarar el proximo
+      // resumen es secundario y solo si el usuario abrio el paso (fechasDeclaradas)
+      // Y ese resumen siguiente existe -- si nunca lo abrio, fechasDeclaradas es
+      // null y la estimacion sigue siendo estimacion. Un fallo aca no deshace el
+      // pago ni se reporta como error: se avisa con un toast.
+      if (fechasDeclaradas && cicloSiguienteAPagar) {
+        const d = await declararCiclo({
+          paymentMethodId: card.id,
+          // El resumen exacto que mostro el paso: sin el id, la escritura lo resuelve por
+          // mes calendario y con cierres cerca del borde de mes apunta al de al lado.
+          cycleId: cicloSiguienteAPagar.id,
+          closingDate: fechasDeclaradas.closingDate,
+          dueDate: fechasDeclaradas.dueDate,
+        });
+        if (d.error) {
+          toast.warning('Registramos el pago, pero no pudimos guardar las fechas: ' + d.error);
+        }
+      }
+
+      toast.success(`Pago de ${card.name} registrado en ${funding.name}`);
+      setOpen(false);
+      setAmount('');
+      setCardId('');
+      setFechasDeclaradas(null);
+      await fetchAllData();
+      router.refresh();
     } finally {
       setIsPending(false);
     }
@@ -202,6 +242,18 @@ export function RegisterCardPaymentDialog() {
               <p className="text-sm text-muted mt-1">Sin resumen cargado para esa fecha</p>
             )}
           </div>
+
+          {cicloSiguienteAPagar && (
+            <DeclararProximoCiclo
+              key={cicloSiguienteAPagar.id}
+              methodId={cardId}
+              estimado={{
+                closingDate: cicloSiguienteAPagar.closing_date,
+                dueDate: cicloSiguienteAPagar.due_date,
+              }}
+              onDeclarar={setFechasDeclaradas}
+            />
+          )}
         </div>
 
         <div className="px-6 pb-6 pt-3 shrink-0">

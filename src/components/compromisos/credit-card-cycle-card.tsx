@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { CreditCard, Check, Clock, Loader2, Undo2, AlertTriangle } from 'lucide-react';
+import { CreditCard, Check, Clock, Loader2, Undo2, AlertTriangle, Pencil } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,8 +27,16 @@ import { Card } from '@/components/ui/card';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { useFinanceStore, CreditCardCycleSummary } from '@/lib/store/financeStore';
 import { payCreditCardCycle, undoCreditCardPayment } from '@/app/compromisos/actions';
+import { declararCiclo } from '@/app/medios-pago/actions';
 import { formatCurrency } from '@/lib/utils';
 import { cicloSub, montoDelCiclo } from '@/lib/utils/compromisos-copy';
+import { ciclosDeMetodo, cicloNEsimo, pideDeclaracion } from '@/lib/finance/cycles';
+import { DeclararProximoCiclo } from '@/components/medios-pago/declarar-proximo-ciclo';
+import { EditarCicloDialog } from '@/components/medios-pago/editar-ciclo-dialog';
+import { EtiquetaProcedencia } from '@/components/medios-pago/ciclo-fechas-field';
+import { Button } from '@/components/ui/button';
+import { dateToLocalString } from '@/lib/utils/dates';
+import type { FechasDeCiclo } from '@/components/medios-pago/ciclo-fechas-field';
 
 interface CreditCardCycleChipProps {
   card: CreditCardCycleSummary;
@@ -42,8 +50,9 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
   // El store entero, no sus getters sueltos: son referencias estables y el
   // React Compiler congelaría el resultado (ver store-freshness.test.ts).
   const store = useFinanceStore();
-  const { paymentMethods, getDefaultPaymentMethod, fetchAllData } = store;
+  const { paymentMethods, creditCardCycles, getDefaultPaymentMethod, fetchAllData } = store;
   const status = store.getPaymentMethodStatus(card.methodId);
+  const [fechasDeclaradas, setFechasDeclaradas] = useState<FechasDeCiclo | null>(null);
   const cycleNotClosedYet =
     status.nextClosingDate !== undefined && new Date() < status.nextClosingDate;
   const closingDateLabel = status.nextClosingDate
@@ -124,6 +133,13 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
     );
   }
 
+  // El resumen que sigue al que se esta pagando: es donde se le ofrece al usuario
+  // declarar las fechas reales (paso opcional, ver DeclararProximoCiclo). Si no hay
+  // ninguno materializado todavia, el paso directamente no se muestra.
+  const ciclosDeLaTarjeta = ciclosDeMetodo(card.methodId, creditCardCycles);
+  const cicloActual = ciclosDeLaTarjeta.find((c) => c.id === card.cycleId);
+  const proximo = cicloActual ? cicloNEsimo(ciclosDeLaTarjeta, cicloActual, 1) : undefined;
+
   const handleConfirm = async () => {
     const fundingMethod = fundingMethods.find((m) => String(m.id) === fundingId);
     if (!fundingMethod) {
@@ -132,7 +148,7 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
     }
     setConfirming(true);
     try {
-      const res = await payCreditCardCycle({
+      const pago = await payCreditCardCycle({
         cardMethodId: card.methodId,
         fundingMethodId: fundingMethod.id,
         amountArs: card.total,
@@ -140,13 +156,33 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
         cardName: card.name,
         cycleId: card.cycleId,
       });
-      if (res.error) {
-        toast.error(res.error);
-      } else {
-        toast.success(`Pago registrado en ${fundingMethod.name}`);
-        await refresh();
-        setOpen(false);
+      if (pago.error) {
+        toast.error(pago.error);
+        return;
       }
+
+      // El pago es lo que el usuario vino a hacer: va primero. Declarar el proximo
+      // resumen es secundario y solo si el usuario abrio el paso (fechasDeclaradas)
+      // Y ese resumen siguiente existe -- si nunca lo abrio, fechasDeclaradas es
+      // null y la estimacion sigue siendo estimacion. Un fallo aca no deshace el
+      // pago ni se reporta como error: se avisa con un toast.
+      if (fechasDeclaradas && proximo) {
+        const d = await declararCiclo({
+          paymentMethodId: card.methodId,
+          // El resumen exacto que mostro el paso: sin el id, la escritura lo resuelve por
+          // mes calendario y con cierres cerca del borde de mes apunta al de al lado.
+          cycleId: proximo.id,
+          closingDate: fechasDeclaradas.closingDate,
+          dueDate: fechasDeclaradas.dueDate,
+        });
+        if (d.error) {
+          toast.warning('Registramos el pago, pero no pudimos guardar las fechas: ' + d.error);
+        }
+      }
+
+      toast.success(`Pago registrado en ${fundingMethod.name}`);
+      await refresh();
+      setOpen(false);
     } finally {
       setConfirming(false);
     }
@@ -156,7 +192,7 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => { setFechasDeclaradas(null); setOpen(true); }}
         aria-label={`Registrar pago de ${card.name}`}
         className="inline-flex items-center gap-1 min-h-11 px-3 rounded-full text-[11px] font-bold bg-warn/10 text-warn border border-warn/20 cursor-pointer select-none hover:bg-warn/15 transition-all active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
       >
@@ -209,6 +245,15 @@ export function CreditCardCycleChip({ card, formattedDate }: CreditCardCycleChip
             </Select>
           </div>
 
+          {proximo && (
+            <DeclararProximoCiclo
+              key={proximo.id}
+              methodId={card.methodId}
+              estimado={{ closingDate: proximo.closing_date, dueDate: proximo.due_date }}
+              onDeclarar={setFechasDeclaradas}
+            />
+          )}
+
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel disabled={confirming} className="w-full sm:w-auto">
               Cancelar
@@ -240,6 +285,15 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
   const status = store.getPaymentMethodStatus(card.methodId);
   const ciclo = cicloSub(status.nextClosingDate, card.nextPaymentDate);
   const monto = montoDelCiclo(card);
+  const [editandoCiclo, setEditandoCiclo] = useState(false);
+
+  // El resumen que esta card muestra. La pregunta por sus fechas vive acá y no en un aviso
+  // aparte: el resumen que acaba de cerrar ES el ciclo vigente, así que un banner propio
+  // repetía el nombre de la tarjeta y sus dos fechas en la card de arriba — con dos tarjetas
+  // eran cuatro cards sobre las mismas dos. `pideDeclaracion` acota la ventana al tramo en
+  // que el usuario tiene el papel del banco a mano (del cierre al vencimiento).
+  const vigente = store.creditCardCycles.find((c) => c.id === card.cycleId);
+  const pedirFechas = vigente ? pideDeclaracion(vigente, dateToLocalString(new Date())) : false;
 
   return (
     <Card className="px-4 py-3 grid gap-2">
@@ -257,12 +311,28 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
           </span>
         </div>
         <span className={`ml-auto text-right whitespace-nowrap ${card.isPending ? 'text-bad' : 'text-text'}`}>
-          <span className="block font-display tnum text-[15px]">{monto.principal}</span>
+          <span data-testid="total-resumen" className="block font-display tnum text-[15px]">{monto.principal}</span>
           {monto.secundario && (
             <span className="block font-display tnum text-[12px] opacity-80">{monto.secundario}</span>
           )}
         </span>
       </div>
+
+      {pedirFechas && vigente && (
+        <div className="flex flex-wrap items-center gap-2">
+          <EtiquetaProcedencia source="generated" />
+          <Button
+            type="button"
+            variant="soft"
+            className="min-h-11 px-3 text-[11.5px]"
+            aria-label={`Corregir las fechas del resumen de ${card.name}`}
+            onClick={() => setEditandoCiclo(true)}
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+            Corregir
+          </Button>
+        </div>
+      )}
 
       {!card.isOverdue && (
         <ProgressBar value={ciclo.pct} height={8} tone="accent" label="Días transcurridos del ciclo" />
@@ -277,6 +347,20 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
           <CreditCardCycleChip card={card} formattedDate={formattedDate} />
         </div>
       </div>
+
+      {vigente && (
+        // key por resumen: el diálogo se monta con el ciclo vigente y su estado se inicializa
+        // desde props una sola vez (useState). Si el vigente cambia de identidad con la página
+        // montada —pasa el vencimiento, o el realineado lo mueve— sin key seguiría mandando las
+        // fechas del resumen viejo. Misma lección que institutional-card y DeclararProximoCiclo.
+        <EditarCicloDialog
+          key={vigente.id}
+          open={editandoCiclo}
+          onOpenChange={setEditandoCiclo}
+          methodId={card.methodId}
+          ciclo={vigente}
+        />
+      )}
     </Card>
   );
 }

@@ -36,7 +36,7 @@ import { EditInstallmentPlanDialog } from '@/components/installments/edit-plan-d
 import { ConfirmationModal } from '@/components/shared/confirmation-modal';
 import { deleteInstallmentPlan } from '@/app/dashboard/installments/actions';
 import { deleteSubscription } from '@/app/dashboard/subscriptions/actions';
-import { expectedChargeDate, isAutomaticPlan } from '@/lib/finance/recurring';
+import { etiquetaDeCobro, isAutomaticPlan } from '@/lib/finance/recurring';
 import { dateToLocalString } from '@/lib/utils/dates';
 import {
   markRecurringPlanPaid,
@@ -237,7 +237,7 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const isMobile = useIsMobile();
   const router = useRouter();
-  const { fetchAllData, categories, paymentMethods, getPendingFixedExpenses } = useFinanceStore();
+  const { fetchAllData, categories, paymentMethods, creditCardCycles, getPendingFixedExpenses } = useFinanceStore();
 
   const category = categories.find(c => c.id === plan.category_id);
   // Pagada este mes = ya no figura entre los gastos fijos pendientes del store.
@@ -249,10 +249,7 @@ function SubscriptionCard({ plan }: { plan: RecurringPlanWithPayment }) {
   const method = paymentMethods.find((m) => m.id === plan.payment_method_id);
   const isAutomatic = isAutomaticPlan(plan, method);
   const chargeLabel = method && isAutomatic
-    ? (() => {
-        const parts = expectedChargeDate(plan, method, dateToLocalString(new Date()).slice(0, 7)).split('-');
-        return `${method.name} · vence ${Number(parts[2])}/${Number(parts[1])}`;
-      })()
+    ? etiquetaDeCobro(plan, method, dateToLocalString(new Date()).slice(0, 7), creditCardCycles)
     : null;
 
   const togglePaid = async () => {
@@ -448,7 +445,6 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
   } = useFinanceStore();
 
   const creditCards = getPendingCreditCardByCard();
-
   useEffect(() => {
     if (!isInitialized) {
       fetchAllData();
@@ -568,7 +564,10 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
               </div>
             </div>
 
-            {/* Ciclos de tarjeta — las cards hablan solas, sin header de sección */}
+            {/* Ciclos de tarjeta — las cards hablan solas, sin header de sección.
+                La pregunta por las fechas del resumen vive DENTRO de estas cards (ver
+                CreditCardCycleCard): el resumen recien cerrado es el ciclo vigente, asi que un
+                aviso aparte repetia el nombre de la tarjeta y sus fechas justo arriba. */}
             {creditCards.length > 0 && (
               <div className="flex flex-col gap-3">
                 {creditCards.map((card) => (

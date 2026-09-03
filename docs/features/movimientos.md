@@ -53,7 +53,7 @@ Columnas especiales de `transactions` (ver `src/types/database.ts`):
 - El "Neto" del mes en /movimientos suma las **mensualidades pendientes** (`getPendingFixedExpenses`, anclado al mes real de hoy — solo se muestra si estás viendo el mes actual, sin búsqueda ni filtros activos) porque esos compromisos aún no tienen transacción.
 - "Proyección Futura" = transacciones reales con fecha futura dentro del mes (típicamente vencimientos de crédito y cuotas), no proyecciones inventadas.
 - El monto de un gasto se guarda positivo con `type='expense'`; los getters usan `Math.abs`.
-- Al reasignar el medio default a txs sin medio (`assignDefaultToUnassignedTransactions`), si el default es crédito se recalcula el vencimiento fila por fila (solo gastos).
+- Al reasignar el medio default a txs sin medio (`assignDefaultToUnassignedTransactions`), si el default es crédito imputa cada fila a su resumen (`cycle_id` + `date = due_date` del ciclo que la contiene, vía `cicloDeCompra`; sólo cae al cálculo por defaults, sin `cycle_id`, si ningún resumen materializado la contiene) — desde el Plan 1 de ciclos ya no es sólo "recalcular el vencimiento".
 - Las rutas legacy `/cuotas`, `/mensualidades`, `/categorias`, `/medios-pago`, `/perfil` fueron eliminadas (solo quedan sus `actions.ts`); no linkear a ellas.
 
 ## Tests

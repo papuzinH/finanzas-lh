@@ -8,11 +8,15 @@
 //
 // Spec: docs/superpowers/specs/2026-09-01-ciclos-tarjeta-design.md
 import { addMonths, getDaysInMonth, setDate } from 'date-fns'
-import { formatLocalDate } from '@/lib/utils/dates'
+import { formatLocalDate, parseLocalDate } from '@/lib/utils/dates'
 import type { Database, PaymentMethod } from '@/types/database'
 
 export type CreditCardCycle = Database['public']['Tables']['credit_card_cycles']['Row']
-export type CicloNuevo = Omit<CreditCardCycle, 'id' | 'created_at'>
+// `reminder_dismissed_at` queda afuera a proposito: la columna es vestigial desde que el
+// recordatorio dejo de ser un aviso posponible y paso a ser una etiqueta en la card del ciclo
+// vigente (ver pideDeclaracion). Nadie la escribe ni la lee, y por eso su migracion dejo de
+// bloquear el deploy.
+export type CicloNuevo = Omit<CreditCardCycle, 'id' | 'created_at' | 'reminder_dismissed_at'>
 
 /** Los ciclos de UNA tarjeta, ordenados por cierre ascendente. */
 export function ciclosDeMetodo(methodId: string, ciclos: CreditCardCycle[]): CreditCardCycle[] {
@@ -62,6 +66,16 @@ export function cicloVigente(ciclos: CreditCardCycle[], now: Date): CreditCardCy
 export function cicloAnterior(ciclos: CreditCardCycle[], ciclo: CreditCardCycle): CreditCardCycle | undefined {
   const previos = ciclos.filter((c) => c.closing_date < ciclo.closing_date)
   return previos[previos.length - 1]
+}
+
+/**
+ * El resumen inmediatamente posterior a `ciclo` por fecha de cierre.
+ *
+ * Precondicion: `ciclos` debe llegar ya filtrado por tarjeta y ordenado ascendente por
+ * `closing_date`, como lo produce `ciclosDeMetodo`. Quien llame es responsable del orden.
+ */
+export function cicloSiguiente(ciclos: CreditCardCycle[], ciclo: CreditCardCycle): CreditCardCycle | undefined {
+  return ciclos.find((c) => c.closing_date > ciclo.closing_date)
 }
 
 /**
@@ -154,4 +168,100 @@ export function generarCiclos(
     cursor = addMonths(cursor, 1)
   }
   return nuevos
+}
+
+/**
+ * Si este resumen le esta pidiendo al usuario que cargue sus fechas reales.
+ *
+ * Es una VENTANA -- del cierre al vencimiento -- y cada punta tiene su razon:
+ *
+ *   - Antes del cierre el dato NO EXISTE. La Ley 25.065 art. 23 obliga al banco a imprimir
+ *     el cierre y el vencimiento siguientes en cada resumen, asi que el usuario lo tiene
+ *     recien cuando el resumen se emite. Pedirlo antes es pedir algo que no puede tener.
+ *   - Pasado el vencimiento el papel ya es viejo, la fecha no esta a mano y lo accionable
+ *     pasa a ser pagar ese resumen, no fecharlo.
+ *
+ * La punta de arriba faltaba, y era un bug: la version anterior tomaba como candidato
+ * cualquier resumen estimado ya cerrado y mostraba el ultimo, asi que declarar el de agosto
+ * hacia aparecer el de julio, visualmente identico. Medido contra datos reales el 2026-09-03:
+ * 13 candidatos en una tarjeta y 12 en la otra, o sea una cola de 25 avisos de a uno.
+ *
+ * La ventana garantiza ademas UNO POR TARJETA sin ordenar ni deduplicar nada: los resumenes
+ * de una tarjeta no se solapan, asi que a lo sumo uno contiene a `hoy` -- y ese es el ciclo
+ * vigente, el que la card de Compromisos ya esta mostrando con sus fechas y su monto. De ahi
+ * que la pregunta viva en esa card y no en un aviso aparte.
+ */
+export function pideDeclaracion(ciclo: CreditCardCycle, hoy: string): boolean {
+  return ciclo.source === 'generated' && ciclo.closing_date <= hoy && ciclo.due_date >= hoy;
+}
+
+export type CambioDeCiclo = { id: string; closing_date: string; due_date: string };
+
+/**
+ * El resumen cuyo cierre cae en el MISMO MES CALENDARIO que `closingDate`.
+ *
+ * Declarar es corregir la fecha de un resumen que la app ya estimo, no crear uno nuevo: si el
+ * estimado de septiembre cierra el 20 y el usuario declara que cerro el 24, hay que ACTUALIZAR
+ * esa fila. Insertar dejaria dos resumenes de septiembre para la misma tarjeta -- la unique de
+ * la tabla es (payment_method_id, closing_date) y no lo impide.
+ *
+ * Espera `ciclos` ya filtrado por tarjeta (ver ciclosDeMetodo).
+ */
+export function cicloDelMesDe(
+  ciclos: CreditCardCycle[],
+  closingDate: string,
+): CreditCardCycle | undefined {
+  const mes = closingDate.slice(0, 7);
+  return ciclos.find((c) => c.closing_date.slice(0, 7) === mes);
+}
+
+/**
+ * Que resumenes futuros hay que re-fechar cuando cambian los defaults de la tarjeta.
+ *
+ * Es la segunda mitad del invariante del spec: declarar o editar un cierre NO reasigna ninguna
+ * transaccion, pero SI actualiza las fechas de los resumenes futuros estimados. Sin esto la
+ * ficha de la tarjeta dice una cosa y sus resumenes dicen otra -- medido en DEV el 2026-09-02,
+ * con cuatro meses de cuotas venciendo un dia que la tarjeta ya no declaraba.
+ *
+ * Nunca toca un `declared` (es dato que el usuario leyo del resumen) ni un resumen que ya cerro
+ * (sus compras estan imputadas, y re-fecharlo moveria plata de un resumen a otro).
+ *
+ * El corte es `closing_date > hoy` ESTRICTO: el resumen que cierra HOY queda fuera del
+ * recalculo, porque re-fecharlo moveria las compras del dia (`cicloDeCompra` usa `>=`: el
+ * ciclo corre hasta las 23:59 de su fecha de cierre, E16). Complementa exactamente a
+ * `ciclosQuePidenDeclaracion`, que usa `<= hoy`: el que cierra hoy ya se puede declarar y por
+ * eso mismo ya no se re-fecha solo. No cambiar el `>` por `>=` creyendo que es un off-by-one.
+ *
+ * Devuelve solo los que efectivamente cambian, para no escribir de mas.
+ */
+export function recalcularFuturosGenerated(
+  method: PaymentMethod,
+  ciclos: CreditCardCycle[],
+  hoy: string,
+): CambioDeCiclo[] {
+  if (method.type !== 'credit' || !method.default_closing_day || !method.default_payment_day) {
+    return [];
+  }
+
+  const futurosEstimados = ciclos
+    .filter((c) => c.source === 'generated' && c.closing_date > hoy)
+    .sort((a, b) => a.closing_date.localeCompare(b.closing_date));
+  if (futurosEstimados.length === 0) return [];
+
+  // generarCiclos ya sabe clampear el dia al ultimo del mes y decidir si el vencimiento cae en
+  // el mismo mes o en el siguiente. Se le pide el rango de los futuros SIN pasarle existentes,
+  // y se aparea por mes con lo que hay.
+  const desde = parseLocalDate(futurosEstimados[0].closing_date);
+  const hasta = parseLocalDate(futurosEstimados[futurosEstimados.length - 1].closing_date);
+  const frescos = generarCiclos(method, desde, hasta, []);
+  const frescoPorMes = new Map(frescos.map((c) => [c.closing_date.slice(0, 7), c]));
+
+  const cambios: CambioDeCiclo[] = [];
+  for (const viejo of futurosEstimados) {
+    const fresco = frescoPorMes.get(viejo.closing_date.slice(0, 7));
+    if (!fresco) continue;
+    if (fresco.closing_date === viejo.closing_date && fresco.due_date === viejo.due_date) continue;
+    cambios.push({ id: viejo.id, closing_date: fresco.closing_date, due_date: fresco.due_date });
+  }
+  return cambios;
 }

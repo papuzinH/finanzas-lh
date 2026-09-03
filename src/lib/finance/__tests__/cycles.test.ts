@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
-  ciclosDeMetodo, generarCiclos, cicloDeCompra, cicloVigente, cicloAnterior, cicloNEsimo,
-  cicloSaldadoEn,
+  ciclosDeMetodo, generarCiclos, cicloDeCompra, cicloVigente, cicloAnterior, cicloSiguiente, cicloNEsimo,
+  cicloSaldadoEn, cicloDelMesDe, recalcularFuturosGenerated,
   type CreditCardCycle,
 } from '../cycles'
 import type { PaymentMethod } from '@/types/database'
@@ -14,6 +14,7 @@ const ciclo = (over: Partial<CreditCardCycle>): CreditCardCycle => ({
   id: 'c1', user_id: 'u1', payment_method_id: 'visa',
   closing_date: '2026-07-23', due_date: '2026-08-03',
   source: 'generated', created_at: '2026-01-01T00:00:00Z',
+  reminder_dismissed_at: null,
   ...over,
 })
 
@@ -71,6 +72,27 @@ describe('cicloAnterior', () => {
 
   it('el primero no tiene anterior', () => {
     expect(cicloAnterior(TRES, JULIO)).toBeUndefined()
+  })
+})
+
+describe('cicloSiguiente', () => {
+  it('devuelve el resumen inmediatamente posterior por fecha de cierre', () => {
+    expect(cicloSiguiente(TRES, JULIO)?.id).toBe('ago')
+    expect(cicloSiguiente(TRES, AGOSTO)?.id).toBe('sep')
+  })
+
+  it('el ultimo resumen no tiene siguiente', () => {
+    expect(cicloSiguiente(TRES, SEPTIEMBRE)).toBeUndefined()
+  })
+
+  it('una lista de un solo resumen no tiene siguiente', () => {
+    expect(cicloSiguiente([AGOSTO], AGOSTO)).toBeUndefined()
+  })
+
+  it('es la inversa exacta de cicloAnterior', () => {
+    // La propiedad que importa: moverse y volver deja donde se estaba.
+    const sig = cicloSiguiente(TRES, JULIO)!
+    expect(cicloAnterior(TRES, sig)?.id).toBe('jul')
   })
 })
 
@@ -152,3 +174,51 @@ describe('ciclosDeMetodo', () => {
     expect(r.map((c) => c.id)).toEqual(['jul', 'ago', 'sep'])
   })
 })
+
+describe('cicloDelMesDe', () => {
+  const ciclos: CreditCardCycle[] = [
+    { id: 'a', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-08-20', due_date: '2026-08-28', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
+    { id: 'b', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-09-20', due_date: '2026-09-28', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
+  ];
+
+  it('encuentra el resumen del mismo mes calendario aunque el dia no coincida', () => {
+    expect(cicloDelMesDe(ciclos, '2026-09-24')?.id).toBe('b');
+  });
+
+  it('devuelve undefined si ese mes todavia no tiene resumen', () => {
+    expect(cicloDelMesDe(ciclos, '2026-10-24')).toBeUndefined();
+  });
+});
+
+describe('recalcularFuturosGenerated', () => {
+  const metodo = {
+    id: 'pm', type: 'credit', default_closing_day: 24, default_payment_day: 2,
+  } as unknown as PaymentMethod;
+
+  const ciclos: CreditCardCycle[] = [
+    // pasado, estimado: NO se toca
+    { id: 'viejo', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-07-20', due_date: '2026-07-28', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
+    // futuro, declarado por el usuario: NO se toca
+    { id: 'dicho', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-10-22', due_date: '2026-10-30', source: 'declared', created_at: 'x', reminder_dismissed_at: null },
+    // futuro, estimado: SI se recalcula
+    { id: 'futuro', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-11-20', due_date: '2026-11-28', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
+  ];
+
+  it('recalcula solo los estimados futuros', () => {
+    const cambios = recalcularFuturosGenerated(metodo, ciclos, '2026-09-02');
+    expect(cambios).toHaveLength(1);
+    expect(cambios[0]).toEqual({ id: 'futuro', closing_date: '2026-11-24', due_date: '2026-12-02' });
+  });
+
+  it('no devuelve cambios cuando las fechas ya coinciden con los defaults', () => {
+    const yaAlineado: CreditCardCycle[] = [
+      { id: 'ok', user_id: 'u', payment_method_id: 'pm', closing_date: '2026-11-24', due_date: '2026-12-02', source: 'generated', created_at: 'x', reminder_dismissed_at: null },
+    ];
+    expect(recalcularFuturosGenerated(metodo, yaAlineado, '2026-09-02')).toEqual([]);
+  });
+
+  it('devuelve vacio si la tarjeta no tiene dias configurados', () => {
+    const sinDias = { ...metodo, default_closing_day: null, default_payment_day: null } as PaymentMethod;
+    expect(recalcularFuturosGenerated(sinDias, ciclos, '2026-09-02')).toEqual([]);
+  });
+});

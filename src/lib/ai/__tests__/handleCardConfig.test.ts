@@ -6,6 +6,11 @@ vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(),
 }))
 
+// La escritura de los resumenes se mockea: aca se prueba que el handler la invoque
+// (mismo patron que medios-pago/__tests__/update-realinea-ciclos.test.ts), no lo que
+// escribe -- eso vive en lib/ciclos/__tests__/declarar.test.ts.
+vi.mock('@/lib/ciclos/declarar', () => ({ realinearFuturos: vi.fn().mockResolvedValue(0) }))
+
 // ============================================================
 // Helpers de mock: mismo query builder encadenable que handleDelete.test.ts
 // (select/eq/ilike/limit/gt/update → this, resuelto vía `then` o `single`).
@@ -24,6 +29,7 @@ interface MockChain {
   in: (...args: unknown[]) => MockChain
   update: (...args: unknown[]) => MockChain
   single: () => Promise<ChainResult>
+  maybeSingle: () => Promise<ChainResult>
   then: (resolve: (v: ChainResult) => unknown, reject?: (e: unknown) => unknown) => Promise<unknown>
 }
 
@@ -39,6 +45,10 @@ function createChain(result: ChainResult): MockChain {
   }
   chain.single = () => {
     calls.push({ method: 'single', args: [] })
+    return Promise.resolve(result)
+  }
+  chain.maybeSingle = () => {
+    calls.push({ method: 'maybeSingle', args: [] })
     return Promise.resolve(result)
   }
   chain.then = (resolve, reject) => Promise.resolve(result).then(resolve, reject)
@@ -76,7 +86,20 @@ function noTransactionsUpdateCalls(supabase: ReturnType<typeof createSupabaseMoc
   })
 }
 
+import { realinearFuturos } from '@/lib/ciclos/declarar'
+
 const mockedCreateClient = vi.mocked(createClient)
+const realinearMock = vi.mocked(realinearFuturos)
+
+/** La fila entera de la tarjeta, la que `realinearFuturos` necesita para regenerar. */
+const FILA_TARJETA = {
+  id: 'pm-1',
+  user_id: 'u1',
+  name: 'Visa',
+  type: 'credit',
+  default_closing_day: 27,
+  default_payment_day: 4,
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -98,7 +121,10 @@ describe('handleCardConfig - E13 desde el chat', () => {
     })
     const simpleUpdateChain = createChain({ error: null })
 
-    const chains = [methodChain, updateConfigChain, futureTxnsChain, simpleUpdateChain]
+    // La relectura de la fila para el realineado va tercera: el orden de `from()`
+    // es buscar la tarjeta, actualizarla, releerla.
+    const releerChain = createChain({ data: FILA_TARJETA, error: null })
+    const chains = [methodChain, updateConfigChain, releerChain, futureTxnsChain, simpleUpdateChain]
     const supabase = createSupabaseMock(chains)
     mockedCreateClient.mockResolvedValueOnce(supabase as never)
 
@@ -111,7 +137,8 @@ describe('handleCardConfig - E13 desde el chat', () => {
   it('actualiza los días de cierre/vencimiento y el mensaje aclara que los movimientos ya cargados no se mueven', async () => {
     const methodChain = createChain({ data: { id: 'pm-1', name: 'Visa' } })
     const updateConfigChain = createChain({ error: null })
-    const supabase = createSupabaseMock([methodChain, updateConfigChain])
+    const releerChain = createChain({ data: FILA_TARJETA, error: null })
+    const supabase = createSupabaseMock([methodChain, updateConfigChain, releerChain])
     mockedCreateClient.mockResolvedValueOnce(supabase as never)
 
     const result = await handleCardConfig({ paymentMethodName: 'Visa', closingDay: 27, paymentDay: 4 }, 'u1')
@@ -121,8 +148,48 @@ describe('handleCardConfig - E13 desde el chat', () => {
     expect(hasCall(updateConfigChain, 'eq', ['id', 'pm-1'])).toBe(true)
     expect(hasCall(updateConfigChain, 'eq', ['user_id', 'u1'])).toBe(true)
     expect(result.message).toContain('no se movieron de resumen')
-    // No debe haber quedado ninguna llamada extra a `transactions` (el bloque de
-    // re-fechado desapareció entero, no sólo se quedó sin efecto).
-    expect(supabase.from).toHaveBeenCalledTimes(2)
+    // Ninguna tabla fuera de `payment_methods`: el bloque de re-fechado de
+    // transacciones desapareció entero, no sólo se quedó sin efecto.
+    expect(supabase.from.mock.calls.map((c) => c[0])).toEqual([
+      'payment_methods',
+      'payment_methods',
+      'payment_methods',
+    ])
+  })
+
+  it('re-fecha los resúmenes futuros estimados, con la fila releída de la tarjeta', async () => {
+    // La pantalla (updatePaymentMethod) ya lo hacía; el chat no, así que la misma frase
+    // dicha por chat dejaba la tarjeta con días nuevos y sus resúmenes con los viejos.
+    const methodChain = createChain({ data: { id: 'pm-1', name: 'Visa' } })
+    const updateConfigChain = createChain({ error: null })
+    const releerChain = createChain({ data: FILA_TARJETA, error: null })
+    const supabase = createSupabaseMock([methodChain, updateConfigChain, releerChain])
+    mockedCreateClient.mockResolvedValueOnce(supabase as never)
+
+    const result = await handleCardConfig({ paymentMethodName: 'Visa', closingDay: 27, paymentDay: 4 }, 'u1')
+
+    expect(result.success).toBe(true)
+    expect(realinearMock).toHaveBeenCalledTimes(1)
+    // La fila ENTERA, no el `{ id, name }` del lookup: recalcularFuturosGenerated lee
+    // type y los dos días, y sin ellos se va sin hacer nada y en silencio.
+    expect(realinearMock.mock.calls[0][1]).toEqual(FILA_TARJETA)
+    // El re-fechado se pide sobre la fila propia, nunca sobre una tarjeta ajena.
+    expect(hasCall(releerChain, 'eq', ['user_id', 'u1'])).toBe(true)
+    // Y el mensaje ya no dice que esto sólo afecta a los resúmenes futuros por generar.
+    expect(result.message).toContain('todavía no cerraron')
+  })
+
+  it('si el re-fechado falla, la tarjeta igual queda actualizada', async () => {
+    // El medio ya se guardó: devolver error acá diría "no se guardó" y no sería cierto.
+    const methodChain = createChain({ data: { id: 'pm-1', name: 'Visa' } })
+    const updateConfigChain = createChain({ error: null })
+    const releerChain = createChain({ data: FILA_TARJETA, error: null })
+    const supabase = createSupabaseMock([methodChain, updateConfigChain, releerChain])
+    mockedCreateClient.mockResolvedValueOnce(supabase as never)
+    realinearMock.mockRejectedValueOnce(new Error('No pude actualizar un resumen futuro'))
+
+    const result = await handleCardConfig({ paymentMethodName: 'Visa', closingDay: 27, paymentDay: 4 }, 'u1')
+
+    expect(result.success).toBe(true)
   })
 })
