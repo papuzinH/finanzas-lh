@@ -50,3 +50,25 @@ export function mesPorDefecto(fecha: string, prefiereMesSiguiente: boolean | nul
   const [esteMes, mesSiguiente] = mesesCandidatos(fecha)
   return prefiereMesSiguiente === true ? mesSiguiente.valor : esteMes.valor
 }
+
+/**
+ * El income_period que corresponde a esta fecha. `null` = la pregunta no aplica
+ * (fuera del borde, o fecha vacia/invalida).
+ *
+ * SE DERIVA, no se retiene: un `elegido` que quedo de una fecha anterior (el
+ * usuario cargo 29-ago → septiembre, y despues movio la fecha a 15-ago o a
+ * 28-jul) deja de ser valido en cuanto no esta entre los candidatos de la
+ * fecha ACTUAL -y ahi se descarta, cae al default- igual que si nunca se
+ * hubiese elegido nada. Es la misma regla en las dos direcciones: completar
+ * cuando falta Y descartar cuando sobra, para que lo que se persiste sea
+ * siempre lo que el usuario tenia a la vista al guardar.
+ */
+export function resolverImputacion(
+  fecha: string,
+  elegido: string | null | undefined,
+  prefiereMesSiguiente: boolean | null,
+): string | null {
+  if (!fecha || !necesitaDeclararMes(fecha)) return null
+  const candidatos = mesesCandidatos(fecha).map((o) => o.valor)
+  return elegido && candidatos.includes(elegido) ? elegido : mesPorDefecto(fecha, prefiereMesSiguiente)
+}

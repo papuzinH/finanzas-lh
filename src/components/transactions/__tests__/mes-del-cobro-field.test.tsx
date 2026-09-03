@@ -29,4 +29,17 @@ describe('MesDelCobroField', () => {
     )
     expect(html).toContain('min-h-11')
   })
+
+  it('marca como activo el chip que coincide con value, y solo ese', () => {
+    const html = renderToStaticMarkup(
+      <MesDelCobroField fecha="2026-08-29" value="2026-09-01" onChange={() => {}} />,
+    )
+    const botones = [...html.matchAll(/<button[^>]*aria-pressed="(true|false)"[^>]*>([^<]*)</g)].map(
+      ([, pressed, texto]) => ({ pressed, texto }),
+    )
+    expect(botones).toEqual([
+      { pressed: 'false', texto: 'Agosto' },
+      { pressed: 'true', texto: 'Septiembre' },
+    ])
+  })
 })

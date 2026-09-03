@@ -18,7 +18,7 @@ import { Form } from '@/components/ui/form';
 import { transactionSchema, type TransactionSchema } from '@/lib/schemas/transaction';
 import { updateTransaction } from '@/app/dashboard/transactions/actions';
 import { useFinanceStore } from '@/lib/store/financeStore';
-import { mesPorDefecto, necesitaDeclararMes } from '@/lib/finance/imputacion-ingresos';
+import { resolverImputacion } from '@/lib/finance/imputacion-ingresos';
 import {
   AmountField,
   TypeToggle,
@@ -85,9 +85,13 @@ export function EditTransactionDialog({
   const watchedRatePair = form.watch('rate_pair');
   const watchedDate = form.watch('date');
   const watchedType = form.watch('type');
+  const watchedPaymentMethodId = form.watch('payment_method_id');
 
   const categoriesForType = categories.filter((c) => c.type === watchedType);
   const frequentCategories = getFrequentCategories(4, watchedType);
+  // Un reintegro en tarjeta ya tiene cycle_id, y el ciclo le gana a income_period
+  // en prepare.ts: mostrar el selector ahi es un control que no hace nada.
+  const medioEsCredito = paymentMethods.find((pm) => pm.id === watchedPaymentMethodId)?.type === 'credit';
 
   // Reset form when dialog opens with fresh transaction data
   useEffect(() => {
@@ -115,13 +119,13 @@ export function EditTransactionDialog({
     try {
       const isUsd = data.currency === 'USD';
       const ratePair = data.rate_pair || DEFAULT_RATE_PAIR;
-      // Guardar el formulario con el selector a la vista es el gesto de confirmación:
-      // si la fecha cae en el borde y el usuario no tocó el campo, se completa acá con
-      // el mismo valor que ya se le estaba mostrando (mesPorDefecto), para no persistir
-      // `income_period: null` con un mes visiblemente marcado en pantalla.
+      // Se DERIVA de la fecha final, no se retiene lo que el form traiga: si el
+      // usuario cambió la fecha después de elegir un mes, resolverImputacion
+      // descarta un `income_period` que ya no está entre los candidatos de la
+      // fecha actual y cae al default, en vez de persistir un mes huérfano.
       const incomePeriod =
         data.type === 'income'
-          ? data.income_period ?? (necesitaDeclararMes(data.date) ? mesPorDefecto(data.date, store.incomeCountsNextMonth) : null)
+          ? resolverImputacion(data.date, data.income_period, store.incomeCountsNextMonth)
           : null;
       const payload = {
         ...data,
@@ -199,19 +203,11 @@ export function EditTransactionDialog({
               {/* ── Date ── */}
               <DateField control={form.control} />
 
-              {/* ── A qué mes cuenta (sólo ingresos, sólo en el borde del mes) ── */}
-              {watchedType === 'income' && (
+              {/* ── A qué mes cuenta (sólo ingresos que no van a tarjeta, sólo en el borde del mes) ── */}
+              {watchedType === 'income' && !medioEsCredito && (
                 <MesDelCobroField
                   fecha={watchedDate}
-                  value={
-                    form.watch('income_period') ??
-                    // Guard: un <input type="date"> nativo se puede vaciar (Backspace).
-                    // mesPorDefecto('') hace format() sobre una fecha invalida y explota;
-                    // necesitaDeclararMes('') no -- y si es false el campo ni se muestra.
-                    (necesitaDeclararMes(watchedDate)
-                      ? mesPorDefecto(watchedDate, store.incomeCountsNextMonth)
-                      : null)
-                  }
+                  value={resolverImputacion(watchedDate, form.watch('income_period'), store.incomeCountsNextMonth)}
                   onChange={(v) => form.setValue('income_period', v)}
                 />
               )}
