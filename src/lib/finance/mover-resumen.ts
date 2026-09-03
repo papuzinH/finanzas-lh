@@ -60,6 +60,9 @@ export function planDeMovimiento(
     .sort((a, b) => a.date.localeCompare(b.date))
 
   const desde = delPlan.findIndex((t) => t.id === transaccion.id)
+  if (desde === -1) {
+    return { reasignaciones: [], motivoDeRechazo: 'No encontré este movimiento entre las cuotas del plan.' }
+  }
   const aMover = delPlan.slice(desde)
 
   const reasignaciones: Reasignacion[] = []

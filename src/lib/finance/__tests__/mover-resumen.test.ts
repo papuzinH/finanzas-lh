@@ -116,4 +116,13 @@ describe('planDeMovimiento — cuotas (E15)', () => {
     expect(r.reasignaciones.map((x) => x.transactionId)).toEqual(['c2'])
     expect(r.motivoDeRechazo).toBeUndefined()
   })
+
+  it('si la cuota no está en `todas`, rechaza y NO mueve la última cuota del plan', () => {
+    // c2 es del plan p1, pero no está en `todas`. Sin el guard, slice(-1) devolvería [c3].
+    const r = planDeMovimiento(c2, [c1, c3], CUATRO, 'siguiente')
+    expect(r.reasignaciones).toEqual([])
+    expect(r.motivoDeRechazo).toBeTruthy()
+    // Verificar que NO emite c3 (la última cuota)
+    expect(r.reasignaciones.map((x) => x.transactionId)).not.toContain('c3')
+  })
 })
