@@ -10,6 +10,7 @@ import { MoverAlResumenDialog } from './mover-al-resumen-dialog';
 import { cn, formatCurrency, formatUsd } from '@/lib/utils';
 import { parseLocalDate } from '@/lib/utils/dates';
 import type { FilasDeResumen, ResumenNavegable } from '@/lib/finance/detalle-resumen';
+import type { CreditCardCycle } from '@/lib/finance/cycles';
 import type { ProcessedTransaction } from '@/lib/finance/types';
 import type { RecurringPlan } from '@/types/database';
 
@@ -112,6 +113,7 @@ export function Fila({
   fechaDe = 'compra',
   anterior,
   siguiente,
+  ciclos,
   onMovido,
 }: {
   t: ProcessedTransaction;
@@ -120,6 +122,9 @@ export function Fila({
   anterior?: ResumenNavegable;
   /** Resumen siguiente. Sin él, «mover al siguiente» no se ofrece. */
   siguiente?: ResumenNavegable;
+  /** Los ciclos completos de la tarjeta -- sólo para el aviso del destino real de la
+   * última cuota en el diálogo (ver mover-al-resumen-dialog.tsx). Opcional a propósito. */
+  ciclos?: CreditCardCycle[];
   /** Se llama después de mover, para que la pantalla refresque el store. */
   onMovido?: () => void;
 }) {
@@ -193,6 +198,7 @@ export function Fila({
             anterior={anterior}
             siguiente={siguiente}
             cuotasQueMueve={t.installment_plan_id ? cuotasDeLaDescripcion(t.description) : undefined}
+            ciclos={ciclos}
             onMovido={onMovido}
           />
         </>
@@ -201,7 +207,25 @@ export function Fila({
   );
 }
 
-export function FilasDelResumen({ filas }: { filas: FilasDeResumen }) {
+/**
+ * `anterior`/`siguiente`/`ciclos`/`onMovido` viajan tal cual hasta cada `Fila`: es la
+ * misma que decide, transacción por transacción, si el menú "Mover a otro resumen" se
+ * puede montar (ver `mostrarMenu` en `Fila`). Sin `anterior` ni `siguiente` -- el caso de
+ * `DetalleDeCuenta` para débito/efectivo -- ninguna fila lo ofrece, que es lo correcto.
+ */
+export function FilasDelResumen({
+  filas,
+  anterior,
+  siguiente,
+  ciclos,
+  onMovido,
+}: {
+  filas: FilasDeResumen;
+  anterior?: ResumenNavegable;
+  siguiente?: ResumenNavegable;
+  ciclos?: CreditCardCycle[];
+  onMovido?: () => void;
+}) {
   const vacio =
     filas.conFecha.length === 0 &&
     filas.sinFecha.length === 0 &&
@@ -221,7 +245,9 @@ export function FilasDelResumen({ filas }: { filas: FilasDeResumen }) {
   return (
     <div className="grid gap-4">
       <div className="grid gap-2">
-        {filas.conFecha.map((t) => <Fila key={t.id} t={t} />)}
+        {filas.conFecha.map((t) => (
+          <Fila key={t.id} t={t} anterior={anterior} siguiente={siguiente} ciclos={ciclos} onMovido={onMovido} />
+        ))}
       </div>
 
       {filas.sinFecha.length > 0 && (
@@ -233,7 +259,9 @@ export function FilasDelResumen({ filas }: { filas: FilasDeResumen }) {
               ordenar con las demás. Cuentan igual en el total.
             </p>
           </div>
-          {filas.sinFecha.map((t) => <Fila key={t.id} t={t} />)}
+          {filas.sinFecha.map((t) => (
+            <Fila key={t.id} t={t} anterior={anterior} siguiente={siguiente} ciclos={ciclos} onMovido={onMovido} />
+          ))}
         </div>
       )}
 
@@ -246,7 +274,9 @@ export function FilasDelResumen({ filas }: { filas: FilasDeResumen }) {
               fecha de compra para un ingreso.
             </p>
           </div>
-          {filas.reintegros.map((t) => <Fila key={t.id} t={t} fechaDe="ninguna" />)}
+          {filas.reintegros.map((t) => (
+            <Fila key={t.id} t={t} fechaDe="ninguna" anterior={anterior} siguiente={siguiente} ciclos={ciclos} onMovido={onMovido} />
+          ))}
         </div>
       )}
 

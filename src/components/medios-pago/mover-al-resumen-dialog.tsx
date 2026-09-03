@@ -8,39 +8,42 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { parseLocalDate } from '@/lib/utils/dates';
 import { moverTransaccionAlResumenVecino } from '@/app/medios-pago/actions';
+import { cicloNEsimo, type CreditCardCycle } from '@/lib/finance/cycles';
 import type { DireccionDeMovimiento } from '@/lib/finance/mover-resumen';
 import type { ResumenNavegable } from '@/lib/finance/detalle-resumen';
 import type { ProcessedTransaction } from '@/lib/finance/types';
 
 const corto = (d: string) => format(parseLocalDate(d), 'd MMM', { locale: es });
+const mes = (d: string) => format(parseLocalDate(d), 'MMMM', { locale: es });
 
 /**
  * Cuotas que arrastra el movimiento, sacadas de la descripción ("(3/6)") por el llamador.
- *
- * Fix round 1 (Minor, dejado abierto a propósito): el spec pide nombrar el destino real
- * de la última cuota ("la última pasa de marzo a abril"), no sólo el conteo. No lo pude
- * calcular con los datos que este componente recibe, y prefiero decirlo en vez de
- * inventarlo:
- *
- * - La fecha ORIGINAL de la última cuota no es la de la transacción tocada -- es la del
- *   ciclo N pasos adelante (`cicloNEsimo`, `lib/finance/cycles.ts`), donde N = hasta -
- *   desde. `Fila` sólo tiene la fila tocada (`t: ProcessedTransaction`), no sus hermanas
- *   de plan ni la lista completa de `credit_card_cycles` de la tarjeta.
- * - La fecha NUEVA depende de la dirección elegida (`anterior` vs `siguiente`), así que
- *   ni siquiera es un dato único: son dos, uno por botón. Este aviso se muestra una sola
- *   vez arriba de los dos botones (por diseño del brief), así que mostrar la fecha exacta
- *   exigiría además moverlo adentro de cada botón.
- *
- * Cerrar esto bien pide que `Fila` (o quien la llame) reciba también el `ciclos:
- * CreditCardCycle[]` completo de la tarjeta -- lo mismo que ya usa
- * `moverTransaccionAlResumenVecino` en el server para correr `planDeMovimiento` -- y
- * pase el resultado ya resuelto (por dirección) hasta acá. Es más que un tweak de texto:
- * cambia la firma de `Fila` otra vez. Quedó fuera de esta task; el texto de abajo se
- * queda honesto ("se corren un resumen") en vez de fabricar un mes.
+ * `desde`/`hasta` son el NUMERO de cuota (no un índice): "(3/6)" -- vas a mover la cuota 3
+ * de 6, y todas las siguientes hasta la 6 (que es, por diseño, también la ÚLTIMA del plan).
  */
 export type CuotasQueMueve = { desde: number; hasta: number };
 
 type Vecino = { direccion: DireccionDeMovimiento; resumen: ResumenNavegable };
+
+/**
+ * A qué resumen cae la ÚLTIMA cuota que arrastra el plan si se mueve hacia `destino`.
+ *
+ * `cicloActual` es el ciclo de la transacción TOCADA (no el de la última cuota): la
+ * distancia hasta la última es siempre `hasta - desde` resúmenes más allá, tanto en el
+ * origen como en cualquier destino candidato -- es el mismo invariante que usa
+ * `planDeMovimiento` en el server (cada cuota vive en el resumen N-ésimo desde la
+ * tocada). `ciclos` tiene que ser la lista COMPLETA de la tarjeta, en el shape crudo de
+ * `credit_card_cycles` (no `ResumenNavegable`): es lo único con lo que `cicloNEsimo` sabe
+ * trabajar.
+ */
+function ultimaCuotaCaeEn(
+  ciclos: CreditCardCycle[],
+  cicloDesde: CreditCardCycle | undefined,
+  cuotasQueMueve: CuotasQueMueve | undefined,
+): CreditCardCycle | undefined {
+  if (!cicloDesde || !cuotasQueMueve) return undefined;
+  return cicloNEsimo(ciclos, cicloDesde, cuotasQueMueve.hasta - cuotasQueMueve.desde);
+}
 
 /**
  * El contenido del diálogo, SIN el Dialog que lo envuelve.
@@ -60,12 +63,19 @@ export function ContenidoMoverAlResumen({
   anterior,
   siguiente,
   cuotasQueMueve,
+  ciclos = [],
+  cicloActualId,
   onElegir,
   moviendo = null,
 }: {
   anterior?: ResumenNavegable;
   siguiente?: ResumenNavegable;
   cuotasQueMueve?: CuotasQueMueve;
+  /** Los ciclos COMPLETOS de la tarjeta (shape crudo, no `ResumenNavegable`): sólo hacen
+   * falta para calcular, por dirección, a qué resumen cae la última cuota del plan. */
+  ciclos?: CreditCardCycle[];
+  /** `cycle_id` de la transacción tocada: de ahí sale la distancia a la última cuota. */
+  cicloActualId?: string | null;
   onElegir: (direccion: DireccionDeMovimiento) => void;
   moviendo?: DireccionDeMovimiento | null;
 }) {
@@ -76,13 +86,19 @@ export function ContenidoMoverAlResumen({
 
   const algunoPagado = vecinos.some((v) => v.resumen.estado === 'pagado');
 
+  // De dónde sale la última cuota HOY, para poder decir "de marzo a abril" y no sólo
+  // "a abril". undefined si no hay `ciclos`/`cicloActualId` (compra suelta, o un
+  // llamador -- como los tests de este archivo -- que no los pasa): en ese caso el
+  // aviso por opción no se muestra, y el texto de arriba se queda con el conteo solo.
+  const cicloActual = cicloActualId ? ciclos.find((c) => c.id === cicloActualId) : undefined;
+  const cicloOrigenUltima = ultimaCuotaCaeEn(ciclos, cicloActual, cuotasQueMueve);
+
   return (
     <div className="grid gap-3">
       {cuotasQueMueve && (
         <p className="text-xs text-muted">
           Esta cuota arrastra el plan: vas a mover las cuotas {cuotasQueMueve.desde} a{' '}
-          {cuotasQueMueve.hasta}. Todas se corren un resumen completo, en la dirección que
-          elijas abajo.
+          {cuotasQueMueve.hasta}.
         </p>
       )}
 
@@ -96,18 +112,28 @@ export function ContenidoMoverAlResumen({
         {vecinos.length === 0 && (
           <p className="text-xs text-muted">No hay otro resumen disponible para mover este movimiento.</p>
         )}
-        {vecinos.map(({ direccion, resumen }) => (
-          <Button
-            key={direccion}
-            type="button"
-            variant="soft"
-            disabled={moviendo !== null}
-            onClick={() => onElegir(direccion)}
-            className="min-h-[44px] w-full justify-start border-[1.5px] border-border bg-surface text-left font-normal"
-          >
-            Vence {corto(resumen.dueDate)}
-          </Button>
-        ))}
+        {vecinos.map(({ direccion, resumen }) => {
+          const cicloDestino = ciclos.find((c) => c.id === resumen.id);
+          const cicloDestinoUltima = ultimaCuotaCaeEn(ciclos, cicloDestino, cuotasQueMueve);
+          return (
+            <div key={direccion} className="grid gap-1">
+              <Button
+                type="button"
+                variant="soft"
+                disabled={moviendo !== null}
+                onClick={() => onElegir(direccion)}
+                className="min-h-[44px] w-full justify-start border-[1.5px] border-border bg-surface text-left font-normal"
+              >
+                Vence {corto(resumen.dueDate)}
+              </Button>
+              {cicloOrigenUltima && cicloDestinoUltima && (
+                <p className="px-1 text-[11px] text-muted">
+                  La última pasa de {mes(cicloOrigenUltima.due_date)} a {mes(cicloDestinoUltima.due_date)}.
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -126,6 +152,7 @@ export function MoverAlResumenDialog({
   anterior,
   siguiente,
   cuotasQueMueve,
+  ciclos,
   onMovido,
 }: {
   open: boolean;
@@ -136,6 +163,9 @@ export function MoverAlResumenDialog({
   /** Resumen siguiente. Sin él, esa opción no se ofrece. */
   siguiente?: ResumenNavegable;
   cuotasQueMueve?: CuotasQueMueve;
+  /** Los ciclos completos de la tarjeta, para el aviso del destino real de la última
+   * cuota (ver `ultimaCuotaCaeEn`). Sin ellos, ese aviso simplemente no se muestra. */
+  ciclos?: CreditCardCycle[];
   /** Se llama después de mover, para que la pantalla refresque el store. */
   onMovido?: () => void;
 }) {
@@ -163,6 +193,8 @@ export function MoverAlResumenDialog({
           anterior={anterior}
           siguiente={siguiente}
           cuotasQueMueve={cuotasQueMueve}
+          ciclos={ciclos}
+          cicloActualId={transaccion.cycle_id}
           onElegir={elegir}
           moviendo={moviendo}
         />
