@@ -419,14 +419,30 @@ export async function moverTransaccionAlResumenVecino(
       return { error: 'No pude mover todas las cuotas del plan, así que no moví ninguna.' }
     }
 
-    // Cada reasignación, un update. SOLO cycle_id y date: purchase_date no se toca.
-    for (const r of plan.reasignaciones) {
-      const { error } = await supabase
-        .from('transactions')
-        .update({ cycle_id: r.cycleId, date: r.date })
-        .eq('id', r.transactionId)
-        .eq('user_id', user.id)
-      if (error) return { error: 'No se pudo mover el movimiento de resumen.' }
+    // Una sola escritura para TODAS las reasignaciones: un `upsert` multi-fila corre
+    // como una unica transaccion en PostgREST, asi que la atomicidad sale gratis. Un
+    // loop de N updates independientes podia mover c2 y fallar en c3 -- exactamente el
+    // estado de "dos cuotas en el mismo resumen" que esta task existe para prevenir, y
+    // encima en silencio (fix round 1, Critical).
+    //
+    // Se mandan las filas COMPLETAS (no solo {id, cycle_id, date}): upsert reemplaza la
+    // fila entera, y una parcial violaria los NOT NULL de columnas como amount/
+    // description/category_id. `purchase_date` viaja en el payload, pero con el mismo
+    // valor que ya tenia -- el invariante sigue siendo que mover no lo TOCA, no que la
+    // clave este ausente del payload. Todas las filas salen de `txs`, que ya esta
+    // filtrado por `user_id` (Guard 1 + la lectura de arriba), asi que no hace falta un
+    // `.eq('user_id', ...)` -- el upsert no acepta filtro WHERE de todos modos.
+    const filas = plan.reasignaciones.map((r) => {
+      const original = txs.find((x) => x.id === r.transactionId)
+      if (!original) {
+        throw new Error(`No encontré la transacción ${r.transactionId} entre las cargadas`)
+      }
+      return { ...original, cycle_id: r.cycleId, date: r.date }
+    })
+    const { error } = await supabase.from('transactions').upsert(filas)
+    if (error) {
+      console.error('Error moviendo transacciones de resumen:', error)
+      return { error: 'No se pudo mover el movimiento de resumen.' }
     }
 
     revalidatePath('/ajustes/medios')
