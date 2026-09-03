@@ -5,8 +5,9 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Loader2, CalendarClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Chip } from '@/components/ui/chip'
 import { RhythmPicker } from '@/components/pocket/rhythm-picker'
-import { saveIncomeRhythm } from '@/app/bolsillo/actions'
+import { saveIncomeRhythm, saveIncomePeriodPreference } from '@/app/bolsillo/actions'
 import type { IncomeRhythm } from '@/lib/finance/pocket'
 
 interface RhythmSlideProps {
@@ -15,6 +16,7 @@ interface RhythmSlideProps {
 
 export function RhythmSlide({ onComplete }: RhythmSlideProps) {
   const [rhythm, setRhythm] = useState<IncomeRhythm>('monthly')
+  const [cuentaAlSiguiente, setCuentaAlSiguiente] = useState<boolean | null>(null)
   const [isPending, setIsPending] = useState(false)
 
   const handleSave = async () => {
@@ -24,6 +26,9 @@ export function RhythmSlide({ onComplete }: RhythmSlideProps) {
       if (res.error) {
         toast.error(res.error)
         return
+      }
+      if (rhythm === 'monthly' && cuentaAlSiguiente !== null) {
+        await saveIncomePeriodPreference(cuentaAlSiguiente)
       }
       onComplete(rhythm)
     } finally {
@@ -49,6 +54,26 @@ export function RhythmSlide({ onComplete }: RhythmSlideProps) {
       </div>
 
       <RhythmPicker value={rhythm} onChange={setRhythm} />
+
+      {rhythm === 'monthly' && (
+        <div className="space-y-2">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted">
+            Cobros de fin de mes
+          </span>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="A que mes cuenta un cobro de fin de mes">
+            <Chip active={cuentaAlSiguiente === false} onClick={() => setCuentaAlSiguiente(false)}>
+              Al mes en que cobro
+            </Chip>
+            <Chip active={cuentaAlSiguiente === true} onClick={() => setCuentaAlSiguiente(true)}>
+              Al mes que arranca
+            </Chip>
+          </div>
+          <p className="font-sans text-xs text-muted">
+            Si cobrás los últimos días del mes, esto decide qué opción viene marcada cuando cargás
+            el sueldo. Siempre podés cambiarla en cada cobro.
+          </p>
+        </div>
+      )}
 
       <Button
         type="button"
