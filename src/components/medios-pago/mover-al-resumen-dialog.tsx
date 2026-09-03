@@ -17,11 +17,28 @@ const corto = (d: string) => format(parseLocalDate(d), 'd MMM', { locale: es });
 const mes = (d: string) => format(parseLocalDate(d), 'MMMM', { locale: es });
 
 /**
- * Cuotas que arrastra el movimiento, sacadas de la descripción ("(3/6)") por el llamador.
- * `desde`/`hasta` son el NUMERO de cuota (no un índice): "(3/6)" -- vas a mover la cuota 3
- * de 6, y todas las siguientes hasta la 6 (que es, por diseño, también la ÚLTIMA del plan).
+ * Cuotas que arrastra el movimiento. `desde`/`hasta` son el NUMERO de cuota (no un índice):
+ * "(3/6)" -- vas a mover la cuota 3 de 6, y todas las siguientes hasta la 6 (que es, por
+ * diseño, también la ÚLTIMA del plan).
+ *
+ * Los dos son opcionales porque el "(n/m)" de la descripción es TEXTO y el usuario lo puede
+ * editar desde /movimientos: ahí `desde` no tiene de dónde salir. `hasta` sí tiene una
+ * segunda fuente, `installment_plans.installments_count`. Con cualquiera de los dos ausente
+ * el aviso baja de precisión pero NUNCA desaparece: sin aviso, mover una fila mueve cuatro
+ * en silencio, que es justo lo que el spec dice que no puede pasar.
  */
-export type CuotasQueMueve = { desde: number; hasta: number };
+export type CuotasQueMueve = { desde?: number; hasta?: number };
+
+/** El aviso de arrastre, tan preciso como permitan los datos que llegaron. */
+function textoDeCuotas({ desde, hasta }: CuotasQueMueve): string {
+  if (desde !== undefined && hasta !== undefined) {
+    return `Esta cuota arrastra el plan: vas a mover las cuotas ${desde} a ${hasta}.`;
+  }
+  if (hasta !== undefined) {
+    return `Esta cuota arrastra el plan: se mueven ésta y todas las cuotas posteriores, de las ${hasta} que tiene.`;
+  }
+  return 'Esta cuota arrastra el plan: se mueven ésta y todas las cuotas posteriores.';
+}
 
 type Vecino = { direccion: DireccionDeMovimiento; resumen: ResumenNavegable };
 
@@ -70,8 +87,11 @@ function ultimaCuotaCaeEn(
   cicloDesde: CreditCardCycle | undefined,
   cuotasQueMueve: CuotasQueMueve | undefined,
 ): CreditCardCycle | undefined {
-  if (!cicloDesde || !cuotasQueMueve) return undefined;
-  return cicloNEsimo(ciclos, cicloDesde, cuotasQueMueve.hasta - cuotasQueMueve.desde);
+  const { desde, hasta } = cuotasQueMueve ?? {};
+  // Sin los DOS números no se sabe cuántos resúmenes hay hasta la última cuota: el aviso
+  // del mes real simplemente no se muestra (el de arrastre, arriba, sí).
+  if (!cicloDesde || desde === undefined || hasta === undefined) return undefined;
+  return cicloNEsimo(ciclos, cicloDesde, hasta - desde);
 }
 
 /**
@@ -122,12 +142,7 @@ export function ContenidoMoverAlResumen({
 
   return (
     <div className="grid gap-3">
-      {cuotasQueMueve && (
-        <p className="text-xs text-muted">
-          Esta cuota arrastra el plan: vas a mover las cuotas {cuotasQueMueve.desde} a{' '}
-          {cuotasQueMueve.hasta}.
-        </p>
-      )}
+      {cuotasQueMueve && <p className="text-xs text-muted">{textoDeCuotas(cuotasQueMueve)}</p>}
 
       <div className="grid gap-2">
         {vecinos.length === 0 && (

@@ -93,6 +93,40 @@ describe('ContenidoMoverAlResumen', () => {
     expect(htmlOtro).not.toContain('3 a 6');
   });
 
+  // m3: con la descripción editada desde /movimientos no hay "(n/m)" del que sacar el
+  // número de ESTA cuota. El aviso baja de precisión, pero NUNCA desaparece: sin él, mover
+  // una fila mueve cuatro en silencio.
+  it('sin el número de cuota, avisa igual que arrastra el plan, y usa el total si lo tiene', () => {
+    const soloTotal = renderToStaticMarkup(
+      <ContenidoMoverAlResumen siguiente={resumen()} cuotasQueMueve={{ hasta: 6 }} onElegir={() => {}} />,
+    );
+    expect(soloTotal).toContain('arrastra el plan');
+    expect(soloTotal).toContain('de las 6 que tiene');
+
+    const sinNada = renderToStaticMarkup(
+      <ContenidoMoverAlResumen siguiente={resumen()} cuotasQueMueve={{}} onElegir={() => {}} />,
+    );
+    expect(sinNada).toContain('todas las cuotas posteriores');
+    expect(sinNada).not.toContain('undefined');
+  });
+
+  it('sin el número de cuota tampoco inventa el mes de la última', () => {
+    const ciclos: CreditCardCycle[] = [
+      ciclo({ id: 'ago', closing_date: '2026-08-20', due_date: '2026-08-28' }),
+      ciclo({ id: 'sep', closing_date: '2026-09-20', due_date: '2026-09-28' }),
+    ];
+    const html = renderToStaticMarkup(
+      <ContenidoMoverAlResumen
+        siguiente={resumen({ id: 'sep', dueDate: '2026-09-28' })}
+        cuotasQueMueve={{ hasta: 3 }}
+        ciclos={ciclos}
+        cicloActualId="ago"
+        onElegir={() => {}}
+      />,
+    );
+    expect(html).not.toContain('La última pasa');
+  });
+
   it('para una compra suelta no habla de cuotas', () => {
     const html = renderToStaticMarkup(
       <ContenidoMoverAlResumen siguiente={resumen()} onElegir={() => {}} />,

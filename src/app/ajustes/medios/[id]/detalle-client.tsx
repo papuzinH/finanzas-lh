@@ -138,6 +138,7 @@ export function DetalleClient({ methodId }: { methodId: string }) {
             anterior={resumenAnterior}
             siguiente={resumenSiguiente}
             ciclos={ciclosDeLaTarjeta}
+            installmentPlans={store.installmentPlans}
             onMovido={fetchAllData}
           />
           {cicloActual && (

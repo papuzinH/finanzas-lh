@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Fila, FilasDelResumen, accionesDeFila } from '../filas-del-resumen';
+import { Fila, FilasDelResumen, accionesDeFila, cuotasQueMueveLaFila } from '../filas-del-resumen';
 import type { ProcessedTransaction } from '@/lib/finance/types';
-import type { RecurringPlan } from '@/types/database';
+import type { InstallmentPlan, RecurringPlan } from '@/types/database';
 import type { ResumenNavegable } from '@/lib/finance/detalle-resumen';
 
 const tx = (over: Partial<ProcessedTransaction>): ProcessedTransaction => ({
@@ -257,5 +257,41 @@ describe('el menú de la fila', () => {
     const acciones = accionesDeFila(() => {});
     const mover = acciones.find((a) => a.label === 'Mover a otro resumen')!;
     expect(mover.disabled).toBeFalsy();
+  });
+});
+
+// m3: `cuotasDeLaDescripcion` devolvía `undefined` si la descripción no terminaba en
+// "(n/m)" -- por ejemplo si el usuario la editó desde /movimientos --, y ahí el diálogo se
+// quedaba SIN ningún aviso: mover una fila movía cuatro, en silencio.
+describe('cuotasQueMueveLaFila', () => {
+  const planCuotas = (over: Partial<InstallmentPlan> = {}): InstallmentPlan => ({
+    id: 'ip1', user_id: 'u1', payment_method_id: 'visa', description: 'Notebook',
+    installments_count: 6, total_amount: 600000, category_id: 'cat1',
+    purchase_date: '2026-07-10', created_at: '2026-07-10T00:00:00Z',
+    ...over,
+  } as InstallmentPlan);
+
+  it('una fila que no es cuota no arrastra nada', () => {
+    expect(cuotasQueMueveLaFila(tx({}), [planCuotas()])).toBeUndefined();
+  });
+
+  it('con "(3/6)" en la descripción saca los dos números', () => {
+    const t = tx({ installment_plan_id: 'ip1', description: 'Notebook (3/6)' });
+    expect(cuotasQueMueveLaFila(t, [])).toEqual({ desde: 3, hasta: 6 });
+  });
+
+  it('con la descripción editada, el total sale del plan y el aviso no desaparece', () => {
+    const t = tx({ installment_plan_id: 'ip1', description: 'Notebook nueva' });
+    expect(cuotasQueMueveLaFila(t, [planCuotas()])).toEqual({ desde: undefined, hasta: 6 });
+  });
+
+  it('con la descripción editada y sin el plan cargado, igual devuelve algo (aviso genérico)', () => {
+    const t = tx({ installment_plan_id: 'ip1', description: 'Notebook nueva' });
+    expect(cuotasQueMueveLaFila(t, [])).toEqual({ desde: undefined, hasta: undefined });
+  });
+
+  it('installments_count le gana al texto: el plan es dato, la descripción es texto editable', () => {
+    const t = tx({ installment_plan_id: 'ip1', description: 'Notebook (3/3)' });
+    expect(cuotasQueMueveLaFila(t, [planCuotas({ installments_count: 6 })])).toEqual({ desde: 3, hasta: 6 });
   });
 });

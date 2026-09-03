@@ -6,13 +6,13 @@ import { es } from 'date-fns/locale';
 import { MoreVertical, ArrowLeftRight, Receipt } from 'lucide-react';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ActionSheet, type ActionSheetAction } from '@/components/ui/action-sheet';
-import { MoverAlResumenDialog } from './mover-al-resumen-dialog';
+import { MoverAlResumenDialog, type CuotasQueMueve } from './mover-al-resumen-dialog';
 import { cn, formatCurrency, formatUsd } from '@/lib/utils';
 import { parseLocalDate } from '@/lib/utils/dates';
 import type { FilasDeResumen, ResumenNavegable } from '@/lib/finance/detalle-resumen';
 import type { CreditCardCycle } from '@/lib/finance/cycles';
 import type { ProcessedTransaction } from '@/lib/finance/types';
-import type { RecurringPlan } from '@/types/database';
+import type { InstallmentPlan, RecurringPlan } from '@/types/database';
 
 const monto = (t: ProcessedTransaction) =>
   t.original_currency === 'USD' && t.original_amount
@@ -46,10 +46,30 @@ export function FilaPorDebitar({ plan }: { plan: RecurringPlan }) {
   );
 }
 
-/** "Notebook (3/6)" -> { desde: 3, hasta: 6 }. Mismo regex que usa TransactionItem. */
-function cuotasDeLaDescripcion(descripcion: string): { desde: number; hasta: number } | undefined {
-  const m = descripcion.match(/\((\d+)\/(\d+)\)$/);
-  return m ? { desde: parseInt(m[1], 10), hasta: parseInt(m[2], 10) } : undefined;
+/**
+ * Qué cuotas arrastra esta fila. `desde` (el número de ESTA cuota) sólo puede salir del
+ * "(n/m)" de la descripción -- mismo regex que usa TransactionItem --, y esa descripción es
+ * texto que el usuario puede editar desde /movimientos. `hasta` tiene una segunda fuente que
+ * no depende del texto: `installment_plans.installments_count`, que se prefiere siempre.
+ *
+ * Antes esto devolvía `undefined` entero cuando el regex no matcheaba, y el diálogo se
+ * quedaba SIN ningún aviso: mover una fila movía cuatro, en silencio, que es literalmente lo
+ * que el spec dice que no puede pasar. Ahora el aviso baja de precisión, nunca desaparece.
+ *
+ * Exportada por el mismo motivo que `accionesDeFila`: el diálogo que la consume vive detrás
+ * de un Portal cerrado, invisible en `renderToStaticMarkup`.
+ */
+export function cuotasQueMueveLaFila(
+  t: ProcessedTransaction,
+  planes: InstallmentPlan[],
+): CuotasQueMueve | undefined {
+  if (!t.installment_plan_id) return undefined;
+  const m = t.description.match(/\((\d+)\/(\d+)\)$/);
+  const delPlan = planes.find((p) => p.id === t.installment_plan_id)?.installments_count;
+  return {
+    desde: m ? parseInt(m[1], 10) : undefined,
+    hasta: delPlan ?? (m ? parseInt(m[2], 10) : undefined),
+  };
 }
 
 /**
@@ -114,6 +134,7 @@ export function Fila({
   anterior,
   siguiente,
   ciclos,
+  installmentPlans = [],
   onMovido,
 }: {
   t: ProcessedTransaction;
@@ -125,6 +146,9 @@ export function Fila({
   /** Los ciclos completos de la tarjeta -- sólo para el aviso del destino real de la
    * última cuota en el diálogo (ver mover-al-resumen-dialog.tsx). Opcional a propósito. */
   ciclos?: CreditCardCycle[];
+  /** Los planes de cuotas del usuario: `installments_count` es la fuente del total de
+   * cuotas que no depende de la descripción (ver `cuotasQueMueveLaFila`). */
+  installmentPlans?: InstallmentPlan[];
   /** Se llama después de mover, para que la pantalla refresque el store. */
   onMovido?: () => void;
 }) {
@@ -197,7 +221,7 @@ export function Fila({
             transaccion={t}
             anterior={anterior}
             siguiente={siguiente}
-            cuotasQueMueve={t.installment_plan_id ? cuotasDeLaDescripcion(t.description) : undefined}
+            cuotasQueMueve={cuotasQueMueveLaFila(t, installmentPlans)}
             ciclos={ciclos}
             onMovido={onMovido}
           />
@@ -208,7 +232,7 @@ export function Fila({
 }
 
 /**
- * `anterior`/`siguiente`/`ciclos`/`onMovido` viajan tal cual hasta cada `Fila`: es la
+ * `anterior`/`siguiente`/`ciclos`/`installmentPlans`/`onMovido` viajan tal cual hasta cada `Fila`: es la
  * misma que decide, transacción por transacción, si el menú "Mover a otro resumen" se
  * puede montar (ver `mostrarMenu` en `Fila`). Sin `anterior` ni `siguiente` -- el caso de
  * `DetalleDeCuenta` para débito/efectivo -- ninguna fila lo ofrece, que es lo correcto.
@@ -218,12 +242,14 @@ export function FilasDelResumen({
   anterior,
   siguiente,
   ciclos,
+  installmentPlans,
   onMovido,
 }: {
   filas: FilasDeResumen;
   anterior?: ResumenNavegable;
   siguiente?: ResumenNavegable;
   ciclos?: CreditCardCycle[];
+  installmentPlans?: InstallmentPlan[];
   onMovido?: () => void;
 }) {
   const vacio =
@@ -246,7 +272,7 @@ export function FilasDelResumen({
     <div className="grid gap-4">
       <div className="grid gap-2">
         {filas.conFecha.map((t) => (
-          <Fila key={t.id} t={t} anterior={anterior} siguiente={siguiente} ciclos={ciclos} onMovido={onMovido} />
+          <Fila key={t.id} t={t} anterior={anterior} siguiente={siguiente} ciclos={ciclos} installmentPlans={installmentPlans} onMovido={onMovido} />
         ))}
       </div>
 
@@ -260,7 +286,7 @@ export function FilasDelResumen({
             </p>
           </div>
           {filas.sinFecha.map((t) => (
-            <Fila key={t.id} t={t} anterior={anterior} siguiente={siguiente} ciclos={ciclos} onMovido={onMovido} />
+            <Fila key={t.id} t={t} anterior={anterior} siguiente={siguiente} ciclos={ciclos} installmentPlans={installmentPlans} onMovido={onMovido} />
           ))}
         </div>
       )}
@@ -275,7 +301,7 @@ export function FilasDelResumen({
             </p>
           </div>
           {filas.reintegros.map((t) => (
-            <Fila key={t.id} t={t} fechaDe="ninguna" anterior={anterior} siguiente={siguiente} ciclos={ciclos} onMovido={onMovido} />
+            <Fila key={t.id} t={t} fechaDe="ninguna" anterior={anterior} siguiente={siguiente} ciclos={ciclos} installmentPlans={installmentPlans} onMovido={onMovido} />
           ))}
         </div>
       )}
