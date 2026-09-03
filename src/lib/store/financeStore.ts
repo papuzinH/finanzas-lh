@@ -983,12 +983,22 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getCobrosSinImputar: () => {
-    const { transactions } = get();
+    const { transactions, paymentMethods } = get();
+    const tarjetas = new Set(paymentMethods.filter((m) => m.type === 'credit').map((m) => m.id));
     return transactions.filter(
       (t) =>
         t.type === 'income' &&
         !t.is_balance_adjustment &&
         !t.income_period &&
+        // Un reintegro de tarjeta NO entra al repaso. Dos razones, cada una alcanza:
+        // no se pregunta por ellos (el ciclo le gana a income_period en prepare.ts),
+        // y para un movimiento de crédito `t.date` es el VENCIMIENTO que escribió el
+        // server, no el día en que entró la plata -- el test del borde y los meses
+        // candidatos saldrían de la fecha equivocada, así que cualquier tarjeta que
+        // venza a fin de mes metía TODOS sus reintegros en el banner, con los meses
+        // del vencimiento como opciones.
+        !t.cycle_id &&
+        !(t.payment_method_id && tarjetas.has(t.payment_method_id)) &&
         necesitaDeclararMes(t.date),
     );
   },

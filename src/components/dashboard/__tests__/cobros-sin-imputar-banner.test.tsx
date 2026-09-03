@@ -34,6 +34,39 @@ describe('getCobrosSinImputar', () => {
     })
     expect(useFinanceStore.getState().getCobrosSinImputar().map((t) => t.id)).toEqual(['a'])
   })
+
+  /**
+   * Un reintegro de tarjeta no se pregunta (el ciclo le gana a income_period), y
+   * ademas su `t.date` es el VENCIMIENTO que escribio el server, no el dia en que
+   * entro la plata: el test del borde y `mesesCandidatos` saldrian de la fecha
+   * equivocada. Sin este filtro, cualquier tarjeta que venza a fin de mes metia
+   * TODOS sus reintegros en el banner ofreciendo los meses del vencimiento.
+   */
+  it('deja afuera los reintegros de tarjeta, por cycle_id y por tipo de medio', () => {
+    useFinanceStore.setState({
+      paymentMethods: [
+        { id: 'visa', name: 'Visa', type: 'credit' },
+        { id: 'mp', name: 'Mercado Pago', type: 'debit' },
+      ] as never,
+      transactions: [
+        // Imputado a un resumen: la pertenencia ya la decide el ciclo.
+        { id: 'ciclo', type: 'income', date: '2026-08-29', income_period: null, amount: 100,
+          is_balance_adjustment: false, cycle_id: 'cy1', payment_method_id: 'visa' },
+        // Sin ciclo materializado, pero el medio ES una tarjeta: t.date sigue siendo
+        // el vencimiento, asi que tampoco se pregunta por el.
+        { id: 'sinCiclo', type: 'income', date: '2026-08-29', income_period: null, amount: 100,
+          is_balance_adjustment: false, cycle_id: null, payment_method_id: 'visa' },
+        // Este si: plata que entro a una cuenta, en el borde del mes.
+        { id: 'debito', type: 'income', date: '2026-08-29', income_period: null, amount: 100,
+          is_balance_adjustment: false, cycle_id: null, payment_method_id: 'mp' },
+        // Sin medio asignado tampoco se pierde: no hay nada que lo haga de credito.
+        { id: 'sinMedio', type: 'income', date: '2026-08-29', income_period: null, amount: 100,
+          is_balance_adjustment: false, cycle_id: null, payment_method_id: null },
+      ] as never,
+    })
+    expect(useFinanceStore.getState().getCobrosSinImputar().map((t) => t.id))
+      .toEqual(['debito', 'sinMedio'])
+  })
 })
 
 describe('CobrosSinImputarBanner', () => {

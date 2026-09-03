@@ -199,6 +199,15 @@ export const writeTools: ToolDef[] = [
       // adelantado, y no hay forma de saberlo sin preguntar. Se devuelve el pedido al
       // MODELO -- el mismo patron de dos pasos sin estado que usa delete_entity -- en
       // vez de imputarlo por una regla que va a acertar la mitad de las veces.
+      //
+      // A DIFERENCIA de los dialogos y del banner del home, aca la pregunta se hace
+      // TAMBIEN si el medio es una tarjeta: `args.medio_pago` es un nombre suelto y
+      // saber su `type` exige un lookup extra que esta tool no hace hoy. Queda dicho
+      // en vez de por omision: si alguna vez se resuelve el medio antes de este punto,
+      // la condicion tiene que sumar `!medioEsCredito`, igual que imputacionAlGuardar.
+      // El costo de no hacerlo es una pregunta de mas por chat, no un numero movido:
+      // el ciclo le gana a income_period en prepare.ts, salvo tarjeta sin dias por
+      // defecto.
       if (args.tipo === 'income' && necesitaDeclararMes(args.fecha) && !args.mes_del_cobro) {
         const [esteMes, mesSiguiente] = mesesCandidatos(args.fecha)
         return {
