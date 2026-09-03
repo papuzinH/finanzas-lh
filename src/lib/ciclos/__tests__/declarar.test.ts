@@ -126,4 +126,20 @@ describe('guardarDeclaracion', () => {
     const futuro = updates.find((u) => u.id === 'oct');
     expect(futuro?.patch).toEqual({ closing_date: '2026-10-24', due_date: '2026-11-02' });
   });
+
+  it('avisa cual es el resumen que ya tiene esas fechas, en vez de dejar reventar la unique', async () => {
+    // El caso real (Lauti, 2026-09-03): la card de Compromisos pide las fechas del resumen que
+    // YA CERRO, el usuario entiende que le pide las del vigente y escribe las del siguiente --
+    // que ya existe. El update violaba la unique (payment_method_id, closing_date) y el error
+    // crudo de Postgres terminaba en pantalla: "duplicate key value violates unique constraint
+    // credit_card_cycles_payment_method_id_closing_date_key".
+    const { supabase, updates } = dobleSupabase();
+
+    await expect(
+      guardarDeclaracion(supabase, TARJETA, '2026-10-20', '2026-10-28', '2026-09-02', 'sep'),
+    ).rejects.toThrow(/ya son las del resumen que cierra el 20 oct/);
+
+    // Y no escribe nada: corta antes del update, no despues de que falle.
+    expect(updates).toHaveLength(0);
+  });
 });

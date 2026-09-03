@@ -3,13 +3,19 @@
 // corrige, cuales futuros hay que re-fechar) es pura y vive en lib/finance/cycles.ts;
 // aca solo esta la escritura. Mismo reparto que lib/ciclos/asegurar.ts.
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import type { Database, PaymentMethod } from '@/types/database';
+import { parseLocalDate } from '@/lib/utils/dates';
 import {
   ciclosDeMetodo,
   cicloDelMesDe,
   recalcularFuturosGenerated,
   type CreditCardCycle,
 } from '@/lib/finance/cycles';
+
+/** Mismo formato con el que la app nombra un resumen ("cerró el 23 jul · vence 3 ago"). */
+const corto = (d: string) => format(parseLocalDate(d), 'd MMM', { locale: es });
 
 async function leerCiclos(
   supabase: SupabaseClient<Database>,
@@ -74,6 +80,19 @@ export async function guardarDeclaracion(
   const ciclos = await leerCiclos(supabase, method.id);
   const objetivo =
     (cycleId ? ciclos.find((c) => c.id === cycleId) : undefined) ?? cicloDelMesDe(ciclos, closingDate);
+
+  // La tabla tiene una unique (payment_method_id, closing_date): dos resumenes de la misma
+  // tarjeta no pueden cerrar el mismo dia. Si la fecha nueva ya es de OTRO resumen, lo mas
+  // probable es que el usuario este declarando el resumen equivocado -- el caso medido es la
+  // card de Compromisos, que pide las fechas del resumen que ya cerro y se lee como si pidiera
+  // las del vigente. Se corta ANTES de escribir: dejarlo llegar a Postgres le pone en pantalla
+  // el nombre de una constraint, que no le dice nada a nadie.
+  const chocaCon = ciclos.find((c) => c.closing_date === closingDate && c.id !== objetivo?.id);
+  if (chocaCon) {
+    throw new Error(
+      `Esas fechas ya son las del resumen que cierra el ${corto(chocaCon.closing_date)} y vence el ${corto(chocaCon.due_date)}. Si es ese el que querés corregir, abrilo desde el detalle de la tarjeta.`,
+    );
+  }
 
   let guardado: CreditCardCycle;
   if (objetivo) {
