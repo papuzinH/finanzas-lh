@@ -73,6 +73,12 @@ export interface TransactionData {
   paymentMethodName: string | null
   date: string // YYYY-MM-DD
   isReal: boolean // es_gasto_real
+  /**
+   * A qué mes cuenta un ingreso del borde de mes (`yyyy-MM-01`), o `null` si no
+   * aplica. Ya validado contra los candidatos reales de `date` por `resolverImputacion`
+   * (Task 8, `tools/writeTools.ts`) — nunca un valor crudo del modelo.
+   */
+  incomePeriod: string | null
 }
 
 export interface InstallmentData {

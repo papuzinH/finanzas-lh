@@ -97,6 +97,8 @@ describe('create_transaction', () => {
         paymentMethodName: 'Visa',
         date: '2026-07-08',
         isReal: true,
+        // Task 8: un gasto nunca lleva imputación de mes.
+        incomePeriod: null,
       },
       ctx.userId,
     )
@@ -183,6 +185,62 @@ describe('create_transaction', () => {
 
     expect(res.ok).toBe(false)
     expect(handleTransaction).not.toHaveBeenCalled()
+  })
+})
+
+describe('create_transaction e imputacion de cobros', () => {
+  beforeEach(() => {
+    vi.mocked(handleTransaction).mockResolvedValue({ success: true, message: 'Listo' } as ChatResponse)
+  })
+
+  it('pide el mes cuando el ingreso cae en el borde y no vino', async () => {
+    const r = await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Sueldo', monto: 1_850_000, tipo: 'income',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-29',
+    }, ctx)
+    expect(r.ok).toBe(false)
+    // El mensaje es para el MODELO, y en espanol: si se filtra al usuario tiene
+    // que leerse como una pregunta, no como un error de Zod (bug del 2026-09-01).
+    expect(r.error).toContain('a qué mes')
+    expect(r.error).not.toContain('Invalid input')
+  })
+
+  it('no pregunta nada si el ingreso no cae en el borde', async () => {
+    const r = await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Sueldo', monto: 1_850_000, tipo: 'income',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-15',
+    }, ctx)
+    expect(r.ok).toBe(true)
+  })
+
+  it('no pregunta nada para un gasto en el borde', async () => {
+    const r = await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Chino', monto: 8_000, tipo: 'expense',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-29',
+    }, ctx)
+    expect(r.ok).toBe(true)
+  })
+
+  it('acepta el mes y lo persiste como el dia 1', async () => {
+    const r = await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Sueldo', monto: 1_850_000, tipo: 'income',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-29',
+      mes_del_cobro: '2026-09',
+    }, ctx)
+    expect(r.ok).toBe(true)
+    expect(vi.mocked(handleTransaction)).toHaveBeenCalledWith(
+      expect.objectContaining({ incomePeriod: '2026-09-01' }), ctx.userId,
+    )
+  })
+
+  it('un ingreso fuera del borde no lleva imputacion', async () => {
+    await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Sueldo', monto: 1_850_000, tipo: 'income',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-15',
+    }, ctx)
+    expect(vi.mocked(handleTransaction)).toHaveBeenCalledWith(
+      expect.objectContaining({ incomePeriod: null }), ctx.userId,
+    )
   })
 })
 

@@ -76,6 +76,7 @@ const baseTx: TransactionData = {
   paymentMethodName: 'visa',
   date: '2026-07-08',
   isReal: true,
+  incomePeriod: null,
 }
 
 beforeEach(() => {

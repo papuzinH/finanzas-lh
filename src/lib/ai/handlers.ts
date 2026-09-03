@@ -223,6 +223,9 @@ export async function handleTransaction(data: TransactionData, userId: string): 
       payment_method_id: paymentMethod?.id || null,
       cycle_id: cycleId,
       purchase_date: purchaseDate,
+      // Misma regla que createTransaction (dashboard/transactions/actions.ts): solo
+      // los ingresos llevan income_period, nunca un gasto.
+      income_period: data.type === 'income' ? data.incomePeriod : null,
     })
 
     if (error) {
