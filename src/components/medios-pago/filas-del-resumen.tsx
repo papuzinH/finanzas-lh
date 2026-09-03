@@ -1,10 +1,15 @@
+'use client';
+
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Receipt } from 'lucide-react';
+import { MoreVertical, Pencil, Trash2, ArrowLeftRight, Receipt } from 'lucide-react';
 import { EmptyState } from '@/components/shared/empty-state';
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/action-sheet';
+import { MoverAlResumenDialog } from './mover-al-resumen-dialog';
 import { cn, formatCurrency, formatUsd } from '@/lib/utils';
 import { parseLocalDate } from '@/lib/utils/dates';
-import type { FilasDeResumen } from '@/lib/finance/detalle-resumen';
+import type { FilasDeResumen, ResumenNavegable } from '@/lib/finance/detalle-resumen';
 import type { ProcessedTransaction } from '@/lib/finance/types';
 import type { RecurringPlan } from '@/types/database';
 
@@ -40,6 +45,65 @@ export function FilaPorDebitar({ plan }: { plan: RecurringPlan }) {
   );
 }
 
+/** Mismo hint que usa TransactionItem (/movimientos) para una cuota. */
+const HINT_CUOTA = 'Esta transacción pertenece a un plan de cuotas.';
+/** Editar/eliminar todavía no están cableados desde acá (fuera de alcance de esta task). */
+const HINT_SIN_CABLEAR = 'Todavía no se puede editar desde acá.';
+
+/** "Notebook (3/6)" -> { desde: 3, hasta: 6 }. Mismo regex que usa TransactionItem. */
+function cuotasDeLaDescripcion(descripcion: string): { desde: number; hasta: number } | undefined {
+  const m = descripcion.match(/\((\d+)\/(\d+)\)$/);
+  return m ? { desde: parseInt(m[1], 10), hasta: parseInt(m[2], 10) } : undefined;
+}
+
+/**
+ * Por qué "Mover a otro resumen" puede estar deshabilitado, mirando SOLO los campos de
+ * la transacción -- la disponibilidad de un vecino la decide `Fila` (si no hay ninguno,
+ * el menú entero no se monta). Mismos motivos que los guards de
+ * `moverTransaccionAlResumenVecino` (src/app/medios-pago/actions.ts), en el mismo orden.
+ */
+function motivoMoverDeshabilitado(t: ProcessedTransaction): string | undefined {
+  if (t.recurring_plan_id) return 'Las mensualidades se manejan desde Compromisos.';
+  if (t.type === 'income') return 'Los reintegros no se mueven de resumen.';
+  if (t.card_payment_for) return 'Un pago de tarjeta no pertenece a un resumen de consumo.';
+  return undefined;
+}
+
+/**
+ * Las acciones del menú de una fila. Separado de `Fila` para que sea testeable con
+ * `renderToStaticMarkup`: el ActionSheet que las monta vive detrás de un Dialog cerrado
+ * por default (mismo problema de Portal-en-SSR que `mover-al-resumen-dialog.tsx`
+ * documenta), así que su HTML nunca las muestra en un render de servidor.
+ */
+export function accionesDeFila(t: ProcessedTransaction, onMover: () => void): ActionSheetAction[] {
+  const hintEditarEliminar = t.installment_plan_id ? HINT_CUOTA : HINT_SIN_CABLEAR;
+  const motivoMover = motivoMoverDeshabilitado(t);
+
+  return [
+    {
+      label: 'Editar',
+      icon: <Pencil className="h-5 w-5" />,
+      onClick: () => {},
+      disabled: true,
+      disabledHint: hintEditarEliminar,
+    },
+    {
+      label: 'Eliminar',
+      icon: <Trash2 className="h-5 w-5" />,
+      onClick: () => {},
+      disabled: true,
+      disabledHint: hintEditarEliminar,
+    },
+    {
+      label: 'Mover a otro resumen',
+      icon: <ArrowLeftRight className="h-5 w-5" />,
+      onClick: onMover,
+      disabled: Boolean(motivoMover),
+      disabledHint: motivoMover,
+    },
+  ];
+}
+
 /**
  * Exportada: la Task 7 la reusa para la lista del mes de cuentas y medios personales.
  *
@@ -56,7 +120,25 @@ export function FilaPorDebitar({ plan }: { plan: RecurringPlan }) {
  *   les puso `createTransaction`, no el día del reintegro: cualquiera de las dos sería
  *   una fecha inventada.
  */
-export function Fila({ t, fechaDe = 'compra' }: { t: ProcessedTransaction; fechaDe?: 'compra' | 'movimiento' | 'ninguna' }) {
+export function Fila({
+  t,
+  fechaDe = 'compra',
+  anterior,
+  siguiente,
+  onMovido,
+}: {
+  t: ProcessedTransaction;
+  fechaDe?: 'compra' | 'movimiento' | 'ninguna';
+  /** Resumen anterior al que la fila está mostrando. Sin él, «mover al anterior» no se ofrece. */
+  anterior?: ResumenNavegable;
+  /** Resumen siguiente. Sin él, «mover al siguiente» no se ofrece. */
+  siguiente?: ResumenNavegable;
+  /** Se llama después de mover, para que la pantalla refresque el store. */
+  onMovido?: () => void;
+}) {
+  const [sheetAbierto, setSheetAbierto] = useState(false);
+  const [moverAbierto, setMoverAbierto] = useState(false);
+
   const fecha =
     fechaDe === 'ninguna'
       ? null
@@ -70,15 +152,60 @@ export function Fila({ t, fechaDe = 'compra' }: { t: ProcessedTransaction; fecha
     .filter(Boolean)
     .join(' · ');
 
+  // Sin ningún vecino no hay a dónde mover: el menú entero no se ofrece. Es justo lo
+  // que corresponde en el detalle de una cuenta de débito, que llama a `Fila` sin estas
+  // props.
+  const mostrarMenu = Boolean(anterior || siguiente);
+
+  const montoTexto = (
+    <p className={cn('tnum text-sm font-bold', t.type === 'income' ? 'text-good' : 'text-text')}>
+      {t.type === 'income' ? '+' : '-'}{monto(t)}
+    </p>
+  );
+
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border-[1.5px] border-border bg-surface-2 p-3">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-text">{t.description}</p>
         {meta && <p className="text-[10px] text-muted">{meta}</p>}
       </div>
-      <p className={cn('shrink-0 tnum text-sm font-bold', t.type === 'income' ? 'text-good' : 'text-text')}>
-        {t.type === 'income' ? '+' : '-'}{monto(t)}
-      </p>
+      {mostrarMenu ? (
+        <div className="flex shrink-0 items-center gap-1">
+          {montoTexto}
+          <button
+            type="button"
+            aria-label="Más opciones"
+            onClick={() => setSheetAbierto(true)}
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-muted hover:bg-surface hover:text-text"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <p className={cn('shrink-0 tnum text-sm font-bold', t.type === 'income' ? 'text-good' : 'text-text')}>
+          {t.type === 'income' ? '+' : '-'}{monto(t)}
+        </p>
+      )}
+
+      {mostrarMenu && (
+        <>
+          <ActionSheet
+            open={sheetAbierto}
+            onOpenChange={setSheetAbierto}
+            title={t.description}
+            actions={accionesDeFila(t, () => setMoverAbierto(true))}
+          />
+          <MoverAlResumenDialog
+            open={moverAbierto}
+            onOpenChange={setMoverAbierto}
+            transaccion={t}
+            anterior={anterior}
+            siguiente={siguiente}
+            cuotasQueMueve={t.installment_plan_id ? cuotasDeLaDescripcion(t.description) : undefined}
+            onMovido={onMovido}
+          />
+        </>
+      )}
     </div>
   );
 }

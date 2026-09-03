@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Fila, FilasDelResumen } from '../filas-del-resumen';
+import { Fila, FilasDelResumen, accionesDeFila } from '../filas-del-resumen';
 import type { ProcessedTransaction } from '@/lib/finance/types';
 import type { RecurringPlan } from '@/types/database';
+import type { ResumenNavegable } from '@/lib/finance/detalle-resumen';
 
 const tx = (over: Partial<ProcessedTransaction>): ProcessedTransaction => ({
   id: 't1', user_id: 'u1', payment_method_id: 'visa', cycle_id: 'ago',
@@ -185,5 +186,65 @@ describe('Fila (fechaDe)', () => {
     );
     expect(html).toContain('1 sep');
     expect(html).not.toContain('Sin fecha');
+  });
+});
+
+const resumen = (over: Partial<ResumenNavegable> = {}): ResumenNavegable => ({
+  id: 'c1', closingDate: '2026-08-10', dueDate: '2026-08-18', source: 'generated', estado: 'pendiente',
+  ...over,
+});
+
+// El ActionSheet vive detrás de un Dialog que arranca cerrado: su HTML nunca aparece en
+// un render de servidor (ver el comentario de mover-al-resumen-dialog.tsx), así que el
+// botón que lo abre se testea via markup, pero las ACCIONES que ofrece se testean
+// llamando a `accionesDeFila` directo -- mismo dato que Fila le pasa al ActionSheet.
+describe('el menú de la fila', () => {
+  it('una fila con vecinos ofrece el menú', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({})} anterior={resumen({ id: 'ant' })} siguiente={resumen({ id: 'sig' })} />,
+    );
+    expect(html).toContain('aria-label="Más opciones"');
+  });
+
+  it('una fila SIN vecinos no monta el menú: el markup es el mismo de antes de esta task', () => {
+    const html = renderToStaticMarkup(<Fila t={tx({})} />);
+    // Sin aria-label ni botón: no se monta el trigger del ActionSheet.
+    expect(html).not.toContain('aria-label="Más opciones"');
+    expect(html).not.toContain('<button');
+    // El monto sigue siendo el UNICO hermano del bloque de descripción -- no se envolvió
+    // en el div "flex shrink-0 items-center gap-1" que agrega el botón.
+    expect(html).toContain('<p class="shrink-0 tnum text-sm font-bold text-text">');
+    expect(html).not.toContain('flex shrink-0 items-center gap-1');
+  });
+
+  it('mover se ofrece en una cuota, editar y eliminar no', () => {
+    const acciones = accionesDeFila(tx({ installment_plan_id: 'p1' }), () => {});
+    const mover = acciones.find((a) => a.label === 'Mover a otro resumen')!;
+    const editar = acciones.find((a) => a.label === 'Editar')!;
+    const eliminar = acciones.find((a) => a.label === 'Eliminar')!;
+
+    expect(mover.disabled).toBeFalsy();
+    expect(editar.disabled).toBe(true);
+    expect(editar.disabledHint).toBe('Esta transacción pertenece a un plan de cuotas.');
+    expect(eliminar.disabled).toBe(true);
+    expect(eliminar.disabledHint).toBe('Esta transacción pertenece a un plan de cuotas.');
+  });
+
+  it('una mensualidad posteada no ofrece mover', () => {
+    const acciones = accionesDeFila(tx({ recurring_plan_id: 'r1' }), () => {});
+    const mover = acciones.find((a) => a.label === 'Mover a otro resumen')!;
+    expect(mover.disabled).toBe(true);
+  });
+
+  it('un reintegro no ofrece mover', () => {
+    const acciones = accionesDeFila(tx({ type: 'income' }), () => {});
+    const mover = acciones.find((a) => a.label === 'Mover a otro resumen')!;
+    expect(mover.disabled).toBe(true);
+  });
+
+  it('una compra suelta SÍ ofrece mover', () => {
+    const acciones = accionesDeFila(tx({}), () => {});
+    const mover = acciones.find((a) => a.label === 'Mover a otro resumen')!;
+    expect(mover.disabled).toBeFalsy();
   });
 });
