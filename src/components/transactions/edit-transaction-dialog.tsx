@@ -18,6 +18,7 @@ import { Form } from '@/components/ui/form';
 import { transactionSchema, type TransactionSchema } from '@/lib/schemas/transaction';
 import { updateTransaction } from '@/app/dashboard/transactions/actions';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import { mesPorDefecto, necesitaDeclararMes } from '@/lib/finance/imputacion-ingresos';
 import {
   AmountField,
   TypeToggle,
@@ -28,6 +29,7 @@ import {
   PaymentMethodField,
   DEFAULT_RATE_PAIR,
 } from '@/components/transactions/transaction-form-fields';
+import { MesDelCobroField } from '@/components/transactions/mes-del-cobro-field';
 
 interface EditTransactionDialogProps {
   open: boolean;
@@ -43,6 +45,7 @@ interface EditTransactionDialogProps {
     original_currency?: string | null;
     original_amount?: number | null;
     rate_pair?: string | null;
+    income_period?: string | null;
   };
 }
 
@@ -54,6 +57,7 @@ export function EditTransactionDialog({
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories, paymentMethods, getFrequentCategories, getExchangeRate } = useFinanceStore();
+  const store = useFinanceStore();
 
   const initialPaymentMethodId =
     transaction.payment_method_id != null ? String(transaction.payment_method_id) : 'none';
@@ -69,6 +73,7 @@ export function EditTransactionDialog({
       category_id: transaction.category_id || '',
       type: transaction.type || 'expense',
       payment_method_id: initialPaymentMethodId,
+      income_period: transaction.income_period ?? null,
       currency: (transaction.original_currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
       rate_pair: transaction.rate_pair ?? null,
       exchange_rate: null,
@@ -96,6 +101,7 @@ export function EditTransactionDialog({
         category_id: transaction.category_id || '',
         type: transaction.type || 'expense',
         payment_method_id: initialPaymentMethodId,
+        income_period: transaction.income_period ?? null,
         currency: (transaction.original_currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
         rate_pair: transaction.rate_pair ?? null,
         exchange_rate: null,
@@ -109,9 +115,18 @@ export function EditTransactionDialog({
     try {
       const isUsd = data.currency === 'USD';
       const ratePair = data.rate_pair || DEFAULT_RATE_PAIR;
+      // Guardar el formulario con el selector a la vista es el gesto de confirmación:
+      // si la fecha cae en el borde y el usuario no tocó el campo, se completa acá con
+      // el mismo valor que ya se le estaba mostrando (mesPorDefecto), para no persistir
+      // `income_period: null` con un mes visiblemente marcado en pantalla.
+      const incomePeriod =
+        data.type === 'income'
+          ? data.income_period ?? (necesitaDeclararMes(data.date) ? mesPorDefecto(data.date, store.incomeCountsNextMonth) : null)
+          : null;
       const payload = {
         ...data,
         payment_method_id: data.payment_method_id === 'none' ? null : data.payment_method_id,
+        income_period: incomePeriod,
         rate_pair: isUsd ? ratePair : null,
         exchange_rate: isUsd ? getExchangeRate(ratePair) : null,
       };
@@ -183,6 +198,23 @@ export function EditTransactionDialog({
 
               {/* ── Date ── */}
               <DateField control={form.control} />
+
+              {/* ── A qué mes cuenta (sólo ingresos, sólo en el borde del mes) ── */}
+              {watchedType === 'income' && (
+                <MesDelCobroField
+                  fecha={watchedDate}
+                  value={
+                    form.watch('income_period') ??
+                    // Guard: un <input type="date"> nativo se puede vaciar (Backspace).
+                    // mesPorDefecto('') hace format() sobre una fecha invalida y explota;
+                    // necesitaDeclararMes('') no -- y si es false el campo ni se muestra.
+                    (necesitaDeclararMes(watchedDate)
+                      ? mesPorDefecto(watchedDate, store.incomeCountsNextMonth)
+                      : null)
+                  }
+                  onChange={(v) => form.setValue('income_period', v)}
+                />
+              )}
 
               {/* ── Payment method ── */}
               <PaymentMethodField

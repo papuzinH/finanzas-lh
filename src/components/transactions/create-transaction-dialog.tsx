@@ -21,6 +21,7 @@ import { createTransactionSchema, type CreateTransactionSchema } from '@/lib/sch
 import { todayString } from '@/lib/utils/dates';
 import { createTransaction } from '@/app/dashboard/transactions/actions';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import { mesPorDefecto, necesitaDeclararMes } from '@/lib/finance/imputacion-ingresos';
 import {
   AmountField,
   TypeToggle,
@@ -31,6 +32,7 @@ import {
   CurrencyField,
   DEFAULT_RATE_PAIR,
 } from '@/components/transactions/transaction-form-fields';
+import { MesDelCobroField } from '@/components/transactions/mes-del-cobro-field';
 
 interface CreateTransactionDialogProps {
   open: boolean;
@@ -51,6 +53,7 @@ export function CreateTransactionDialog({
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories, paymentMethods, getCategoryBudgetStatus, getFrequentCategories, getDefaultPaymentMethod, isInitialized } = useFinanceStore();
+  const store = useFinanceStore();
 
   const defaultPmId = getDefaultPaymentMethod()?.id != null
     ? String(getDefaultPaymentMethod()!.id)
@@ -65,6 +68,7 @@ export function CreateTransactionDialog({
       category_id: defaultValues?.category_id ?? '',
       type: defaultValues?.type ?? 'expense',
       payment_method_id: defaultPmId,
+      income_period: null,
       currency: 'ARS',
       rate_pair: null,
       exchange_rate: null,
@@ -94,6 +98,7 @@ export function CreateTransactionDialog({
         category_id: defaultValues?.category_id ?? '',
         type: defaultValues?.type ?? 'expense',
         payment_method_id: defaultPmId,
+        income_period: null,
         currency: 'ARS',
         rate_pair: null,
         exchange_rate: null,
@@ -107,9 +112,18 @@ export function CreateTransactionDialog({
     try {
       const isUsd = data.currency === 'USD';
       const ratePair = data.rate_pair || DEFAULT_RATE_PAIR;
+      // Guardar el formulario con el selector a la vista es el gesto de confirmación:
+      // si la fecha cae en el borde y el usuario no tocó el campo, se completa acá con
+      // el mismo valor que ya se le estaba mostrando (mesPorDefecto), para no persistir
+      // `income_period: null` con un mes visiblemente marcado en pantalla.
+      const incomePeriod =
+        data.type === 'income'
+          ? data.income_period ?? (necesitaDeclararMes(data.date) ? mesPorDefecto(data.date, store.incomeCountsNextMonth) : null)
+          : null;
       const formattedData = {
         ...data,
         payment_method_id: data.payment_method_id === 'none' ? null : data.payment_method_id,
+        income_period: incomePeriod,
         rate_pair: isUsd ? ratePair : null,
         exchange_rate: isUsd ? getExchangeRate(ratePair) : null,
       };
@@ -204,6 +218,23 @@ export function CreateTransactionDialog({
 
               {/* ── Date ── */}
               <DateField control={form.control} />
+
+              {/* ── A qué mes cuenta (sólo ingresos, sólo en el borde del mes) ── */}
+              {watchedType === 'income' && (
+                <MesDelCobroField
+                  fecha={watchedDate}
+                  value={
+                    form.watch('income_period') ??
+                    // Guard: un <input type="date"> nativo se puede vaciar (Backspace).
+                    // mesPorDefecto('') hace format() sobre una fecha invalida y explota;
+                    // necesitaDeclararMes('') no -- y si es false el campo ni se muestra.
+                    (necesitaDeclararMes(watchedDate)
+                      ? mesPorDefecto(watchedDate, store.incomeCountsNextMonth)
+                      : null)
+                  }
+                  onChange={(v) => form.setValue('income_period', v)}
+                />
+              )}
 
             </div>
 
