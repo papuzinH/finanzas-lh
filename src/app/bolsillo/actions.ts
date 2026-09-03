@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { reconcileOptionsFor } from '@/lib/finance/reconcile'
+import { mesesCandidatos } from '@/lib/finance/imputacion-ingresos'
 
 type ActionResponse = {
   error?: string
@@ -331,6 +332,13 @@ export async function reconcileAccount(input: ReconcileInput): Promise<ActionRes
         type,
         category_id: categoryId,
         payment_method_id,
+        // Un movimiento de conciliación pertenece al mes en que se detectó: no es
+        // ambiguo, y por eso se declara acá en vez de dejarlo NULL. Sin esto,
+        // conciliar un día 28 con plata de más hacía aparecer al instante el banner
+        // de "cobros sin imputar" preguntando a qué mes cuenta una diferencia de $500.
+        // `mesesCandidatos(...)[0]` es el mes de la propia fecha, el mismo idioma que
+        // usa "Dejalos como están" en el banner.
+        income_period: type === 'income' ? mesesCandidatos(date)[0].valor : null,
         is_balance_adjustment: esAjuste,
         original_currency: 'ARS',
         original_amount: monto,
