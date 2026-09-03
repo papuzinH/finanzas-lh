@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Fila, FilasDelResumen } from '../filas-del-resumen';
+import { Fila, FilasDelResumen, accionesDeFila, cuotasQueMueveLaFila } from '../filas-del-resumen';
 import type { ProcessedTransaction } from '@/lib/finance/types';
-import type { RecurringPlan } from '@/types/database';
+import type { InstallmentPlan, RecurringPlan } from '@/types/database';
+import type { ResumenNavegable } from '@/lib/finance/detalle-resumen';
 
 const tx = (over: Partial<ProcessedTransaction>): ProcessedTransaction => ({
   id: 't1', user_id: 'u1', payment_method_id: 'visa', cycle_id: 'ago',
@@ -185,5 +186,112 @@ describe('Fila (fechaDe)', () => {
     );
     expect(html).toContain('1 sep');
     expect(html).not.toContain('Sin fecha');
+  });
+});
+
+const resumen = (over: Partial<ResumenNavegable> = {}): ResumenNavegable => ({
+  id: 'c1', closingDate: '2026-08-10', dueDate: '2026-08-18', source: 'generated', estado: 'pendiente',
+  ...over,
+});
+
+// El ActionSheet vive detrás de un Dialog que arranca cerrado: su HTML nunca aparece en
+// un render de servidor (ver el comentario de mover-al-resumen-dialog.tsx), así que el
+// botón que lo abre se testea via markup de `Fila`. Fix round 1: Editar/Eliminar salieron
+// del todo del menú -- ya no hay nada "deshabilitado" que inspeccionar en `accionesDeFila`,
+// así que cuando la ÚNICA acción posible (mover) tampoco se puede, el assert correcto es
+// que el trigger del menú no aparece, no que aparezca con algo apagado adentro.
+describe('el menú de la fila', () => {
+  it('una fila con vecinos ofrece el menú', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({})} anterior={resumen({ id: 'ant' })} siguiente={resumen({ id: 'sig' })} />,
+    );
+    expect(html).toContain('aria-label="Más opciones"');
+  });
+
+  it('una fila SIN vecinos no monta el menú: el markup es el mismo de antes de esta task', () => {
+    const html = renderToStaticMarkup(<Fila t={tx({})} />);
+    // Sin aria-label ni botón: no se monta el trigger del ActionSheet.
+    expect(html).not.toContain('aria-label="Más opciones"');
+    expect(html).not.toContain('<button');
+    // El monto sigue siendo el UNICO hermano del bloque de descripción -- no se envolvió
+    // en el div "flex shrink-0 items-center gap-1" que agrega el botón.
+    expect(html).toContain('<p class="shrink-0 tnum text-sm font-bold text-text">');
+    expect(html).not.toContain('flex shrink-0 items-center gap-1');
+  });
+
+  it('una cuota (con vecino) ofrece el menú, y su única acción es "Mover a otro resumen"', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({ installment_plan_id: 'p1' })} siguiente={resumen({ id: 'sig' })} />,
+    );
+    expect(html).toContain('aria-label="Más opciones"');
+
+    const acciones = accionesDeFila(() => {});
+    expect(acciones).toHaveLength(1);
+    expect(acciones[0].label).toBe('Mover a otro resumen');
+    expect(acciones[0].disabled).toBeFalsy();
+    // Ya no existen: el spec negoció reuso real o sacarlos, nunca dejarlos apagados.
+    expect(acciones.some((a) => a.label === 'Editar')).toBe(false);
+    expect(acciones.some((a) => a.label === 'Eliminar')).toBe(false);
+  });
+
+  it('una mensualidad posteada no ofrece menú: la única acción posible (mover) está vetada', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({ recurring_plan_id: 'r1' })} anterior={resumen({ id: 'ant' })} siguiente={resumen({ id: 'sig' })} />,
+    );
+    expect(html).not.toContain('aria-label="Más opciones"');
+  });
+
+  it('un reintegro no ofrece menú: la única acción posible (mover) está vetada', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({ type: 'income' })} anterior={resumen({ id: 'ant' })} siguiente={resumen({ id: 'sig' })} />,
+    );
+    expect(html).not.toContain('aria-label="Más opciones"');
+  });
+
+  it('una compra suelta SÍ ofrece el menú, con mover habilitado', () => {
+    const html = renderToStaticMarkup(
+      <Fila t={tx({})} siguiente={resumen({ id: 'sig' })} />,
+    );
+    expect(html).toContain('aria-label="Más opciones"');
+
+    const acciones = accionesDeFila(() => {});
+    const mover = acciones.find((a) => a.label === 'Mover a otro resumen')!;
+    expect(mover.disabled).toBeFalsy();
+  });
+});
+
+// m3: `cuotasDeLaDescripcion` devolvía `undefined` si la descripción no terminaba en
+// "(n/m)" -- por ejemplo si el usuario la editó desde /movimientos --, y ahí el diálogo se
+// quedaba SIN ningún aviso: mover una fila movía cuatro, en silencio.
+describe('cuotasQueMueveLaFila', () => {
+  const planCuotas = (over: Partial<InstallmentPlan> = {}): InstallmentPlan => ({
+    id: 'ip1', user_id: 'u1', payment_method_id: 'visa', description: 'Notebook',
+    installments_count: 6, total_amount: 600000, category_id: 'cat1',
+    purchase_date: '2026-07-10', created_at: '2026-07-10T00:00:00Z',
+    ...over,
+  } as InstallmentPlan);
+
+  it('una fila que no es cuota no arrastra nada', () => {
+    expect(cuotasQueMueveLaFila(tx({}), [planCuotas()])).toBeUndefined();
+  });
+
+  it('con "(3/6)" en la descripción saca los dos números', () => {
+    const t = tx({ installment_plan_id: 'ip1', description: 'Notebook (3/6)' });
+    expect(cuotasQueMueveLaFila(t, [])).toEqual({ desde: 3, hasta: 6 });
+  });
+
+  it('con la descripción editada, el total sale del plan y el aviso no desaparece', () => {
+    const t = tx({ installment_plan_id: 'ip1', description: 'Notebook nueva' });
+    expect(cuotasQueMueveLaFila(t, [planCuotas()])).toEqual({ desde: undefined, hasta: 6 });
+  });
+
+  it('con la descripción editada y sin el plan cargado, igual devuelve algo (aviso genérico)', () => {
+    const t = tx({ installment_plan_id: 'ip1', description: 'Notebook nueva' });
+    expect(cuotasQueMueveLaFila(t, [])).toEqual({ desde: undefined, hasta: undefined });
+  });
+
+  it('installments_count le gana al texto: el plan es dato, la descripción es texto editable', () => {
+    const t = tx({ installment_plan_id: 'ip1', description: 'Notebook (3/3)' });
+    expect(cuotasQueMueveLaFila(t, [planCuotas({ installments_count: 6 })])).toEqual({ desde: 3, hasta: 6 });
   });
 });

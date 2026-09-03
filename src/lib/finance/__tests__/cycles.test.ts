@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  ciclosDeMetodo, generarCiclos, cicloDeCompra, cicloVigente, cicloAnterior, cicloNEsimo,
+  ciclosDeMetodo, generarCiclos, cicloDeCompra, cicloVigente, cicloAnterior, cicloSiguiente, cicloNEsimo,
   cicloSaldadoEn, cicloDelMesDe, recalcularFuturosGenerated,
   type CreditCardCycle,
 } from '../cycles'
@@ -72,6 +72,27 @@ describe('cicloAnterior', () => {
 
   it('el primero no tiene anterior', () => {
     expect(cicloAnterior(TRES, JULIO)).toBeUndefined()
+  })
+})
+
+describe('cicloSiguiente', () => {
+  it('devuelve el resumen inmediatamente posterior por fecha de cierre', () => {
+    expect(cicloSiguiente(TRES, JULIO)?.id).toBe('ago')
+    expect(cicloSiguiente(TRES, AGOSTO)?.id).toBe('sep')
+  })
+
+  it('el ultimo resumen no tiene siguiente', () => {
+    expect(cicloSiguiente(TRES, SEPTIEMBRE)).toBeUndefined()
+  })
+
+  it('una lista de un solo resumen no tiene siguiente', () => {
+    expect(cicloSiguiente([AGOSTO], AGOSTO)).toBeUndefined()
+  })
+
+  it('es la inversa exacta de cicloAnterior', () => {
+    // La propiedad que importa: moverse y volver deja donde se estaba.
+    const sig = cicloSiguiente(TRES, JULIO)!
+    expect(cicloAnterior(TRES, sig)?.id).toBe('jul')
   })
 })
 

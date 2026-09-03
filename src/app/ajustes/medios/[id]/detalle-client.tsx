@@ -11,6 +11,7 @@ import { CabeceraDeResumen } from '@/components/medios-pago/cabecera-de-resumen'
 import { FilasDelResumen } from '@/components/medios-pago/filas-del-resumen';
 import { EditarCicloDialog } from '@/components/medios-pago/editar-ciclo-dialog';
 import { DetalleDeCuenta } from './detalle-cuenta';
+import { ciclosDeMetodo } from '@/lib/finance/cycles';
 import type { PaymentMethod } from '@/types/database';
 
 /** Compartido por las dos ramas (crédito y cuenta/personal): volver + nombre + tipo. */
@@ -101,6 +102,19 @@ export function DetalleClient({ methodId }: { methodId: string }) {
     ? store.creditCardCycles.find((c) => c.id === actualId)
     : undefined;
 
+  // Los vecinos del resumen actual salen de la POSICION en `detalle.resumenes`, que ya
+  // viene ordenada ascendente por closing_date -- no de cicloAnterior/cicloSiguiente
+  // (esas operan sobre CreditCardCycle, no sobre ResumenNavegable, un shape distinto).
+  const idxActual = actualId ? detalle?.resumenes.findIndex((r) => r.id === actualId) ?? -1 : -1;
+  const resumenAnterior = idxActual > 0 ? detalle?.resumenes[idxActual - 1] : undefined;
+  const resumenSiguiente =
+    idxActual >= 0 && idxActual < (detalle?.resumenes.length ?? 0) - 1
+      ? detalle?.resumenes[idxActual + 1]
+      : undefined;
+  // Los ciclos CRUDOS de la tarjeta: MoverAlResumenDialog los necesita (vía Fila) para
+  // calcular el destino real de la última cuota de un plan (cicloNEsimo).
+  const ciclosDeLaTarjeta = ciclosDeMetodo(methodId, store.creditCardCycles);
+
   return (
     <main className="mx-auto max-w-[720px] px-5 py-6 pb-28 grid gap-5">
       <EncabezadoDetalle method={method} />
@@ -119,7 +133,14 @@ export function DetalleClient({ methodId }: { methodId: string }) {
             totalUSD={detalle.totalUSD}
             onCorregirFechas={() => setEditandoFechas(true)}
           />
-          <FilasDelResumen filas={detalle.filas} />
+          <FilasDelResumen
+            filas={detalle.filas}
+            anterior={resumenAnterior}
+            siguiente={resumenSiguiente}
+            ciclos={ciclosDeLaTarjeta}
+            installmentPlans={store.installmentPlans}
+            onMovido={fetchAllData}
+          />
           {cicloActual && (
             // key por resumen, igual que en institutional-card.tsx: EditarCicloDialog
             // inicializa `fechas` UNA sola vez, en su useState. Navegar entre resumenes
