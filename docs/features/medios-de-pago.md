@@ -106,5 +106,5 @@ Gotcha crítico: estas tablas usan el id interno de `public.users` (`users.id`),
 - `docs/features/bolsillo.md` — bucket (`pocket`/`reserve`) y saldo anclado (`initial_balance`/`initial_balance_at`) por cuenta; edición desde `EditAnchorDialog`.
 - `docs/features/compromisos.md` — ciclos de tarjeta y pago de resúmenes.
 - `docs/superpowers/specs/2026-07-06-lo-que-se-viene-vencimientos-tarjeta-design.md` — vencimientos por tarjeta en el home.
-- `.superpowers/sdd/2026-09-02-mover-al-resumen-vecino/` — spec y plan de "mover una compra al resumen vecino".
+- `docs/superpowers/specs/2026-09-02-mover-al-resumen-vecino-design.md` y `docs/superpowers/plans/2026-09-02-mover-al-resumen-vecino.md` — spec y plan de "mover una compra al resumen vecino". (`.superpowers/` está gitignoreado: no existe para nadie que clone el repo, que además es público.)
 - `docs/superpowers/specs/2026-07-07-chatbot-asistente-ia-design.md` — cómo el agente resuelve el medio de pago.
