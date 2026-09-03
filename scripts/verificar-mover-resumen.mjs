@@ -451,29 +451,45 @@ check('9. mover la cuota más vieja hacia ATRÁS corre el plan entero un resumen
   `(1/3)=${q1Atras === cJun.id ? 'jun' : q1Atras}, (2/3)=${q2Atras === cJul.id ? 'jul' : q2Atras}, (3/3)=${q3Atras === cAgo.id ? 'ago' : q3Atras}`);
 
 // ═══════════════════════════════════════════════════════════════════════
-// 10. C1: mover una cuota al resumen que YA tiene la cuota previa del plan se
-// rechaza. Dos cuotas del mismo plan en un mismo resumen es el estado que hacía
-// divergir las dos cuentas de "qué filas se mueven" -- y del que salía, según el
-// orden del heap, o un error falso o el arrastre de una cuota nunca tocada.
-// El diálogo NO se cierra (la action devolvió error) y en la base no cambió nada.
+// 10. Atrasar una cuota intermedia AMPLIA el movimiento a todo el plan, y lo
+// avisa antes de confirmar. Atrasar una cuota sola es imposible -- caeria encima
+// de su predecesora, el estado que hacia divergir las dos cuentas de "que filas
+// se mueven". Antes esto se rechazaba; ahora se entiende la intencion (el usuario
+// quiere que el plan caiga un resumen antes) y se amplia. Lo que NO cambia es el
+// invariante: las tres cuotas siguen en tres resumenes distintos.
 // ═══════════════════════════════════════════════════════════════════════
-await irAResumen(cJul.id);
-let dialogoSigueAbierto = false;
+// El assert 9 dejo el plan en jun/jul/ago, o sea con la cuota 1 en el resumen MAS
+// VIEJO: desde ahi no se puede atrasar mas y la respuesta correcta es el rechazo.
+// Se lo adelanta un resumen primero, para que el caso a probar sea el de la
+// ampliacion y no el del borde (que tiene su propio test unitario).
+await irAResumen(cJun.id);
+{
+  const dialogo = await abrirDialogoDeMover(cuotaDesc(1, 3));
+  await dialogo.getByRole('button', { name: /vence/i }).last().click(); // el "siguiente"
+  await page.waitForTimeout(2000);
+}
+const [q1Base, q2Base, q3Base] = await Promise.all([
+  dondeQuedo(cuotaDesc(1, 3)), dondeQuedo(cuotaDesc(2, 3)), dondeQuedo(cuotaDesc(3, 3)),
+]);
+
+await irAResumen(q2Base);
+let avisaQueAmplia = false;
 {
   const dialogo = await abrirDialogoDeMover(cuotaDesc(2, 3));
+  avisaQueAmplia = (await dialogo.innerText()).toLowerCase().includes('todo el plan');
   await dialogo.getByRole('button', { name: /vence/i }).first().click(); // el "anterior"
-  await page.waitForTimeout(1200);
-  dialogoSigueAbierto = await dialogo.isVisible();
-  await page.keyboard.press('Escape');
+  await page.waitForTimeout(2000);
 }
 
 const [q1Tras, q2Tras, q3Tras] = await Promise.all([
   dondeQuedo(cuotaDesc(1, 3)), dondeQuedo(cuotaDesc(2, 3)), dondeQuedo(cuotaDesc(3, 3)),
 ]);
+const enResumenesDistintos = new Set([q1Tras, q2Tras, q3Tras]).size === 3;
+const seCorrieronTodas = q1Tras !== q1Base && q2Tras !== q2Base && q3Tras !== q3Base;
 
-check('10. mover una cuota al resumen que ya tiene la cuota previa se rechaza y no escribe nada',
-  dialogoSigueAbierto && q1Tras === q1Atras && q2Tras === q2Atras && q3Tras === q3Atras,
-  `diálogo abierto=${dialogoSigueAbierto}, cycle_ids sin cambios=${q1Tras === q1Atras && q2Tras === q2Atras && q3Tras === q3Atras}`);
+check('10. atrasar una cuota intermedia amplía a todo el plan, lo avisa, y ninguna cuota queda encima de otra',
+  avisaQueAmplia && enResumenesDistintos && seCorrieronTodas,
+  `avisa="todo el plan"=${avisaQueAmplia}, en resúmenes distintos=${enResumenesDistintos}, se corrieron las tres=${seCorrieronTodas}`);
 
 await browser.close();
 

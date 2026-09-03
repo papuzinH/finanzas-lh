@@ -107,6 +107,41 @@ describe('planDeMovimiento — cuotas (E15)', () => {
     expect(r.reasignaciones.map((x) => x.cycleId)).toEqual(['ago', 'sep', 'oct'])
   })
 
+  // Un resumen ANTES del que tiene la cuota 1: sin el, atrasar el plan entero es
+  // imposible y el rechazo es la respuesta correcta (ese caso tiene su propio test).
+  const CINCO_CON_JUN = [ciclo({ id: 'jun', closing_date: '2026-06-22', due_date: '2026-07-02' }), ...CUATRO]
+
+  it('atrasar una cuota intermedia AMPLIA el movimiento a todo el plan', () => {
+    // Atrasar una cuota sola es imposible por definicion: choca con su predecesora.
+    // Pero lo que el usuario quiere es que el plan caiga un resumen antes, y eso SI
+    // se puede, arrastrando desde la primera. Se entiende la intencion en vez de
+    // negarla por un tecnicismo del modelo.
+    const r = planDeMovimiento(c2, PLAN, CINCO_CON_JUN, 'anterior')
+    expect(r.motivoDeRechazo).toBeUndefined()
+    expect(r.ampliadoATodoElPlan).toBe(true)
+    expect(r.reasignaciones.map((x) => x.transactionId)).toEqual(['c1', 'c2', 'c3'])
+  })
+
+  it('lo amplia tambien desde la ultima cuota', () => {
+    const r = planDeMovimiento(c3, PLAN, CINCO_CON_JUN, 'anterior')
+    expect(r.ampliadoATodoElPlan).toBe(true)
+    expect(r.reasignaciones.map((x) => x.transactionId)).toEqual(['c1', 'c2', 'c3'])
+  })
+
+  it('NO lo amplia hacia adelante: ahi no hay colision que resolver', () => {
+    const r = planDeMovimiento(c2, PLAN, CUATRO, 'siguiente')
+    expect(r.ampliadoATodoElPlan).toBeFalsy()
+    expect(r.reasignaciones.map((x) => x.transactionId)).toEqual(['c2', 'c3'])
+  })
+
+  it('si el plan entero TAMPOCO puede atrasarse, se rechaza con el motivo', () => {
+    // La cuota 1 vive en el resumen mas viejo de la tarjeta: no hay adonde correr.
+    const r = planDeMovimiento(c2, PLAN, CUATRO, 'anterior')
+    expect(r.reasignaciones).toEqual([])
+    expect(r.motivoDeRechazo).toBeTruthy()
+    expect(r.motivoDeRechazo).toMatch(/mas viejo|más viejo|no hay/i)
+  })
+
   it('mover la ultima cuota mueve solo esa', () => {
     const r = planDeMovimiento(c3, PLAN, CUATRO, 'siguiente')
     expect(r.reasignaciones).toEqual([{ transactionId: 'c3', cycleId: 'oct', date: '2026-11-02' }])
@@ -116,17 +151,13 @@ describe('planDeMovimiento — cuotas (E15)', () => {
   // C1: el camino 'anterior' era la unica forma de dejar dos cuotas del mismo plan en un
   // mismo resumen -- un estado que en el papel del banco no existe, y del que salian
   // empates de `date` que hacian divergir las dos cuentas de "que filas se mueven".
-  it('mover una cuota al resumen que ya tiene la cuota previa del plan se rechaza, y nombra cual', () => {
-    const r = planDeMovimiento(c3, PLAN, CUATRO, 'anterior')
-    expect(r.reasignaciones).toEqual([])
-    expect(r.esperadas).toBe(0)
-    expect(r.motivoDeRechazo).toContain('cuota 2')
-    // Y tiene que decir QUE HACER, no solo que choca: la unica forma de atrasar
-    // un plan es moverlo desde su cuota mas vieja, porque cada cuota tiene a su
-    // predecesora en el resumen de al lado. Sin eso el usuario lee "movela desde
-    // ella" y no sabe si eso significa mover la 2 hacia adelante.
-    expect(r.motivoDeRechazo).toContain('cuota 1')
-    expect(r.motivoDeRechazo).toMatch(/atras|todo el plan/i)
+  it('dos cuotas del mismo plan nunca terminan en el mismo resumen', () => {
+    // El invariante que el guard protege: mover la 3 al anterior no la deja encima
+    // de la 2. Antes esto se resolvia rechazando; ahora se resuelve AMPLIANDO, pero
+    // el estado prohibido sigue siendo inalcanzable, que es lo que importa.
+    const r = planDeMovimiento(c3, PLAN, CINCO_CON_JUN, 'anterior')
+    const destinos = r.reasignaciones.map((x) => x.cycleId)
+    expect(new Set(destinos).size).toBe(destinos.length)
   })
 
   it('mover la cuota mas vieja hacia atras sigue funcionando y arrastra el resto', () => {

@@ -25,6 +25,19 @@
  * Idempotente: borra por descripción lo que sembró antes y lo recrea.
  *
  * Uso: node scripts/seed-qa-mover.mjs
+ *
+ * ⚠️ Los gates de navegador NO son independientes entre si: cada uno siembra su
+ * propio escenario y MUEVE datos, asi que el que corre despues encuentra el demo
+ * cambiado. Si vas a correr un gate y despues probar a mano, el orden es:
+ *
+ *     npm run seed:demo
+ *     node scripts/seed-escenarios-tarjeta.mjs
+ *     <corre el gate que quieras>
+ *     node scripts/seed-qa-mover.mjs      ← al final, para probar a mano
+ *
+ * Y si un gate falla justo despues de otro, sembra de cero antes de sospechar del
+ * codigo: paso una vez, y el sintoma era un timeout buscando el resumen vencido
+ * que el gate anterior habia reubicado.
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';

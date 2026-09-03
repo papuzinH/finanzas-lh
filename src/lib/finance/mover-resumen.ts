@@ -32,6 +32,12 @@ export type PlanDeMovimiento = {
    * usuario nunca toco (fix wave final, C1).
    */
   esperadas: number
+  /**
+   * true cuando se pidio atrasar una cuota intermedia y el movimiento se amplio a
+   * TODO el plan. Quien muestre el dialogo tiene que decirlo antes de confirmar: el
+   * usuario toco una fila y se van a mover varias, en varios resumenes.
+   */
+  ampliadoATodoElPlan?: boolean
   motivoDeRechazo?: string
 }
 
@@ -113,25 +119,46 @@ export function planDeMovimiento(
   // vieja equivocada y esa arrastra el resto.
   const chocada = delPlan.slice(0, desde).find((t) => t.cycle_id === destino.id)
   if (chocada) {
-    const nro = nroDeCuota(chocada) ?? delPlan.indexOf(chocada) + 1
-    const primera = nroDeCuota(delPlan[0]) ?? 1
-    // El mensaje tiene que decir QUE HACER. En un plan normal cada cuota tiene a su
-    // predecesora en el resumen de al lado, asi que atrasar UNA es imposible por
-    // definicion: lo unico que se puede atrasar es el plan entero, y eso se hace
-    // desde su cuota mas vieja. "Movela desde ella" no alcanzaba -- se leia como
-    // "mové la cuota 2", sin decir adonde ni por que.
-    return rechazo(
-      `Ahí ya está la cuota ${nro}. Para atrasar todo el plan, movelo desde la cuota ${primera}: las demás se corren con ella.`,
-    )
+    // Atrasar una cuota sola es imposible por definicion: en un plan normal cada
+    // cuota tiene a su predecesora en el resumen de al lado. Pero lo que el usuario
+    // quiere es que el plan caiga un resumen antes, y eso SI se puede -- arrastrando
+    // desde la primera. Se entiende la intencion en vez de negarla por un tecnicismo
+    // del modelo: rechazar lo dejaba con un mensaje y sin camino.
+    const cicloPrimera = ciclos.find((c) => c.id === delPlan[0].cycle_id)
+    const destinoPrimera = cicloPrimera ? vecino(ciclos, cicloPrimera, 'anterior') : undefined
+    if (!destinoPrimera) {
+      // Aca si no hay salida: la cuota 1 ya vive en el resumen mas viejo de la tarjeta.
+      return rechazo('Este plan ya arranca en el resumen más viejo de la tarjeta: no hay ninguno antes.')
+    }
+    return {
+      reasignaciones: reasignacionesDesde(delPlan, destinoPrimera, ciclos),
+      esperadas: delPlan.length,
+      ampliadoATodoElPlan: true,
+    }
   }
 
-  const reasignaciones: Reasignacion[] = []
-  for (const [k, cuota] of aMover.entries()) {
-    // La cuota k-esima despues de la tocada va al k-esimo resumen despues del destino.
+  return { reasignaciones: reasignacionesDesde(aMover, destino, ciclos), esperadas: aMover.length }
+}
+
+/**
+ * Cada cuota de `cuotas` al resumen N-esimo desde `destino`, en orden -- el mismo
+ * invariante que usa el alta: la cuota k va al k-esimo resumen.
+ *
+ * Corta cuando se agotan los resumenes materializados. La action detecta que el plan
+ * quedo mas corto que `esperadas`, los crea, vuelve a pedir el plan una sola vez, y si
+ * sigue incompleto no aplica NADA: un plan movido a medias deja dos cuotas en el mismo
+ * resumen.
+ */
+function reasignacionesDesde(
+  cuotas: Transaction[],
+  destino: CreditCardCycle,
+  ciclos: CreditCardCycle[],
+): Reasignacion[] {
+  const out: Reasignacion[] = []
+  for (const [k, cuota] of cuotas.entries()) {
     const ciclo = cicloNEsimo(ciclos, destino, k)
-    if (!ciclo) break // se agotaron los resumenes materializados; la action los crea y reintenta
-    reasignaciones.push({ transactionId: cuota.id, cycleId: ciclo.id, date: ciclo.due_date })
+    if (!ciclo) break
+    out.push({ transactionId: cuota.id, cycleId: ciclo.id, date: ciclo.due_date })
   }
-
-  return { reasignaciones, esperadas: aMover.length }
+  return out
 }

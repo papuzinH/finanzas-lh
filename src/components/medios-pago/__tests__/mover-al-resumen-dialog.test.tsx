@@ -220,3 +220,43 @@ describe('ContenidoMoverAlResumen', () => {
     expect(html).toContain('min-h-[44px]');
   });
 });
+
+describe('ContenidoMoverAlResumen — atrasar amplia a todo el plan', () => {
+  const R: ResumenNavegable[] = [
+    { id: 'ant', closingDate: '2026-07-23', dueDate: '2026-08-03', source: 'generated', estado: 'pendiente' },
+    { id: 'sig', closingDate: '2026-09-24', dueDate: '2026-10-05', source: 'generated', estado: 'proyectado' },
+  ];
+
+  it('una cuota intermedia avisa que atrasar mueve TODO el plan', () => {
+    const html = renderToStaticMarkup(
+      <ContenidoMoverAlResumen
+        anterior={R[0]} siguiente={R[1]} cuotasQueMueve={{ desde: 3, hasta: 6 }}
+        moviendo={null} onElegir={() => {}} ciclos={[]} cicloActualId={undefined}
+      />,
+    );
+    expect(html).toContain('todo el plan');
+    expect(html).toContain('las 6 cuotas');
+  });
+
+  it('la PRIMERA cuota no lo avisa: atrasarla no amplia nada', () => {
+    // Si esto no chequeara el caso negativo, un componente que muestre el aviso
+    // siempre pasaria igual.
+    const html = renderToStaticMarkup(
+      <ContenidoMoverAlResumen
+        anterior={R[0]} siguiente={R[1]} cuotasQueMueve={{ desde: 1, hasta: 6 }}
+        moviendo={null} onElegir={() => {}} ciclos={[]} cicloActualId={undefined}
+      />,
+    );
+    expect(html).not.toContain('todo el plan');
+  });
+
+  it('una compra suelta tampoco lo avisa', () => {
+    const html = renderToStaticMarkup(
+      <ContenidoMoverAlResumen
+        anterior={R[0]} siguiente={R[1]} cuotasQueMueve={undefined}
+        moviendo={null} onElegir={() => {}} ciclos={[]} cicloActualId={undefined}
+      />,
+    );
+    expect(html).not.toContain('todo el plan');
+  });
+});

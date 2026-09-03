@@ -139,6 +139,10 @@ export function ContenidoMoverAlResumen({
   // aviso por opción no se muestra, y el texto de arriba se queda con el conteo solo.
   const cicloActual = cicloActualId ? ciclos.find((c) => c.id === cicloActualId) : undefined;
   const cicloOrigenUltima = ultimaCuotaCaeEn(ciclos, cicloActual, cuotasQueMueve);
+  // Atrasar una cuota que no es la primera SIEMPRE se amplia a todo el plan: cada
+  // cuota tiene a su predecesora en el resumen de al lado, asi que moverla sola es
+  // imposible. Se deduce del numero de cuota y no hace falta consultar al server.
+  const amplia = (cuotasQueMueve?.desde ?? 1) > 1;
 
   return (
     <div className="grid gap-3">
@@ -163,6 +167,13 @@ export function ContenidoMoverAlResumen({
               >
                 {etiquetaDeResumen(resumen)}
               </Button>
+              {direccion === 'anterior' && amplia && (
+                <p className="px-1 text-[11px] text-warn">
+                  Atrasar mueve <strong>todo el plan</strong>
+                  {cuotasQueMueve?.hasta ? `, las ${cuotasQueMueve.hasta} cuotas` : ''}: una cuota sola no
+                  puede atrasarse sin caer encima de la anterior. Cambia el total de varios resúmenes.
+                </p>
+              )}
               {cicloOrigenUltima && cicloDestinoUltima && (
                 <p className="px-1 text-[11px] text-muted">
                   La última pasa de {mes(cicloOrigenUltima.due_date)} a {mes(cicloDestinoUltima.due_date)}.

@@ -352,9 +352,34 @@ describe('moverTransaccionAlResumenVecino', () => {
     expect(filas[0].cycle_id).toBe('sep')
   })
 
-  it('rechaza mover una cuota al resumen que ya tiene la cuota previa del plan', async () => {
-    // C1: sin este guard, mover la cuota 2 al anterior la dejaba encima de la 1 -- las
-    // dos con el mismo `due_date`, que es de donde salian los empates de `date`.
+  it('atrasar una cuota intermedia AMPLIA el movimiento a todo el plan, sin dejar dos en el mismo resumen', async () => {
+    // Atrasar una cuota sola es imposible: caeria encima de su predecesora, con el
+    // mismo `due_date`, que es de donde salian los empates de `date` del C1. En vez de
+    // rechazar se entiende la intencion -- el usuario quiere que el plan caiga un
+    // resumen antes -- y se mueve entero desde la primera. El invariante no cambia:
+    // las tres cuotas terminan en tres resumenes distintos.
+    const c1 = tx({ id: 'c1', cycle_id: 'ago', date: '2026-09-01', installment_plan_id: 'p1', description: 'Tele (1/3)' })
+    const c2 = tx({ id: 'c2', cycle_id: 'sep', date: '2026-10-05', installment_plan_id: 'p1', description: 'Tele (2/3)' })
+    const c3 = tx({ id: 'c3', cycle_id: 'oct', date: '2026-11-02', installment_plan_id: 'p1', description: 'Tele (3/3)' })
+    estado.cliente = clienteFalso({
+      transacciones: [c1, c2, c3],
+      ciclos: CUATRO_CICLOS,
+      metodo: metodoCredito,
+    })
+
+    const r = await moverTransaccionAlResumenVecino('c2', 'anterior')
+
+    expect(r.error).toBeFalsy()
+    // Una sola llamada de escritura, con las tres cuotas adentro: la atomicidad
+    // del movimiento no cambia por ampliarlo.
+    expect(estado.cliente!.upserts).toHaveLength(1)
+    const filas = estado.cliente!.upserts[0].rows
+    expect(filas).toHaveLength(3)
+    expect(new Set(filas.map((f) => f.cycle_id)).size).toBe(3)
+  })
+
+  it('rechaza atrasar cuando el plan ya arranca en el resumen mas viejo', async () => {
+    // Aca si no hay salida: la cuota 1 vive en el primer resumen de la tarjeta.
     const c1 = tx({ id: 'c1', cycle_id: 'jul', date: '2026-08-03', installment_plan_id: 'p1', description: 'Tele (1/3)' })
     const c2 = tx({ id: 'c2', cycle_id: 'ago', date: '2026-09-01', installment_plan_id: 'p1', description: 'Tele (2/3)' })
     const c3 = tx({ id: 'c3', cycle_id: 'sep', date: '2026-10-05', installment_plan_id: 'p1', description: 'Tele (3/3)' })
@@ -366,7 +391,7 @@ describe('moverTransaccionAlResumenVecino', () => {
 
     const r = await moverTransaccionAlResumenVecino('c2', 'anterior')
 
-    expect(r.error).toContain('cuota 1')
+    expect(r.error).toMatch(/mas viejo|más viejo/i)
     expect(estado.cliente!.upserts).toHaveLength(0)
   })
 
