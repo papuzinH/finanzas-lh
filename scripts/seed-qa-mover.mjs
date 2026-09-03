@@ -113,7 +113,10 @@ for (let i = 0; i < CUOTAS; i++) {
   filas.push({
     id: randomUUID(),
     user_id: UID,
-    description: `${DESC_LARGA} (${i + 1}/${CUOTAS}) · ${MARCA}`,
+    // La marca va ADELANTE: el alta real cierra la descripcion con "(n/m)" y el
+    // aviso del dialogo saca de ahi el numero de cuota. Con la marca al final, el
+    // regex no matchea y el aviso pierde precision -- un artefacto del seed, no del codigo.
+    description: `${MARCA} · ${DESC_LARGA} (${i + 1}/${CUOTAS})`,
     amount: TOTAL / CUOTAS,
     type: 'expense',
     date: ciclo ? ciclo.due_date : '2026-12-05',

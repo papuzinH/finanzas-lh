@@ -114,7 +114,15 @@ export function planDeMovimiento(
   const chocada = delPlan.slice(0, desde).find((t) => t.cycle_id === destino.id)
   if (chocada) {
     const nro = nroDeCuota(chocada) ?? delPlan.indexOf(chocada) + 1
-    return rechazo(`La cuota ${nro} ya está en ese resumen: movela desde ella para correr el plan entero.`)
+    const primera = nroDeCuota(delPlan[0]) ?? 1
+    // El mensaje tiene que decir QUE HACER. En un plan normal cada cuota tiene a su
+    // predecesora en el resumen de al lado, asi que atrasar UNA es imposible por
+    // definicion: lo unico que se puede atrasar es el plan entero, y eso se hace
+    // desde su cuota mas vieja. "Movela desde ella" no alcanzaba -- se leia como
+    // "mové la cuota 2", sin decir adonde ni por que.
+    return rechazo(
+      `Ahí ya está la cuota ${nro}. Para atrasar todo el plan, movelo desde la cuota ${primera}: las demás se corren con ella.`,
+    )
   }
 
   const reasignaciones: Reasignacion[] = []

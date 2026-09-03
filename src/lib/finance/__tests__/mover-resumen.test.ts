@@ -121,6 +121,12 @@ describe('planDeMovimiento — cuotas (E15)', () => {
     expect(r.reasignaciones).toEqual([])
     expect(r.esperadas).toBe(0)
     expect(r.motivoDeRechazo).toContain('cuota 2')
+    // Y tiene que decir QUE HACER, no solo que choca: la unica forma de atrasar
+    // un plan es moverlo desde su cuota mas vieja, porque cada cuota tiene a su
+    // predecesora en el resumen de al lado. Sin eso el usuario lee "movela desde
+    // ella" y no sabe si eso significa mover la 2 hacia adelante.
+    expect(r.motivoDeRechazo).toContain('cuota 1')
+    expect(r.motivoDeRechazo).toMatch(/atras|todo el plan/i)
   })
 
   it('mover la cuota mas vieja hacia atras sigue funcionando y arrastra el resto', () => {

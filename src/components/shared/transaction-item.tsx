@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { ActionSheet } from "@/components/ui/action-sheet";
+import { ActionSheet, type ActionSheetAction } from "@/components/ui/action-sheet";
 import { EditTransactionDialog } from "@/components/transactions/edit-transaction-dialog";
 import { ConfirmationModal } from "@/components/shared/confirmation-modal";
 import { deleteTransaction } from "@/app/dashboard/transactions/actions";
@@ -43,6 +43,9 @@ interface TransactionItemProps {
     original_currency?: string | null;
     original_amount?: number | null;
     rate_pair?: string | null;
+    /** El resumen de tarjeta al que pertenece. Es lo que permite abrir la fila
+     *  en el detalle por resumen, donde vive "Mover a otro resumen". */
+    cycle_id?: string | null;
   };
   paymentMethodName?: string;
   paymentMethodType?: string;
@@ -53,6 +56,55 @@ interface TransactionItemProps {
 }
 
 const UNDO_WINDOW_MS = 4000;
+
+/**
+ * Las acciones del menu de una fila de /movimientos.
+ *
+ * Pura y exportada para que se pueda testear: el ActionSheet arranca cerrado y su
+ * contenido vive detras del Portal de Radix, que nunca se resuelve bajo
+ * `renderToStaticMarkup` -- un test de markup sobre el sheet asserta contra una
+ * cadena vacia y pasa siempre.
+ *
+ * Una cuota no se edita ni se borra desde aca (se gestiona desde Compromisos), pero
+ * si esta imputada al resumen de una tarjeta si se puede ABRIR ahi, que es donde
+ * vive "Mover a otro resumen". Sin eso, el usuario que busca la accion donde es
+ * natural buscarla encuentra un item apagado y ningun camino.
+ */
+export function accionesDeTransaccion({
+  esCuota,
+  puedeVerEnResumen,
+  onEditar,
+  onEliminar,
+  onVerEnResumen,
+}: {
+  esCuota: boolean;
+  /** Es cuota de una tarjeta Y esta imputada a un resumen concreto. */
+  puedeVerEnResumen: boolean;
+  onEditar: () => void;
+  onEliminar: () => void;
+  onVerEnResumen: () => void;
+}): ActionSheetAction[] {
+  if (!esCuota) {
+    return [
+      { label: 'Editar', icon: <Pencil className="h-5 w-5" />, onClick: onEditar },
+      { label: 'Eliminar', icon: <Trash2 className="h-5 w-5" />, onClick: onEliminar, variant: 'destructive' as const },
+    ];
+  }
+  if (puedeVerEnResumen) {
+    return [
+      { label: 'Ver en el resumen', icon: <Layers className="h-5 w-5" />, onClick: onVerEnResumen },
+    ];
+  }
+  return [
+    {
+      label: 'Gestionar en Cuotas',
+      icon: <Layers className="h-5 w-5" />,
+      onClick: () => {},
+      disabled: true,
+      disabledHint: 'Esta transacción pertenece a un plan de cuotas.',
+    },
+  ];
+}
 
 export function TransactionItem({ transaction, paymentMethodName, paymentMethodType, showDate = true, grouped = false, peekOnMount = false }: TransactionItemProps) {
   const router = useRouter();
@@ -292,31 +344,14 @@ export function TransactionItem({ transaction, paymentMethodName, paymentMethodT
         open={isActionSheetOpen}
         onOpenChange={setIsActionSheetOpen}
         title={displayDescription}
-        actions={
-          isInstallment
-            ? [
-                {
-                  label: 'Gestionar en Cuotas',
-                  icon: <Layers className="h-5 w-5" />,
-                  onClick: () => {},
-                  disabled: true,
-                  disabledHint: 'Esta transacción pertenece a un plan de cuotas.',
-                },
-              ]
-            : [
-                {
-                  label: 'Editar',
-                  icon: <Pencil className="h-5 w-5" />,
-                  onClick: () => setIsEditOpen(true),
-                },
-                {
-                  label: 'Eliminar',
-                  icon: <Trash2 className="h-5 w-5" />,
-                  onClick: handleDelete,
-                  variant: 'destructive' as const,
-                },
-              ]
-        }
+        actions={accionesDeTransaccion({
+          esCuota: isInstallment,
+          puedeVerEnResumen: isCredit && !!transaction.cycle_id && !!transaction.payment_method_id,
+          onEditar: () => setIsEditOpen(true),
+          onEliminar: handleDelete,
+          onVerEnResumen: () =>
+            router.push(`/ajustes/medios/${transaction.payment_method_id}?resumen=${transaction.cycle_id}`),
+        })}
       />
 
       <EditTransactionDialog
