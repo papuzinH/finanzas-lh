@@ -109,12 +109,14 @@ git commit -m "feat(mover): cicloSiguiente, la simetrica de cicloAnterior"
 - Test: `src/lib/finance/__tests__/mover-resumen.test.ts`
 
 **Interfaces:**
-- Consumes: `cicloAnterior`, `cicloSiguiente`, `cicloNEsimo`, `ciclosDeMetodo`, `CreditCardCycle` de `./cycles`; `ProcessedTransaction` de `./types`.
+- Consumes: `cicloAnterior`, `cicloSiguiente`, `cicloNEsimo`, `CreditCardCycle` de `./cycles`; `Transaction` de `@/types/database`.
 - Produces:
   - `type DireccionDeMovimiento = 'anterior' | 'siguiente'`
   - `type Reasignacion = { transactionId: string; cycleId: string; date: string }`
   - `type PlanDeMovimiento = { reasignaciones: Reasignacion[]; motivoDeRechazo?: string }`
-  - `planDeMovimiento(transaccion: ProcessedTransaction, todas: ProcessedTransaction[], ciclos: CreditCardCycle[], direccion: DireccionDeMovimiento): PlanDeMovimiento`
+  - `planDeMovimiento(transaccion: Transaction, todas: Transaction[], ciclos: CreditCardCycle[], direccion: DireccionDeMovimiento): PlanDeMovimiento`
+
+  ⚠️ Tipa contra **`Transaction`** (la fila cruda de `@/types/database`), NO contra `ProcessedTransaction`: sólo lee `id`, `cycle_id`, `date` e `installment_plan_id`, y ninguno de los campos derivados. La action la llama con filas que vienen directo de Supabase, así que pedir `ProcessedTransaction` obligaría a un cast mentiroso.
 
 **Notas para el implementer:**
 - `ciclos` llega ya filtrado por la tarjeta de la transacción y ordenado por `closing_date`.
@@ -267,7 +269,7 @@ Create `src/lib/finance/mover-resumen.ts`:
 //
 // Spec: docs/superpowers/specs/2026-09-02-mover-al-resumen-vecino-design.md
 import { cicloAnterior, cicloSiguiente, cicloNEsimo, type CreditCardCycle } from './cycles'
-import type { ProcessedTransaction } from './types'
+import type { Transaction } from '@/types/database'
 
 export type DireccionDeMovimiento = 'anterior' | 'siguiente'
 
@@ -287,8 +289,8 @@ const vecino = (ciclos: CreditCardCycle[], ciclo: CreditCardCycle, d: DireccionD
   d === 'anterior' ? cicloAnterior(ciclos, ciclo) : cicloSiguiente(ciclos, ciclo)
 
 export function planDeMovimiento(
-  transaccion: ProcessedTransaction,
-  todas: ProcessedTransaction[],
+  transaccion: Transaction,
+  todas: Transaction[],
   ciclos: CreditCardCycle[],
   direccion: DireccionDeMovimiento,
 ): PlanDeMovimiento {
@@ -462,9 +464,9 @@ export async function moverTransaccionAlResumenVecino(
     supabase.from('transactions').select('*').eq('user_id', user.id).eq('payment_method_id', t.payment_method_id),
   ])
   const ciclos = ciclosDeMetodo(t.payment_method_id, ciclosRaw ?? [])
-  const txs = (txsRaw ?? []) as ProcessedTransaction[]
+  const txs = txsRaw ?? []
 
-  let plan = planDeMovimiento(t as ProcessedTransaction, txs, ciclos, direccion)
+  let plan = planDeMovimiento(t, txs, ciclos, direccion)
   if (plan.motivoDeRechazo) return { error: plan.motivoDeRechazo }
 
   // Cuantas filas HAY que mover: la tocada, mas las cuotas posteriores del mismo plan.
@@ -475,11 +477,20 @@ export async function moverTransaccionAlResumenVecino(
   // Si el plan se estira mas alla de los resumenes materializados, se crean los que
   // falten y se pide el plan UNA sola vez mas. Nunca en loop.
   if (plan.reasignaciones.length < aMover) {
-    const method = { id: t.payment_method_id } as PaymentMethod
-    await asegurarCiclos(supabase, user.id, method, aMover + 1)
-    const { data: masCiclos } = await supabase
-      .from('credit_card_cycles').select('*').eq('payment_method_id', t.payment_method_id)
-    plan = planDeMovimiento(t as ProcessedTransaction, txs, ciclosDeMetodo(t.payment_method_id, masCiclos ?? []), direccion)
+    // asegurarCiclos necesita el PaymentMethod COMPLETO: genera los resumenes a
+    // partir de default_closing_day / default_payment_day. Fabricar { id } rompe.
+    const { data: method } = await supabase
+      .from('payment_methods').select('*').eq('id', t.payment_method_id).eq('user_id', user.id).single()
+    if (method) {
+      const ultima = txs
+        .filter((x) => x.installment_plan_id === t.installment_plan_id)
+        .reduce((max, x) => (x.date > max ? x.date : max), t.date)
+      // Hasta la ultima cuota mas un margen: correr el plan la empuja un resumen.
+      await asegurarCiclos(supabase, method, new Date(), addMonths(parseLocalDate(ultima), 2))
+      const { data: masCiclos } = await supabase
+        .from('credit_card_cycles').select('*').eq('payment_method_id', t.payment_method_id)
+      plan = planDeMovimiento(t, txs, ciclosDeMetodo(t.payment_method_id, masCiclos ?? []), direccion)
+    }
   }
 
   // Cada reasignacion, un update. SOLO cycle_id y date: purchase_date no se toca.
@@ -497,7 +508,7 @@ export async function moverTransaccionAlResumenVecino(
 }
 ```
 
-⚠️ **La firma de `asegurarCiclos` hay que verificarla antes de usarla** (`src/lib/ciclos/asegurar.ts`): el snippet de arriba asume `(supabase, userId, method, mesesAdelante)`, y si difiere, manda la real — no la de este plan. Lo que no cambia es la regla: **una sola llamada, nunca en loop**.
+La firma de `asegurarCiclos` está verificada contra el código: `(supabase, method, desde: Date, hasta: Date)`. Tira excepción ante un error de Supabase, así que la llamada va dentro del try/catch de la action. Regla que no cambia: **una sola llamada, nunca en loop**.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
