@@ -22,6 +22,18 @@ import { parseLocalDate } from '@/lib/utils/dates'
  */
 export const DIAS_DE_BORDE = 7
 
+/**
+ * Hasta donde hacia atras se repasan los cobros ya cargados (getCobrosSinImputar).
+ *
+ * El banner no tiene "descartar" -- a proposito: su salida es declarar, y eso queda
+ * persistido -- y la action que lo resuelve rechaza el lote ENTERO si pasa de 100
+ * filas. Sin piso, las dos cosas juntas dejarian a un usuario con historial largo
+ * frente a un aviso permanente y "Datos invalidos" en los dos botones. Hoy es
+ * inalcanzable (maximo 4 filas medidas en produccion); el piso esta para que no
+ * dependa de eso. Dos anos alcanzan de sobra para un repaso que es de una vez.
+ */
+export const MESES_DE_REPASO = 24
+
 export type OpcionDeMes = { valor: string; label: string }
 
 /** true si la fecha cae en los ultimos DIAS_DE_BORDE dias de su mes. */

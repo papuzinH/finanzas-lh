@@ -4,12 +4,16 @@
  * es que no haya ninguno: el banner tiene que rendir vacio sin romper nada, igual
  * que OverdueCardPaymentBanner.
  */
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { CobrosSinImputarBanner } from '../cobros-sin-imputar-banner'
 
 beforeEach(() => {
+  // El getter tiene piso temporal (MESES_DE_REPASO), asi que depende del reloj:
+  // sin congelarlo, estos fixtures de agosto de 2026 se caerian solos en 2028.
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-09-03T12:00:00'))
   useFinanceStore.setState({
     transactions: [], paymentMethods: [], installmentPlans: [], recurringPlans: [],
     categories: [], categoryBudgets: [], savingsGoals: [], savingsGoalContributions: [],
@@ -17,6 +21,8 @@ beforeEach(() => {
     internalTransfers: [], incomeCountsNextMonth: null,
   } as never)
 })
+
+afterEach(() => { vi.useRealTimers() })
 
 describe('getCobrosSinImputar', () => {
   it('lista los ingresos del borde que no tienen mes declarado', () => {
@@ -66,6 +72,27 @@ describe('getCobrosSinImputar', () => {
     })
     expect(useFinanceStore.getState().getCobrosSinImputar().map((t) => t.id))
       .toEqual(['debito', 'sinMedio'])
+  })
+
+  /**
+   * El banner no tiene "descartar" y imputarCobros rechaza el lote ENTERO con
+   * .max(100): sin piso, las dos cosas juntas dejarian a alguien con un aviso
+   * permanente y "Datos invalidos" en los dos botones. Reloj congelado en el
+   * beforeEach (2026-09-03), asi que el piso cae en 2024-09-03.
+   */
+  it('no repasa mas atras de MESES_DE_REPASO', () => {
+    useFinanceStore.setState({
+      transactions: [
+        { id: 'viejisimo', type: 'income', date: '2024-08-29', income_period: null, amount: 100,
+          is_balance_adjustment: false },
+        { id: 'justoAdentro', type: 'income', date: '2024-09-28', income_period: null, amount: 100,
+          is_balance_adjustment: false },
+        { id: 'reciente', type: 'income', date: '2026-08-29', income_period: null, amount: 100,
+          is_balance_adjustment: false },
+      ] as never,
+    })
+    expect(useFinanceStore.getState().getCobrosSinImputar().map((t) => t.id))
+      .toEqual(['justoAdentro', 'reciente'])
   })
 })
 

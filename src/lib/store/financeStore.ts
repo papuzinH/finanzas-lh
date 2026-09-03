@@ -31,11 +31,11 @@ import {
   parse,
   endOfMonth,
 } from 'date-fns';
-import { parseLocalDate } from '@/lib/utils/dates';
+import { parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
 import { formatCurrency, formatUsd } from '@/lib/utils';
 import { syncAutomaticRecurringCharges } from '@/app/compromisos/actions';
 import { isExpenseInCurrentMonthScope } from '@/lib/finance/creditCycle';
-import { necesitaDeclararMes } from '@/lib/finance/imputacion-ingresos';
+import { necesitaDeclararMes, MESES_DE_REPASO } from '@/lib/finance/imputacion-ingresos';
 import type { ProcessedTransaction, CreditCardCycleSummary as CreditCardCycleSummaryType, DolarBlue } from '@/lib/finance/types';
 import { ciclosDeMetodo, cicloVigente, type CreditCardCycle } from '@/lib/finance/cycles';
 import { resolveRate, prepareTransactions, prepareRecurringPlans } from '@/lib/finance/prepare';
@@ -985,9 +985,15 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   getCobrosSinImputar: () => {
     const { transactions, paymentMethods } = get();
     const tarjetas = new Set(paymentMethods.filter((m) => m.type === 'credit').map((m) => m.id));
+    // Piso: mas atras de MESES_DE_REPASO no se repasa nada. Ver la constante --
+    // sin piso, un historial largo choca contra el `.max(100)` de imputarCobros y
+    // el banner queda para siempre, con los dos botones devolviendo "Datos
+    // invalidos". Fechas comparadas como strings yyyy-MM-dd, nunca como Date.
+    const piso = formatLocalDate(subMonths(new Date(), MESES_DE_REPASO));
     return transactions.filter(
       (t) =>
         t.type === 'income' &&
+        t.date >= piso &&
         !t.is_balance_adjustment &&
         !t.income_period &&
         // Un reintegro de tarjeta NO entra al repaso. Dos razones, cada una alcanza:
