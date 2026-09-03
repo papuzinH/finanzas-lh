@@ -32,6 +32,19 @@ export type Version = {
 /** La más reciente primero. Con la lista vacía, el popup no se le muestra a nadie. */
 export const VERSIONES: Version[] = [
   {
+    version: '1.1.0',
+    // ⚠️ Si el release sale otro día, mover esta fecha: es la que decide quién
+    // ve el popup.
+    fecha: '2026-09-03',
+    titulo: 'Ahora la tarjeta se lee resumen por resumen',
+    items: [
+      'Cargá las fechas de cierre y vencimiento que te imprime el banco: la app deja de adivinarlas.',
+      'El detalle de la tarjeta se abre resumen por resumen, con la fecha en que compraste cada cosa.',
+      'Si el banco te puso una compra en otro resumen, la podés mover al que corresponde.',
+      'Ya podés borrar una mensualidad aunque tenga movimientos registrados.',
+    ],
+  },
+  {
     version: '1.0.0',
     // ⚠️ Si el release sale otro día, mover esta fecha: es la que decide quién
     // ve el popup. Un usuario dado de alta DESPUÉS de esta fecha no lo ve, y si
