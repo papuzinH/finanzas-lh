@@ -1196,7 +1196,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     return transactions
       .filter((t) => {
         if (t.type !== 'income' || t.is_balance_adjustment) return false;
-        const localTDate = parseLocalDate(t.date);
+        // periodDate, no date: para un cobro imputado a otro mes son distintos, y
+        // el mes al que cuenta es el declarado. Es el mismo criterio que /movimientos
+        // y que get_monthly_summary del chat.
+        const localTDate = parseLocalDate(t.periodDate || t.date);
         return isSameMonth(localTDate, now);
       })
       .reduce((acc, t) => acc + Number(t.amount), 0);
@@ -1207,7 +1210,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const now = new Date();
     return transactions.filter((t) => {
       if (t.type !== 'income' || t.is_balance_adjustment) return false;
-      const localTDate = parseLocalDate(t.date);
+      // periodDate, no date: para un cobro imputado a otro mes son distintos, y
+      // el mes al que cuenta es el declarado. Es el mismo criterio que /movimientos
+      // y que get_monthly_summary del chat.
+      const localTDate = parseLocalDate(t.periodDate || t.date);
       return isSameMonth(localTDate, now);
     });
   },

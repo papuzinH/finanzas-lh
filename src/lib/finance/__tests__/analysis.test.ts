@@ -86,9 +86,12 @@ describe('computeExpensesByCategory', () => {
     )
     expect(expensesResult).toEqual({ Comida: 1000 })
 
-    // Ingresos: se filtran por mes calendario de t.date (isSameMonth), no por ciclo.
-    const inMonthIncome = tx({ id: '3', category_id: 'c1', type: 'income', amount: 500, date: '2026-07-10' })
-    const outOfMonthIncome = tx({ id: '4', category_id: 'c1', type: 'income', amount: 900, date: '2026-08-10' })
+    // Ingresos: se filtran por mes calendario de periodDate (isSameMonth), no por
+    // ciclo. periodDate se fija explicito en los dos (el default del builder es
+    // igual para ambos, "2026-07-05": un fixture parejo ahi esconderia justo lo
+    // que este caso prueba, que afuera del mes de periodDate no cuenta).
+    const inMonthIncome = tx({ id: '3', category_id: 'c1', type: 'income', amount: 500, date: '2026-07-10', periodDate: '2026-07-10' })
+    const outOfMonthIncome = tx({ id: '4', category_id: 'c1', type: 'income', amount: 900, date: '2026-08-10', periodDate: '2026-08-10' })
     const incomeResult = computeExpensesByCategory(
       [inMonthIncome, outOfMonthIncome], paymentMethods, categories, 'current_month', 'income', now,
     )

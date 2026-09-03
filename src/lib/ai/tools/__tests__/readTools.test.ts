@@ -270,5 +270,37 @@ describe('readTools', () => {
       expect(r.ok).toBe(false)
       expect(r.error).toBeDefined()
     })
+
+    it('cuenta los ingresos con el mismo criterio que la pantalla', async () => {
+      // La garantia estructural del repo: la pantalla y el chat no pueden decir
+      // numeros distintos. Los dos leen periodDate.
+      vi.setSystemTime(new Date('2026-09-03T12:00:00'))
+
+      // Cobro del 29 de agosto imputado a septiembre (income_period): igual que
+      // hace prepareTransactions (Task 3), periodDate sigue al mes declarado.
+      const txCobroImputado = tx({
+        id: '4',
+        description: 'Cobro imputado',
+        amount: 100000,
+        date: '2026-08-29',
+        type: 'income',
+        payment_method_id: '2',
+        periodDate: '2026-09-01',
+        realPaymentDate: '2026-08-29',
+        income_period: '2026-09-01',
+      })
+      vi.mocked(loadFinanceData).mockResolvedValueOnce({
+        ...financeData,
+        transactions: [...financeData.transactions, txCobroImputado],
+      })
+
+      const r = await executeToolWith(readTools, 'get_monthly_summary', { mes: '2026-09' }, ctx)
+      expect(r.ok).toBe(true)
+      const d = r.data as Record<string, unknown>
+      // El fixture de ctx incluye un ingreso con date 2026-08-29 e
+      // income_period 2026-09-01: aparece en el total de septiembre.
+      expect(d.mes).toBe('2026-09')
+      expect(d.ingresos).toBe(100000)
+    })
   })
 })

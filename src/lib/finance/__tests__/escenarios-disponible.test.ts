@@ -551,3 +551,35 @@ describe('E18 — cambiar la config de la tarjeta actualiza los resumenes futuro
     expect(cambios.map((c) => c.id)).toEqual(['sep']);
   });
 });
+
+describe('E19 — imputar un cobro a otro mes no mueve el disponible', () => {
+  it('el disponible es identico con y sin income_period', () => {
+    // La plata esta en la cuenta desde que entro. Imputar es una lente de analisis,
+    // no un movimiento de plata: computeAvailableToSpend va por t.date a proposito
+    // (ver el comentario de pocket.ts:25). Este test es lo que impide que alguien
+    // "unifique" ese criterio con periodDate mas adelante y mueva el numero central
+    // de la app sin darse cuenta.
+    const cuentas = [acct({ initial_balance: 300000 })];
+
+    // Cobro del 29 de agosto, con el reloj en septiembre: el caso del reporte.
+    const cobro = {
+      id: 'sueldo', user_id: 'u1', type: 'income', amount: 500000,
+      date: '2026-08-29', periodDate: '2026-08-29', realPaymentDate: '2026-08-29',
+      payment_method_id: 'poc', category_id: 'c1', card_payment_for: null,
+      installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
+      income_period: null,
+    } as ProcessedTransaction;
+
+    const sinImputar = run({ paymentMethods: cuentas, transactions: [cobro] });
+
+    // El MISMO cobro, ahora contando para septiembre. periodDate se mueve con
+    // income_period (es lo que hace prepareTransactions en la Task 3); date no.
+    const imputado = run({
+      paymentMethods: cuentas,
+      transactions: [{ ...cobro, income_period: '2026-09-01', periodDate: '2026-09-01' }],
+    });
+
+    expect(imputado.available).toBe(sinImputar.available);
+    expect(imputado.pocketTotal).toBe(sinImputar.pocketTotal);
+  });
+});
