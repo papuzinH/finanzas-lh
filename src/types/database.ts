@@ -772,6 +772,7 @@ export interface Database {
           description: string
           exchange_rate: number | null
           id: string
+          income_period: string | null
           installment_plan_id: string | null
           is_balance_adjustment: boolean
           original_amount: number | null
@@ -795,6 +796,7 @@ export interface Database {
           description: string
           exchange_rate?: number | null
           id?: string
+          income_period?: string | null
           installment_plan_id?: string | null
           is_balance_adjustment?: boolean
           original_amount?: number | null
@@ -818,6 +820,7 @@ export interface Database {
           description?: string
           exchange_rate?: number | null
           id?: string
+          income_period?: string | null
           installment_plan_id?: string | null
           is_balance_adjustment?: boolean
           original_amount?: number | null
@@ -892,6 +895,7 @@ export interface Database {
           email: string | null
           first_name: string | null
           id: string
+          income_counts_next_month: boolean | null
           income_rhythm: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode: string | null
           last_seen_version: string | null
@@ -909,6 +913,7 @@ export interface Database {
           email?: string | null
           first_name?: string | null
           id: string
+          income_counts_next_month?: boolean | null
           income_rhythm?: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode?: string | null
           last_seen_version?: string | null
@@ -926,6 +931,7 @@ export interface Database {
           email?: string | null
           first_name?: string | null
           id?: string
+          income_counts_next_month?: boolean | null
           income_rhythm?: 'monthly' | 'biweekly' | 'weekly' | 'irregular'
           interaction_mode?: string | null
           last_seen_version?: string | null
