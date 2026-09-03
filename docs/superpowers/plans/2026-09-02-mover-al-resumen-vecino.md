@@ -15,7 +15,7 @@
 - **Ningún cambio de schema.** Ni una migración, ni una columna.
 - **`purchase_date` NUNCA se toca al mover.** Mover cambia en qué resumen te lo cobraron, no cuándo compraste. Hay un test por cada camino que lo fija.
 - **El cliente manda la dirección (`'anterior' | 'siguiente'`), nunca un `cycleId`.** El destino lo resuelve el servidor desde el ciclo actual de la transacción.
-- **Todo id que llega del cliente se valida con `.eq('user_id', user.id)`** antes de tocarlo (auditoría M4, 2026-08-27). Patrón de referencia: `src/app/medios-pago/__tests__/payment-method-dueno.test.ts`.
+- **Todo id que llega del cliente se valida con `.eq('user_id', user.id)`** antes de tocarlo (auditoría M4, 2026-08-27). Patrón de referencia: `src/app/medios-pago/__tests__/reassign-dueno.test.ts`.
 - **Fechas como strings `yyyy-MM-dd`**, comparadas con `<` / `>` / `localeCompare`. Nunca como `Date`. Para pasar un `Date` a string: `formatLocalDate` de `@/lib/utils/dates`.
 - **Pertenencia al resumen = `t.cycle_id`.** Nunca el mes de `t.date`.
 - **Fixtures desparejos, obligatorio.** Ciclos reales del Galicia: cierres `2026-07-23` / `2026-08-20` / `2026-09-24`, vencimientos `2026-08-03` / `2026-09-01` / `2026-10-05`. Un fixture con cierre y vencimiento del mismo día del mes escondió los dos últimos bugs grandes del repo.
@@ -369,19 +369,19 @@ git commit -m "feat(mover): que se mueve y adonde, con las cuotas corriendo desd
 
 **Notas para el implementer:**
 - Mirá `declararCiclo` en `src/app/medios-pago/actions.ts` como patrón de action de este dominio (validación, forma de la respuesta, `revalidatePath`).
-- El test se escribe con el cliente de Supabase **mockeado**, igual que `payment-method-dueno.test.ts`. Ese patrón ya está establecido en el repo: las server actions SÍ se testean así.
+- El test se escribe con el cliente de Supabase **mockeado**, igual que `reassign-dueno.test.ts`. Ese patrón ya está establecido en el repo: las server actions SÍ se testean así.
 - Los cuatro guards del spec, en orden: dueño → es crédito y tiene `cycle_id` → no es mensualidad/reintegro/pago → el vecino existe.
 - Si `planDeMovimiento` devuelve menos reasignaciones que cuotas a mover (se agotaron los ciclos), llamar a `asegurarCiclos` para materializar los que faltan y volver a pedir el plan **una sola vez**.
 - ⚠️ **Si después de ese reintento el plan SIGUE incompleto, se rechaza entero: no se aplica ninguna reasignación.** Aplicar un plan parcial deja **dos cuotas en el mismo resumen** — mover `c2` de agosto a septiembre sin poder mover `c3`, que ya estaba en septiembre, produce un resumen con dos cuotas del mismo plan, que en el papel del banco no existe. Un estado peor que no haber movido nada. El caso llega a producción con una tarjeta sin `default_closing_day`/`default_payment_day`, donde `asegurarCiclos` no puede generar nada.
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `src/app/medios-pago/__tests__/mover-resumen-action.test.ts`, siguiendo el estilo de mock de `payment-method-dueno.test.ts` (leelo primero para copiar la forma exacta del mock del cliente). Los casos que tienen que estar:
+Create `src/app/medios-pago/__tests__/mover-resumen-action.test.ts`, siguiendo el estilo de mock de `reassign-dueno.test.ts` (leelo primero para copiar la forma exacta del mock del cliente). Los casos que tienen que estar:
 
 ```ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// El mock del cliente de Supabase va como en payment-method-dueno.test.ts.
+// El mock del cliente de Supabase va como en reassign-dueno.test.ts.
 // Leer ese archivo y replicar su estructura antes de escribir esto.
 
 describe('moverTransaccionAlResumenVecino', () => {
