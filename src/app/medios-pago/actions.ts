@@ -1,11 +1,16 @@
 'use server'
 
+import { addMonths } from 'date-fns'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createPaymentMethodSchema, type CreatePaymentMethodSchema } from '@/lib/schemas/payment-method'
 import { declararCicloSchema, type DeclararCicloSchema } from '@/lib/schemas/ciclo'
 import { guardarDeclaracion, realinearFuturos } from '@/lib/ciclos/declarar'
-import { dateToLocalString } from '@/lib/utils/dates'
+import { asegurarCiclos } from '@/lib/ciclos/asegurar'
+import { dateToLocalString, parseLocalDate } from '@/lib/utils/dates'
+import { ciclosDeMetodo, type CreditCardCycle } from '@/lib/finance/cycles'
+import { planDeMovimiento, type DireccionDeMovimiento } from '@/lib/finance/mover-resumen'
+import type { Transaction } from '@/types/database'
 
 type ActionResponse = {
   error?: string
@@ -312,6 +317,119 @@ export async function posponerRecordatorioDeCiclo(cycleId: string): Promise<Acti
     if (error) return { error: 'No pude guardar' }
 
     revalidatePath('/compromisos')
+    return { success: true }
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    return { error: 'Ocurrió un error inesperado' }
+  }
+}
+
+/**
+ * Mueve una compra (o un plan de cuotas desde la cuota tocada) al resumen vecino.
+ *
+ * El cliente manda la DIRECCION, nunca un cycleId: el destino se resuelve acá, desde
+ * el ciclo actual de la transacción. Así no hay forma de imputar a un resumen
+ * arbitrario, de otra tarjeta o de otro usuario.
+ *
+ * `purchase_date` no se toca: mover cambia en qué resumen te lo cobraron, no cuándo
+ * compraste (ver Reasignacion en lib/finance/mover-resumen.ts).
+ *
+ * TODO O NADA: si el plan de cuotas queda incompleto incluso después de intentar
+ * materializar los resúmenes que falten, no se aplica ninguna reasignación. Un plan
+ * a medias deja dos cuotas del mismo plan en el mismo resumen, un estado que en el
+ * papel del banco no existe.
+ */
+export async function moverTransaccionAlResumenVecino(
+  transactionId: string,
+  direccion: DireccionDeMovimiento,
+): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    // Guard 1: la transaccion es del usuario.
+    const { data: t } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', transactionId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!t) return { error: 'Movimiento inválido' }
+
+    // Guard 2: solo se mueven consumos de una tarjeta de crédito ya imputados a un
+    // resumen. El medio también se valida contra el usuario (M4): una fila propia
+    // no debería poder apuntar a un medio ajeno, pero no confiamos en eso.
+    const { data: method } = await supabase
+      .from('payment_methods')
+      .select('*')
+      .eq('id', t.payment_method_id ?? '')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!method || method.type !== 'credit' || !t.cycle_id) {
+      return { error: 'Sólo se pueden mover movimientos de una tarjeta de crédito.' }
+    }
+
+    // Guard 3: ni mensualidad, ni reintegro, ni pago de tarjeta.
+    if (t.recurring_plan_id) return { error: 'Las mensualidades se manejan desde Compromisos.' }
+    if (t.type === 'income') return { error: 'Los reintegros no se mueven de resumen.' }
+    if (t.card_payment_for) return { error: 'Un pago de tarjeta no pertenece a un resumen de consumo.' }
+
+    // Los ciclos y las transacciones de ESA tarjeta: planDeMovimiento los necesita
+    // para correr el plan de cuotas y para resolver el resumen vecino.
+    const [{ data: ciclosRaw }, { data: txsRaw }] = await Promise.all([
+      supabase.from('credit_card_cycles').select('*').eq('payment_method_id', method.id),
+      supabase.from('transactions').select('*').eq('user_id', user.id).eq('payment_method_id', method.id),
+    ])
+    const ciclos = ciclosDeMetodo(method.id, (ciclosRaw ?? []) as CreditCardCycle[])
+    const txs = (txsRaw ?? []) as Transaction[]
+
+    // Guard 4 (el vecino existe) lo resuelve planDeMovimiento vía motivoDeRechazo.
+    let plan = planDeMovimiento(t, txs, ciclos, direccion)
+    if (plan.motivoDeRechazo) return { error: plan.motivoDeRechazo }
+
+    // Cuántas filas HAY que mover: la tocada, más las cuotas posteriores del mismo plan.
+    const aMover = t.installment_plan_id
+      ? txs.filter((x) => x.installment_plan_id === t.installment_plan_id && x.date >= t.date).length
+      : 1
+
+    // Si el plan se estira más allá de los resúmenes materializados, se crean los que
+    // falten y se pide el plan UNA sola vez más. Nunca en loop.
+    if (plan.reasignaciones.length < aMover) {
+      const ultima = txs
+        .filter((x) => x.installment_plan_id === t.installment_plan_id)
+        .reduce((max, x) => (x.date > max ? x.date : max), t.date)
+      try {
+        // asegurarCiclos necesita el PaymentMethod COMPLETO: genera los resúmenes a
+        // partir de default_closing_day/default_payment_day. Fabricar { id } rompe.
+        await asegurarCiclos(supabase, method, new Date(), addMonths(parseLocalDate(ultima), 2))
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : 'No pude asegurar los resúmenes de la tarjeta' }
+      }
+      const { data: masCiclos } = await supabase
+        .from('credit_card_cycles')
+        .select('*')
+        .eq('payment_method_id', method.id)
+      plan = planDeMovimiento(t, txs, ciclosDeMetodo(method.id, (masCiclos ?? []) as CreditCardCycle[]), direccion)
+    }
+
+    // Todo o nada: un plan de cuotas movido a medias deja dos cuotas en el mismo
+    // resumen, que es peor que no mover.
+    if (plan.reasignaciones.length < aMover) {
+      return { error: 'No pude mover todas las cuotas del plan, así que no moví ninguna.' }
+    }
+
+    // Cada reasignación, un update. SOLO cycle_id y date: purchase_date no se toca.
+    for (const r of plan.reasignaciones) {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ cycle_id: r.cycleId, date: r.date })
+        .eq('id', r.transactionId)
+        .eq('user_id', user.id)
+      if (error) return { error: 'No se pudo mover el movimiento de resumen.' }
+    }
+
+    revalidatePath('/ajustes/medios')
     return { success: true }
   } catch (error) {
     console.error('Unexpected error:', error)
