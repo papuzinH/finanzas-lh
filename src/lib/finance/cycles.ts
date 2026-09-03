@@ -12,7 +12,11 @@ import { formatLocalDate, parseLocalDate } from '@/lib/utils/dates'
 import type { Database, PaymentMethod } from '@/types/database'
 
 export type CreditCardCycle = Database['public']['Tables']['credit_card_cycles']['Row']
-export type CicloNuevo = Omit<CreditCardCycle, 'id' | 'created_at'>
+// `reminder_dismissed_at` queda afuera a proposito: la columna es vestigial desde que el
+// recordatorio dejo de ser un aviso posponible y paso a ser una etiqueta en la card del ciclo
+// vigente (ver pideDeclaracion). Nadie la escribe ni la lee, y por eso su migracion dejo de
+// bloquear el deploy.
+export type CicloNuevo = Omit<CreditCardCycle, 'id' | 'created_at' | 'reminder_dismissed_at'>
 
 /** Los ciclos de UNA tarjeta, ordenados por cierre ascendente. */
 export function ciclosDeMetodo(methodId: string, ciclos: CreditCardCycle[]): CreditCardCycle[] {
@@ -159,7 +163,6 @@ export function generarCiclos(
         closing_date: formatLocalDate(cierre),
         due_date: formatLocalDate(vencimiento),
         source: 'generated',
-        reminder_dismissed_at: null,
       })
     }
     cursor = addMonths(cursor, 1)
@@ -168,29 +171,28 @@ export function generarCiclos(
 }
 
 /**
- * Que resumenes le estan pidiendo al usuario que cargue sus fechas reales.
+ * Si este resumen le esta pidiendo al usuario que cargue sus fechas reales.
  *
- * Solo despues del cierre: la Ley 25.065 art. 23 obliga al banco a imprimir el cierre y el
- * vencimiento siguientes en cada resumen, asi que el dato existe recien cuando el resumen se
- * emite. Pedirlo antes seria pedir algo que el usuario no puede tener.
+ * Es una VENTANA -- del cierre al vencimiento -- y cada punta tiene su razon:
  *
- * UNO POR TARJETA, el ultimo cerrado. Pedir tres resumenes viejos de una es una pared de avisos
- * y el dato de los anteriores ya no esta a mano; pero pedir uno solo en total dejaria a las
- * demas tarjetas sin pedir nunca.
+ *   - Antes del cierre el dato NO EXISTE. La Ley 25.065 art. 23 obliga al banco a imprimir
+ *     el cierre y el vencimiento siguientes en cada resumen, asi que el usuario lo tiene
+ *     recien cuando el resumen se emite. Pedirlo antes es pedir algo que no puede tener.
+ *   - Pasado el vencimiento el papel ya es viejo, la fecha no esta a mano y lo accionable
+ *     pasa a ser pagar ese resumen, no fecharlo.
  *
- * Se saltea los que el usuario ya declaro y los que pospuso.
+ * La punta de arriba faltaba, y era un bug: la version anterior tomaba como candidato
+ * cualquier resumen estimado ya cerrado y mostraba el ultimo, asi que declarar el de agosto
+ * hacia aparecer el de julio, visualmente identico. Medido contra datos reales el 2026-09-03:
+ * 13 candidatos en una tarjeta y 12 en la otra, o sea una cola de 25 avisos de a uno.
+ *
+ * La ventana garantiza ademas UNO POR TARJETA sin ordenar ni deduplicar nada: los resumenes
+ * de una tarjeta no se solapan, asi que a lo sumo uno contiene a `hoy` -- y ese es el ciclo
+ * vigente, el que la card de Compromisos ya esta mostrando con sus fechas y su monto. De ahi
+ * que la pregunta viva en esa card y no en un aviso aparte.
  */
-export function ciclosQuePidenDeclaracion(
-  ciclos: CreditCardCycle[],
-  hoy: string,
-): CreditCardCycle[] {
-  const candidatos = ciclos
-    .filter((c) => c.source === 'generated' && c.closing_date <= hoy && !c.reminder_dismissed_at)
-    .sort((a, b) => a.closing_date.localeCompare(b.closing_date));
-
-  const ultimoPorTarjeta = new Map<string, CreditCardCycle>();
-  for (const c of candidatos) ultimoPorTarjeta.set(c.payment_method_id, c); // el orden asc deja el ultimo
-  return [...ultimoPorTarjeta.values()];
+export function pideDeclaracion(ciclo: CreditCardCycle, hoy: string): boolean {
+  return ciclo.source === 'generated' && ciclo.closing_date <= hoy && ciclo.due_date >= hoy;
 }
 
 export type CambioDeCiclo = { id: string; closing_date: string; due_date: string };

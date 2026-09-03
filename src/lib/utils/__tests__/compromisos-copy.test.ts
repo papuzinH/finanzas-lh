@@ -11,6 +11,18 @@ describe('cicloSub', () => {
     expect(r.fechas).toBe('cierra el 22 ago · vence el 30 ago');
   });
 
+  it('el dia del cierre sigue en presente: el ciclo corre hasta las 23:59 (E16)', () => {
+    const r = cicloSub(cierre, vencimiento, new Date(2026, 7, 22, 14, 0));
+    expect(r.fechas).toBe('cierra el 22 ago · vence el 30 ago');
+  });
+
+  it('pasado el cierre lo dice en pasado: ese resumen ya se emitio', () => {
+    // Decia "cierra el 22 ago" para un resumen cerrado hace una semana, justo en la
+    // pantalla donde se le pide al usuario que copie las fechas del papel.
+    const r = cicloSub(cierre, vencimiento, new Date(2026, 7, 29));
+    expect(r.fechas).toBe('cerró el 22 ago · vence el 30 ago');
+  });
+
   it('cuenta los días transcurridos del ciclo (ciclo = 22-jul → 22-ago)', () => {
     const r = cicloSub(cierre, vencimiento, new Date(2026, 7, 18));
     expect(r.dias).toBe('27 días del ciclo transcurridos'); // 22-jul → 18-ago

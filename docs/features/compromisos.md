@@ -17,7 +17,7 @@ Hub de deudas y gastos comprometidos del usuario: **cuotas** (planes de financia
 | `src/app/compromisos/actions.ts` | `markRecurringPlanPaid`, `unmarkRecurringPlanPaid`, `payCreditCardCycle`, `undoCreditCardPayment`, `backfillRecurringPlansHistory`, `syncAutomaticRecurringCharges` |
 | `src/app/dashboard/installments/actions.ts` | `createInstallmentPlan`, `updateInstallmentPlan`, `deleteInstallmentPlan` (cuotas) |
 | `src/app/dashboard/subscriptions/actions.ts` | `createSubscription`, `updateSubscription`, `deleteSubscription` (CRUD de `recurring_plans`) |
-| `src/components/compromisos/credit-card-cycle-card.tsx` | Card + chip de ciclo de tarjeta (pagar / deshacer pago, selector de medio financiador) |
+| `src/components/compromisos/credit-card-cycle-card.tsx` | Card + chip de ciclo de tarjeta (pagar / deshacer pago, selector de medio financiador) y el pedido de fechas del resumen (etiqueta «estimado» + «Corregir» → `EditarCicloDialog`) cuando `pideDeclaracion` da true |
 | `src/components/installments/*` , `src/components/subscriptions/*` | Diálogos crear/editar de cuotas y mensualidades |
 | `src/lib/finance/cycles.ts` | `cicloDeCompra`, `cicloVigente`, `cicloAnterior`, `cicloNEsimo`, `cicloSaldadoEn`, `generarCiclos` (el resumen como entidad) |
 | `src/lib/ciclos/asegurar.ts` | `asegurarCiclos` (get-or-create de los resúmenes; la única escritura) |

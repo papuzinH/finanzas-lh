@@ -53,9 +53,7 @@ import { CreateSubscriptionDialog } from '@/components/subscriptions/create-subs
 import { StaggeredList, StaggeredItem } from '@/components/shared/staggered-list';
 import { AnimatedPlusButton } from '@/components/shared/animated-plus-button';
 import { CreditCardCycleCard } from '@/components/compromisos/credit-card-cycle-card';
-import { RecordatorioDeclararCiclo } from '@/components/compromisos/recordatorio-declarar-ciclo';
 import { CompromisosSkeleton } from '@/components/ui/skeletons';
-import { ciclosQuePidenDeclaracion } from '@/lib/finance/cycles';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface PlanWithStatus extends InstallmentPlan {
@@ -437,7 +435,6 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
     installmentPlans,
     recurringPlans,
     paymentMethods,
-    creditCardCycles,
     fetchAllData,
     isInitialized,
     getInstallmentStatus,
@@ -448,8 +445,6 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
   } = useFinanceStore();
 
   const creditCards = getPendingCreditCardByCard();
-  const recordatoriosDeCiclo = ciclosQuePidenDeclaracion(creditCardCycles, dateToLocalString(new Date()));
-
   useEffect(() => {
     if (!isInitialized) {
       fetchAllData();
@@ -569,19 +564,10 @@ export function CompromisosClient({ initialTab }: { initialTab: ActiveTab }) {
               </div>
             </div>
 
-            {/* Recordatorio de declarar fechas: uno por tarjeta, el resumen recien cerrado */}
-            {recordatoriosDeCiclo.length > 0 && (
-              <div className="flex flex-col gap-3">
-                {recordatoriosDeCiclo.map((c) => {
-                  const tarjeta = paymentMethods.find((m) => m.id === c.payment_method_id);
-                  return tarjeta ? (
-                    <RecordatorioDeclararCiclo key={c.id} ciclo={c} nombreTarjeta={tarjeta.name} />
-                  ) : null;
-                })}
-              </div>
-            )}
-
-            {/* Ciclos de tarjeta — las cards hablan solas, sin header de sección */}
+            {/* Ciclos de tarjeta — las cards hablan solas, sin header de sección.
+                La pregunta por las fechas del resumen vive DENTRO de estas cards (ver
+                CreditCardCycleCard): el resumen recien cerrado es el ciclo vigente, asi que un
+                aviso aparte repetia el nombre de la tarjeta y sus fechas justo arriba. */}
             {creditCards.length > 0 && (
               <div className="flex flex-col gap-3">
                 {creditCards.map((card) => (

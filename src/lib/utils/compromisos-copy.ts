@@ -1,5 +1,6 @@
 // Sub-líneas de la card de ciclo de tarjeta (mock 2026-08-14). Puro.
 import { formatCurrency, formatUsd } from '@/lib/utils';
+import { formatLocalDate } from '@/lib/utils/dates';
 import type { CreditCardCycleSummary } from '@/lib/finance/types';
 
 const fmtDia = (d: Date) =>
@@ -20,8 +21,14 @@ export function cicloSub(
   const transcurridos = Math.min(total, Math.max(0, Math.round((now.getTime() - inicio.getTime()) / MS_DIA)));
   const pct = Math.min(100, Math.max(0, (transcurridos / total) * 100));
 
+  // El dia del cierre todavia va en presente: el ciclo corre hasta las 23:59 de esa fecha
+  // (E16). Se compara por DIA y no por instante, si no a las 00:01 del dia del cierre ya
+  // diria "cerro". Y decia "cierra" para un resumen cerrado hace una semana, justo en la
+  // card donde ahora se le pide al usuario que copie las fechas del papel del banco.
+  const yaCerro = formatLocalDate(now) > formatLocalDate(cierre);
+
   return {
-    fechas: `cierra el ${fmtDia(cierre)} · ${vence}`,
+    fechas: `${yaCerro ? 'cerró' : 'cierra'} el ${fmtDia(cierre)} · ${vence}`,
     dias: `${transcurridos} día${transcurridos === 1 ? '' : 's'} del ciclo transcurrido${transcurridos === 1 ? '' : 's'}`,
     pct,
   };

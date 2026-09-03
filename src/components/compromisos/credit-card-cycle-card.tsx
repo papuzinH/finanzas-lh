@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { CreditCard, Check, Clock, Loader2, Undo2, AlertTriangle } from 'lucide-react';
+import { CreditCard, Check, Clock, Loader2, Undo2, AlertTriangle, Pencil } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,8 +30,12 @@ import { payCreditCardCycle, undoCreditCardPayment } from '@/app/compromisos/act
 import { declararCiclo } from '@/app/medios-pago/actions';
 import { formatCurrency } from '@/lib/utils';
 import { cicloSub, montoDelCiclo } from '@/lib/utils/compromisos-copy';
-import { ciclosDeMetodo, cicloNEsimo } from '@/lib/finance/cycles';
+import { ciclosDeMetodo, cicloNEsimo, pideDeclaracion } from '@/lib/finance/cycles';
 import { DeclararProximoCiclo } from '@/components/medios-pago/declarar-proximo-ciclo';
+import { EditarCicloDialog } from '@/components/medios-pago/editar-ciclo-dialog';
+import { EtiquetaProcedencia } from '@/components/medios-pago/ciclo-fechas-field';
+import { Button } from '@/components/ui/button';
+import { dateToLocalString } from '@/lib/utils/dates';
 import type { FechasDeCiclo } from '@/components/medios-pago/ciclo-fechas-field';
 
 interface CreditCardCycleChipProps {
@@ -281,6 +285,15 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
   const status = store.getPaymentMethodStatus(card.methodId);
   const ciclo = cicloSub(status.nextClosingDate, card.nextPaymentDate);
   const monto = montoDelCiclo(card);
+  const [editandoCiclo, setEditandoCiclo] = useState(false);
+
+  // El resumen que esta card muestra. La pregunta por sus fechas vive acá y no en un aviso
+  // aparte: el resumen que acaba de cerrar ES el ciclo vigente, así que un banner propio
+  // repetía el nombre de la tarjeta y sus dos fechas en la card de arriba — con dos tarjetas
+  // eran cuatro cards sobre las mismas dos. `pideDeclaracion` acota la ventana al tramo en
+  // que el usuario tiene el papel del banco a mano (del cierre al vencimiento).
+  const vigente = store.creditCardCycles.find((c) => c.id === card.cycleId);
+  const pedirFechas = vigente ? pideDeclaracion(vigente, dateToLocalString(new Date())) : false;
 
   return (
     <Card className="px-4 py-3 grid gap-2">
@@ -305,6 +318,22 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
         </span>
       </div>
 
+      {pedirFechas && vigente && (
+        <div className="flex flex-wrap items-center gap-2">
+          <EtiquetaProcedencia source="generated" />
+          <Button
+            type="button"
+            variant="soft"
+            className="min-h-11 px-3 text-[11.5px]"
+            aria-label={`Corregir las fechas del resumen de ${card.name}`}
+            onClick={() => setEditandoCiclo(true)}
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+            Corregir
+          </Button>
+        </div>
+      )}
+
       {!card.isOverdue && (
         <ProgressBar value={ciclo.pct} height={8} tone="accent" label="Días transcurridos del ciclo" />
       )}
@@ -318,6 +347,20 @@ export function CreditCardCycleCard({ card }: CreditCardCycleCardProps) {
           <CreditCardCycleChip card={card} formattedDate={formattedDate} />
         </div>
       </div>
+
+      {vigente && (
+        // key por resumen: el diálogo se monta con el ciclo vigente y su estado se inicializa
+        // desde props una sola vez (useState). Si el vigente cambia de identidad con la página
+        // montada —pasa el vencimiento, o el realineado lo mueve— sin key seguiría mandando las
+        // fechas del resumen viejo. Misma lección que institutional-card y DeclararProximoCiclo.
+        <EditarCicloDialog
+          key={vigente.id}
+          open={editandoCiclo}
+          onOpenChange={setEditandoCiclo}
+          methodId={card.methodId}
+          ciclo={vigente}
+        />
+      )}
     </Card>
   );
 }
