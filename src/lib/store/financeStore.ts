@@ -1232,6 +1232,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         // periodDate, no date: para un cobro imputado a otro mes son distintos, y
         // el mes al que cuenta es el declarado. Es el mismo criterio que /movimientos
         // y que get_monthly_summary del chat.
+        // Precedencia (la arma prepare.ts): ciclo de tarjeta > income_period > fecha.
+        // Para un ingreso CON cycle_id -- un reintegro de tarjeta -- eso significa el
+        // mes del CIERRE del resumen; hasta esta feature contaba en el del VENCIMIENTO,
+        // asi que cuando las dos fechas caen en meses distintos el reintegro se corre un
+        // mes. Es deliberado: computeMonthlyBalance ya iba por periodDate, o sea que la
+        // pantalla se contradecia a si misma. Medido contra produccion el 2026-09-03:
+        // 2 reintegros en tarjeta en total, 1 cambia de mes, 2 usuarios. Fijado en
+        // lib/store/__tests__/ingresos-imputados.test.ts.
         const localTDate = parseLocalDate(t.periodDate || t.date);
         return isSameMonth(localTDate, now);
       })
@@ -1243,9 +1251,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const now = new Date();
     return transactions.filter((t) => {
       if (t.type !== 'income' || t.is_balance_adjustment) return false;
-      // periodDate, no date: para un cobro imputado a otro mes son distintos, y
-      // el mes al que cuenta es el declarado. Es el mismo criterio que /movimientos
-      // y que get_monthly_summary del chat.
+      // periodDate, no date: mismo criterio -- y misma precedencia ciclo > income_period
+      // > fecha, explicada arriba en getMonthlyIncome -- del que estas son las filas.
       const localTDate = parseLocalDate(t.periodDate || t.date);
       return isSameMonth(localTDate, now);
     });
