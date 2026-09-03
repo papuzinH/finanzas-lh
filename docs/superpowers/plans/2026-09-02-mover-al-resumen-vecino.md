@@ -655,6 +655,12 @@ git commit -m "feat(mover): el menu de la fila y el dialogo con los resumenes ve
 
 `FilasDelResumen` recibe los vecinos y se los pasa a cada `Fila`. `detalle-client.tsx` los calcula desde `detalle.resumenes` y `detalle.actual`.
 
+- [ ] **Step 1b: Cerrar el aviso del destino de la última cuota**
+
+El spec pide que el diálogo diga «Movés las cuotas 3 a 6. **La última pasa de marzo a abril.**» La Task 4 lo dejó genérico («todas se corren un resumen») porque el dato no era calculable con las props que `Fila` recibía. Ahora que estás pasando los vecinos desde `detalle-client.tsx`, pasá también los **ciclos de la tarjeta** (`store.creditCardCycles` filtrado con `ciclosDeMetodo`) hasta `MoverAlResumenDialog`, y calculá el destino real de la última cuota con `cicloNEsimo`. Es distinto por dirección —anterior o siguiente—, así que el aviso va **dentro de cada opción**, no una sola vez arriba de las dos.
+
+Si al hacerlo resulta que el aviso por opción queda recargado, decilo y dejalo como está: el texto actual es honesto, sólo menos específico de lo que el spec pedía.
+
 - [ ] **Step 2: Update the docs**
 
 En `docs/features/medios-de-pago.md` y en el bullet del detalle en `CLAUDE.md`: que se puede mover una compra al resumen vecino desde el menú de la fila, que una cuota arrastra el plan **desde ella hacia adelante**, que `purchase_date` no cambia, y que las mensualidades y los reintegros no se mueven (con el motivo: el sync podría re-postear una mensualidad movida).
