@@ -63,14 +63,14 @@ export function CabeceraDeResumen({
         {alDia ? (
           <p
             data-testid="total-resumen"
-            className="font-display tnum text-3xl leading-[var(--leading-display)] text-good shadow-bandera"
+            className="font-display tnum text-3xl leading-[var(--leading-display)] text-good [text-shadow:var(--shadow-bandera)] min-w-0 truncate pr-1.5 pb-1"
           >
             Al día
           </p>
         ) : (
           <p
             data-testid="total-resumen"
-            className="font-display tnum text-3xl leading-[var(--leading-display)] text-text shadow-bandera"
+            className="font-display tnum text-3xl leading-[var(--leading-display)] text-text [text-shadow:var(--shadow-bandera)] min-w-0 truncate pr-1.5 pb-1"
           >
             {mainAmount}
           </p>

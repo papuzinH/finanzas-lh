@@ -269,15 +269,15 @@ export function FilasDelResumen({
   }
 
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-2">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
         {filas.conFecha.map((t) => (
           <Fila key={t.id} t={t} anterior={anterior} siguiente={siguiente} ciclos={ciclos} installmentPlans={installmentPlans} onMovido={onMovido} />
         ))}
       </div>
 
       {filas.sinFecha.length > 0 && (
-        <div className="grid gap-2 border-t-[1.5px] border-border pt-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-2 border-t-[1.5px] border-border pt-4">
           <div>
             <h3 className="text-sm font-semibold text-text">Sin fecha de compra</h3>
             <p className="text-xs text-muted">
@@ -292,7 +292,7 @@ export function FilasDelResumen({
       )}
 
       {filas.reintegros.length > 0 && (
-        <div className="grid gap-2 border-t-[1.5px] border-border pt-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-2 border-t-[1.5px] border-border pt-4">
           <div>
             <h3 className="text-sm font-semibold text-text">Reintegros y devoluciones</h3>
             <p className="text-xs text-muted">
@@ -307,7 +307,7 @@ export function FilasDelResumen({
       )}
 
       {filas.porDebitar.length > 0 && (
-        <div className="grid gap-2 border-t-[1.5px] border-border pt-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-2 border-t-[1.5px] border-border pt-4">
           <div>
             <h3 className="text-sm font-semibold text-text">Todavía sin debitar</h3>
             <p className="text-xs text-muted">

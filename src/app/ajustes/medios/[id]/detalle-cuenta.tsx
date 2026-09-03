@@ -62,7 +62,7 @@ export function DetalleDeCuenta({
   const monto = esDeuda ? Math.abs(saldo) : saldo;
 
   return (
-    <div className="grid gap-5">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
       <div className={cn('grid gap-4', mostrarSaldo ? 'grid-cols-2' : 'grid-cols-1')}>
         {mostrarSaldo && (
           <div className="rounded-2xl border-[1.5px] border-border bg-surface-2 p-4">
@@ -91,7 +91,7 @@ export function DetalleDeCuenta({
         </p>
       )}
 
-      <div className="grid gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
         <h2 className="text-sm font-semibold text-text">Movimientos del mes</h2>
         {delMes.length > 0 ? (
           delMes.map((t) => <Fila key={t.id} t={t} fechaDe="movimiento" />)

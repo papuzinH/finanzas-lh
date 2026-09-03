@@ -34,8 +34,8 @@ describe('CabeceraDeResumen', () => {
 
   it('el total lleva la firma bandera, que es unica por pantalla', () => {
     const html = render();
-    expect(html).toContain('shadow-bandera');
-    expect(html.match(/shadow-bandera/g)?.length).toBe(1);
+    expect(html).toContain('[text-shadow:var(--shadow-bandera)]');
+    expect(html.match(/\[text-shadow:var\(--shadow-bandera\)\]/g)?.length).toBe(1);
   });
 
   it('muestra el chip de estado', () => {
@@ -64,22 +64,22 @@ describe('CabeceraDeResumen', () => {
     const html = render({ deuda: 175500, totalARS: 20000, totalUSD: 100 });
     expect(html).toContain('20.000');
     expect(html).toContain('100');
-    expect(html).toContain('shadow-bandera');
-    expect(html.match(/shadow-bandera/g)?.length).toBe(1);
+    expect(html).toContain('[text-shadow:var(--shadow-bandera)]');
+    expect(html.match(/\[text-shadow:var\(--shadow-bandera\)\]/g)?.length).toBe(1);
   });
 
   it('muestra deuda solo en ARS en la cifra principal', () => {
     const html = render({ deuda: 20000, totalARS: 20000, totalUSD: 0 });
     expect(html).toContain('20.000');
     expect(html).not.toContain('u$s');
-    expect(html.match(/shadow-bandera/g)?.length).toBe(1);
+    expect(html.match(/\[text-shadow:var\(--shadow-bandera\)\]/g)?.length).toBe(1);
   });
 
   it('muestra deuda solo en USD en la cifra principal', () => {
     const html = render({ deuda: 5000, totalARS: 0, totalUSD: 100 });
     expect(html).toContain('u$s 100');
     expect(html.match(/u\$s/g)?.length).toBe(1);
-    expect(html.match(/shadow-bandera/g)?.length).toBe(1);
+    expect(html.match(/\[text-shadow:var\(--shadow-bandera\)\]/g)?.length).toBe(1);
     // Sin esto el test solo verifica PRESENCIA, no posicion: la version que caia a
     // formatCurrency(totalARS) como cifra principal ponia "$ 0,00" arriba y el "u$s
     // 100" abajo, y pasaba igual. El \s es por el espacio duro de Intl es-AR.

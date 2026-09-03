@@ -75,7 +75,7 @@ export function DetalleClient({ methodId }: { methodId: string }) {
   if (method.type !== 'credit') {
     const cuenta = store.getAvailableToSpend().accounts.find((a) => a.methodId === methodId) ?? null;
     return (
-      <main className="mx-auto max-w-[720px] px-5 py-6 pb-28 grid gap-5">
+      <main className="mx-auto max-w-[720px] px-5 py-6 pb-28 grid grid-cols-[minmax(0,1fr)] gap-5">
         <EncabezadoDetalle method={method} />
         <DetalleDeCuenta
           method={method}
@@ -116,7 +116,7 @@ export function DetalleClient({ methodId }: { methodId: string }) {
   const ciclosDeLaTarjeta = ciclosDeMetodo(methodId, store.creditCardCycles);
 
   return (
-    <main className="mx-auto max-w-[720px] px-5 py-6 pb-28 grid gap-5">
+    <main className="mx-auto max-w-[720px] px-5 py-6 pb-28 grid grid-cols-[minmax(0,1fr)] gap-5">
       <EncabezadoDetalle method={method} />
 
       {detalle && detalle.actual ? (
