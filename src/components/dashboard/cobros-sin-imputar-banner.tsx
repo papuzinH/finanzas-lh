@@ -5,11 +5,10 @@ import { motion } from 'framer-motion'
 import { CalendarClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Chip } from '@/components/ui/chip'
+import { FilaDeCobro } from '@/components/dashboard/fila-de-cobro'
 import { imputarCobros } from '@/app/bolsillo/actions'
 import { mesesCandidatos, mesPorDefecto } from '@/lib/finance/imputacion-ingresos'
 import { useFinanceStore } from '@/lib/store/financeStore'
-import { formatCurrency } from '@/lib/utils'
 
 /**
  * Repaso de los cobros de fin de mes que se cargaron antes de que existiera la
@@ -46,8 +45,12 @@ export function CobrosSinImputarBanner() {
       const res = await imputarCobros(items)
       if (res.error) {
         toast.error(res.error)
-        return
       }
+      // Siempre, haya fallado o no: la escritura es secuencial, no atómica (ver
+      // imputarCobros). Si se cae a mitad de lote, las filas que sí se guardaron
+      // tienen que dejar de listarse aunque el resto haya fallado -- sin este
+      // refetch el banner seguía mostrando filas ya resueltas hasta el próximo
+      // refresh manual.
       await store.fetchAllData()
     } finally {
       setIsPending(false)
@@ -77,33 +80,20 @@ export function CobrosSinImputarBanner() {
       </div>
 
       <ul className="space-y-3">
-        {cobros.map((t) => {
-          const opciones = mesesCandidatos(t.date)
-          // Preselección con el mismo criterio que el formulario de carga: la
-          // preferencia declarada del usuario, no el primer candidato a secas.
-          const actual = elegido[t.id] ?? mesPorDefecto(t.date, store.incomeCountsNextMonth)
-          return (
-            <li key={t.id} className="space-y-2">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="font-sans text-sm text-text truncate">{t.description}</span>
-                <span className="font-display tnum text-sm text-good shrink-0">
-                  {formatCurrency(Number(t.amount))}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2" role="group" aria-label={`Mes de ${t.description}`}>
-                {opciones.map((o) => (
-                  <Chip
-                    key={o.valor}
-                    active={actual === o.valor}
-                    onClick={() => setElegido((prev) => ({ ...prev, [t.id]: o.valor }))}
-                  >
-                    {o.label}
-                  </Chip>
-                ))}
-              </div>
-            </li>
-          )
-        })}
+        {cobros.map((t) => (
+          <FilaDeCobro
+            key={t.id}
+            fecha={t.date}
+            descripcion={t.description}
+            // Getter, no campo: sigue el toggle ARS/USD del home igual que el
+            // resto de la pantalla (era formatCurrency a secas, siempre en ARS).
+            monto={store.formatDisplay(Number(t.amount))}
+            // Preselección con el mismo criterio que el formulario de carga: la
+            // preferencia declarada del usuario, no el primer candidato a secas.
+            value={elegido[t.id] ?? mesPorDefecto(t.date, store.incomeCountsNextMonth)}
+            onChange={(v) => setElegido((prev) => ({ ...prev, [t.id]: v }))}
+          />
+        ))}
       </ul>
 
       <div className="flex flex-wrap gap-2">

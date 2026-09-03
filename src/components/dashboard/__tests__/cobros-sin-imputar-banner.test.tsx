@@ -42,16 +42,29 @@ describe('CobrosSinImputarBanner', () => {
   })
 
   /**
-   * El caso CON cobros no se monta acá a propósito -- igual que
-   * OverdueCardPaymentBanner (ver su test). `useFinanceStore()` (el store entero)
-   * usa, bajo `useSyncExternalStore`, el getServerSnapshot de zustand ==
-   * `api.getInitialState()`, fijo al crear el store -- en cualquier render sin
-   * hidratación real, que es exactamente lo que hace `renderToStaticMarkup`. Un
-   * `store.<campo>` accedido así siempre ve el estado INICIAL, nunca lo que
-   * `setState` haya puesto después (los GETTERS sí ven estado fresco: llaman a
-   * `get()` en el momento de ejecutarse, no leen el snapshot memoizado del hook).
-   * En el navegador esto no aplica: tras la hidratación, `useSyncExternalStore`
-   * pasa a usar `getSnapshot` (en vivo) en cada re-render. La cobertura de
-   * `mesPorDefecto` en sí vive en lib/finance/__tests__/imputacion-ingresos.test.ts.
+   * Este caso SÍ se puede montar acá, a diferencia de lo que decía una versión
+   * anterior de este comentario: `store.getCobrosSinImputar()` es un GETTER, y un
+   * getter de zustand llama a `get()` en el momento de ejecutarse -- lee estado
+   * fresco sin importar por dónde entró el store al componente. Lo que SÍ queda
+   * congelado bajo `renderToStaticMarkup` (sin hidratación real) es un CAMPO leído
+   * directo del objeto que devuelve el hook (`store.incomeCountsNextMonth`): ahí
+   * `useSyncExternalStore` usa el getServerSnapshot de zustand, `api.getInitialState()`,
+   * fijo al crear el store. Por eso la preselección por preferencia se extrajo a
+   * `FilaDeCobro` (componente puro, sin store) y se testea sola, con `value` como
+   * prop, en `fila-de-cobro.test.tsx` -- ahí sí se ejercitan los dos valores
+   * posibles sin depender del snapshot congelado del hook.
    */
+  it('lista un cobro con sus dos meses candidatos', () => {
+    useFinanceStore.setState({
+      transactions: [
+        { id: 'a', type: 'income', date: '2026-08-29', income_period: null, amount: 12345,
+          is_balance_adjustment: false, description: 'Sueldo' },
+      ] as never,
+    })
+    const html = renderToStaticMarkup(<CobrosSinImputarBanner />)
+    expect(html).toContain('Sueldo')
+    expect(html).toContain('Agosto')
+    expect(html).toContain('Septiembre')
+    expect(html).toContain('min-h-11')
+  })
 })
