@@ -90,7 +90,16 @@ export function planDeMovimiento(
   // desempate: las cuotas de un plan se insertan en un solo INSERT y comparten `now()`.
   const delPlan = todas
     .filter((t) => t.installment_plan_id === transaccion.installment_plan_id)
-    .sort((a, b) => a.date.localeCompare(b.date) || (nroDeCuota(a) ?? 0) - (nroDeCuota(b) ?? 0))
+    .sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        (nroDeCuota(a) ?? 0) - (nroDeCuota(b) ?? 0) ||
+        // Ultimo desempate, arbitrario pero TOTAL: con las dos descripciones editadas
+        // nroDeCuota da undefined en ambas, la resta da 0, y Array.sort estable devuelve
+        // el orden de la query -- que no tiene ORDER BY. Sin esto, el mismo plan de
+        // cuotas produce dos resultados distintos segun como Postgres devuelva las filas.
+        a.id.localeCompare(b.id),
+    )
 
   const desde = delPlan.findIndex((t) => t.id === transaccion.id)
   if (desde === -1) return rechazo('No encontré este movimiento entre las cuotas del plan.')

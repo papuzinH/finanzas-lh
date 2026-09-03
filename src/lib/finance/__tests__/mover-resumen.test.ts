@@ -69,6 +69,23 @@ describe('planDeMovimiento — compra suelta', () => {
   })
 })
 
+describe('planDeMovimiento — el orden no depende de como venga la lista', () => {
+  // Con las dos descripciones editadas, nroDeCuota da undefined en ambas y el
+  // desempate por numero de cuota devuelve 0. Ahi Array.sort es estable y el orden
+  // pasa a ser el de la query -- que no tiene ORDER BY. Es la ultima puerta del
+  // Critical: sin un desempate total, mover una cuota podia arrastrar una hermana
+  // que vive en un resumen anterior.
+  const editadaA = tx({ id: 'aaa', cycle_id: 'ago', date: '2026-09-01', installment_plan_id: 'p9', description: 'Notebook nueva' })
+  const editadaB = tx({ id: 'bbb', cycle_id: 'ago', date: '2026-09-01', installment_plan_id: 'p9', description: 'Notebook usada' })
+
+  it('da el mismo plan venga la lista en el orden que venga', () => {
+    const enUnOrden = planDeMovimiento(editadaA, [editadaA, editadaB], CUATRO, 'siguiente')
+    const enElOtro = planDeMovimiento(editadaA, [editadaB, editadaA], CUATRO, 'siguiente')
+    expect(enUnOrden.reasignaciones).toEqual(enElOtro.reasignaciones)
+    expect(enUnOrden.motivoDeRechazo).toBe(enElOtro.motivoDeRechazo)
+  })
+})
+
 describe('planDeMovimiento — cuotas (E15)', () => {
   // Plan de 3 cuotas: jul, ago, sep.
   const c1 = tx({ id: 'c1', cycle_id: 'jul', date: '2026-08-03', installment_plan_id: 'p1', description: 'Tele (1/3)' })
