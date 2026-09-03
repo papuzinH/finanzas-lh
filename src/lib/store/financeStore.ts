@@ -31,10 +31,11 @@ import {
   parse,
   endOfMonth,
 } from 'date-fns';
-import { parseLocalDate } from '@/lib/utils/dates';
+import { parseLocalDate, formatLocalDate } from '@/lib/utils/dates';
 import { formatCurrency, formatUsd } from '@/lib/utils';
 import { syncAutomaticRecurringCharges } from '@/app/compromisos/actions';
 import { isExpenseInCurrentMonthScope } from '@/lib/finance/creditCycle';
+import { necesitaDeclararMes, MESES_DE_REPASO } from '@/lib/finance/imputacion-ingresos';
 import type { ProcessedTransaction, CreditCardCycleSummary as CreditCardCycleSummaryType, DolarBlue } from '@/lib/finance/types';
 import { ciclosDeMetodo, cicloVigente, type CreditCardCycle } from '@/lib/finance/cycles';
 import { resolveRate, prepareTransactions, prepareRecurringPlans } from '@/lib/finance/prepare';
@@ -97,6 +98,10 @@ interface FinanceState {
   creditCardCycles: CreditCardCycle[];
   /** Ritmo de cobro declarado por el usuario. Define qué compromisos descuenta el disponible. */
   incomeRhythm: IncomeRhythm;
+  /** Preferencia de imputación de cobros de fin de mes: null = sin contestar,
+   *  false = cuenta por su fecha, true = cuenta al mes siguiente. SOLO pre-elige
+   *  el selector — nunca reimputa nada por sí sola. */
+  incomeCountsNextMonth: boolean | null;
   savingsGoals: SavingsGoal[];
   savingsGoalContributions: SavingsGoalContribution[];
   categoryBudgets: CategoryBudget[];
@@ -202,6 +207,11 @@ interface FinanceState {
   getCardCycleDetail: (methodId: string, cycleId?: string) => DetalleDeResumen | null;
   getDefaultPaymentMethod: () => PaymentMethod | undefined;
   getUnassignedTransactionsCount: () => number;
+  /**
+   * Ingresos en el borde del mes que quedaron cargados antes de que existiera la
+   * imputacion (sin income_period). Repaso, no migracion: nadie los mueve solo.
+   */
+  getCobrosSinImputar: () => Transaction[];
   isCreditCardCyclePaid: (methodId: string) => boolean;
   getPendingCreditCardByCard: () => CreditCardCycleSummary[];
 
@@ -454,6 +464,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   internalTransfers: [],
   creditCardCycles: [],
   incomeRhythm: 'monthly',
+  incomeCountsNextMonth: null,
   savingsGoals: [],
   savingsGoalContributions: [],
   categoryBudgets: [],
@@ -672,6 +683,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         user: (userData as User) || null,
         // Viaja en el select('*') de users que ya se hace arriba: sin query nueva.
         incomeRhythm: (userData as User)?.income_rhythm ?? 'monthly',
+        incomeCountsNextMonth: (userData as User)?.income_counts_next_month ?? null,
         authEmail: authUser.email ?? null,
         authAvatarUrl: (authUser.user_metadata?.avatar_url as string) ?? null,
         isInitialized: true,
@@ -970,6 +982,33 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     return get().transactions.filter((t) => t.payment_method_id == null).length;
   },
 
+  getCobrosSinImputar: () => {
+    const { transactions, paymentMethods } = get();
+    const tarjetas = new Set(paymentMethods.filter((m) => m.type === 'credit').map((m) => m.id));
+    // Piso: mas atras de MESES_DE_REPASO no se repasa nada. Ver la constante --
+    // sin piso, un historial largo choca contra el `.max(100)` de imputarCobros y
+    // el banner queda para siempre, con los dos botones devolviendo "Datos
+    // invalidos". Fechas comparadas como strings yyyy-MM-dd, nunca como Date.
+    const piso = formatLocalDate(subMonths(new Date(), MESES_DE_REPASO));
+    return transactions.filter(
+      (t) =>
+        t.type === 'income' &&
+        t.date >= piso &&
+        !t.is_balance_adjustment &&
+        !t.income_period &&
+        // Un reintegro de tarjeta NO entra al repaso. Dos razones, cada una alcanza:
+        // no se pregunta por ellos (el ciclo le gana a income_period en prepare.ts),
+        // y para un movimiento de crédito `t.date` es el VENCIMIENTO que escribió el
+        // server, no el día en que entró la plata -- el test del borde y los meses
+        // candidatos saldrían de la fecha equivocada, así que cualquier tarjeta que
+        // venza a fin de mes metía TODOS sus reintegros en el banner, con los meses
+        // del vencimiento como opciones.
+        !t.cycle_id &&
+        !(t.payment_method_id && tarjetas.has(t.payment_method_id)) &&
+        necesitaDeclararMes(t.date),
+    );
+  },
+
   isCreditCardCyclePaid: (methodId: string) => {
     const { transactions, paymentMethods, creditCardCycles } = get();
     const method = paymentMethods.find((m) => m.id === methodId);
@@ -1196,7 +1235,18 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     return transactions
       .filter((t) => {
         if (t.type !== 'income' || t.is_balance_adjustment) return false;
-        const localTDate = parseLocalDate(t.date);
+        // periodDate, no date: para un cobro imputado a otro mes son distintos, y
+        // el mes al que cuenta es el declarado. Es el mismo criterio que /movimientos
+        // y que get_monthly_summary del chat.
+        // Precedencia (la arma prepare.ts): ciclo de tarjeta > income_period > fecha.
+        // Para un ingreso CON cycle_id -- un reintegro de tarjeta -- eso significa el
+        // mes del CIERRE del resumen; hasta esta feature contaba en el del VENCIMIENTO,
+        // asi que cuando las dos fechas caen en meses distintos el reintegro se corre un
+        // mes. Es deliberado: computeMonthlyBalance ya iba por periodDate, o sea que la
+        // pantalla se contradecia a si misma. Medido contra produccion el 2026-09-03:
+        // 2 reintegros en tarjeta en total, 1 cambia de mes, 2 usuarios. Fijado en
+        // lib/store/__tests__/ingresos-imputados.test.ts.
+        const localTDate = parseLocalDate(t.periodDate || t.date);
         return isSameMonth(localTDate, now);
       })
       .reduce((acc, t) => acc + Number(t.amount), 0);
@@ -1207,7 +1257,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const now = new Date();
     return transactions.filter((t) => {
       if (t.type !== 'income' || t.is_balance_adjustment) return false;
-      const localTDate = parseLocalDate(t.date);
+      // periodDate, no date: mismo criterio -- y misma precedencia ciclo > income_period
+      // > fecha, explicada arriba en getMonthlyIncome -- del que estas son las filas.
+      const localTDate = parseLocalDate(t.periodDate || t.date);
       return isSameMonth(localTDate, now);
     });
   },

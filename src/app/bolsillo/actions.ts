@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { reconcileOptionsFor } from '@/lib/finance/reconcile'
+import { mesesCandidatos } from '@/lib/finance/imputacion-ingresos'
 
 type ActionResponse = {
   error?: string
@@ -100,6 +101,81 @@ export async function saveIncomeRhythm(rhythm: string): Promise<ActionResponse> 
     return { success: true }
   } catch (err) {
     console.error('Unexpected error in saveIncomeRhythm:', err)
+    return { error: 'Ocurrió un error inesperado' }
+  }
+}
+
+/**
+ * Preferencia de imputacion de cobros. SOLO pre-elige la opcion del selector:
+ * ningun cobro cambia de mes por esto (ver el spec, "La decision").
+ */
+export async function saveIncomePeriodPreference(valor: boolean): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { error } = await supabase
+      .from('users')
+      .update({ income_counts_next_month: valor })
+      .eq('id', user.id)
+
+    if (error) {
+      console.error('Error guardando la preferencia de imputacion:', error)
+      return { error: 'No se pudo guardar tu preferencia' }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/ajustes')
+    return { success: true }
+  } catch (err) {
+    console.error('Unexpected error in saveIncomePeriodPreference:', err)
+    return { error: 'Ocurrió un error inesperado' }
+  }
+}
+
+/**
+ * Imputa en lote los cobros que el usuario repasó. "Dejalos como están" también
+ * llega acá, con el mes de la propia fecha: persistir esa decisión es lo que hace
+ * que el banner desaparezca para siempre sin inventar un estado de "descartado"
+ * aparte, que además no viajaría entre dispositivos.
+ */
+export async function imputarCobros(
+  items: { id: string; income_period: string }[],
+): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const parsed = z
+      .array(z.object({
+        id: z.string().uuid(),
+        income_period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }))
+      .max(100)
+      .safeParse(items)
+    if (!parsed.success) return { error: 'Datos inválidos' }
+
+    for (const item of parsed.data) {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ income_period: item.income_period })
+        .eq('id', item.id)
+        .eq('user_id', user.id)   // RLS es el backstop, no la única capa
+        .eq('type', 'income')     // el CHECK lo prohíbe igual, pero se dice acá también
+
+      if (error) {
+        console.error('Error imputando un cobro:', error)
+        return { error: 'No se pudieron guardar todos los cobros' }
+      }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/movimientos')
+    return { success: true }
+  } catch (err) {
+    console.error('Unexpected error in imputarCobros:', err)
     return { error: 'Ocurrió un error inesperado' }
   }
 }
@@ -256,6 +332,13 @@ export async function reconcileAccount(input: ReconcileInput): Promise<ActionRes
         type,
         category_id: categoryId,
         payment_method_id,
+        // Un movimiento de conciliación pertenece al mes en que se detectó: no es
+        // ambiguo, y por eso se declara acá en vez de dejarlo NULL. Sin esto,
+        // conciliar un día 28 con plata de más hacía aparecer al instante el banner
+        // de "cobros sin imputar" preguntando a qué mes cuenta una diferencia de $500.
+        // `mesesCandidatos(...)[0]` es el mes de la propia fecha, el mismo idioma que
+        // usa "Dejalos como están" en el banner.
+        income_period: type === 'income' ? mesesCandidatos(date)[0].valor : null,
         is_balance_adjustment: esAjuste,
         original_currency: 'ARS',
         original_amount: monto,

@@ -46,6 +46,7 @@ interface TransactionItemProps {
     /** El resumen de tarjeta al que pertenece. Es lo que permite abrir la fila
      *  en el detalle por resumen, donde vive "Mover a otro resumen". */
     cycle_id?: string | null;
+    income_period?: string | null;
   };
   paymentMethodName?: string;
   paymentMethodType?: string;

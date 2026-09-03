@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { ToolDef } from './types'
+import { necesitaDeclararMes, mesesCandidatos, resolverImputacion } from '@/lib/finance/imputacion-ingresos'
 import {
   handleTransaction,
   handleInstallment,
@@ -47,6 +48,14 @@ const createTransactionSchema = z.object({
   categoria_id: categoriaIdField,
   medio_pago: medioPagoField,
   fecha: fechaField,
+  mes_del_cobro: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/)
+    .nullable()
+    .optional()
+    .describe(
+      'YYYY-MM: a que mes cuenta el cobro. Solo para ingresos cobrados en los ultimos dias del mes; null en cualquier otro caso',
+    ),
 })
 
 const createInstallmentPlanSchema = z.object({
@@ -185,6 +194,43 @@ export const writeTools: ToolDef[] = [
     schema: createTransactionSchema,
     execute: async (rawArgs, ctx) => {
       const args = rawArgs as z.infer<typeof createTransactionSchema>
+
+      // El cobro del 29 de agosto puede ser de agosto trabajado o de septiembre por
+      // adelantado, y no hay forma de saberlo sin preguntar. Se devuelve el pedido al
+      // MODELO -- el mismo patron de dos pasos sin estado que usa delete_entity -- en
+      // vez de imputarlo por una regla que va a acertar la mitad de las veces.
+      //
+      // A DIFERENCIA de los dialogos y del banner del home, aca la pregunta se hace
+      // TAMBIEN si el medio es una tarjeta: `args.medio_pago` es un nombre suelto y
+      // saber su `type` exige un lookup extra que esta tool no hace hoy. Queda dicho
+      // en vez de por omision: si alguna vez se resuelve el medio antes de este punto,
+      // la condicion tiene que sumar `!medioEsCredito`, igual que imputacionAlGuardar.
+      // El costo de no hacerlo es una pregunta de mas por chat, no un numero movido:
+      // el ciclo le gana a income_period en prepare.ts, salvo tarjeta sin dias por
+      // defecto.
+      if (args.tipo === 'income' && necesitaDeclararMes(args.fecha) && !args.mes_del_cobro) {
+        const [esteMes, mesSiguiente] = mesesCandidatos(args.fecha)
+        return {
+          ok: false,
+          error:
+            `Ese cobro cae en los últimos días del mes. Preguntale al usuario a qué mes cuenta esa plata ` +
+            `(${esteMes.label} o ${mesSiguiente.label}) y volvé a llamar a la tool con mes_del_cobro.`,
+        }
+      }
+
+      // `resolverImputacion` es quien decide, no el modelo: `mes_del_cobro` llega de un
+      // LLM y puede alucinar un mes que no es ninguno de los dos candidatos reales de
+      // `fecha` (otro año, un typo). Si eso pasa, se descarta y cae al default -- acá
+      // sin preferencia de usuario (`null`): el chat no trae hoy `income_counts_next_month`
+      // en su contexto (Task 8, ver CLAUDE.md/dataLoader.ts) y sumarlo solo para cubrir
+      // esta rama defensiva (el modelo YA mandó un mes válido en el camino normal) no se
+      // justifica. Sin preferencia, `mesPorDefecto` cae al mes de la propia fecha --
+      // mismo default que ve el formulario antes de que el usuario toque el selector.
+      const incomePeriod =
+        args.tipo === 'income'
+          ? resolverImputacion(args.fecha, args.mes_del_cobro ? `${args.mes_del_cobro}-01` : null, null)
+          : null
+
       const data: TransactionData = {
         description: args.descripcion,
         amount: args.monto,
@@ -194,6 +240,7 @@ export const writeTools: ToolDef[] = [
         paymentMethodName: args.medio_pago,
         date: args.fecha,
         isReal: true,
+        incomePeriod,
       }
       const res = await handleTransaction(data, ctx.userId)
       return { ok: res.success, data: { mensaje: res.message }, mutated: res.success }

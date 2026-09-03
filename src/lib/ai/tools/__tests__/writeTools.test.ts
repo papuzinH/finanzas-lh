@@ -97,6 +97,8 @@ describe('create_transaction', () => {
         paymentMethodName: 'Visa',
         date: '2026-07-08',
         isReal: true,
+        // Task 8: un gasto nunca lleva imputación de mes.
+        incomePeriod: null,
       },
       ctx.userId,
     )
@@ -183,6 +185,97 @@ describe('create_transaction', () => {
 
     expect(res.ok).toBe(false)
     expect(handleTransaction).not.toHaveBeenCalled()
+  })
+})
+
+describe('create_transaction e imputacion de cobros', () => {
+  beforeEach(() => {
+    vi.mocked(handleTransaction).mockResolvedValue({ success: true, message: 'Listo' } as ChatResponse)
+  })
+
+  it('pide el mes cuando el ingreso cae en el borde y no vino', async () => {
+    const r = await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Sueldo', monto: 1_850_000, tipo: 'income',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-29',
+    }, ctx)
+    expect(r.ok).toBe(false)
+    // El mensaje es para el MODELO, y en espanol: si se filtra al usuario tiene
+    // que leerse como una pregunta, no como un error de Zod (bug del 2026-09-01).
+    expect(r.error).toContain('a qué mes')
+    expect(r.error).not.toContain('Invalid input')
+  })
+
+  it('no pregunta nada si el ingreso no cae en el borde', async () => {
+    const r = await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Sueldo', monto: 1_850_000, tipo: 'income',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-15',
+    }, ctx)
+    expect(r.ok).toBe(true)
+  })
+
+  it('no pregunta nada para un gasto en el borde', async () => {
+    const r = await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Chino', monto: 8_000, tipo: 'expense',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-29',
+    }, ctx)
+    expect(r.ok).toBe(true)
+  })
+
+  it('acepta el mes y lo persiste como el dia 1', async () => {
+    const r = await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Sueldo', monto: 1_850_000, tipo: 'income',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-29',
+      mes_del_cobro: '2026-09',
+    }, ctx)
+    expect(r.ok).toBe(true)
+    expect(vi.mocked(handleTransaction)).toHaveBeenCalledWith(
+      expect.objectContaining({ incomePeriod: '2026-09-01' }), ctx.userId,
+    )
+  })
+
+  it('un ingreso fuera del borde no lleva imputacion', async () => {
+    await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Sueldo', monto: 1_850_000, tipo: 'income',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-15',
+    }, ctx)
+    expect(vi.mocked(handleTransaction)).toHaveBeenCalledWith(
+      expect.objectContaining({ incomePeriod: null }), ctx.userId,
+    )
+  })
+
+  it('un mes_del_cobro sintacticamente valido pero fuera de los dos candidatos reales se descarta (alucinacion del modelo)', async () => {
+    // '2027-03' pasa el regex de Zod (YYYY-MM) pero no es ni agosto ni
+    // septiembre de 2026 -- los unicos dos candidatos reales de esta fecha. Sin
+    // resolverImputacion filtrando esto, el string alucinado se persistiria tal
+    // cual. Valor esperado: resolverImputacion('2026-08-29', '2027-03-01', null)
+    // -- candidato invalido, preferencia null (no `true`) -> mesPorDefecto cae a
+    // esteMes, '2026-08-01'. Confirmado por analogia con el caso ya cubierto en
+    // imputacion-ingresos.test.ts: resolverImputacion('2026-07-28', '2026-09-01',
+    // false) -> '2026-07-01' (el mes de la propia fecha, no el candidato invalido).
+    const r = await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Sueldo', monto: 1_850_000, tipo: 'income',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-29',
+      mes_del_cobro: '2027-03',
+    }, ctx)
+    expect(r.ok).toBe(true)
+    expect(vi.mocked(handleTransaction)).toHaveBeenCalledWith(
+      expect.objectContaining({ incomePeriod: '2026-08-01' }), ctx.userId,
+    )
+  })
+
+  it('el mes vecino equivocado (confundir anterior con siguiente) tambien se descarta', async () => {
+    // La alucinacion mas plausible: para una fecha de agosto, el modelo manda
+    // julio (el mes anterior) en vez de agosto o septiembre (los dos candidatos
+    // reales). Mismo mecanismo que el caso de arriba, mismo valor esperado.
+    const r = await executeToolWith(writeTools, 'create_transaction', {
+      descripcion: 'Sueldo', monto: 1_850_000, tipo: 'income',
+      categoria_id: null, medio_pago: null, fecha: '2026-08-29',
+      mes_del_cobro: '2026-07',
+    }, ctx)
+    expect(r.ok).toBe(true)
+    expect(vi.mocked(handleTransaction)).toHaveBeenCalledWith(
+      expect.objectContaining({ incomePeriod: '2026-08-01' }), ctx.userId,
+    )
   })
 })
 

@@ -32,7 +32,7 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
       return { error: 'Datos inválidos' };
     }
 
-    const { description, amount, date, category_id, type, payment_method_id, currency, rate_pair, exchange_rate } = validatedFields.data;
+    const { description, amount, date, category_id, type, payment_method_id, income_period, currency, rate_pair, exchange_rate } = validatedFields.data;
 
     // Para gastos con tarjeta de crédito, calcular la fecha real de pago según el ciclo de la tarjeta.
     // Para débito/efectivo, se guarda la fecha de compra sin modificar.
@@ -96,6 +96,7 @@ export async function createTransaction(data: CreateTransactionSchema): Promise<
         exchange_rate: rate,
         cycle_id: cycleId,
         purchase_date: type === 'expense' ? purchaseDate : null,
+        income_period: type === 'income' ? (income_period ?? null) : null,
       });
 
     if (error) {
@@ -129,7 +130,7 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
       return { error: 'Datos inválidos' };
     }
 
-    const { description, amount, date, category_id, type, payment_method_id, currency, rate_pair, exchange_rate } = validatedFields.data;
+    const { description, amount, date, category_id, type, payment_method_id, income_period, currency, rate_pair, exchange_rate } = validatedFields.data;
 
     const isUsd = currency === 'USD';
     const rate = isUsd ? Number(exchange_rate) : null;
@@ -198,6 +199,10 @@ export async function updateTransaction(id: string, data: TransactionSchema): Pr
         original_amount: amount,
         rate_pair: isUsd ? rate_pair : null,
         exchange_rate: rate,
+        // income_period es ortogonal al ciclo de crédito (no hay ciclo para un ingreso):
+        // se actualiza siempre con lo que trae el form, a diferencia de cycle_id/purchase_date
+        // que sólo se tocan cuando cambia el medio.
+        income_period: type === 'income' ? (income_period ?? null) : null,
         ...(methodChanged ? { cycle_id: cycleId, purchase_date: type === 'expense' ? purchaseDate : null } : {}),
       })
       .eq('id', id)

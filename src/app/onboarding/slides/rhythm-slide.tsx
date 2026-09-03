@@ -6,7 +6,8 @@ import { ArrowRight, Loader2, CalendarClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { RhythmPicker } from '@/components/pocket/rhythm-picker'
-import { saveIncomeRhythm } from '@/app/bolsillo/actions'
+import { PreferenciaCobroFinDeMes } from '@/components/pocket/preferencia-cobro-fin-de-mes'
+import { saveIncomeRhythm, saveIncomePeriodPreference } from '@/app/bolsillo/actions'
 import type { IncomeRhythm } from '@/lib/finance/pocket'
 
 interface RhythmSlideProps {
@@ -15,6 +16,7 @@ interface RhythmSlideProps {
 
 export function RhythmSlide({ onComplete }: RhythmSlideProps) {
   const [rhythm, setRhythm] = useState<IncomeRhythm>('monthly')
+  const [cuentaAlSiguiente, setCuentaAlSiguiente] = useState<boolean | null>(null)
   const [isPending, setIsPending] = useState(false)
 
   const handleSave = async () => {
@@ -24,6 +26,12 @@ export function RhythmSlide({ onComplete }: RhythmSlideProps) {
       if (res.error) {
         toast.error(res.error)
         return
+      }
+      if (rhythm === 'monthly' && cuentaAlSiguiente !== null) {
+        const prefRes = await saveIncomePeriodPreference(cuentaAlSiguiente)
+        if (prefRes.error) {
+          toast.error(prefRes.error)
+        }
       }
       onComplete(rhythm)
     } finally {
@@ -49,6 +57,10 @@ export function RhythmSlide({ onComplete }: RhythmSlideProps) {
       </div>
 
       <RhythmPicker value={rhythm} onChange={setRhythm} />
+
+      {rhythm === 'monthly' && (
+        <PreferenciaCobroFinDeMes value={cuentaAlSiguiente} onChange={setCuentaAlSiguiente} />
+      )}
 
       <Button
         type="button"

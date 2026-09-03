@@ -47,7 +47,10 @@ export function prepareTransactions(
     // fallaba en cuanto el vencimiento real se movia dentro del mes.
     // Sin ciclo (tarjeta sin configurar, o movimiento no-credito) queda t.date.
     const ciclo = t.cycle_id ? ciclosPorId.get(t.cycle_id) : undefined;
-    const periodDate = ciclo ? ciclo.closing_date : t.date;
+    // El ciclo manda para los consumos de credito. Para un ingreso no hay ciclo, y
+    // ahi vale income_period: el mes al que el usuario dijo que cuenta ese cobro.
+    // Sin declarar (NULL), el mes de la fecha, que es como funciono siempre.
+    const periodDate = ciclo ? ciclo.closing_date : (t.income_period ?? t.date);
 
     const amountArs =
       t.original_currency === 'USD' && t.original_amount != null
