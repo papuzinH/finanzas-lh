@@ -99,9 +99,11 @@ describe('prepareTransactions e income_period', () => {
   })
 
   it('el ciclo de tarjeta le gana a income_period', () => {
-    // Un gasto de credito no puede tener income_period (lo prohibe el CHECK), pero
-    // el orden de precedencia queda fijado igual: la imputacion de un consumo la
-    // decide su resumen y nada mas.
+    // En la practica un cycle_id solo lo asigna el flujo de tarjeta, que es
+    // siempre 'expense' — la combinacion con income_period es teorica (el CHECK
+    // de la migracion no la prohibe: solo exige `income_period is null or type =
+    // 'income'`). La construimos igual, con los dos campos NO nulos, para que
+    // compitan de verdad y quede fijado que el ciclo gana.
     const ciclo: CreditCardCycle = {
       id: 'cy1', user_id: 'u1', payment_method_id: 'visa',
       closing_date: '2026-08-20', due_date: '2026-09-01',
@@ -109,7 +111,7 @@ describe('prepareTransactions e income_period', () => {
       reminder_dismissed_at: null,
     }
     const [p] = prepareTransactions(
-      [ingreso({ type: 'expense', cycle_id: 'cy1', income_period: null })],
+      [ingreso({ cycle_id: 'cy1', income_period: '2026-09-01' })],
       sinMedios, [], null, [ciclo],
     )
     expect(p.periodDate).toBe('2026-08-20')
