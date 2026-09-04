@@ -28,6 +28,7 @@ import {
   endOfWeek,
   startOfDay,
   isSameMonth,
+  isBefore,
   parse,
   endOfMonth,
 } from 'date-fns';
@@ -1784,8 +1785,25 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     transactions
       .filter((t) => t.type === 'expense' && isExpenseInCurrentMonthScope(t, paymentMethods, now))
       .forEach((t) => {
-        const dt = parseLocalDate(t.periodDate || t.date);
-        if (isSameMonth(dt, now)) perDay[dt.getDate()] += Math.abs(Number(t.amount));
+        // El día del eje es CUÁNDO SE GASTÓ. En crédito `periodDate` es el día del
+        // CIERRE del resumen, así que usarlo apilaba el mes entero de la tarjeta en
+        // un solo día — y lo dejaba invisible hasta que ese día llegara, porque el
+        // acumulado de abajo sólo recorre hasta hoy. Medido en producción el
+        // 2026-09-04: 67 de 68 movimientos de crédito con cierre en septiembre
+        // ($1.029.504) no aparecían en el gráfico. `purchase_date` es el dato real;
+        // las filas viejas que no lo tienen caen al cierre, como venía siendo.
+        const dt = parseLocalDate(t.purchase_date || t.periodDate || t.date);
+        // La pertenencia al mes YA la decidió el scope de arriba. Volver a filtrar
+        // acá por fecha eran dos definiciones distintas de "este mes" conviviendo, y
+        // lo que pasaba la primera se caía de la segunda sin dejar rastro (216 de 344
+        // cuotas viven en ciclos cuyo cierre y vencimiento caen en meses distintos).
+        // Lo que cae fuera del mes se apoya en el borde en vez de descartarse.
+        const dia = isSameMonth(dt, now)
+          ? dt.getDate()
+          : isBefore(dt, now)
+            ? 1
+            : daysInMonth;
+        perDay[dia] += Math.abs(Number(t.amount));
       });
 
     const points: Array<{ day: number; cumulative: number }> = [];
