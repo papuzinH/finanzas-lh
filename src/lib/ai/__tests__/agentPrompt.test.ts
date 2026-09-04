@@ -99,4 +99,19 @@ describe('buildAgentPrompt', () => {
     expect(prompt).toMatch(/no uses ninguno/i)
     expect(prompt).not.toContain('undefined')
   })
+
+  /**
+   * La regla 2 ("si una tool falla, decíselo al usuario") hacía que el modelo
+   * transcribiera los errores de Zod: el 2026-09-01 una usuaria leyó en el chat
+   * "nota: Invalid input: expected string, received undefined". El resultado de una
+   * tool es un canal de MENOR autoridad que el system prompt, así que no alcanza con
+   * pedirlo ahí: la excepción tiene que estar en la regla misma.
+   */
+  it('la regla de contar los fallos exceptúa los errores de argumentos', () => {
+    const prompt = buildAgentPrompt(baseOpts)
+
+    const regla2 = prompt.match(/\n2\.[\s\S]*?\n3\./)?.[0] ?? ''
+    expect(regla2).not.toBe('')
+    expect(regla2.toLowerCase()).toContain('argumentos inválidos')
+  })
 })

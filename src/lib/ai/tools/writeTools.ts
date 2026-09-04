@@ -313,7 +313,7 @@ export const writeTools: ToolDef[] = [
     execute: async (rawArgs, ctx) => {
       const args = rawArgs as z.infer<typeof setCardDatesSchema>
       const data: CardConfigData = {
-        paymentMethodName: args.medio_pago ?? null,
+        paymentMethodName: args.medio_pago,
         closingDay: args.dia_cierre,
         paymentDay: args.dia_vencimiento,
       }
@@ -538,7 +538,7 @@ export const writeTools: ToolDef[] = [
 
       const data: CreateBudgetData = {
         categoryName,
-        categoryId: args.categoria_id ?? null,
+        categoryId: args.categoria_id,
         limitAmount: args.monto_limite,
         currency: args.moneda,
       }
