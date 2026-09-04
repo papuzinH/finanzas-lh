@@ -163,6 +163,59 @@ describe('getMonthlySpendingPace — la proyección', () => {
     expect(res.projectedTotal).toBe(122500)
   })
 
+  /**
+   * Una mensualidad o una cuota de ESTE mes ya está completa: Netflix no se cobra
+   * de nuevo el día 15. No tienen ritmo, así que se suman enteras en vez de
+   * extrapolarse -- incluidas las que caen en días del mes que todavía no llegaron,
+   * porque van a ocurrir igual.
+   *
+   * Medido con los datos de Lauti el 2026-09-04: de $975.473 acumulados al día 4,
+   * $853.848 (87%) eran mensualidades. Multiplicar eso por 30/4 daba $7,3M contra
+   * $252.260 de gasto variable en todo el mes.
+   */
+  it('suma los fijos del mes enteros y extrapola solo lo variable', () => {
+    seed({
+      paymentMethods: [],
+      transactions: [
+        // Mensualidad ya cobrada este mes.
+        {
+          id: 'netflix', type: 'expense', amount: 20000, recurring_plan_id: 'r1',
+          purchase_date: null, periodDate: '2026-09-02', date: '2026-09-02',
+          realPaymentDate: '2026-09-02', payment_method_id: null,
+          installment_plan_id: null, cycle_id: null,
+        },
+        // Mensualidad de este mes que cae DESPUÉS de hoy: va a ocurrir igual.
+        {
+          id: 'alquiler', type: 'expense', amount: 300000, recurring_plan_id: 'r2',
+          purchase_date: null, periodDate: '2026-09-10', date: '2026-09-10',
+          realPaymentDate: '2026-09-10', payment_method_id: null,
+          installment_plan_id: null, cycle_id: null,
+        },
+        // Cuota de este mes.
+        {
+          id: 'cuota', type: 'expense', amount: 5000, installment_plan_id: 'p1',
+          purchase_date: '2026-09-01', periodDate: '2026-09-01', date: '2026-09-01',
+          realPaymentDate: '2026-09-01', payment_method_id: null,
+          recurring_plan_id: null, cycle_id: null,
+        },
+        // Gasto variable: $4.000 en 4 días es lo único con ritmo.
+        {
+          id: 'super', type: 'expense', amount: 4000,
+          purchase_date: null, periodDate: '2026-09-03', date: '2026-09-03',
+          realPaymentDate: '2026-09-03', payment_method_id: null,
+          installment_plan_id: null, recurring_plan_id: null, cycle_id: null,
+        },
+      ],
+    })
+
+    const res = useFinanceStore.getState().getMonthlySpendingPace()
+
+    // 20000 + 300000 + 5000 fijos, + (4000 / 4) * 30 = 30000 de ritmo.
+    expect(res.projectedTotal).toBe(355000)
+    // La línea NO cambia: sigue mostrando lo que ya pasó (sin el alquiler del 10).
+    expect(res.points.find((p) => p.day === 4)?.cumulative).toBe(29000)
+  })
+
   it('proyecta normal cuando todo el gasto es del mes', () => {
     seed({
       paymentMethods: [],
