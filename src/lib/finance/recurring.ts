@@ -215,3 +215,19 @@ export function computeMissingAutomaticCharges(
 
   return missing
 }
+
+/**
+ * Si el formulario de mensualidades tiene que pedir el día de cobro.
+ *
+ * En CRÉDITO no: la plata sale cuando se paga el resumen, así que "¿qué día te
+ * lo cobran?" se lee como una pregunta sobre el pago y no lo es. Internamente el
+ * día servía para elegir a qué resumen imputar el cargo, pero nadie lo cargó
+ * nunca --las 20 mensualidades de crédito de producción lo tienen en NULL-- y
+ * `chargeDayOf` ya cae al día 1, así que ocultarlo no cambia ningún número.
+ *
+ * En efectivo tampoco: no hay cuenta ni ciclo del que salga la plata.
+ */
+export function pideDiaDeCobro(method: PaymentMethod | undefined): boolean {
+  if (!method) return false
+  return method.type !== 'credit' && method.type !== 'cash'
+}
