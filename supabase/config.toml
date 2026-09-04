@@ -20,7 +20,12 @@
 # Nunca más aplicar SQL a mano sin que quede el renglón en
 # supabase_migrations.schema_migrations.
 
-project_id = "mkkgdjxaotgimqwhyesx"
+# DEV, que es el default del repo desde el 2026-08-26: `db push --linked` pega en
+# DEV y producción es siempre un paso explícito (`--db-url`). Este archivo decía el
+# ref de PRODUCCIÓN mientras el link real ya apuntaba a DEV: no rompía nada por sí
+# solo, pero cualquiera que lo abriera para saber contra qué base trabaja leía
+# "producción". Lo fija `src/lib/__tests__/config-supabase.test.ts`.
+project_id = "hgxuxoqyrooaariimqmg"
 
 [db]
 # Versión mayor del Postgres remoto (17.6.1 al 2026-07-28).
