@@ -34,8 +34,19 @@ export async function GET(request: Request) {
     )
     
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    
+
     if (!error) {
+      return NextResponse.redirect(`${origin}${destino}`)
+    }
+
+    // El code no se pudo canjear. Antes de dar el login por perdido: en Android el
+    // callback llega DOS veces con el mismo code (medido el 2026-09-01: 200 y a los
+    // 800ms un 404; en otro intento dos 400 a 70ms de distancia), y para cuando
+    // llega el segundo la primera ejecución ya dejó la sesión en las cookies. Si el
+    // usuario ya está adentro, mandarlo a `/login?error=...` es mentirle -- y es lo
+    // que lo hacía reintentar y abrir sesiones de más.
+    const { data } = await supabase.auth.getUser()
+    if (data.user) {
       return NextResponse.redirect(`${origin}${destino}`)
     }
   }
