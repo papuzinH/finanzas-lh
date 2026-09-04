@@ -60,11 +60,21 @@ Tres reglas, y conviene no tocarlas sin volver a medir:
    (`default_closing_day`/`default_payment_day`), que CLAUDE.md degradó a *sólo
    fallback* desde que `credit_card_cycles` es la entidad. Antes el segundo filtro
    hacía de red; ahora no hay red. Debería mirar `cycle_id`, como todo lo demás.
-3. **La proyección extrapola sólo el ritmo del mes.** Lo comprado en un mes anterior
-   (todas las cuotas de un plan comparten la `purchase_date` de la compra original)
-   es un monto fijo: se suma, no se multiplica. Con `spentSoFar / todayDay *
-   daysInMonth` a secas, un usuario con 19 de 19 filas viejas proyectaba **más de
-   $2.000.000 el día 4** — y ese número es el que decide el chip rojo «Te pasás».
+3. **La proyección extrapola SÓLO el gasto variable**, que es lo único que tiene
+   ritmo. Todo lo demás entra como monto fijo, porque es plata ya comprometida que
+   no se repite: lo comprado en meses anteriores (todas las cuotas de un plan
+   comparten la `purchase_date` de la compra original) y **las mensualidades y
+   cuotas de este mes** — Netflix no se cobra otra vez el día 15. Se suman enteras,
+   incluidas las que caen en días del mes que todavía no llegaron: van a ocurrir.
+
+   Ese número es el que decide el chip rojo «Te pasás», y extrapolar el acumulado
+   entero lo dispara. Dos mediciones contra producción del 2026-09-04: un usuario
+   con 19 de 19 filas compradas en meses anteriores proyectaba **más de $2.000.000
+   el día 4**; otro, con el **87% de su acumulado en mensualidades** ($853.848 de
+   $975.473), proyectaba **$7,3M** contra $252.260 de gasto variable en todo el mes.
+
+   ⚠️ La línea del gráfico NO cambia con esto: sigue mostrando lo que ya pasó. Lo
+   único que se corrige es la proyección.
 
 ## Tablas DB (vía `fetchAllData`, no directo desde componentes)
 

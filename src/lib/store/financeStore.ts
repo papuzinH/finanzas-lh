@@ -1787,6 +1787,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     // fijo. Se apoya en el día 1 para que se vea en el acumulado, pero se lleva
     // aparte porque NO es ritmo: extrapolarlo dispara la proyección.
     let heredado = 0;
+    // Las mensualidades y cuotas de ESTE mes tampoco son ritmo: ya están completas
+    // (Netflix no se cobra otra vez el 15) y se suman enteras, incluidas las que
+    // caen en días que todavía no llegaron — van a ocurrir igual. Medido el
+    // 2026-09-04: de $975.473 acumulados al día 4 de un usuario, $853.848 (87%)
+    // eran mensualidades, y extrapolarlas daba $7,3M contra $252.260 de gasto
+    // variable en todo el mes.
+    let fijoDelMes = 0;
+    let variableHastaHoy = 0;
     transactions
       .filter((t) => t.type === 'expense' && isExpenseInCurrentMonthScope(t, paymentMethods, now))
       .forEach((t) => {
@@ -1806,8 +1814,13 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         const delMes = isSameMonth(dt, now);
         const dia = delMes ? dt.getDate() : isBefore(dt, now) ? 1 : daysInMonth;
         const monto = Math.abs(Number(t.amount));
-        if (!delMes && dia === 1) heredado += monto;
         perDay[dia] += monto;
+
+        // Tres poblaciones excluyentes, y sólo la última tiene ritmo.
+        const esFijo = Boolean(t.recurring_plan_id || t.installment_plan_id);
+        if (!delMes && dia === 1) heredado += monto;
+        else if (esFijo) fijoDelMes += monto;
+        else if (dia <= todayDay) variableHastaHoy += monto;
       });
 
     const points: Array<{ day: number; cumulative: number }> = [];
@@ -1817,15 +1830,20 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       points.push({ day, cumulative: acc });
     }
 
-    const spentSoFar = acc;
-    // La proyección extrapola SÓLO el ritmo del mes; lo heredado se suma tal cual.
-    // Sobre `spentSoFar` a secas el número se dispara: con el peso apoyado en el día
-    // 1 y `todayDay` chico, multiplica por el mes entero plata que ya está comprada.
-    // Medido contra producción el 2026-09-04: un usuario con 19 de 19 filas compradas
-    // en meses anteriores proyectaba más de $2.000.000 el día 4 — y este número es el
-    // que decide el chip rojo "Te pasás" del análisis.
-    const ritmoDelMes = spentSoFar - heredado;
-    const projectedTotal = todayDay > 0 ? heredado + (ritmoDelMes / todayDay) * daysInMonth : heredado;
+    // La proyección extrapola SÓLO el gasto variable, que es lo único que tiene
+    // ritmo. Todo lo demás es plata ya comprometida y entra como monto fijo: lo
+    // comprado en meses anteriores (`heredado`) y las mensualidades y cuotas de
+    // este mes (`fijoDelMes`).
+    //
+    // Extrapolar el acumulado entero dispara el número, y este es el que decide el
+    // chip rojo "Te pasás" del análisis. Dos mediciones contra producción del
+    // 2026-09-04: un usuario con 19 de 19 filas compradas en meses anteriores
+    // proyectaba más de $2.000.000 el día 4; y otro, con el 87% de su acumulado en
+    // mensualidades, proyectaba $7,3M contra $252.260 de gasto variable en todo el
+    // mes.
+    const base = heredado + fijoDelMes;
+    const projectedTotal =
+      todayDay > 0 ? base + (variableHastaHoy / todayDay) * daysInMonth : base;
 
     return {
       points,
