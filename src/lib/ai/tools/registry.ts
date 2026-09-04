@@ -28,11 +28,17 @@ export async function executeToolWith(
 
   const parsed = tool.schema.safeParse(rawArgs ?? {})
   if (!parsed.success) {
+    // Los argumentos los arma el MODELO, así que un error de validación es suyo, no
+    // del usuario: el mensaje va dirigido a él para que corrija y vuelva a llamar.
+    // Sin esta instrucción, la regla 2 del prompt ("si una tool falla, decíselo al
+    // usuario con honestidad") lo hacía transcribirlo tal cual: el 2026-09-01 una
+    // usuaria leyó en el chat "nota: Invalid input: expected string, received
+    // undefined", en inglés y con el nombre interno del campo.
     return {
       ok: false,
       error: `Argumentos inválidos: ${parsed.error.issues
         .map((i) => `${i.path.join('.')}: ${i.message}`)
-        .join('; ')}`,
+        .join('; ')}. Corregí los argumentos y volvé a llamar la tool. Es un error tuyo, NO del usuario: no se lo muestres al usuario ni le pidas disculpas por esto.`,
     }
   }
 

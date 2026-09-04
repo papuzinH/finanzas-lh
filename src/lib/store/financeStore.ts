@@ -28,6 +28,7 @@ import {
   endOfWeek,
   startOfDay,
   isSameMonth,
+  isBefore,
   parse,
   endOfMonth,
 } from 'date-fns';
@@ -1097,8 +1098,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getPendingFixedExpenses: () => {
-    const { recurringPlans, transactions } = get();
-    return computePendingFixedExpenses(recurringPlans, transactions);
+    const { recurringPlans, transactions, paymentMethods } = get();
+    return computePendingFixedExpenses(recurringPlans, transactions, paymentMethods);
   },
 
   /**
@@ -1781,11 +1782,32 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     // gasto por día del mes actual (scope de ciclo) — siempre en ARS, conversión a
     // moneda de visualización se hace en el componente vía toDisplay()
     const perDay = new Array(daysInMonth + 1).fill(0);
+    // Lo comprado en un mes ANTERIOR (típicamente cuotas: todas las de un plan
+    // comparten la purchase_date de la compra original) es un monto ya comprometido,
+    // fijo. Se apoya en el día 1 para que se vea en el acumulado, pero se lleva
+    // aparte porque NO es ritmo: extrapolarlo dispara la proyección.
+    let heredado = 0;
     transactions
       .filter((t) => t.type === 'expense' && isExpenseInCurrentMonthScope(t, paymentMethods, now))
       .forEach((t) => {
-        const dt = parseLocalDate(t.periodDate || t.date);
-        if (isSameMonth(dt, now)) perDay[dt.getDate()] += Math.abs(Number(t.amount));
+        // El día del eje es CUÁNDO SE GASTÓ. En crédito `periodDate` es el día del
+        // CIERRE del resumen, así que usarlo apilaba el mes entero de la tarjeta en
+        // un solo día — y lo dejaba invisible hasta que ese día llegara, porque el
+        // acumulado de abajo sólo recorre hasta hoy. Medido en producción el
+        // 2026-09-04: 67 de 68 movimientos de crédito con cierre en septiembre
+        // ($1.029.504) no aparecían en el gráfico. `purchase_date` es el dato real;
+        // las filas viejas que no lo tienen caen al cierre, como venía siendo.
+        const dt = parseLocalDate(t.purchase_date || t.periodDate || t.date);
+        // La pertenencia al mes YA la decidió el scope de arriba. Volver a filtrar
+        // acá por fecha eran dos definiciones distintas de "este mes" conviviendo, y
+        // lo que pasaba la primera se caía de la segunda sin dejar rastro (216 de 344
+        // cuotas viven en ciclos cuyo cierre y vencimiento caen en meses distintos).
+        // Lo que cae fuera del mes se apoya en el borde en vez de descartarse.
+        const delMes = isSameMonth(dt, now);
+        const dia = delMes ? dt.getDate() : isBefore(dt, now) ? 1 : daysInMonth;
+        const monto = Math.abs(Number(t.amount));
+        if (!delMes && dia === 1) heredado += monto;
+        perDay[dia] += monto;
       });
 
     const points: Array<{ day: number; cumulative: number }> = [];
@@ -1796,7 +1818,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     const spentSoFar = acc;
-    const projectedTotal = todayDay > 0 ? (spentSoFar / todayDay) * daysInMonth : 0;
+    // La proyección extrapola SÓLO el ritmo del mes; lo heredado se suma tal cual.
+    // Sobre `spentSoFar` a secas el número se dispara: con el peso apoyado en el día
+    // 1 y `todayDay` chico, multiplica por el mes entero plata que ya está comprada.
+    // Medido contra producción el 2026-09-04: un usuario con 19 de 19 filas compradas
+    // en meses anteriores proyectaba más de $2.000.000 el día 4 — y este número es el
+    // que decide el chip rojo "Te pasás" del análisis.
+    const ritmoDelMes = spentSoFar - heredado;
+    const projectedTotal = todayDay > 0 ? heredado + (ritmoDelMes / todayDay) * daysInMonth : heredado;
 
     return {
       points,
