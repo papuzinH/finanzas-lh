@@ -34,8 +34,13 @@ import type {
 const categoriaIdField = z
   .string()
   .nullable()
+  .optional()
   .describe('UUID del DICCIONARIO DE CATEGORÍAS del prompt; null si ninguna aplica')
-const medioPagoField = z.string().nullable().describe('Nombre del medio; null usa el predeterminado')
+const medioPagoField = z
+  .string()
+  .nullable()
+  .optional()
+  .describe('Nombre del medio; null usa el predeterminado')
 const fechaField = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -168,7 +173,11 @@ const createGoalSchema = z.object({
   tipo: z.enum(['one_time', 'monthly']).describe('one_time: meta puntual con fecha límite; monthly: meta que se reinicia cada mes'),
   monto_objetivo: z.number().positive(),
   moneda: z.enum(['ARS', 'USD']).default('ARS'),
-  fecha_objetivo: z.string().nullable().describe('YYYY-MM-DD; null si no aplica (ej. metas mensuales)'),
+  fecha_objetivo: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('YYYY-MM-DD; null si no aplica (ej. metas mensuales)'),
 })
 
 const createBudgetSchema = z.object({
@@ -181,7 +190,11 @@ const contributeToGoalSchema = z.object({
   busqueda: z.string().min(1).describe('Nombre de la meta a la que se aporta (coincidencia parcial)'),
   monto: z.number().positive(),
   moneda: z.enum(['ARS', 'USD']).default('ARS'),
-  nota: z.string().nullable(),
+  nota: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('Comentario libre del aporte; null si el usuario no dijo nada'),
   fecha: fechaField,
 })
 
@@ -235,9 +248,9 @@ export const writeTools: ToolDef[] = [
         description: args.descripcion,
         amount: args.monto,
         type: args.tipo,
-        categoryId: args.categoria_id,
+        categoryId: args.categoria_id ?? null,
         categoryName: null,
-        paymentMethodName: args.medio_pago,
+        paymentMethodName: args.medio_pago ?? null,
         date: args.fecha,
         isReal: true,
         incomePeriod,
@@ -260,9 +273,9 @@ export const writeTools: ToolDef[] = [
         totalAmount: args.monto_total,
         installmentsCount: args.cantidad_cuotas,
         type: 'expense',
-        categoryId: args.categoria_id,
+        categoryId: args.categoria_id ?? null,
         categoryName: null,
-        paymentMethodName: args.medio_pago,
+        paymentMethodName: args.medio_pago ?? null,
         date: args.fecha,
         isReal: true,
       }
@@ -283,9 +296,9 @@ export const writeTools: ToolDef[] = [
         amount: args.monto,
         currency: args.moneda,
         frequency: 'monthly',
-        categoryId: args.categoria_id,
+        categoryId: args.categoria_id ?? null,
         categoryName: null,
-        paymentMethodName: args.medio_pago,
+        paymentMethodName: args.medio_pago ?? null,
       }
       const res = await handleSubscription(data, ctx.userId)
       return { ok: res.success, data: { mensaje: res.message }, mutated: res.success }
@@ -300,7 +313,7 @@ export const writeTools: ToolDef[] = [
     execute: async (rawArgs, ctx) => {
       const args = rawArgs as z.infer<typeof setCardDatesSchema>
       const data: CardConfigData = {
-        paymentMethodName: args.medio_pago,
+        paymentMethodName: args.medio_pago ?? null,
         closingDay: args.dia_cierre,
         paymentDay: args.dia_vencimiento,
       }
@@ -488,7 +501,7 @@ export const writeTools: ToolDef[] = [
         type: args.tipo,
         targetAmount: args.monto_objetivo,
         currency: args.moneda,
-        targetDate: args.fecha_objetivo,
+        targetDate: args.fecha_objetivo ?? null,
       }
       const res = await handleCreateGoal(data)
       return { ok: res.success, data: { mensaje: res.message }, mutated: res.success }
@@ -525,7 +538,7 @@ export const writeTools: ToolDef[] = [
 
       const data: CreateBudgetData = {
         categoryName,
-        categoryId: args.categoria_id,
+        categoryId: args.categoria_id ?? null,
         limitAmount: args.monto_limite,
         currency: args.moneda,
       }
@@ -547,7 +560,7 @@ export const writeTools: ToolDef[] = [
         search: args.busqueda,
         amount: args.monto,
         currency: args.moneda,
-        note: args.nota,
+        note: args.nota ?? null,
         date: args.fecha,
       }
       const res = await handleGoalContribution(data)
