@@ -37,12 +37,20 @@ const sections = [
 
 export default function AjustesPage() {
   const { incomeRhythm, incomeCountsNextMonth, fetchAllData } = useFinanceStore()
-  const [rhythm, setRhythm] = useState<IncomeRhythm>(incomeRhythm)
-  const [cuentaAlSiguiente, setCuentaAlSiguiente] = useState<boolean | null>(incomeCountsNextMonth)
+  // El estado local guarda SÓLO lo que el usuario tocó en esta pantalla; la base es
+  // el store. Sembrar el useState con el campo (`useState(incomeRhythm)`) lo dejaba
+  // clavado en el default: con un reload duro `fetchAllData()` todavía no volvió, y
+  // el control quedaba sin marcar aunque la preferencia estuviera guardada.
+  // Lo vigila `lib/store/__tests__/estado-inicial-del-store.test.ts`.
+  const [ritmoElegido, setRitmoElegido] = useState<IncomeRhythm | undefined>(undefined)
+  const [preferenciaElegida, setPreferenciaElegida] = useState<boolean | null | undefined>(undefined)
   const [ajustando, setAjustando] = useState(false)
 
+  const rhythm = ritmoElegido ?? incomeRhythm
+  const cuentaAlSiguiente = preferenciaElegida === undefined ? incomeCountsNextMonth : preferenciaElegida
+
   const cambiarRitmo = async (r: IncomeRhythm) => {
-    setRhythm(r)
+    setRitmoElegido(r)
     const res = await saveIncomeRhythm(r)
     if (res.error) {
       toast.error(res.error)
@@ -52,7 +60,7 @@ export default function AjustesPage() {
   }
 
   const guardarPreferencia = async (valor: boolean) => {
-    setCuentaAlSiguiente(valor)
+    setPreferenciaElegida(valor)
     const res = await saveIncomePeriodPreference(valor)
     if (res.error) {
       toast.error(res.error)
