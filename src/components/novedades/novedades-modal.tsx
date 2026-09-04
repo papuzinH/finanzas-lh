@@ -89,7 +89,11 @@ export function NovedadesModal() {
       {/* `aria-describedby={undefined}` es la salida que Radix documenta para un
           diálogo sin descripción aparte: sin esto avisa por consola. El título
           accesible lo da `DialogTitle`, y los items se leen como contenido. */}
-      <DialogContent className="max-w-sm" aria-describedby={undefined}>
+      {/* `sm:` obligatorio en el ancho: `DialogContent` es un bottom sheet a ancho
+          completo en mobile (`left-0 right-0 w-full`) y modal centrado recién en
+          `sm:`. Un `max-w-*` pelado también aplica en mobile, y como el sheet tiene
+          los dos bordes anclados, lo deja angosto y pegado a la izquierda. */}
+      <DialogContent className="sm:max-w-sm" aria-describedby={undefined}>
         <DialogTitle className="sr-only">{novedad.titulo}</DialogTitle>
         <ContenidoNovedades version={novedad} onCerrar={cerrar} />
       </DialogContent>
