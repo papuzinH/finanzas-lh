@@ -1098,8 +1098,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getPendingFixedExpenses: () => {
-    const { recurringPlans, transactions } = get();
-    return computePendingFixedExpenses(recurringPlans, transactions);
+    const { recurringPlans, transactions, paymentMethods } = get();
+    return computePendingFixedExpenses(recurringPlans, transactions, paymentMethods);
   },
 
   /**

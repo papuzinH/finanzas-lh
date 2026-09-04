@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import { pideDiaDeCobro } from '@/lib/finance/recurring';
 import type { Category, PaymentMethod } from '@/types/database';
 
 /* ─── Base type constraints ─── */
@@ -724,8 +725,10 @@ export function PaymentMethodField<T extends FieldValues>({
             <FormMessage />
           </FormItem>
 
-          {/* Selector de dia de cobro (solo donde se persiste: mensualidades) */}
-          {showBillingDay && selectedMethod && selectedMethod.type !== 'cash' && setValue && (
+          {/* Selector de dia de cobro (solo donde se persiste: mensualidades, y
+              solo en los medios donde el dia significa algo -- ver pideDiaDeCobro:
+              en credito la plata sale al pagar el resumen, no ese dia) */}
+          {showBillingDay && pideDiaDeCobro(selectedMethod) && setValue && (
             <div className="mt-4 animate-in fade-in-0 duration-300">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted mb-3 block">
                 ¿Qué día te lo cobran?

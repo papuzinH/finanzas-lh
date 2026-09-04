@@ -362,7 +362,7 @@ export const readTools: ToolDef[] = [
     execute: async (_rawArgs, ctx) => {
       const data = await loadFinanceData(ctx)
       const now = new Date()
-      const pendingFixed = computePendingFixedExpenses(data.recurringPlans, data.transactions, now)
+      const pendingFixed = computePendingFixedExpenses(data.recurringPlans, data.transactions, data.paymentMethods, now)
       const pendingIds = new Set(pendingFixed.items.map((i) => i.id))
 
       const items = data.recurringPlans
