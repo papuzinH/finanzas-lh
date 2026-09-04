@@ -142,13 +142,16 @@ export function computeCommitments(
 
   // Fijos: solo los que salen del bolsillo. Un fijo de crédito ya está facturado
   // dentro del resumen de su tarjeta; descontarlo aparte lo contaría dos veces.
-  const creditMethodIds = new Set(
-    paymentMethods.filter((m) => m.type === 'credit').map((m) => m.id),
+  // El descarte vive ahora DENTRO de computePendingFixedExpenses: era la unica
+  // que lo hacia, y la pantalla --que llama a la misma funcion sin este filtro--
+  // terminaba reclamando como pendiente algo que aca ya estaba dado por cobrado.
+  const pendingFixed = computePendingFixedExpenses(
+    recurringPlans,
+    transactions,
+    paymentMethods,
+    now,
   );
-  const pendingFixed = computePendingFixedExpenses(recurringPlans, transactions, now);
   for (const item of pendingFixed.items) {
-    const plan = recurringPlans.find((p) => p.id === item.id);
-    if (plan?.payment_method_id && creditMethodIds.has(plan.payment_method_id)) continue;
     items.push({ ...item, kind: 'fixed' });
   }
 
