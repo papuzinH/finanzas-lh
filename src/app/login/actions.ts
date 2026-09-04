@@ -24,11 +24,12 @@ export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
+      // Sin `prompt: 'consent'`: le ordenaba a Google mostrar la pantalla de
+      // permisos en CADA login, aunque el usuario ya la hubiera aceptado — un
+      // usuario de la beta lo reportó como "me pide confirmar todo el tiempo"
+      // (2026-09-01). Tampoco va `access_type: 'offline'`: pedía un refresh token
+      // de Google que la app no usa, porque la sesión la maneja Supabase.
       redirectTo: `${origin}/auth/callback`,
-      queryParams: {
-        access_type: 'offline',
-        prompt: 'consent',
-      },
     },
   });
 

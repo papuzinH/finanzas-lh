@@ -20,7 +20,7 @@
 | `src/components/dashboard/savings-goals-rings-card.tsx` | Anillos de progreso de `getSavingsGoalsOverview()` (máx. 4 metas). Retorna `null` sin metas activas |
 | `src/components/dashboard/incomplete-credit-cards-banner.tsx` | Aviso de tarjetas de crédito sin `closing_day`/`payment_day` |
 | `src/components/dashboard/analysis/analysis-section.tsx` | Tabs `este mes / tendencia / categorías` + toggle ARS/USD (`displayCurrency`; los montos salen de `store.formatDisplay()`, que convierte y formatea junto) |
-| `analysis/tab-este-mes.tsx` | "¿Llegás a fin de mes?" (`getMonthlySpendingPace`: gasto acumulado + proyección lineal vs ingreso) + `InstallmentsRealCostCard` (`getInstallmentsRealCost`: cuotas futuras deflactadas por IPC) |
+| `analysis/tab-este-mes.tsx` | "¿Llegás a fin de mes?" (`getMonthlySpendingPace`, ver abajo) + `InstallmentsRealCostCard` (`getInstallmentsRealCost`: cuotas futuras deflactadas por IPC) |
 | `analysis/tab-tendencia.tsx` | `TrendChart` (`getMonthlyTrend(6)`) + hint ajustado por inflación (`getRealAdjustedTrend`) + tasa de ahorro (`getSavingsRateSeries`: `net/income`, tono good ≥15% / warn ≥0 / bad) + bloque **«Qué se movió»** (`QueSeMovio`, `getHistorico(vara)`): categorías que cambiaron de nivel vs. gasto de una vez, en pesos de hoy (o "pesos corrientes" si `deflactado` da `false`), con toggle de vara y modal `DetalleCategoria` |
 | `analysis/tab-categorias.tsx` | `getCategoryBreakdown` (torta, scope mes/histórico), `getCategoryFrequencyRanking` (cuenta movimientos, no montos), `CurrencyExposureCard`, modal `DetalleCategoria` (histórico por categoría vía `getHistorico`) — no se monta si hay categorías homónimas (mismo nombre, ids distintos) |
 | `src/components/dashboard/month-selector.tsx` (+ `month-picker-dialog.tsx`) | Vive en `dashboard/` pero **hoy solo lo usa `/movimientos`** (el home no filtra por mes) |
@@ -31,6 +31,40 @@
 | `src/lib/finance/analysis.ts` | `computeExpensesByCategory`, `computeMonthlyBalance` |
 | `src/lib/finance/cycles.ts` | `cicloVigente`, `cicloAnterior`, `cicloDeCompra` (el resumen como entidad) |
 | `src/lib/finance/creditCycle.ts` | `getCreditCycleDates` (**fallback** sin ciclos), `isExpenseInCurrentMonthScope`, `sameMonthYear` |
+
+
+## `getMonthlySpendingPace` — qué día es cada gasto (cambio de 2026-09-04)
+
+El eje del gráfico es **cuándo se gastó**, y eso NO es `periodDate`: en crédito
+`periodDate` es el `closing_date` del resumen, o sea el día que cierra el papel.
+Usarlo apilaba el mes entero de la tarjeta en un día y lo dejaba **invisible** hasta
+que ese día llegaba, porque el acumulado sólo recorre hasta hoy. Medido contra
+producción el 2026-09-04: 67 de 68 movimientos de crédito con cierre en septiembre
+($1.029.504, 4 usuarios) no aparecían; tres de los cuatro usuarios veían **$0** de
+gasto con tarjeta.
+
+Tres reglas, y conviene no tocarlas sin volver a medir:
+
+1. **El día sale de `purchase_date`**, con fallback a `periodDate || date`.
+   ⚠️ **El arreglo es parcial a propósito** (decisión de producto): las filas viejas
+   sin `purchase_date` siguen cayendo en el día del cierre y siguen ocultas hasta que
+   llegue — **$535.840 en 4 usuarios** al momento del cambio. Descartarlas se evaluó
+   y se rechazó: el acumulado quedaría por debajo del gasto real.
+2. **La pertenencia al mes la decide SÓLO `isExpenseInCurrentMonthScope`.** Antes
+   había un segundo filtro (`isSameMonth(periodDate)`) con una definición distinta de
+   "este mes", y lo que pasaba el primero se caía del segundo sin dejar rastro: hay
+   216 de 344 cuotas en ciclos cuyo cierre y vencimiento caen en meses distintos. Lo
+   que queda fuera del mes se apoya en el borde (día 1 o último) en vez de perderse.
+   ⚠️ **Deuda que esto deja expuesta**: la rama de cuotas de
+   `isExpenseInCurrentMonthScope` decide con los **defaults** de la tarjeta
+   (`default_closing_day`/`default_payment_day`), que CLAUDE.md degradó a *sólo
+   fallback* desde que `credit_card_cycles` es la entidad. Antes el segundo filtro
+   hacía de red; ahora no hay red. Debería mirar `cycle_id`, como todo lo demás.
+3. **La proyección extrapola sólo el ritmo del mes.** Lo comprado en un mes anterior
+   (todas las cuotas de un plan comparten la `purchase_date` de la compra original)
+   es un monto fijo: se suma, no se multiplica. Con `spentSoFar / todayDay *
+   daysInMonth` a secas, un usuario con 19 de 19 filas viejas proyectaba **más de
+   $2.000.000 el día 4** — y ese número es el que decide el chip rojo «Te pasás».
 
 ## Tablas DB (vía `fetchAllData`, no directo desde componentes)
 
