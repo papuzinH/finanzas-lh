@@ -42,6 +42,19 @@ function sinComentarios(codigo: string): string {
   return codigo.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
 }
 
+/**
+ * Alias de `const store = useFinanceStore()`, que es la forma que CLAUDE.md MANDA
+ * usar (por el React Compiler). Un guard que sólo mirara la desestructuración sería
+ * ciego justo al patrón dominante del repo.
+ */
+function aliasDelStore(codigo: string): string[] {
+  const nombres: string[] = []
+  const re = /const\s+(\w+)\s*=\s*useFinanceStore\(\)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(codigo))) nombres.push(m[1])
+  return nombres
+}
+
 /** Nombres desestructurados de `useFinanceStore()` en ese archivo. */
 function camposDelStore(codigo: string): string[] {
   const nombres: string[] = []
@@ -64,15 +77,20 @@ describe('useState sembrado con estado del store', () => {
 
     for (const ruta of archivosTsx('src')) {
       const codigo = sinComentarios(readFileSync(ruta, 'utf-8'))
-      const campos = camposDelStore(codigo)
-      if (campos.length === 0) continue
+      const archivo = ruta.replace(/\\/g, '/')
 
-      for (const campo of campos) {
-        // useState(campo) o useState<Tipo>(campo)
+      // Forma 1: `const { incomeRhythm } = useFinanceStore()` → useState(incomeRhythm)
+      for (const campo of camposDelStore(codigo)) {
         const usa = new RegExp(`useState(?:<[^>]*>)?\\(\\s*${campo}\\s*\\)`)
-        if (usa.test(codigo)) {
-          infractores.push(`${ruta.replace(/\\/g, '/')} → useState(${campo})`)
-        }
+        if (usa.test(codigo)) infractores.push(`${archivo} → useState(${campo})`)
+      }
+
+      // Forma 2: `const store = useFinanceStore()` → useState(store.incomeRhythm).
+      // Se excluyen los getters (`store.getX()`), que devuelven estado fresco.
+      for (const alias of aliasDelStore(codigo)) {
+        const usa = new RegExp(`useState(?:<[^>]*>)?\\(\\s*${alias}\\.(?!get)(\\w+)\\s*\\)`)
+        const m = codigo.match(usa)
+        if (m) infractores.push(`${archivo} → useState(${alias}.${m[1]})`)
       }
     }
 

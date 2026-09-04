@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { z } from 'zod'
 import { writeTools } from '@/lib/ai/tools/writeTools'
+import { readTools } from '@/lib/ai/tools/readTools'
 import { executeToolWith } from '@/lib/ai/tools/registry'
 import { handleGoalContribution, handleTransaction, handleCreateGoal } from '@/lib/ai/handlers'
 import type { AgentContext } from '@/lib/ai/tools/types'
@@ -70,12 +71,16 @@ describe('campos que el modelo puede omitir', () => {
    * Un modelo que "no sabe" un dato lo omite tan seguido como lo manda en null, y la
    * diferencia entre las dos cosas no le importa a ningun handler de este repo.
    */
-  it('ningun campo nullable de writeTools exige estar presente', () => {
+  it('ningun campo nullable de las tools exige estar presente', () => {
     const infractores: string[] = []
 
-    for (const tool of writeTools) {
+    // Tambien readTools: el bug (el modelo omite un campo nullable-pero-requerido)
+    // no tiene nada de particular de las escrituras.
+    for (const tool of [...writeTools, ...readTools]) {
       const shape = (tool.schema as z.ZodObject<z.ZodRawShape>).shape
-      if (!shape) continue
+      // Un `continue` silencioso saltearia cualquier schema que no sea un ZodObject
+      // pelado (un .refine() lo convierte en otra cosa) y el guard quedaria ciego.
+      expect(shape, `${tool.name}: el schema no es un ZodObject`).toBeDefined()
       for (const [campo, def] of Object.entries(shape) as [string, z.ZodType][]) {
         const aceptaNull = def.safeParse(null).success
         const aceptaOmision = def.safeParse(undefined).success
