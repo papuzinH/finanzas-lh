@@ -122,6 +122,67 @@ describe('getMonthlySpendingPace — el dia del eje', () => {
   });
 });
 
+describe('getMonthlySpendingPace — la proyección', () => {
+  /**
+   * Lo que se compró en un mes anterior se apoya en el día 1, y proyectar sobre eso
+   * dispara el número: `spentSoFar / todayDay * daysInMonth` con todo el peso en el
+   * día 1 y `todayDay` chico infla por el mes entero. No es teórico -- TODAS las
+   * cuotas de un plan comparten la `purchase_date` de la compra original
+   * (installments/actions.ts), así que un resumen lleno de cuotas viejas cae entero
+   * ahí. Medido en producción: un usuario con 19 de 19 filas compradas antes de
+   * septiembre proyectaría más de $2.000.000 el día 4.
+   *
+   * Lo heredado es un monto FIJO: se suma, no se extrapola. Sólo se proyecta el
+   * ritmo de lo que se gastó dentro del mes.
+   */
+  it('no extrapola lo que ya venía comprado de meses anteriores', () => {
+    seed({
+      paymentMethods: [VISA],
+      transactions: [
+        {
+          id: 'cuota-vieja', type: 'expense', amount: 100000,
+          purchase_date: '2026-07-15', periodDate: '2026-09-20',
+          date: '2026-10-01', realPaymentDate: '2026-10-01',
+          payment_method_id: 'visa', installment_plan_id: 'plan-1', cycle_id: 'c1',
+        },
+        {
+          id: 'gasto-real', type: 'expense', amount: 3000,
+          purchase_date: '2026-09-03', periodDate: '2026-09-20',
+          date: '2026-10-01', realPaymentDate: '2026-10-01',
+          payment_method_id: 'visa', installment_plan_id: null, cycle_id: 'c1',
+        },
+      ],
+    })
+
+    const res = useFinanceStore.getState().getMonthlySpendingPace()
+
+    // El acumulado SÍ muestra la plata entera: son $103.000 comprometidos.
+    expect(res.points.find((p) => p.day === 4)?.cumulative).toBe(103000)
+    // Pero el ritmo del mes son $3.000 en 4 días, no $103.000 en 4 días:
+    // 100000 + (3000 / 4) * 30 = 122500, no 103000 / 4 * 30 = 772500.
+    expect(res.projectedTotal).toBe(122500)
+  })
+
+  it('proyecta normal cuando todo el gasto es del mes', () => {
+    seed({
+      paymentMethods: [],
+      transactions: [
+        {
+          id: '1', type: 'expense', amount: 4000,
+          purchase_date: null, periodDate: '2026-09-02',
+          date: '2026-09-02', realPaymentDate: '2026-09-02',
+          payment_method_id: null, installment_plan_id: null, cycle_id: null,
+        },
+      ],
+    })
+
+    const res = useFinanceStore.getState().getMonthlySpendingPace()
+
+    // 4000 en 4 días → 1000/día → 30000 en el mes.
+    expect(res.projectedTotal).toBe(30000)
+  })
+})
+
 describe('getMonthlySpendingPace — pertenencia al mes', () => {
   it('no descarta un gasto del mes cuya fecha de compra es anterior al mes', () => {
     seed({
