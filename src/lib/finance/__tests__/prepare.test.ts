@@ -63,3 +63,57 @@ describe('resolveRate', () => {
     expect(resolveRate(null, [], null)).toBe(1)
   })
 })
+
+describe('prepareTransactions e income_period', () => {
+  const ingreso = (over: Partial<Transaction> = {}): Transaction => ({
+    id: 't1', user_id: 'u1', description: 'Sueldo', amount: 1_850_000,
+    date: '2026-08-29', category_id: 'c1', type: 'income',
+    payment_method_id: null, cycle_id: null, purchase_date: null,
+    income_period: null, installment_plan_id: null, recurring_plan_id: null,
+    card_payment_for: null, is_balance_adjustment: false,
+    original_amount: null, original_currency: 'ARS', rate_pair: null,
+    exchange_rate: null, confirmation_status: 'confirmed', source: 'manual',
+    created_at: '2026-08-29T12:00:00Z',
+    ...over,
+  } as Transaction)
+
+  const sinMedios: PaymentMethod[] = []
+
+  it('sin income_period, el mes visual sigue siendo el de la fecha', () => {
+    const [p] = prepareTransactions([ingreso()], sinMedios, [], null, [])
+    expect(p.periodDate).toBe('2026-08-29')
+  })
+
+  it('con income_period, el cobro cuenta para ese mes', () => {
+    const [p] = prepareTransactions(
+      [ingreso({ income_period: '2026-09-01' })], sinMedios, [], null, [],
+    )
+    expect(p.periodDate).toBe('2026-09-01')
+  })
+
+  it('no toca realPaymentDate: la plata entro cuando entro', () => {
+    const [p] = prepareTransactions(
+      [ingreso({ income_period: '2026-09-01' })], sinMedios, [], null, [],
+    )
+    expect(p.realPaymentDate).toBe('2026-08-29')
+  })
+
+  it('el ciclo de tarjeta le gana a income_period', () => {
+    // En la practica un cycle_id solo lo asigna el flujo de tarjeta, que es
+    // siempre 'expense' — la combinacion con income_period es teorica (el CHECK
+    // de la migracion no la prohibe: solo exige `income_period is null or type =
+    // 'income'`). La construimos igual, con los dos campos NO nulos, para que
+    // compitan de verdad y quede fijado que el ciclo gana.
+    const ciclo: CreditCardCycle = {
+      id: 'cy1', user_id: 'u1', payment_method_id: 'visa',
+      closing_date: '2026-08-20', due_date: '2026-09-01',
+      source: 'generated', created_at: '2026-01-01T00:00:00Z',
+      reminder_dismissed_at: null,
+    }
+    const [p] = prepareTransactions(
+      [ingreso({ cycle_id: 'cy1', income_period: '2026-09-01' })],
+      sinMedios, [], null, [ciclo],
+    )
+    expect(p.periodDate).toBe('2026-08-20')
+  })
+})

@@ -19,6 +19,11 @@ export const transactionSchema = z.object({
   category_id: z.string().min(1, 'La categoría es requerida'),
   type: z.enum(['income', 'expense'], { message: 'El tipo es requerido' }),
   payment_method_id: z.string().nullable().optional(),
+  income_period: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
   ...currencyFields,
 });
 
@@ -31,6 +36,11 @@ export const createTransactionSchema = z.object({
   category_id: z.string().min(1, 'La categoría es requerida'),
   type: z.enum(['income', 'expense'], { message: 'El tipo es requerido' }),
   payment_method_id: z.string().nullable().optional(),
+  income_period: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
   ...currencyFields,
 });
 

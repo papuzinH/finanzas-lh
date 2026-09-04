@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { reconcileOptionsFor } from '@/lib/finance/reconcile'
+import { mesesCandidatos } from '@/lib/finance/imputacion-ingresos'
 
 type ActionResponse = {
   error?: string
@@ -103,6 +104,36 @@ export async function saveIncomeRhythm(rhythm: string): Promise<ActionResponse> 
     return { error: 'Ocurrió un error inesperado' }
   }
 }
+
+/**
+ * Preferencia de imputacion de cobros. SOLO pre-elige la opcion del selector:
+ * ningun cobro cambia de mes por esto (ver el spec, "La decision").
+ */
+export async function saveIncomePeriodPreference(valor: boolean): Promise<ActionResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { error } = await supabase
+      .from('users')
+      .update({ income_counts_next_month: valor })
+      .eq('id', user.id)
+
+    if (error) {
+      console.error('Error guardando la preferencia de imputacion:', error)
+      return { error: 'No se pudo guardar tu preferencia' }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/ajustes')
+    return { success: true }
+  } catch (err) {
+    console.error('Unexpected error in saveIncomePeriodPreference:', err)
+    return { error: 'Ocurrió un error inesperado' }
+  }
+}
+
 
 /** Cierra la puesta a punto. También la marca el usuario que la saltea. */
 export async function completePocketSetup(): Promise<ActionResponse> {
@@ -256,6 +287,12 @@ export async function reconcileAccount(input: ReconcileInput): Promise<ActionRes
         type,
         category_id: categoryId,
         payment_method_id,
+        // Un movimiento de conciliación pertenece al mes en que se detectó: no es
+        // ambiguo, y por eso se declara acá en vez de dejarlo NULL. `mesesCandidatos
+        // (...)[0]` es el mes de la propia fecha, así que el valor coincide con el
+        // que tendría sin declarar — se escribe igual para que un ingreso que la app
+        // generó sola no quede como si el usuario no hubiera contestado.
+        income_period: type === 'income' ? mesesCandidatos(date)[0].valor : null,
         is_balance_adjustment: esAjuste,
         original_currency: 'ARS',
         original_amount: monto,

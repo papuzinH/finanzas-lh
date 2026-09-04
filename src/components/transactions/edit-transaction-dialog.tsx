@@ -18,6 +18,7 @@ import { Form } from '@/components/ui/form';
 import { transactionSchema, type TransactionSchema } from '@/lib/schemas/transaction';
 import { updateTransaction } from '@/app/dashboard/transactions/actions';
 import { useFinanceStore } from '@/lib/store/financeStore';
+import { imputacionAlGuardar } from '@/lib/finance/imputacion-ingresos';
 import {
   AmountField,
   TypeToggle,
@@ -28,6 +29,7 @@ import {
   PaymentMethodField,
   DEFAULT_RATE_PAIR,
 } from '@/components/transactions/transaction-form-fields';
+import { MesDelCobroField } from '@/components/transactions/mes-del-cobro-field';
 
 interface EditTransactionDialogProps {
   open: boolean;
@@ -43,6 +45,7 @@ interface EditTransactionDialogProps {
     original_currency?: string | null;
     original_amount?: number | null;
     rate_pair?: string | null;
+    income_period?: string | null;
   };
 }
 
@@ -54,6 +57,7 @@ export function EditTransactionDialog({
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const { fetchAllData, categories, paymentMethods, getFrequentCategories, getExchangeRate } = useFinanceStore();
+  const store = useFinanceStore();
 
   const initialPaymentMethodId =
     transaction.payment_method_id != null ? String(transaction.payment_method_id) : 'none';
@@ -69,6 +73,7 @@ export function EditTransactionDialog({
       category_id: transaction.category_id || '',
       type: transaction.type || 'expense',
       payment_method_id: initialPaymentMethodId,
+      income_period: transaction.income_period ?? null,
       currency: (transaction.original_currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
       rate_pair: transaction.rate_pair ?? null,
       exchange_rate: null,
@@ -80,9 +85,26 @@ export function EditTransactionDialog({
   const watchedRatePair = form.watch('rate_pair');
   const watchedDate = form.watch('date');
   const watchedType = form.watch('type');
+  const watchedPaymentMethodId = form.watch('payment_method_id');
 
   const categoriesForType = categories.filter((c) => c.type === watchedType);
   const frequentCategories = getFrequentCategories(4, watchedType);
+  // Un reintegro en tarjeta ya tiene cycle_id, y el ciclo le gana a income_period
+  // en prepare.ts: mostrar el selector ahi es un control que no hace nada.
+  // Es una FUNCIÓN y no un booleano suelto porque el submit tiene que volver a
+  // evaluarla sobre `data.payment_method_id` -- el valor que efectivamente se manda --
+  // y no sobre el watch, que es estado de render.
+  const medioEsCreditoDe = (pmId: string | null | undefined) =>
+    paymentMethods.find((pm) => pm.id === pmId)?.type === 'credit';
+  // Una sola derivación para las dos cosas: si esto es null, el selector no se
+  // muestra Y no se persiste nada (ver imputacionAlGuardar).
+  const mesDelCobro = imputacionAlGuardar({
+    esIngreso: watchedType === 'income',
+    medioEsCredito: medioEsCreditoDe(watchedPaymentMethodId),
+    fecha: watchedDate,
+    elegido: form.watch('income_period'),
+    prefiereMesSiguiente: store.incomeCountsNextMonth,
+  });
 
   // Reset form when dialog opens with fresh transaction data
   useEffect(() => {
@@ -96,6 +118,7 @@ export function EditTransactionDialog({
         category_id: transaction.category_id || '',
         type: transaction.type || 'expense',
         payment_method_id: initialPaymentMethodId,
+        income_period: transaction.income_period ?? null,
         currency: (transaction.original_currency === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD',
         rate_pair: transaction.rate_pair ?? null,
         exchange_rate: null,
@@ -109,9 +132,23 @@ export function EditTransactionDialog({
     try {
       const isUsd = data.currency === 'USD';
       const ratePair = data.rate_pair || DEFAULT_RATE_PAIR;
+      // Se DERIVA de lo que se está mandando, no se retiene lo que el form traiga:
+      // si el usuario cambió la fecha después de elegir un mes, imputacionAlGuardar
+      // descarta un `income_period` que ya no está entre los candidatos de la fecha
+      // actual y cae al default, en vez de persistir un mes huérfano. Y si el medio
+      // es una tarjeta -- la misma condición con la que el selector se muestra --
+      // no se persiste ningún mes, aunque la preferencia diga otra cosa.
+      const incomePeriod = imputacionAlGuardar({
+        esIngreso: data.type === 'income',
+        medioEsCredito: medioEsCreditoDe(data.payment_method_id),
+        fecha: data.date,
+        elegido: data.income_period,
+        prefiereMesSiguiente: store.incomeCountsNextMonth,
+      });
       const payload = {
         ...data,
         payment_method_id: data.payment_method_id === 'none' ? null : data.payment_method_id,
+        income_period: incomePeriod,
         rate_pair: isUsd ? ratePair : null,
         exchange_rate: isUsd ? getExchangeRate(ratePair) : null,
       };
@@ -183,6 +220,15 @@ export function EditTransactionDialog({
 
               {/* ── Date ── */}
               <DateField control={form.control} />
+
+              {/* ── A qué mes cuenta (sólo ingresos que no van a tarjeta, sólo en el borde del mes) ── */}
+              {mesDelCobro !== null && (
+                <MesDelCobroField
+                  fecha={watchedDate}
+                  value={mesDelCobro}
+                  onChange={(v) => form.setValue('income_period', v)}
+                />
+              )}
 
               {/* ── Payment method ── */}
               <PaymentMethodField

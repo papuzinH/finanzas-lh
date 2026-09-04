@@ -162,6 +162,7 @@ describe('handleTransaction - persiste cycle_id/purchase_date del ciclo (Task 8,
         paymentMethodName: 'Visa',
         date: '2026-08-05', // entre el cierre de jul (23) y el de ago (20) → cae en cyc-aug
         isReal: true,
+        incomePeriod: null,
       },
       'u1'
     )
@@ -205,6 +206,7 @@ describe('handleTransaction - persiste cycle_id/purchase_date del ciclo (Task 8,
         paymentMethodName: 'Visa',
         date: '2026-08-05', // entre el cierre de jul (23) y el de ago (20) → cyc-aug
         isReal: true,
+        incomePeriod: null,
       },
       'u1'
     )
@@ -239,6 +241,7 @@ describe('handleTransaction - persiste cycle_id/purchase_date del ciclo (Task 8,
         paymentMethodName: 'Visa',
         date: '2026-08-05',
         isReal: true,
+        incomePeriod: null,
       },
       'u1'
     )

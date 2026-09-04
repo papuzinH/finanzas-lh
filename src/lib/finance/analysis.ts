@@ -10,8 +10,9 @@ import type { ProcessedTransaction } from './types'
  *
  * - scope 'global': incluye todo el histórico.
  * - scope 'current_month': para gastos respeta el ciclo de tarjeta
- *   (isExpenseInCurrentMonthScope); para ingresos usa mes calendario simple
- *   (mismo criterio que getMonthlyIncome()).
+ *   (isExpenseInCurrentMonthScope); para ingresos usa el mes de periodDate, que
+ *   es el mes declarado por el usuario si imputo el cobro a otro mes, y el de la
+ *   fecha si no (mismo criterio que getMonthlyIncome()).
  * - Excluye siempre pagos de tarjeta (card_payment_for) y ajustes de saldo
  *   (is_balance_adjustment): ninguno de los dos es consumo nuevo.
  * - Categoría sin match (category_id null o inexistente) cae en 'Otros'.
@@ -31,10 +32,10 @@ export function computeExpensesByCategory(
       if (scope === 'current_month') {
         // isExpenseInCurrentMonthScope solo entiende gastos (ciclos de
         // tarjeta de cuotas); para ingresos se usa el mismo criterio de
-        // mes calendario que getMonthlyIncome().
+        // periodDate que getMonthlyIncome().
         return type === 'expense'
           ? isExpenseInCurrentMonthScope(t, paymentMethods, now)
-          : isSameMonth(parseLocalDate(t.date), now)
+          : isSameMonth(parseLocalDate(t.periodDate || t.date), now)
       }
 
       return true // Global includes all history

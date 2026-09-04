@@ -551,3 +551,48 @@ describe('E18 — cambiar la config de la tarjeta actualiza los resumenes futuro
     expect(cambios.map((c) => c.id)).toEqual(['sep']);
   });
 });
+
+describe('E19 — imputar un cobro a otro mes no mueve el disponible', () => {
+  it('el disponible es identico con y sin income_period', () => {
+    // La plata esta en la cuenta desde que entro. Imputar es una lente de analisis,
+    // no un movimiento de plata: computeAvailableToSpend va por t.date a proposito
+    // (ver el comentario de pocket.ts:25). Este test es lo que impide que alguien
+    // "unifique" ese criterio con periodDate mas adelante y mueva el numero central
+    // de la app sin darse cuenta.
+    const cuentas = [acct({ initial_balance: 300000 })];
+
+    // Cobro del 5 de agosto -- ANTES de NOW (20-ago) a proposito: computeAccountBalance
+    // descarta todo lo posterior a hoy (inWindow, pocket.ts), asi que un cobro fechado
+    // despues de NOW no entra al saldo ni por date ni por periodDate y el test pasaria
+    // igual sin probar nada (fix round 1: ese era exactamente el defecto). Con esta
+    // fecha el cobro SI participa, y es lo que hace visible si algo cambia de lado.
+    const cobro = {
+      id: 'sueldo', user_id: 'u1', type: 'income', amount: 500000,
+      date: '2026-08-05', periodDate: '2026-08-05', realPaymentDate: '2026-08-05',
+      payment_method_id: 'poc', category_id: 'c1', card_payment_for: null,
+      installment_plan_id: null, recurring_plan_id: null, is_balance_adjustment: false,
+      income_period: null,
+    } as ProcessedTransaction;
+
+    const sinImputar = run({ paymentMethods: cuentas, transactions: [cobro] });
+
+    // El MISMO cobro, ahora imputado a septiembre. income_period mueve periodDate
+    // (es lo que hace prepareTransactions en la Task 3); date NO se toca, y date es
+    // lo que pocket.ts mira para el saldo.
+    const imputado = run({
+      paymentMethods: cuentas,
+      transactions: [{ ...cobro, income_period: '2026-09-01', periodDate: '2026-09-01' }],
+    });
+
+    // Anclas absolutas (como E8/E9): 300000 de ancla + 500000 del cobro = 800000.
+    // Sin esto, una igualdad entre dos corridas que dan lo mismo por otra razon
+    // (p.ej. porque ninguna cuenta el cobro) pasaria igual y el test no valdria nada.
+    expect(sinImputar.pocketTotal).toBe(800000);
+    expect(sinImputar.available).toBe(800000);
+    expect(imputado.pocketTotal).toBe(800000);
+    expect(imputado.available).toBe(800000);
+
+    expect(imputado.available).toBe(sinImputar.available);
+    expect(imputado.pocketTotal).toBe(sinImputar.pocketTotal);
+  });
+});

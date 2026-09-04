@@ -9,8 +9,9 @@ import { InstallApp } from '@/components/shared/install-app';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { useFinanceStore } from '@/lib/store/financeStore'
 import { RhythmPicker } from '@/components/pocket/rhythm-picker'
+import { PreferenciaCobroFinDeMes } from '@/components/pocket/preferencia-cobro-fin-de-mes'
 import { AdjustBalanceDialog } from '@/components/pocket/adjust-balance-dialog'
-import { saveIncomeRhythm } from '@/app/bolsillo/actions'
+import { saveIncomeRhythm, saveIncomePeriodPreference } from '@/app/bolsillo/actions'
 import type { IncomeRhythm } from '@/lib/finance/pocket'
 
 const sections = [
@@ -35,13 +36,24 @@ const sections = [
 ];
 
 export default function AjustesPage() {
-  const { incomeRhythm, fetchAllData } = useFinanceStore()
+  const { incomeRhythm, incomeCountsNextMonth, fetchAllData } = useFinanceStore()
   const [rhythm, setRhythm] = useState<IncomeRhythm>(incomeRhythm)
+  const [cuentaAlSiguiente, setCuentaAlSiguiente] = useState<boolean | null>(incomeCountsNextMonth)
   const [ajustando, setAjustando] = useState(false)
 
   const cambiarRitmo = async (r: IncomeRhythm) => {
     setRhythm(r)
     const res = await saveIncomeRhythm(r)
+    if (res.error) {
+      toast.error(res.error)
+      return
+    }
+    await fetchAllData()
+  }
+
+  const guardarPreferencia = async (valor: boolean) => {
+    setCuentaAlSiguiente(valor)
+    const res = await saveIncomePeriodPreference(valor)
     if (res.error) {
       toast.error(res.error)
       return
@@ -99,6 +111,10 @@ export default function AjustesPage() {
               </div>
             </div>
             <RhythmPicker value={rhythm} onChange={cambiarRitmo} />
+
+            {rhythm === 'monthly' && (
+              <PreferenciaCobroFinDeMes value={cuentaAlSiguiente} onChange={guardarPreferencia} />
+            )}
           </div>
 
           <button

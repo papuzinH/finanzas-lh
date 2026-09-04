@@ -40,6 +40,19 @@ Tests en `src/**/__tests__/`. Los del store (`lib/store/__tests__/analysis-gette
 > referencia con cada `set`. Los campos de estado (`transactions`, `categories`…) sí se pueden
 > desestructurar. Lo vigila `src/lib/store/__tests__/store-freshness.test.ts`, que compila cada
 > componente con el mismo plugin que usa Next y falla si aparece un valor congelado.
+>
+> **Cómo se TESTEA un componente que consume el store (hallazgo de método, 2026-09-03):**
+> la suite corre con `environment: node` y los componentes se renderizan con
+> `renderToStaticMarkup`, sin hidratación. Ahí `useSyncExternalStore` usa el
+> **`getServerSnapshot`** de zustand (`api.getInitialState()`), así que los **campos**
+> leídos del objeto del hook (`store.transactions`, `store.incomeCountsNextMonth`…)
+> quedan congelados en el estado INICIAL por más `setState` que se haga antes de
+> renderizar — mientras que los **getters** devuelven estado fresco, porque su cuerpo
+> llama `get()`. Corolario práctico: un getter se puede ejercitar montando el
+> componente; lo que dependa de un CAMPO hay que extraerlo a un componente puro con
+> props y testearlo ahí (es lo que se hizo con `FilaDeCobro`). Y no hay DOM: un submit
+> de react-hook-form no se puede disparar, así que la decisión que toma un `onSubmit`
+> se prueba extrayéndola a una función pura (el caso de `imputacionAlGuardar`).
 Nada de lógica de negocio en componentes. Los getters de cálculo del store son **wrappers finos sobre las funciones puras de `lib/finance/`** (ver sección propia): cambios de lógica financiera van ahí, no en el cuerpo del getter.
 
 Getters disponibles:
@@ -54,6 +67,7 @@ Getters disponibles:
 - `getDaysSinceLastRegistration()` – días desde el último registro (por `created_at`, no por `date`). Dispara el recordatorio de conciliación a los 2 días.
 - `getPendingFixedExpenses()` – mensualidades activas sin transacción vinculada este mes (`{ total, items }`).
 - `getRecurringBackfillPreview()` – meses de mensualidades sin registrar (`missingMonths`) y exceso a borrar (`excessMonths`), con piso en el mes del **primer ingreso** del usuario (una cuota/gasto anterior al primer sueldo NO fija el piso — evita meses fantasma).
+- `getMonthlyIncome()` / `getMonthlyIncomeTransactions()` – los ingresos del mes, por **`periodDate || date`** (NO por `t.date`): un cobro imputado cuenta en el mes que declaró el usuario, y un `income` con `cycle_id` — un reintegro de tarjeta — en el mes del **cierre** de su resumen. Ojo, eso último es un **cambio de comportamiento** deliberado (2026-09-03): antes contaba en el mes del VENCIMIENTO, y cuando las dos fechas caen en meses distintos se corre un mes. El número nuevo es el correcto — `computeMonthlyBalance` ya iba por `periodDate`, o sea que la pantalla se contradecía a sí misma — y está medido: 2 reintegros en tarjeta en producción, 1 cambia de mes, 2 usuarios. Fijado en `lib/store/__tests__/ingresos-imputados.test.ts`.
 - `getDefaultPaymentMethod()` – medio de pago marcado `is_default`.
 - `formatDisplay(ars)` – monto en ARS → **texto** en la moneda de visualización del análisis
   (`displayCurrency`, el toggle ARS/USD del home): convierte y formatea junto, con `u$s` cuando
@@ -132,7 +146,8 @@ UI: selector de medio en el chip de Compromisos (`credit-card-cycle-card.tsx`) +
 - **Cambiar los días de la tarjeta re-fecha sólo los resúmenes futuros estimados** (`updatePaymentMethod` → `realinearFuturos` → `recalcularFuturosGenerated`, en `lib/finance/cycles.ts`): sólo los `source: 'generated'` con `closing_date` posterior a hoy. Un resumen `declared` no se toca nunca (es dato que el usuario leyó del papel) y un resumen que ya cerró tampoco (sus compras ya están imputadas por `cycle_id`, re-fecharlo movería plata de un resumen a otro sin mover ninguna transacción). Si el realineado falla, la tarjeta ya se guardó igual: la action no lo reporta como error, porque decir "no se guardó" sería falso.
 - **`transactions.cycle_id`** → FK al resumen: **la única verdad de pertenencia**. Es reasignable (el usuario puede corregir a qué resumen entró algo) y nunca se deriva del mes de `t.date`.
 - **`transactions.purchase_date`** → la fecha de compra que eligió el usuario, **sólo en `expense`** (`null` en `income`). En crédito `t.date` es el VENCIMIENTO, así que la fecha de compra necesitaba columna propia. Se persiste tal cual llega del form (`yyyy-MM-dd`, sin round trip por `Date`: eso perdía un día en TZ negativa).
-- `periodDate` → fecha visual para agrupación mensual: el mes del `closing_date` del ciclo (puede diferir de la real)
+- **`transactions.income_period`** → el mes al que cuenta un cobro (día 1). Quien cobra el 29 de agosto puede estar cobrando agosto trabajado o septiembre por adelantado, y la app no puede distinguirlos sin preguntar: el selector aparece **sólo** si la fecha cae en los últimos 7 días del mes (`DIAS_DE_BORDE`) y **sólo** para ingresos que NO van a tarjeta — un reintegro de crédito ya pertenece a un resumen y el ciclo le gana. La preferencia `users.income_counts_next_month` **sólo pre-elige** la opción; nada se imputa solo. Lo que se persiste lo decide `imputacionAlGuardar` (`lib/finance/imputacion-ingresos.ts`), que es UNA condición para mostrar el selector y para guardar: cuando eran dos, un reintegro en tarjeta se guardaba imputado sin que el control hubiera aparecido en pantalla. Spec: `docs/superpowers/specs/2026-09-03-ingresos-mes-vencido-design.md`.
+- `periodDate` → fecha visual para agrupación mensual. Precedencia: **ciclo de tarjeta > `income_period` > `t.date`** (la arma `prepareTransactions`). Para un consumo de crédito es el mes del `closing_date` de su resumen (puede diferir de la real); para un ingreso, el mes declarado en `income_period`, y sin declarar, el de la fecha.
 - `realPaymentDate` → fecha real de transacción
 - **E13**: declarar o editar las fechas de una tarjeta **no reasigna nada**. Lo ya imputado se queda en su resumen; el `cycle_id` sólo se toca cuando cambia el medio de pago de la transacción (o cuando el usuario lo corrige a mano). Editar descripción o monto tampoco lo mueve.
 - **E16 (regla del borde)**: una compra hecha EL DÍA del cierre entra en el ciclo **que cierra** (`cicloDeCompra` usa `closing_date >= purchase_date`) — el ciclo corre hasta las 23:59 de esa fecha. Es la regla del banco, y la que ya tenía `calculateCreditPaymentDate`.

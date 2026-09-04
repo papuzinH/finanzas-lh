@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readTools } from '@/lib/ai/tools/readTools'
 import { executeToolWith } from '@/lib/ai/tools/registry'
 import { loadFinanceData } from '@/lib/ai/tools/dataLoader'
+import { useFinanceStore } from '@/lib/store/financeStore'
 import type { AgentContext } from '@/lib/ai/tools/types'
 import type { FinanceData } from '@/lib/ai/tools/dataLoader'
 import type { ProcessedTransaction } from '@/lib/finance/types'
@@ -269,6 +270,45 @@ describe('readTools', () => {
       const r = await executeToolWith(readTools, 'get_monthly_summary', { mes: '2026/07' }, ctx)
       expect(r.ok).toBe(false)
       expect(r.error).toBeDefined()
+    })
+
+    it('cuenta los ingresos con el mismo criterio que la pantalla', async () => {
+      // La garantia estructural del repo: la pantalla y el chat no pueden decir
+      // numeros distintos. Se comparan las DOS puntas sobre el MISMO conjunto de
+      // filas -- el chat via get_monthly_summary, la pantalla via getMonthlyIncome()
+      // del store -- no solo el lado del chat contra un numero fijo.
+      vi.setSystemTime(new Date('2026-09-03T12:00:00'))
+
+      // Cobro del 29 de agosto imputado a septiembre (income_period): igual que
+      // hace prepareTransactions (Task 3), periodDate sigue al mes declarado.
+      const txCobroImputado = tx({
+        id: '4',
+        description: 'Cobro imputado',
+        amount: 100000,
+        date: '2026-08-29',
+        type: 'income',
+        payment_method_id: '2',
+        periodDate: '2026-09-01',
+        realPaymentDate: '2026-08-29',
+        income_period: '2026-09-01',
+      })
+      const transactions = [...financeData.transactions, txCobroImputado]
+
+      vi.mocked(loadFinanceData).mockResolvedValueOnce({ ...financeData, transactions })
+
+      const r = await executeToolWith(readTools, 'get_monthly_summary', { mes: '2026-09' }, ctx)
+      expect(r.ok).toBe(true)
+      const d = r.data as Record<string, unknown>
+      // El fixture incluye un ingreso con date 2026-08-29 e income_period
+      // 2026-09-01: aparece en el total de septiembre.
+      expect(d.mes).toBe('2026-09')
+      expect(d.ingresos).toBe(100000)
+
+      // Las MISMAS filas, del lado de la pantalla: el store, con el mismo reloj.
+      useFinanceStore.setState({ transactions } as never)
+      const ingresosPantalla = useFinanceStore.getState().getMonthlyIncome()
+      expect(ingresosPantalla).toBe(100000)
+      expect(ingresosPantalla).toBe(d.ingresos)
     })
   })
 })
