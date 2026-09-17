@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { PaymentMethod } from '@/types/database';
-import { guardarDeclaracion } from '../declarar';
+import { guardarDeclaracion, realinearFuturos } from '../declarar';
 
 const TARJETA = {
   id: 'pm1', user_id: 'u1', type: 'credit',
@@ -16,9 +16,16 @@ const EXISTENTES = [
 function dobleSupabase(filas = EXISTENTES) {
   const updates: Array<{ id: string; patch: Record<string, unknown> }> = [];
   const inserts: Record<string, unknown>[] = [];
+  // Cada elemento es UNA llamada al upsert, con todas las filas que le fueron en el payload:
+  // asi el test puede afirmar que el realineado escribe una sola vez y no N veces.
+  const upserts: Record<string, unknown>[][] = [];
   const supabase = {
     from: () => ({
       select: () => ({ eq: () => ({ order: () => ({ data: filas, error: null }) }) }),
+      upsert: (rows: Record<string, unknown>[]) => {
+        upserts.push(rows);
+        return { then: (resolve: (v: { data: null; error: null }) => void) => resolve({ data: null, error: null }) };
+      },
       update: (patch: Record<string, unknown>) => ({
         eq: (_c: string, id: string) => {
           updates.push({ id, patch });
@@ -39,7 +46,7 @@ function dobleSupabase(filas = EXISTENTES) {
       },
     }),
   } as never;
-  return { supabase, updates, inserts };
+  return { supabase, updates, inserts, upserts };
 }
 
 describe('guardarDeclaracion', () => {
@@ -119,12 +126,15 @@ describe('guardarDeclaracion', () => {
       default_closing_day: 24,
       default_payment_day: 2,
     } as unknown as PaymentMethod;
-    const { supabase, updates } = dobleSupabase();
+    const { supabase, upserts } = dobleSupabase();
 
     await guardarDeclaracion(supabase, TARJETA_CON_DEFAULTS_NUEVOS, '2026-09-24', '2026-10-02', '2026-09-02');
 
-    const futuro = updates.find((u) => u.id === 'oct');
-    expect(futuro?.patch).toEqual({ closing_date: '2026-10-24', due_date: '2026-11-02' });
+    // El realineado paso de N updates a un unico upsert todo-o-nada (ver el describe de
+    // realinearFuturos), asi que el futuro re-fechado se busca en el payload de ese upsert.
+    // Lo que se afirma sigue siendo lo mismo: octubre cierra el 24 y vence el 2-nov.
+    const futuro = upserts[0]?.find((f) => f.id === 'oct');
+    expect(futuro).toMatchObject({ closing_date: '2026-10-24', due_date: '2026-11-02' });
   });
 
   it('avisa cual es el resumen que ya tiene esas fechas, en vez de dejar reventar la unique', async () => {
@@ -141,5 +151,50 @@ describe('guardarDeclaracion', () => {
 
     // Y no escribe nada: corta antes del update, no despues de que falle.
     expect(updates).toHaveLength(0);
+  });
+});
+
+describe('realinearFuturos', () => {
+  // Defaults nuevos (25/3): los DOS futuros generados cambian de fecha, asi que hay mas de
+  // una fila para escribir -- que es la condicion para que la atomicidad importe.
+  const TARJETA_MOVIDA = {
+    ...TARJETA, default_closing_day: 25, default_payment_day: 3,
+  } as unknown as PaymentMethod;
+
+  it('re-fecha todos los futuros en UNA sola escritura: todo o nada', async () => {
+    // Antes era un for de updates que cortaba al primer error. El 2026-09-17 eso dejo el
+    // conjunto a medias: el resumen de septiembre se movio, el de octubre choco contra la
+    // unique (payment_method_id, closing_date) de un declarado, y de noviembre en adelante
+    // no se toco nada -- con el error perdido en el console.error de la action, que por
+    // decision previa no lo reporta para no decirle al usuario que la tarjeta no se guardo.
+    const { supabase, upserts, updates } = dobleSupabase();
+
+    const cuantos = await realinearFuturos(supabase, TARJETA_MOVIDA, '2026-09-02');
+
+    expect(cuantos).toBe(2);
+    expect(upserts).toHaveLength(1);
+    expect(upserts[0]).toHaveLength(2);
+    expect(updates).toHaveLength(0);
+  });
+
+  it('manda la fila entera, no solo las fechas: un upsert necesita las columnas NOT NULL', async () => {
+    // Un upsert con {id, closing_date, due_date} dejaria user_id, payment_method_id y source
+    // en null y la base lo rechazaria. Se arma desde la fila leida, cambiando solo las fechas.
+    const { supabase, upserts } = dobleSupabase();
+
+    await realinearFuturos(supabase, TARJETA_MOVIDA, '2026-09-02');
+
+    const oct = upserts[0].find((f) => f.id === 'oct');
+    expect(oct).toMatchObject({
+      id: 'oct', user_id: 'u1', payment_method_id: 'pm1', source: 'generated',
+      closing_date: '2026-10-25', due_date: '2026-11-03',
+    });
+  });
+
+  it('no escribe nada cuando no hay nada que re-fechar', async () => {
+    // Con los defaults originales los frescos coinciden con lo que hay: ni un upsert vacio.
+    const { supabase, upserts } = dobleSupabase();
+    expect(await realinearFuturos(supabase, TARJETA, '2026-09-02')).toBe(0);
+    expect(upserts).toHaveLength(0);
   });
 });
