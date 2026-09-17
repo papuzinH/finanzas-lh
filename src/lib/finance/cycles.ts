@@ -7,7 +7,7 @@
 // (Vercel corre en UTC, la maquina de desarrollo no). Es la leccion de rangoDelMes.
 //
 // Spec: docs/superpowers/specs/2026-09-01-ciclos-tarjeta-design.md
-import { addMonths, getDaysInMonth, setDate } from 'date-fns'
+import { addMonths, differenceInCalendarDays, getDaysInMonth, setDate } from 'date-fns'
 import { formatLocalDate, parseLocalDate } from '@/lib/utils/dates'
 import type { Database, PaymentMethod } from '@/types/database'
 
@@ -118,16 +118,38 @@ export function cicloSaldadoEn(ciclos: CreditCardCycle[], fechaPago: string): Cr
   return cerrados[cerrados.length - 1]
 }
 
+// Dos cierres separados por menos de esto son el MISMO resumen con fechas distintas, no dos
+// resumenes: los de una tarjeta son mensuales. Medido en produccion, entre cierres consecutivos
+// reales hay 28 a 35 dias, y los corrimientos que declara el banco son de hasta 5 (Galicia mueve
+// cierre y vencimiento como un par), asi que 20 deja margen para los dos lados.
+//
+// Antes esto se decidia por el MES CALENDARIO del cierre, y eso fabricaba un resumen fantasma
+// cada vez que el cierre se corria al mes siguiente: el 2026-09-17, una Mastercard cuyo resumen
+// de septiembre cerraba el 1-oct dejaba '2026-09' libre, el sync llenaba el hueco con el default
+// (27-sep) y ese fantasma -- vacio, y venciendo ANTES que el real -- se volvia el ciclo vigente.
+const DIAS_DEL_MISMO_RESUMEN = 20
+
+function hayResumenCerca(cierre: string, cierresExistentes: string[]): boolean {
+  const fecha = parseLocalDate(cierre)
+  return cierresExistentes.some(
+    (e) => Math.abs(differenceInCalendarDays(fecha, parseLocalDate(e))) < DIAS_DEL_MISMO_RESUMEN,
+  )
+}
+
 /**
  * Pare los ciclos que faltan entre `desde` y `hasta` (ambos inclusive, por mes)
  * a partir de los defaults de la tarjeta.
  *
  * `default_closing_day` / `default_payment_day` sobreviven como GENERADOR, no como
- * verdad: paren el proximo ciclo cuando no hay dato mejor. Un mes que ya tiene ciclo
- * no se toca, sea 'generated' o 'declared' -- de ahi sale el invariante de que
+ * verdad: paren el proximo ciclo cuando no hay dato mejor. Un periodo que ya tiene
+ * ciclo no se toca, sea 'generated' o 'declared' -- de ahi sale el invariante de que
  * regenerar nunca pisa lo que el usuario leyo del resumen.
  *
- * Limitacion asumida: UN ciclo por mes calendario. Los emisores relevados (Macro,
+ * Que un periodo "ya tenga ciclo" NO se decide por el mes calendario del cierre, sino
+ * por proximidad (ver DIAS_DEL_MISMO_RESUMEN): un resumen que cubre septiembre puede
+ * cerrar el 1 de octubre, y entonces el mes calendario miente.
+ *
+ * Limitacion asumida: UN ciclo por periodo mensual. Los emisores relevados (Macro,
  * Ciudad, Galicia, Naranja X, Uala) cierran una vez por mes por tarjeta; el "cada
  * jueves" de Macro es un cierre por cartera, no cuatro para la misma tarjeta.
  */
@@ -141,18 +163,15 @@ export function generarCiclos(
   const paymentDay = method.default_payment_day
   if (method.type !== 'credit' || !closingDay || !paymentDay) return []
 
-  const mesesOcupados = new Set(
-    ciclosDeMetodo(method.id, existentes).map((c) => c.closing_date.slice(0, 7)),
-  )
+  const cierresExistentes = ciclosDeMetodo(method.id, existentes).map((c) => c.closing_date)
 
   const nuevos: CicloNuevo[] = []
   let cursor = new Date(desde.getFullYear(), desde.getMonth(), 1)
   const fin = new Date(hasta.getFullYear(), hasta.getMonth(), 1)
 
   while (cursor <= fin) {
-    const mes = formatLocalDate(cursor).slice(0, 7)
-    if (!mesesOcupados.has(mes)) {
-      const cierre = setDate(cursor, Math.min(closingDay, getDaysInMonth(cursor)))
+    const cierre = formatLocalDate(setDate(cursor, Math.min(closingDay, getDaysInMonth(cursor))))
+    if (!hayResumenCerca(cierre, cierresExistentes)) {
       // paymentDay > closingDay: vence en el mismo mes del cierre (cierra 10, vence 25).
       // paymentDay <= closingDay: vence el mes siguiente (cierra 20, vence 1).
       const mesDelPago = paymentDay > closingDay ? cursor : addMonths(cursor, 1)
@@ -160,10 +179,13 @@ export function generarCiclos(
       nuevos.push({
         user_id: method.user_id,
         payment_method_id: method.id,
-        closing_date: formatLocalDate(cierre),
+        closing_date: cierre,
         due_date: formatLocalDate(vencimiento),
         source: 'generated',
       })
+      // Un candidato recien emitido tambien ocupa lugar: dos ciclos de un mismo mes
+      // (lo que produce un solape) aparearian al mismo cierre y chocarian entre si.
+      cierresExistentes.push(cierre)
     }
     cursor = addMonths(cursor, 1)
   }
@@ -256,12 +278,29 @@ export function recalcularFuturosGenerated(
   const frescos = generarCiclos(method, desde, hasta, []);
   const frescoPorMes = new Map(frescos.map((c) => [c.closing_date.slice(0, 7), c]));
 
+  // Los cierres que NO se mueven en esta pasada: un re-fechado no puede aterrizar encima de
+  // uno de ellos, porque la unique (payment_method_id, closing_date) lo rechaza. Y como
+  // aplicarRealineado escribe fila por fila y corta al primer error, una sola colision dejaba
+  // el conjunto a medias y en silencio: el 2026-09-17 septiembre se movio, octubre choco contra
+  // un declarado, y de noviembre en adelante no se toco nada.
+  const ocupados = new Set(
+    ciclosDeMetodo(method.id, ciclos)
+      .filter((c) => !futurosEstimados.some((f) => f.id === c.id))
+      .map((c) => c.closing_date),
+  );
+
   const cambios: CambioDeCiclo[] = [];
   for (const viejo of futurosEstimados) {
     const fresco = frescoPorMes.get(viejo.closing_date.slice(0, 7));
     if (!fresco) continue;
     if (fresco.closing_date === viejo.closing_date && fresco.due_date === viejo.due_date) continue;
+    // Un resumen futuro no puede terminar en el pasado. Con el cierre movido al dia 1, el fresco
+    // del mes en curso cae antes de hoy: el 2026-09-17 eso dejo un resumen nacido VENCIDO, que
+    // reclamaba el pago de un resumen inexistente -- y se lo pagaron.
+    if (fresco.closing_date <= hoy) continue;
+    if (ocupados.has(fresco.closing_date)) continue;
     cambios.push({ id: viejo.id, closing_date: fresco.closing_date, due_date: fresco.due_date });
+    ocupados.add(fresco.closing_date);
   }
   return cambios;
 }
