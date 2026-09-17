@@ -38,13 +38,30 @@ async function aplicarRealineado(
   hoy: string,
 ): Promise<number> {
   const cambios = recalcularFuturosGenerated(method, ciclos, hoy);
-  for (const c of cambios) {
-    const { error } = await supabase
-      .from('credit_card_cycles')
-      .update({ closing_date: c.closing_date, due_date: c.due_date })
-      .eq('id', c.id);
-    if (error) throw new Error('No pude actualizar un resumen futuro: ' + error.message);
-  }
+  if (cambios.length === 0) return 0;
+
+  // TODO O NADA, en un unico upsert multi-fila: PostgREST lo corre en una transaccion. Es el
+  // mismo patron que moverTransaccionAlResumenVecino, y por la misma razon.
+  //
+  // Antes era un for de updates que cortaba al primer error, y el 2026-09-17 eso dejo el
+  // conjunto a medias: el resumen de septiembre se movio, el de octubre choco contra la unique
+  // (payment_method_id, closing_date) de un declarado, y de noviembre en adelante no se toco
+  // nada. El error se perdio en el console.error de la action -- que no lo reporta a proposito,
+  // porque la tarjeta SI se guardo y decir lo contrario seria falso -- asi que el usuario vio
+  // "guardado" sobre un conjunto inconsistente. recalcularFuturosGenerated ya no emite un
+  // cambio que colisione; esto es la red por si alguna vez falla por otro motivo.
+  //
+  // El payload lleva la fila ENTERA porque un upsert necesita las columnas NOT NULL: con solo
+  // {id, closing_date, due_date}, user_id / payment_method_id / source irian en null.
+  const porId = new Map(ciclos.map((c) => [c.id, c]));
+  const filas = cambios.map((c) => {
+    const fila = porId.get(c.id);
+    if (!fila) throw new Error('No encontre el resumen futuro a re-fechar: ' + c.id);
+    return { ...fila, closing_date: c.closing_date, due_date: c.due_date };
+  });
+
+  const { error } = await supabase.from('credit_card_cycles').upsert(filas);
+  if (error) throw new Error('No pude actualizar los resumenes futuros: ' + error.message);
   return cambios.length;
 }
 
