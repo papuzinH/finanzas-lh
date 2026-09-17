@@ -122,10 +122,14 @@ describe('generarCiclos', () => {
     expect(nuevos[0]).toMatchObject({ closing_date: '2026-07-10', due_date: '2026-07-25' })
   })
 
-  it('NO genera un ciclo para un mes que ya tiene uno: un declarado nunca se pisa', () => {
+  it('NO genera un ciclo para un periodo que ya tiene uno: un declarado nunca se pisa', () => {
     // El invariante central visto desde la generacion. El declarado de agosto cierra
-    // el 27 y el default diria 20: aun asi no se agrega otro, porque la clave es el
-    // MES del cierre y no la fecha exacta.
+    // el 27 y el default diria 20: aun asi no se agrega otro, porque los dos cierres
+    // estan a 7 dias y son el mismo resumen con fechas distintas.
+    //
+    // Este comentario decia "la clave es el MES del cierre y no la fecha exacta", y esa
+    // formulacion era la que fabricaba un resumen fantasma cuando el cierre se corria al
+    // mes siguiente. El caso real, en ciclo-fantasma.test.ts.
     const declarado = ciclo({ id: 'ago', closing_date: '2026-08-27', due_date: '2026-09-04', source: 'declared' })
     const nuevos = generarCiclos(visa(), new Date(2026, 7, 1), new Date(2026, 8, 1), [declarado])
     expect(nuevos).toHaveLength(1)
